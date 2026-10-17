@@ -12,7 +12,7 @@ Requires Node 22+ and pnpm (`corepack enable`).
 cp .env.example .env
 docker compose up -d            # postgres + minio (or: pnpm db:embedded, no Docker)
 pnpm install
-pnpm db:migrate && pnpm db:seed
+pnpm db:migrate && pnpm db:seed          # optional demo data: pnpm db:seed --demo (docs/demo.md)
 pnpm dev            # http://localhost:3000
 ```
 

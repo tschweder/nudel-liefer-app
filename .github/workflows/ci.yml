@@ -50,4 +50,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate && pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      # The MVP happy path needs the demo seed (confirmed depot); the other specs expect the plain
+      # seed (unconfirmed depot), so they run first and the happy path afterwards (NUD-060).
+      - run: pnpm test:e2e --grep-invert "MVP happy path|demo data"
+      - run: pnpm db:seed --demo --no-photos
+      - run: pnpm test:e2e tests/e2e/mvp-happy-path.spec.ts

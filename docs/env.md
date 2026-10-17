@@ -47,3 +47,7 @@ Uploads go browser -> presigned `PUT` -> bucket (the app server never proxies th
 Set in Vercel, never in git. Production values, preview values and local values must all differ (especially `AUTH_SECRET`). The complete click-by-click setup, including which variable goes to which Vercel environment, is in [`deploy.md`](./deploy.md). The build (`pnpm build:vercel`) fails early with a readable list when a required variable is missing or still points to localhost (`scripts/check-deploy-env.ts`).
 
 Variables Vercel provides automatically and the app reads only for `GET /api/health`: `VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`, `VERCEL_REGION`.
+
+## Demo data (NUD-060)
+
+`pnpm db:seed --demo` adds the demo depot, 20 customers with generated photos, 2 extra products (8 in total) and confirmed orders for the next delivery day (see `docs/demo.md`). It needs `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (and `S3_ENDPOINT` for MinIO) because the photos are stored in the object storage; `pnpm db:seed --demo --no-photos` skips the photos and needs no S3. No new environment variables. Never run it against production.

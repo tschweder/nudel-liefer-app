@@ -109,6 +109,8 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
       await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").fill(search);
       await page.keyboard.press("Enter");
       await expect(combo).toContainText(search.toUpperCase());
+      // The picker closes with an animation; a second open one would make the placeholder ambiguous.
+      await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
     await pickProduct(0, "SPAG");
     await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Packung");
@@ -217,6 +219,8 @@ test("manual order entry: warnings, validation and merged duplicate products", a
       await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").fill(search);
       await page.keyboard.press("Enter");
       await expect(combo).toContainText(search.toUpperCase());
+      // The picker closes with an animation; a second open one would make the placeholder ambiguous.
+      await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
     await pickProduct(0, "SPAG");
     await page.getByTestId("order-save").click();

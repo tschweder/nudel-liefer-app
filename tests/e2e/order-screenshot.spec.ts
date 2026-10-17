@@ -188,6 +188,7 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
       await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").last().fill(search);
       await page.keyboard.press("Enter");
       await expect(combo).toContainText(search.toUpperCase());
+      await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
     await pickProduct(0, "SPAG");
     await lines.nth(0).getByTestId("line-quantity").fill("10");

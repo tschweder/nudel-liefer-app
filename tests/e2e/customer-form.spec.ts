@@ -32,6 +32,10 @@ const noHorizontalScroll = (page: Page) =>
     throw new Error(`overflow: ${wide.join(" | ")}`);
   });
 
+// Next keeps visited routes (the customer list with rows of other specs' customers, which may carry
+// the same flags) hidden in the DOM: flags on the detail page are counted among visible elements only.
+const visible = (page: Page, id: string) => page.locator(`[data-testid="${id}"]:visible`);
+
 async function fillCustomer(page: Page, tag: string, name: string) {
   await page.getByTestId("customer-number").fill(`${tag}-1`);
   await page.getByTestId("customer-name").fill(name);
@@ -80,8 +84,8 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
     await expect(page.getByTestId("detail-pin")).toContainText("Pin bestätigt");
     await expect(page.getByTestId("detail-notes")).toHaveText("Hintereingang im Hof");
-    await expect(page.getByTestId("flag-pin-unconfirmed")).toHaveCount(0);
-    await expect(page.getByTestId("flag-photos-missing")).toBeVisible();
+    await expect(visible(page, "flag-pin-unconfirmed")).toHaveCount(0);
+    await expect(visible(page, "flag-photos-missing")).toBeVisible();
     await expect(page.getByTestId("photo-slots")).toBeVisible();
     await expect(page.getByTestId("orders-empty")).toBeVisible();
     expect(await noHorizontalScroll(page)).toBe(true);
@@ -115,7 +119,7 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await expect(page.getByTestId("pin-hint")).toBeVisible();
     await page.getByTestId("customer-save").click();
     await expect(page).toHaveURL(detailUrl);
-    await expect(page.getByTestId("flag-pin-unconfirmed")).toBeVisible();
+    await expect(visible(page, "flag-pin-unconfirmed")).toBeVisible();
     await expect(page.getByTestId("detail-address")).toContainText("Andere Gasse 5");
 
     // Moving the pin after an address change allows confirming again.
@@ -126,18 +130,18 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await page.getByTestId("pin-confirm").check();
     await page.getByTestId("customer-save").click();
     await expect(page).toHaveURL(detailUrl);
-    await expect(page.getByTestId("flag-pin-unconfirmed")).toHaveCount(0);
+    await expect(visible(page, "flag-pin-unconfirmed")).toHaveCount(0);
 
     // Archive (with confirmation) and reactivate; the row is never deleted.
     await page.getByTestId("customer-archive").click();
     await page.getByTestId("customer-archive-confirm").click();
-    await expect(page.getByTestId("flag-archived")).toBeVisible();
+    await expect(visible(page, "flag-archived")).toBeVisible();
     await page.goto("/de/admin/customers");
     await page.getByTestId("customer-search").fill(tag);
     await expect(page.getByTestId("empty-state")).toBeVisible();
     await page.goto(detailUrl);
     await page.getByTestId("customer-restore").click();
-    await expect(page.getByTestId("flag-archived")).toHaveCount(0);
+    await expect(visible(page, "flag-archived")).toHaveCount(0);
   } finally {
     const client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();

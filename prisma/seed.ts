@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import { PrismaClient, type Unit } from "../src/generated/prisma/client";
 import { createLocalizedText } from "../src/lib/localized-text";
 import { createPrismaClient } from "../src/server/db";
+import { assertDemoStorageConfigured, seedDemo } from "../src/server/demo-seed";
+import { getStorage } from "../src/server/storage";
 
 // `localeChosen`: the four language demo drivers already have their language (they skip the
 // first-start picker, which keeps e2e logins deterministic); `driver-new` shows the picker (NUD-050).
@@ -124,8 +126,30 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
 
 if (process.argv[1]?.endsWith("seed.ts")) {
   const prisma = createPrismaClient();
-  seed(prisma)
-    .then(() => console.log("Seed finished"))
+  const args = process.argv.slice(2);
+  const demo = args.includes("--demo");
+  const photos = !args.includes("--no-photos");
+  const ordersForToday = args.includes("--today");
+  const unknown = args.filter((a) => !["--demo", "--no-photos", "--today"].includes(a));
+  if (unknown.length > 0 || (!demo && (!photos || ordersForToday))) {
+    console.error("Usage: pnpm db:seed [--demo [--no-photos] [--today]]");
+    process.exit(1);
+  }
+  (async () => {
+    // Fail before anything is written when the photos cannot be stored (NUD-060).
+    if (demo && photos) assertDemoStorageConfigured(process.env);
+    await seed(prisma);
+    console.log("Seed finished");
+    if (demo) {
+      const summary = await seedDemo(prisma, {
+        photos,
+        ordersForToday,
+        storage: photos ? getStorage() : undefined,
+        adminEmail: process.env.SEED_ADMIN_EMAIL || "admin@example.com",
+      });
+      console.log("Demo seed finished", summary);
+    }
+  })()
     .catch((e) => {
       console.error(e);
       process.exitCode = 1;

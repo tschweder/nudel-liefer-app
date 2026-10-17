@@ -224,7 +224,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | done |
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | done |
 | NUD-054 | Admin live tour progress | M1 | 053 | done |
-| NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | todo |
+| NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | done |
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | todo |
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | todo |
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | todo |
@@ -1041,7 +1041,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-060 · MVP demo seed + end-to-end happy path
-**Status:** todo · **depends_on:** 054
+**Status:** done · **depends_on:** 054
 
 **Goal:** a convincing demo for the client and a regression safety net.
 
@@ -1052,8 +1052,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - `docs/demo.md`: 5-minute demo script for the client.
 
 **Acceptance criteria**
-- [ ] E2E passes in CI for all four driver locales.
-- [ ] Demo seed is idempotent (re-running doesn't duplicate data).
+- [x] E2E passes in CI for all four driver locales. (Passes locally in all four on a fresh build; the CI workflow was extended but not run, no GitHub remote.)
+- [x] Demo seed is idempotent (re-running doesn't duplicate data). (Integration test + two CLI runs against s3rver: second run creates 0 rows.)
+
+**Implementation notes**
+- `pnpm db:seed --demo [--no-photos] [--today]` (`prisma/seed.ts` -> `server/demo-seed.ts`, data in `server/demo-data.ts`): runs the base seed, then: depot "Nudelfabrik Wien (Demo)", Absberggasse 27, 1100 Wien with a confirmed pin (only while the depot pin is still unconfirmed; a confirmed depot is never overwritten), 20 customers `D-001..D-020` (invented names, real Vienna street addresses, hand-picked pins, `pinConfirmed`, delivery hours, 5 with a note in all four locales), 2 extra products (`RIGA-5`, `GNOC-2`; Hant names via OpenCC, flagged machine) = 8 products, a STORE and a PARKING photo per customer and one CONFIRMED order (1-3 lines, deterministic quantities, half kilos for KG) per customer for the next delivery day (`--today`: today, for a live demo because the driver only sees today's tour).
+- Idempotent through natural keys: customer number, SKU, current photo per kind, demo order marker (`internalNote`) with `deliveryDate >= today`. A rerun adds nothing; on a later day after the demo orders' date has passed it adds a fresh set. Rows that exist are never updated (admin edits survive).
+- Photos: `server/testing/placeholder-image.ts` is a dependency-free PNG writer with a 5x7 bitmap font (800x600, "EINGANG" blue / "PARKEN" green plus the customer number). They are uploaded through `Storage.createUploadUrl` (presigned PUT) and attached with the normal `addCustomerPhoto` (deterministic UUID keys `customers/<uuid>.png`, so reruns reuse them). Without `S3_*` the seed stops before writing anything with a message (the Fake store is per process and would lose them); `--no-photos` skips photos and needs no S3.
+- E2E `tests/e2e/mvp-happy-path.spec.ts` (desktop project, serial): per driver locale (`zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`, `de`; the seeded demo drivers) the admin creates a customer (Fake geocoder, pin confirmed) and an order for TODAY (SPAG 2,5 + PENN 4), generates the tour, assigns the driver and releases; the driver (Pixel 7 context) logs in, sees the tour, opens the stop, the two quantities are asserted (decimal separator per locale), marks delivered; the admin dashboard and tour page show 1 von 1, COMPLETED, stop DELIVERED. Fifth test: a demo customer's photos load (skipped explicitly with a reason when the demo was seeded with `--no-photos`). The spec never edits Settings: it fails up front with a clear message when the depot pin is unconfirmed or another tour exists for today, and removes its own data (`MVP-` customers) before and after.
+- CI: `e2e` job runs the suite with `--grep-invert "MVP happy path|demo data"` on the plain seed, then `db:seed --demo --no-photos` and the happy path (the other specs expect an unconfirmed depot, e.g. `settings.spec.ts`; the server is rebuilt/restarted per `playwright test`, so the Settings cache is fresh).
+- `docs/demo.md`: 5-minute script with preparation, seeded logins and what to show per minute; `docs/env.md` and README mention the flags.
+- Flake fixes found by the regression run: `customer-form.spec.ts` counted `flag-pin-unconfirmed` among hidden elements (Next keeps the visited customer list in the DOM; rows of other specs' unconfirmed customers matched) -> counted among `:visible` only (root cause, not a retry). `orders.spec.ts` / `order-screenshot.spec.ts` picked the second product while the first picker was still closing (strict-mode violation on the placeholder, seen with `--repeat-each=2`) -> each pick waits until the picker is gone.
+- Verified: lint, typecheck, prettier, `i18n:check`, all 70 vitest files (722 tests, DB tests on embedded PostgreSQL; new: placeholder image, demo data, `seedDemo` integration), `pnpm build`, CLI seed against s3rver twice (20 customers / 40 photos / 8 products / 20 orders, second run 0 created; no-S3 message; bad flag usage), the 40 stored photo objects are valid PNGs (one inspected visually), happy path x4 locales + demo photos on a fresh build, regression run of all other e2e specs in groups (desktop + mobile, 2 workers; `tours`/`settings`/`tour-rerelease` with 1 worker): all green; `driver-status` and `admin-progress` desktop only.
+- NOT verified: CI run (no remote); MinIO / R2 (only s3rver); a real phone; ORS routing (fallback heuristic); the hand-picked coordinates against a real map (approximate, see decision log); Chinese strings are still agent-written (NUD-073); the demo script was written from the UI, not rehearsed with the client.
+- Follow-ups: none new that need a ticket; the demo orders are for the next delivery day, the happy path uses today (the driver only sees today's tour).
 
 ---
 
@@ -1501,17 +1513,6 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-051 | Remaining time = planned driving legs to the open stops + service minutes per open stop, rounded up to 5 min, without the way back; not shown at 0 | Uses stored plan values only; no live prediction; return leg is not stored per stop |
 | 2026-10-17 | NUD-051 | 'Seen revision' stored in `localStorage` per tour id; banner and highlights stay until the driver taps "Verstanden"; current revision is recorded silently while the tour was never re-released | Ticket asks for device-side memory; no server acknowledgement exists |
 | 2026-10-17 | NUD-051 | Placeholder route `/driver/stops/[stopId]` (name only, 404 for stops outside the driver's own tour today) until NUD-052; page re-fetches when the app becomes visible | Details button needs a target; a long-open app must notice a re-release |
-
----
-
-## 10. Open questions for the client (do not block on these – use placeholders)
-
-- Exact depot (factory) address → set in Settings (NUD-012).
-- Real product list with units and Chinese names → seed / product admin (NUD-020).
-- Existing customer list file → import (NUD-090).
-- Which Chinese variant(s) the drivers actually read → collected in UAT (NUD-096); all four locales ship regardless.
-- Vehicle type (car vs. van/truck profile for routing) → ORS profile setting (NUD-040).
-- Map tile provider account for production (NUD-011) and DeepL API account (NUD-070).
 | 2026-10-17 | NUD-052 | No swipe between stops, only prev / next buttons (disabled at ends); order = tour sequence regardless of status | Swipe is optional in the ticket; buttons are simplest and 48 px accessible |
 | 2026-10-17 | NUD-052 | Apple Maps button only when the browser reports iOS/iPadOS; Google Maps button always first | Ticket: secondary option on iOS, detected client-side |
 | 2026-10-17 | NUD-052 | Photos shown `contain` in a fixed 4:3 frame; missing photo uses the same frame | Layout never shifts; the whole photo is visible without cropping |
@@ -1529,4 +1530,18 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-054 | "Today" card shows the latest tour of today's date (factory time zone); an unreleased tour shows a hint, not progress | v1 has one tour per day (D5); progress of a tour the driver cannot see would mislead |
 | 2026-10-17 | NUD-054 | Map markers by status: colour plus shape (diamond for problem) plus badge glyph (check / "!"); darker 700 colour shades | Accessibility: status must not depend on colour alone, white text needs AA contrast |
 | 2026-10-17 | NUD-054 | The driver's problem text is shown as written (source locale of the `LocalizedText`), labelled "Originaltext des Fahrers", with `lang` set to that locale | German translation for the office is NUD-072 |
+| 2026-10-17 | NUD-060 | Demo seed = `pnpm db:seed --demo [--no-photos] [--today]`; depot "Absberggasse 27, 1100 Wien" and the 20 customer addresses are real public Vienna streets, pins are hand-picked street-level approximations (not geocoded) with `pinConfirmed=true` | Fake geocoder points are random inside a box; hand-picked ones are plausible. Real onboarding still needs the admin's pin confirmation |
+| 2026-10-17 | NUD-060 | Demo seed needs an S3-compatible store and aborts before writing anything otherwise; `--no-photos` is the explicit escape hatch (CI) | The Fake store lives per process and would lose the photos; CI has no MinIO |
+| 2026-10-17 | NUD-060 | Placeholder photos are PNGs from a tiny built-in bitmap-font encoder, text in capitals ("EINGANG"/"PARKEN") plus the customer number; keys are deterministic UUIDs | No image library in the repo; capitals need only 20 glyphs; deterministic keys make reruns idempotent |
+| 2026-10-17 | NUD-060 | Demo orders: next delivery day by default, `--today` for a live demo; rerun guard = a demo-marked order with `deliveryDate >= today` exists | The driver sees only today's tour; the guard keeps reruns idempotent without touching admin edits |
+| 2026-10-17 | NUD-060 | The happy path creates its own customer + order for TODAY and fails (no skip) when the depot pin is unconfirmed or a tour for today exists; it runs after the plain-seed specs in CI | Never depend on the cached Settings row; a silent skip could hide a broken demo seed |
+---
 
+## 10. Open questions for the client (do not block on these – use placeholders)
+
+- Exact depot (factory) address → set in Settings (NUD-012).
+- Real product list with units and Chinese names → seed / product admin (NUD-020).
+- Existing customer list file → import (NUD-090).
+- Which Chinese variant(s) the drivers actually read → collected in UAT (NUD-096); all four locales ship regardless.
+- Vehicle type (car vs. van/truck profile for routing) → ORS profile setting (NUD-040).
+- Map tile provider account for production (NUD-011) and DeepL API account (NUD-070).
