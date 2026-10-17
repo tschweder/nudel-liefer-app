@@ -227,6 +227,25 @@
         "passwordHint": "至少10个字符。",
         "you": "您"
       }
+    },
+    "maps": {
+      "locate": "查找地址",
+      "locating": "正在查找…",
+      "noAddress": "请先输入地址。",
+      "notFound": "未找到该地址，请在地图上设置标记。",
+      "failed": "地址查找失败，请在地图上设置标记。",
+      "lowConfidence": "位置不确定，请在地图上核对标记。"
+    },
+    "devMaps": {
+      "title": "地图（开发）",
+      "description": "隐藏的开发页面：客户标记、仓库和路线地图组件。",
+      "pinPicker": "标记选择",
+      "address": "地址",
+      "addressPlaceholder": "例如：Graben 1, 1010 Wien",
+      "noPin": "尚未设置标记。",
+      "changes": "更改次数：{count}",
+      "tourMap": "路线地图",
+      "sampleNote": "示例数据，并非真实配送。"
     }
   },
   "driver": {

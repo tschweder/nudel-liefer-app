@@ -1,0 +1,41 @@
+.nudel-map-icon {
+  background: none;
+  border: 0;
+}
+.nudel-pin {
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  background: #dc2626;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  transform: rotate(-45deg);
+}
+.nudel-stop,
+.nudel-depot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  color: #fff;
+  font:
+    700 15px/1 system-ui,
+    sans-serif;
+}
+.nudel-stop {
+  background: #1d4ed8;
+}
+.nudel-depot {
+  background: #15803d;
+  border-radius: 6px;
+  font-size: 18px;
+}
+.nudel-map-wrap .leaflet-container {
+  font-family: inherit;
+}

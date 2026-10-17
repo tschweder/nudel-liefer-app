@@ -227,6 +227,25 @@
         "passwordHint": "Mindestens 10 Zeichen.",
         "you": "Sie"
       }
+    },
+    "maps": {
+      "locate": "Adresse suchen",
+      "locating": "Suche läuft …",
+      "noAddress": "Bitte zuerst eine Adresse eingeben.",
+      "notFound": "Adresse nicht gefunden. Pin bitte auf der Karte setzen.",
+      "failed": "Adresssuche fehlgeschlagen. Pin bitte auf der Karte setzen.",
+      "lowConfidence": "Unsichere Position – bitte Pin auf der Karte prüfen."
+    },
+    "devMaps": {
+      "title": "Karten (Entwicklung)",
+      "description": "Versteckte Entwicklerseite: Bausteine für Kundenpin, Depot und Tourenkarte.",
+      "pinPicker": "Pin-Auswahl",
+      "address": "Adresse",
+      "addressPlaceholder": "z. B. Graben 1, 1010 Wien",
+      "noPin": "Noch kein Pin gesetzt.",
+      "changes": "Änderungen: {count}",
+      "tourMap": "Tourenkarte",
+      "sampleNote": "Beispieldaten, keine echten Lieferungen."
     }
   },
   "driver": {

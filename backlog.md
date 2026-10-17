@@ -206,7 +206,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | blocked |
 | NUD-008 | Admin user management (drivers) | M0 | 005 | done |
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | done |
-| NUD-011 | Map component with draggable pin | M1 | 005 | todo |
+| NUD-011 | Map component with draggable pin | M1 | 005 | done |
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | todo |
 | NUD-013 | Customer list & search | M1 | 005 | todo |
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | todo |
@@ -537,7 +537,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-011 · Map component with draggable pin
-**Status:** todo · **depends_on:** 005
+**Status:** done · **depends_on:** 005
 
 **Goal:** reusable map building blocks for customers, depot and tours.
 
@@ -548,8 +548,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - `<TourMap stops depot geometry>`: numbered markers (1…n), depot marker, polyline; fit bounds.
 
 **Acceptance criteria**
-- [ ] Storybook-like demo page (`/admin/dev/maps`, admin-only, hidden from nav) shows both components.
-- [ ] Dragging the pin calls `onChange` with rounded coordinates (6 decimals).
+- [x] Storybook-like demo page (`/admin/dev/maps`, admin-only, hidden from nav) shows both components.
+- [x] Dragging the pin calls `onChange` with rounded coordinates (6 decimals).
+
+**Implementation notes**
+- Added `leaflet` 1.9.4, `react-leaflet` 5.0.0, `@types/leaflet`. Components in `src/components/maps/`: `PinPickerMap` (click-to-place, draggable marker, optional "locate address" button that calls an injected `onLocate`), `TourMap` (numbered stop markers, depot marker, polyline, fit bounds), `lazy.tsx` (`PinPickerMapLazy` / `TourMapLazy` via `dynamic(..., { ssr: false })`), CSS-only `divIcon` markers (no PNG icon assets), `MapsDemo`.
+- `src/lib/coords.ts` (`roundLatLng`, 6 decimals) and `src/lib/map-config.ts` (`getMapTileConfig`: `MAP_TILE_URL` / `MAP_TILE_ATTRIBUTION`, OSM default for dev only). Tile config is read on the server and passed as props. Env documented in `.env.example` and `docs/env.md` (production needs MapTiler/Stadia or similar).
+- `geocodeAddressAction` (`src/server/geocode-actions.ts`, admin-only server action, zod-validated, uses `getGeocoder()`); authorization test `geocode-actions.integration.test.ts` (anonymous/driver rejected).
+- Dev page `/[locale]/admin/dev/maps`: behind proxy + admin layout + `requirePageActor`, not in the nav, strings in `admin.maps` / `admin.devMaps` (de, zh-Hans, Hant generated).
+- `TourMap.geometry` takes GeoJSON LineString coordinates (`[lng, lat][]`); without geometry no line is drawn (nothing is faked). The demo uses fixed sample points around Vienna labelled as sample data.
+- Verified: lint, typecheck, `pnpm test` (185 tests incl. DB integration via embedded Postgres), `pnpm build`, `i18n:check`, e2e `tests/e2e/maps.spec.ts` (desktop + mobile; tiles stubbed via `page.route`, so no live tile server needed): click-to-place, drag, locate (Fake geocoder), numbered markers, depot, polyline, no horizontal scroll, anonymous redirect, not in nav. Screenshot at 1280 px checked. Other e2e specs shells/home/auth pass (one shells test timed out once under load and passed on rerun); drivers/uploads specs were not rerun (untouched code).
+- NOT verified: real tiles from OSM or a production provider (sandbox blocks tile servers; layout/attribution seen only with stubbed tiles) and a real ORS "locate address" call. The pin has no keyboard alternative yet (map click/drag only); NUD-014 should add editable lat/lng inputs next to the picker.
 
 ---
 
@@ -1206,6 +1215,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-010 | Missing `ORS_API_KEY` uses the Fake with one warning also in production (no throw) | Ticket demands it; admins must confirm every pin (D9), and the Fake's low confidence (0.3) flags it |
 | 2026-10-17 | NUD-010 | Geocoding cache is an in-memory LRU per server instance, no DB table | Simplest option allowed by the ticket; volume is tiny |
 | 2026-10-17 | NUD-010 | ORS key sent in `Authorization` header; retry only timeouts/network/5xx/429 | Keeps the key out of URLs and logs; 4xx will not improve |
+| 2026-10-17 | NUD-011 | Tile URL/attribution are read server-side (`getMapTileConfig`) and passed to the map components as props; custom `MAP_TILE_URL` without `MAP_TILE_ATTRIBUTION` shows no attribution | Client components cannot read non-`NEXT_PUBLIC_` env; avoids baking tile config into the client bundle |
+| 2026-10-17 | NUD-011 | Markers are CSS `divIcon`s; `TourMap.geometry` = GeoJSON LineString coordinates `[lng, lat][]` | Avoids Leaflet's bundler-broken default icons; matches ORS output so NUD-040/042 can pass it through |
+| 2026-10-17 | NUD-011 | "Locate address" uses the first geocoder candidate, warns when confidence < 0.5, and goes through the admin-only server action `geocodeAddressAction` | Geocoder only proposes; admin confirms the pin (D9) |
 
 ---
 
