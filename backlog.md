@@ -217,7 +217,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-032 | Order overview & editing | M1 | 030 | done |
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | done |
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | done |
-| NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | todo |
+| NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | done |
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | todo |
 | NUD-050 | Driver first-start language picker | M1 | 005 | todo |
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | todo |
@@ -840,7 +840,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-042 · Tour planning UI (map, reorder, lock, release)
-**Status:** todo · **depends_on:** 011, 041
+**Status:** done · **depends_on:** 011, 041
 
 **Goal:** office reviews and releases the day's tour.
 
@@ -852,9 +852,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Approximate-route badge when the fallback provider was used.
 
 **Acceptance criteria**
-- [ ] Reordering two stops updates the map numbering and ETAs.
-- [ ] Release requires an assigned driver.
-- [ ] E2E: generate → reorder → release.
+- [x] Reordering two stops updates the map numbering and ETAs. (e2e: drag C to the first place and the "down" button; list numbers, ETAs, marker "1" position and the stored `Stop.sequence` follow; integration test checks legs/ETAs/totals recomputed with `route()`.)
+- [x] Release requires an assigned driver. (button disabled with a hint, and the server refuses with `driver_required`; also tested: inactive driver, outdated tour, stale version.)
+- [x] E2E: generate → reorder → release. (`tests/e2e/tours.spec.ts`, desktop project; also re-optimize, lock, driver, dialog, "in tour" badge link.)
+
+**Implementation notes**
+- Domain `src/domain/tour-plan.ts` (+ test): `isTourEditable` (DRAFT/OPTIMIZED), `moveItem`, `isPermutation`, `sameOrder`, `releaseBlocker` (`tour_not_editable` > `no_stops` > `driver_required` > `outdated`), `durationParts`. ETA recomputation reuses `computeSchedule` / `departureInstant` from NUD-041 (no new helper needed).
+- Server `src/server/tour-planning.ts`: read model `getTourPlan(db, date, tz)` (latest tour of the day with stops, item count = distinct products, photo flags from current photos, depot, geometry, drivers, `warnings` for unconfirmed pins recomputed from the confirmed orders so they survive a reload, `confirmedOrderCount`) and `reorderStopsWith`, `setTourLockedWith`, `assignDriverWith`, `releaseTourWith`. Actions in `tour-actions.ts` (`reorderStopsAction`, `setTourLockedAction`, `assignDriverAction`, `releaseTourAction`; each `requireRole("ADMIN")` first, then strict zod) and the read `tourPlanQuery(date)` in `tour-queries.ts` (ADMIN, bad/missing date -> next delivery date). Error codes (all mapped to `admin.tours.errors.*`; `depot_not_set` uses `admin.settings.errors.depotNotSet` plus a link to the settings): `invalid not_found tour_not_editable stops_changed pin_missing too_many_stops conflict no_stops driver_required driver_invalid outdated` and the NUD-041 generate errors.
+- Reorder: the request must contain exactly the tour's current stop ids (else `stops_changed`, the page reloads); `route()` runs outside the transaction, the write takes the per-date advisory lock and re-checks `Tour.updatedAt`/status (`conflict`). Updates geometry, totals, `approximate`, stop sequence/ETA/legs; the `locked` flag and status are untouched. Release quotes the `version` (= `updatedAt`) the dialog showed.
+- UI `/admin/tours?date=`: `TourDateField` (native date input, URL state), `TourPlanner` (client): empty state + "Tour erstellen"; warnings with links to `/admin/customers/<id>`; status / locked / approximate badges; summary (stops, total time incl. service, km); map (`TourMapLazy`, numbering follows the list, line hidden while recalculating) next to the stop list (number, customer, address, ETA, item count, "photo missing" badges for shop and parking, drag handle + up/down buttons); Re-optimize ("Aus Bestellungen aktualisieren" when locked, same action as NUD-041), lock toggle, driver select, release dialog (stop count, total time, driver). Released tours are read-only. Strings in `admin.tours.*` (de, zh-Hans by hand, Hant generated). The NUD-032 "in tour" badge is now a link (`data-tour-id` kept) to the tour page of that day.
+- Verified: lint, typecheck, `pnpm build`, `pnpm test` (502 passed, DB tests on embedded PostgreSQL; 17 new incl. authorization tests for anonymous/driver on all four mutations and the read), `i18n:check`, prettier (except the untracked sandbox file `pw.local.config.ts`), e2e `tours` (desktop) and `shells` (desktop + mobile, includes the new page in all locales without console errors) and the first `order-overview` test (in-tour badge). Screenshots at 1280 px inspected (planning page, release dialog), no horizontal scroll asserted at 1280.
+- NOT verified: real ORS routing (only the heuristic, so the "approximate" badge was seen but not the non-approximate state, and `route()` with ORS for reorder); mobile/touch use of the page (drag-and-drop is native HTML5 and does not work on touch, the up/down buttons are the touch path; no mobile e2e, the spec is desktop only); real map tiles (stubbed). Two `order-overview` e2e tests (order detail, archive dialog) fail in this sandbox because the e2e script runs without object storage ("Object storage is not configured" on those pages); they do not touch this ticket's code. `tours.spec.ts` temporarily confirms the depot pin and restores it, so it must not run at the same time as `settings.spec.ts`.
+- Follow-ups for NUD-043: edits to RELEASED+ tours are all refused here (`tour_not_editable`); `releaseBlocker` already refuses an outdated tour on first release; the outdated alert on the page is minimal (no diff).
 
 ---
 
@@ -1387,6 +1396,14 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-041 | No routable stops: error `no_stops` (with the warnings) when no tour exists; an existing unreleased tour is emptied instead | An empty new tour is useless; a stale tour must not keep deleted orders |
 | 2026-10-17 | NUD-041 | Dates before today (factory time zone) are refused (`date_in_past`); delivery weekdays are not enforced; archived customers with confirmed orders still get a stop | Same rule as order entry; weekdays only drive defaults; the office cancels orders it does not want delivered |
 | 2026-10-17 | NUD-041 | The write is one transaction with a per-date advisory lock that re-checks the tour and confirmed orders (id + `updatedAt`) used for planning; a mismatch returns `conflict` | Routing can take up to 8 s; an order saved meanwhile (whose outdated flag would be missed) must not yield a silently stale tour |
+| 2026-10-17 | NUD-042 | Drag and drop is native HTML5 (`draggable`), no DnD library; up/down buttons are the keyboard and touch path | Simplest, no dependency; touch drag is not supported by HTML5 DnD |
+| 2026-10-17 | NUD-042 | Manual reorder keeps `locked` as it is and does not lock the tour; re-optimize on an unlocked tour discards manual order (button hint says so); on a locked tour the same button is labelled "update from orders" and keeps the order (NUD-041 rule) | Lock is an explicit office decision (ticket lists it as its own toggle) |
+| 2026-10-17 | NUD-042 | All edits (reorder, lock, driver, re-run) of RELEASED / IN_PROGRESS / COMPLETED tours are refused with `tour_not_editable`; the page shows them read-only | Ticket says reject edits to released tours; what NUD-043 may allow is defined there |
+| 2026-10-17 | NUD-042 | Release is refused for an outdated tour (`outdated`: orders changed after the tour was built) and for a tour whose `version` (`updatedAt`) differs from the one shown in the dialog (`conflict`) | Priority 2: the driver must not get stale quantities; the office releases exactly what it confirmed |
+| 2026-10-17 | NUD-042 | Only active users with role DRIVER can be assigned; the assignment can be cleared (`null`) on an unreleased tour; a deactivated assigned driver blocks release (`driver_invalid`) | Driver accounts are soft-deleted (D13 / 4.3) |
+| 2026-10-17 | NUD-042 | Stop "item count" = number of distinct products over the stop's linked orders; "photos missing" flags use the current STORE / PARKING photos of the customer | Ticket asks for item count and missing-photo flags only; quantities are shown by the driver screens |
+| 2026-10-17 | NUD-042 | Pin warnings are recomputed from the confirmed orders on every page load (not only after "generate") | They must stay visible after reload and when no tour exists yet |
+| 2026-10-17 | NUD-042 | Date picker is a native `<input type="date">` bound to `?date=`; no/invalid date = next delivery date | Same choice as NUD-030/032 |
 
 ---
 

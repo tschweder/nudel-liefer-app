@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
@@ -106,16 +107,22 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
             </TableCell>
             <TableCell>
               {order.tour ? (
-                <Badge
-                  variant="outline"
-                  className="gap-1"
-                  data-testid="order-in-tour"
-                  data-tour-id={order.tour.tourId}
-                  data-stop-id={order.tour.stopId}
+                <Link
+                  href={`/admin/tours?date=${formatCalendarDate(order.deliveryDate)}`}
+                  className="inline-flex"
+                  data-testid="order-in-tour-link"
                 >
-                  <RouteIcon className="size-3.5" aria-hidden />
-                  {t("inTour")}
-                </Badge>
+                  <Badge
+                    variant="outline"
+                    className="gap-1"
+                    data-testid="order-in-tour"
+                    data-tour-id={order.tour.tourId}
+                    data-stop-id={order.tour.stopId}
+                  >
+                    <RouteIcon className="size-3.5" aria-hidden />
+                    {t("inTour")}
+                  </Badge>
+                </Link>
               ) : null}
             </TableCell>
           </TableRow>
