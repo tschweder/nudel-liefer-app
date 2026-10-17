@@ -223,6 +223,8 @@ model Tour {
   geometry       Json?
   totalDistanceM Int?
   totalDurationS Int?
+  /// True when the route came from the local heuristic (estimated distances, straight-line geometry).
+  approximate    Boolean    @default(false)
   optimizedAt    DateTime?
   releasedAt     DateTime?
   completedAt    DateTime?

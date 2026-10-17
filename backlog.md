@@ -216,7 +216,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | done |
 | NUD-032 | Order overview & editing | M1 | 030 | done |
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | done |
-| NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | todo |
+| NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | done |
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | todo |
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | todo |
 | NUD-050 | Driver first-start language picker | M1 | 005 | todo |
@@ -573,7 +573,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Settings are cached server-side and invalidated on save.
 
 **Acceptance criteria**
-- [ ] Tour building (NUD-041) refuses to run with a clear message if the depot pin is not set. (Settings-side guard done and tested: `requireDepot` / `requireDepotConfigured()` throw `DepotNotSetError` (`code: "DEPOT_NOT_SET"`), message key `admin.settings.errors.depotNotSet`. **Left unticked: NUD-041 must call it and show the message**; the tour builder does not exist yet.)
+- [x] Tour building (NUD-041) refuses to run with a clear message if the depot pin is not set. (Settings-side guard done and tested: `requireDepot` / `requireDepotConfigured()` throw `DepotNotSetError` (`code: "DEPOT_NOT_SET"`), message key `admin.settings.errors.depotNotSet`. NUD-041 calls it first and returns `error: "depot_not_set"` without writing anything (tested); the message itself is shown by the NUD-042 UI, which does not exist yet.)
 - [x] Changing delivery weekdays changes the default delivery date in order entry (unit-tested helper `nextDeliveryDate(now, settings)`). (Helper + `getDefaultDeliveryDate()` tested; the order-entry form itself is NUD-030 and must call `getDefaultDeliveryDate()`.)
 
 **Implementation notes**
@@ -813,7 +813,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 ---
 #### NUD-041 · Tour builder (orders → stops → optimized tour)
-**Status:** todo · **depends_on:** 012, 032, 040
+**Status:** done · **depends_on:** 012, 032, 040
 
 **Goal:** one click creates an optimized tour for a date.
 
@@ -824,9 +824,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Re-running on an unreleased tour replaces stops; on a **locked** tour it only adds new customers at the end (log decision if different).
 
 **Acceptance criteria**
-- [ ] Unit test: 3 orders from 2 customers → 2 stops, quantities merged correctly per product.
-- [ ] Integration test with Fake/heuristic provider: tour persisted with correct sequence and ETAs.
-- [ ] Customers without confirmed pins are reported, not silently dropped.
+- [x] Unit test: 3 orders from 2 customers → 2 stops, quantities merged correctly per product. (`src/domain/tour.test.ts`)
+- [x] Integration test with Fake/heuristic provider: tour persisted with correct sequence and ETAs. (`src/server/tour-builder.integration.test.ts`, embedded PostgreSQL, `LocalHeuristicProvider`)
+- [x] Customers without confirmed pins are reported, not silently dropped. (`warnings[]` in the result, also together with `no_stops`; tested for `pinConfirmed=false` and missing coordinates)
+
+**Implementation notes**
+- Pure logic in `src/domain/tour.ts`: `buildStops(orders)` (one stop per customer, exact per-product sums in hundredths, order ids kept for the `StopOrder` links), `partitionByPin`, `mergeLockedOrder`, `departureInstant(date, "HH:MM", timezone)` (DST-safe), `computeSchedule` (ETA = departure + cumulative driving legs + service time of every earlier stop). Service: `src/server/tour-builder.ts` with `generateTourWith(deps, date)` (injectable db / provider / depot guard / settings / clock, used by the tests) and `generateTour(date)` (real `getDb()`, `getRoutingProvider()`, `requireDepotConfigured`, `getSettings`). Server action wrapper `generateTourAction(input)` in `tour-actions.ts` (`requireRole("ADMIN")` first, then zod `{date: "YYYY-MM-DD"}`), no page: NUD-042 builds the UI.
+- Result: `{ ok: true, tourId, mode: created|replaced|locked_extended, stopCount, addedCustomerIds, removedCustomerIds, approximate, warnings }` or `{ ok: false, error, warnings, maxStops? }` with `error` one of `invalid_date | date_in_past | depot_not_set | no_stops | tour_not_editable | too_many_stops | conflict`. Warnings are `{code: "PIN_UNCONFIRMED", customerId, customerNumber, name, orderIds}` (UI links to `/admin/customers/<id>`). **NUD-042 maps `depot_not_set` to `admin.settings.errors.depotNotSet`** and needs new i18n keys for the other errors (none were added here: no UI).
+- Data: new column `Tour.approximate Boolean @default(false)` (migration `20261017170000_tour_approximate`) so the UI can show the badge without recomputing. Stored per stop: `sequence` (1-based), `etaAt` (arrival), `legDistanceM`/`legDurationS` (the leg that ends at this stop; the return leg is only in the tour totals). Tour: `depotSnapshot {name,address,lat,lng}`, `geometry` (GeoJSON LineString), `totalDistanceM`, `totalDurationS` (= driving incl. return leg **plus service time**), `optimizedAt`, `isOutdated=false`, status `OPTIMIZED`.
+- Re-run rules: unreleased (DRAFT/OPTIMIZED) -> re-optimized, stop rows are reused per customer (same ids), missing ones created, others deleted, `driverId`/`locked` kept. Locked -> `route()` over the kept order. RELEASED / IN_PROGRESS / COMPLETED -> `tour_not_editable` (re-release is NUD-043). The write runs in one transaction behind a per-date advisory lock and re-checks the tour and the confirmed orders (id + `updatedAt`) that the plan was based on; if anything changed while routing, nothing is stored and the result is `conflict` (retry).
+- Verified: lint, typecheck, i18n:check, prettier, `pnpm test` (485 passed incl. 29 new; DB tests on embedded PostgreSQL), including authorization tests (anonymous and DRIVER rejected by `generateTourAction`, nothing written). The NUD-012 criterion "refuses without depot" is now ticked (test: `depot_not_set`, no tour written).
+- NOT verified: `pnpm build` and e2e (no UI/route; the action is not imported by any page yet); behaviour with the real ORS provider (only `LocalHeuristicProvider` was used, as no key exists); concurrency of two simultaneous generate calls beyond the conflict test; the 51-customer TOO_MANY_STOPS test runs the heuristic only.
+- Follow-ups for NUD-042/043: show `warnings`, `approximate`, `mode`/`removedCustomerIds` (customers dropped from a locked tour) and the error messages; NUD-043 must handle RELEASED/IN_PROGRESS tours (`tour_not_editable`); the in-place stop reuse already keeps ids stable for a diff.
 
 ---
 
@@ -1370,6 +1379,14 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-040 | Directions are requested in chunks of at most 50 coordinates sharing boundary points | ORS caps waypoints per directions request; 50 stops + depot twice is 52 points |
 | 2026-10-17 | NUD-040 | More than 50 stops -> `RoutingError` `TOO_MANY_STOPS` from every provider, never routed on the fallback either; invalid input does not fall back | Ticket demands a documented error; the fallback must not hide caller mistakes |
 | 2026-10-17 | NUD-040 | Missing key -> `LocalHeuristicProvider` alone with one warning (also in production); its results are flagged `approximate` | Mirrors NUD-010; the heuristic is an estimate, never presented as road data |
+| 2026-10-17 | NUD-041 | `Tour.approximate` is a new column (migration), not part of `geometry` JSON | `geometry` is passed straight to `TourMap`; a flag is cheap to query and a schema-visible fact for NUD-042 |
+| 2026-10-17 | NUD-041 | `Tour.totalDurationS` = driving (incl. return leg) + service minutes of all stops; stop `legDurationS`/`legDistanceM` = leg arriving at that stop | The office wants the tour's real length; legs and ETAs stay reproducible from stored values |
+| 2026-10-17 | NUD-041 | Re-running is allowed only for DRAFT/OPTIMIZED tours; RELEASED, IN_PROGRESS and COMPLETED return `tour_not_editable` | Replacing stops of a tour the driver may already use would break priority 2; re-release is NUD-043 |
+| 2026-10-17 | NUD-041 | Locked tour: kept customers keep their position, new ones are appended in order of their first order, customers with no routable confirmed order left are removed (and reported), legs/ETAs recomputed with `route()` | Ticket says "only adds new customers at the end"; keeping an empty stop would show the driver nothing to unload |
+| 2026-10-17 | NUD-041 | Existing stop rows are reused per customer on every re-run (updated in place), not deleted and recreated | Stable stop ids for NUD-042/043 diffs; same outcome as "replace" |
+| 2026-10-17 | NUD-041 | No routable stops: error `no_stops` (with the warnings) when no tour exists; an existing unreleased tour is emptied instead | An empty new tour is useless; a stale tour must not keep deleted orders |
+| 2026-10-17 | NUD-041 | Dates before today (factory time zone) are refused (`date_in_past`); delivery weekdays are not enforced; archived customers with confirmed orders still get a stop | Same rule as order entry; weekdays only drive defaults; the office cancels orders it does not want delivered |
+| 2026-10-17 | NUD-041 | The write is one transaction with a per-date advisory lock that re-checks the tour and confirmed orders (id + `updatedAt`) used for planning; a mismatch returns `conflict` | Routing can take up to 8 s; an order saved meanwhile (whose outdated flag would be missed) must not yield a silently stale tour |
 
 ---
 
