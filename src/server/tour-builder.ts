@@ -94,9 +94,10 @@ function orderSignature(orders: ReadonlyArray<{ id: string; updatedAt: Date }>):
  *   one keeps the order of its stops: customers that still have something to deliver stay where
  *   they are, new customers are appended at the end, customers without orders are removed, and
  *   legs / ETAs are recomputed with `route()`. A released, running or completed tour is refused
- *   (re-release belongs to NUD-043).
+ *   (a released tour is updated by the re-release in tour-rerelease.ts).
  * - ETAs = `Settings.departureTime` in the factory time zone + cumulative driving legs + service
  *   minutes at every earlier stop. `Tour.totalDurationS` is driving plus service time.
+ * - Every stop stores the quantities it was built with (`Stop.items`), the base of the change diff.
  *
  * The caller must have checked the ADMIN role (see `tour-actions.ts`).
  */
@@ -277,6 +278,11 @@ export async function generateTourWith(
           etaAt: schedule.etas[index],
           legDistanceM: legs[index].distanceM,
           legDurationS: legs[index].durationS,
+          // What the office releases for this stop; the driver sees this snapshot (NUD-043).
+          items: stop.items.map((i) => ({
+            productId: i.productId,
+            quantityCents: i.quantityCents,
+          })),
         };
         const orderLinks = stop.orderIds.map((orderId) => ({ orderId }));
         const stopId = stopByCustomer.get(stop.customerId);

@@ -9,12 +9,14 @@ import {
   releaseBlocker,
   sameOrder,
 } from "@/domain/tour-plan";
+import { canTransition, isReReleasable } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
 import type { AppSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
+import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
 
 /**
  * Tour planning (NUD-042): the read model of `/admin/tours` and the mutations behind its buttons.
@@ -43,6 +45,9 @@ export type PlanStop = {
   orderCount: number;
   hasStorePhoto: boolean;
   hasParkingPhoto: boolean;
+  status: "PENDING" | "DELIVERED" | "PROBLEM";
+  /** Set by a re-release (NUD-043): the stop was added or its quantities changed. */
+  changeKind: "ADDED" | "CHANGED" | null;
 };
 
 export type PlanDriver = { id: string; displayName: string; username: string; active: boolean };
@@ -59,6 +64,14 @@ export type PlanTour = {
   totalDistanceM: number | null;
   totalDurationS: number | null;
   releasedAt: string | null;
+  /** 0 = never released, 1 = first release, +1 per re-release that changed something. */
+  releaseRevision: number;
+  reReleasedAt: string | null;
+  /**
+   * For a released tour whose orders changed: what differs between the released stops and the
+   * confirmed orders now (the banner's diff). `null` when the tour is not outdated or not released.
+   */
+  diff: TourDiffView | null;
   depot: { name: string; address: string; lat: number; lng: number } | null;
   /** GeoJSON LineString coordinates (`[lng, lat]`). */
   geometry: Array<[number, number]> | null;
@@ -129,6 +142,12 @@ export async function getTourPlan(
     },
   });
 
+  const releaseTour =
+    tour && tour.isOutdated && isReReleasable(tour.status)
+      ? await loadReleaseTour(db, tour.id)
+      : null;
+  const diff = releaseTour ? await getTourDiffView(db, releaseTour) : null;
+
   const orders = await listConfirmedOrdersForDate(db, date);
   const planned = buildStops(orders);
   const customers = await db.customer.findMany({
@@ -184,6 +203,9 @@ export async function getTourPlan(
           totalDistanceM: tour.totalDistanceM,
           totalDurationS: tour.totalDurationS,
           releasedAt: tour.releasedAt?.toISOString() ?? null,
+          releaseRevision: tour.releaseRevision,
+          reReleasedAt: tour.reReleasedAt?.toISOString() ?? null,
+          diff,
           depot: readDepot(tour.depotSnapshot),
           geometry: readGeometry(tour.geometry),
           stops: tour.stops.flatMap((s) =>
@@ -210,6 +232,8 @@ export async function getTourPlan(
                     orderCount: s.orders.length,
                     hasStorePhoto: s.customer.photos.some((p) => p.kind === "STORE"),
                     hasParkingPhoto: s.customer.photos.some((p) => p.kind === "PARKING"),
+                    status: s.status,
+                    changeKind: s.changeKind,
                   },
                 ],
           ),
@@ -229,7 +253,8 @@ export type PlanError =
   | "no_stops"
   | "driver_required"
   | "driver_invalid"
-  | "outdated";
+  | "outdated"
+  | "not_released";
 
 export type PlanResult<T = object> = ({ ok: true } & T) | { ok: false; error: PlanError };
 
@@ -435,6 +460,7 @@ export async function releaseTourWith(
         isOutdated: tour.isOutdated,
       });
       if (blocker) return fail(blocker);
+      if (!canTransition(tour.status, "RELEASED")) return fail("tour_not_editable");
       if (!tour.driver?.active || tour.driver.role !== "DRIVER") return fail("driver_invalid");
       if (tour.updatedAt.getTime() !== version.getTime()) return fail("conflict");
       const updated = await tx.tour.updateMany({
@@ -443,7 +469,7 @@ export async function releaseTourWith(
           updatedAt: tour.updatedAt,
           status: { in: [...EDITABLE_TOUR_STATUSES] },
         },
-        data: { status: "RELEASED", releasedAt: now },
+        data: { status: "RELEASED", releasedAt: now, releaseRevision: 1 },
       });
       if (updated.count !== 1) return fail("conflict");
       return { ok: true, releasedAt: now.toISOString(), stopCount: tour._count.stops };

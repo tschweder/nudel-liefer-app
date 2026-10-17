@@ -14,6 +14,7 @@ import {
   reorderStopsWith,
   setTourLockedWith,
 } from "./tour-planning";
+import { type ReReleaseOk, reReleaseTourWith } from "./tour-rerelease";
 
 const generateTourInputSchema = z.object({ date: z.string().trim().min(1).max(10) }).strict();
 
@@ -61,4 +62,17 @@ export async function releaseTourAction(
 ): Promise<PlanResult<{ releasedAt: string; stopCount: number }>> {
   await requireRole("ADMIN");
   return releaseTourWith(getDb(), input);
+}
+
+/**
+ * Admin-only: re-release a RELEASED / IN_PROGRESS tour whose orders changed (NUD-043). The stops
+ * are updated to the current confirmed orders (completed stops are never reset) and the driver
+ * sees the update. `{tourId, version}` (version from the page, as for the first release).
+ */
+export async function reReleaseTourAction(input: unknown): Promise<PlanResult<ReReleaseOk>> {
+  await requireRole("ADMIN");
+  return reReleaseTourWith(
+    { db: getDb(), provider: getRoutingProvider(), loadSettings: getSettings },
+    input,
+  );
 }

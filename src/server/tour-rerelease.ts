@@ -1,0 +1,487 @@
+import { z } from "zod";
+
+import { computeSchedule, departureInstant, hasConfirmedPin, type StopItem } from "@/domain/tour";
+import {
+  type ItemChange,
+  planReRelease,
+  type ReleasePlan,
+  type SnapshotStop,
+  type TourDiff,
+} from "@/domain/tour-diff";
+import {
+  canTransition,
+  deriveTourStatus,
+  isReleasedStatus,
+  isReReleasable,
+} from "@/domain/tour-status";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+
+import { listConfirmedOrdersForDate } from "./orders";
+import { RoutingError, type RoutingProvider } from "./routing";
+import type { AppSettings } from "./settings";
+import type { PlanResult } from "./tour-planning";
+
+/**
+ * Re-release (NUD-043): a released tour whose orders changed (`isOutdated`) is updated in place
+ * and handed to the driver again, with a revision number, change markers per stop and the
+ * quantities the driver must see. Completed stops are frozen: their status, completion data,
+ * quantities and order links are never touched. Callers have checked the ADMIN role.
+ *
+ * Rules (see backlog §9): the order of the open stops is kept, new customers are appended, open
+ * stops without orders are removed, ETAs / legs are recomputed with `route()` over the whole
+ * sequence and written to open stops only. A re-release that changes nothing the driver sees
+ * only clears the outdated flag.
+ */
+
+const itemsSchema = z.array(
+  z.object({ productId: z.string(), quantityCents: z.number().int().nonnegative() }),
+);
+
+/** `Stop.items` JSON as typed list; anything malformed counts as "no items". */
+export function readStopItems(value: unknown): StopItem[] {
+  const parsed = itemsSchema.safeParse(value);
+  return parsed.success ? parsed.data : [];
+}
+
+const tourInclude = {
+  stops: {
+    orderBy: { sequence: "asc" },
+    include: {
+      orders: { select: { orderId: true } },
+      customer: {
+        select: {
+          id: true,
+          customerNumber: true,
+          name: true,
+          lat: true,
+          lng: true,
+          pinConfirmed: true,
+        },
+      },
+    },
+  },
+  driver: { select: { active: true, role: true } },
+} satisfies Prisma.TourInclude;
+
+export type ReleaseTour = Prisma.TourGetPayload<{ include: typeof tourInclude }>;
+
+type ReleaseDb = Pick<PrismaClient, "tour" | "order" | "customer" | "product">;
+
+export function loadReleaseTour(db: Pick<PrismaClient, "tour">, tourId: string) {
+  return db.tour.findUnique({ where: { id: tourId }, include: tourInclude });
+}
+
+/** Fingerprint of the stops (id + status): a driver completing a stop meanwhile changes it. */
+function stopSignature(stops: ReadonlyArray<{ id: string; status: string }>): string {
+  return [...stops]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((s) => `${s.id}:${s.status}`)
+    .join("|");
+}
+
+function orderSignature(orders: ReadonlyArray<{ id: string; updatedAt: Date }>): string {
+  return orders.map((o) => `${o.id}@${o.updatedAt.getTime()}`).join("|");
+}
+
+export type LoadedReleasePlan = {
+  plan: ReleasePlan;
+  orderSignature: string;
+  stopSignature: string;
+  customers: Map<string, ReleaseTour["stops"][number]["customer"]>;
+};
+
+/**
+ * Compares the stops of a released tour with the CONFIRMED orders of its day. Customers without
+ * a confirmed pin cannot be routed, so their orders are left out (the planning page lists them as
+ * warnings); orders linked to a completed stop are always kept so that their edits are reported.
+ */
+export async function loadReleasePlan(
+  db: Pick<PrismaClient, "order" | "customer">,
+  tour: ReleaseTour,
+): Promise<LoadedReleasePlan> {
+  const orders = await listConfirmedOrdersForDate(db, tour.date);
+  const customerIds = [
+    ...new Set([...orders.map((o) => o.customerId), ...tour.stops.map((s) => s.customerId)]),
+  ];
+  const rows = await db.customer.findMany({
+    where: { id: { in: customerIds } },
+    select: {
+      id: true,
+      customerNumber: true,
+      name: true,
+      lat: true,
+      lng: true,
+      pinConfirmed: true,
+    },
+  });
+  const customers = new Map(rows.map((c) => [c.id, c]));
+  const frozen = new Set(
+    tour.stops.filter((s) => s.status !== "PENDING").flatMap((s) => s.orders.map((o) => o.orderId)),
+  );
+  const usable = orders.filter(
+    (o) => frozen.has(o.id) || hasConfirmedPin(customers.get(o.customerId)),
+  );
+  const snapshot: SnapshotStop[] = tour.stops.map((s) => ({
+    id: s.id,
+    customerId: s.customerId,
+    sequence: s.sequence,
+    completed: s.status !== "PENDING",
+    orderIds: s.orders.map((o) => o.orderId),
+    items: readStopItems(s.items),
+  }));
+  return {
+    plan: planReRelease(snapshot, usable),
+    orderSignature: orderSignature(orders),
+    stopSignature: stopSignature(tour.stops),
+    customers,
+  };
+}
+
+/** True when the driver would see something different (completed-stop edits alone do not count). */
+export function isDispatchable(diff: TourDiff): boolean {
+  return diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+}
+
+// ---- read model for the admin banner ----
+
+export type DiffItemView = {
+  productId: string;
+  sku: string;
+  /** `LocalizedText` JSON; the client picks the locale. */
+  name: unknown;
+  unit: string;
+  beforeCents: number;
+  afterCents: number;
+};
+export type DiffStopView = {
+  stopId: string | null;
+  customerId: string;
+  customerNumber: string;
+  name: string;
+  items: DiffItemView[];
+};
+export type TourDiffView = {
+  added: DiffStopView[];
+  removed: DiffStopView[];
+  changed: DiffStopView[];
+  completedChanged: DiffStopView[];
+};
+
+/** The diff of an outdated released tour with customer and product names, for the banner. */
+export async function getTourDiffView(db: ReleaseDb, tour: ReleaseTour): Promise<TourDiffView> {
+  const { plan, customers } = await loadReleasePlan(db, tour);
+  const productIds = new Set<string>();
+  const collect = (items: Array<StopItem | ItemChange>) =>
+    items.forEach((i) => productIds.add(i.productId));
+  const d = plan.diff;
+  d.added.forEach((e) => collect(e.items));
+  d.removed.forEach((e) => collect(e.items));
+  d.changed.forEach((e) => collect(e.items));
+  d.completedChanged.forEach((e) => collect(e.items));
+  const products = new Map(
+    (
+      await db.product.findMany({
+        where: { id: { in: [...productIds] } },
+        select: { id: true, sku: true, name: true, unit: true },
+      })
+    ).map((p) => [p.id, p]),
+  );
+  const view = (
+    stopId: string | null,
+    customerId: string,
+    lines: Array<{ productId: string; beforeCents: number; afterCents: number }>,
+  ): DiffStopView => {
+    const c = customers.get(customerId);
+    return {
+      stopId,
+      customerId,
+      customerNumber: c?.customerNumber ?? "",
+      name: c?.name ?? "",
+      items: lines.map((l) => ({
+        ...l,
+        sku: products.get(l.productId)?.sku ?? "",
+        name: products.get(l.productId)?.name ?? null,
+        unit: products.get(l.productId)?.unit ?? "PACK",
+      })),
+    };
+  };
+  const asAdded = (items: StopItem[]) =>
+    items.map((i) => ({ productId: i.productId, beforeCents: 0, afterCents: i.quantityCents }));
+  const asRemoved = (items: StopItem[]) =>
+    items.map((i) => ({ productId: i.productId, beforeCents: i.quantityCents, afterCents: 0 }));
+  return {
+    added: d.added.map((e) => view(null, e.customerId, asAdded(e.items))),
+    removed: d.removed.map((e) => view(e.stopId, e.customerId, asRemoved(e.items))),
+    changed: d.changed.map((e) => view(e.stopId, e.customerId, e.items)),
+    completedChanged: d.completedChanged.map((e) => view(e.stopId, e.customerId, e.items)),
+  };
+}
+
+// ---- the mutation ----
+
+export type ReReleaseDeps = {
+  db: PrismaClient;
+  provider: RoutingProvider;
+  loadSettings: () => Promise<Pick<
+    AppSettings,
+    "timezone" | "departureTime" | "serviceMinutesPerStop"
+  > | null>;
+};
+
+export type ReReleaseOk = {
+  /** False when nothing changed for the driver: only the outdated flag was cleared. */
+  changed: boolean;
+  revision: number;
+  added: number;
+  removed: number;
+  changedStops: number;
+  /** Delivered / problem stops whose orders were edited afterwards (reported, never re-dispatched). */
+  completedChanged: number;
+};
+
+const reReleaseSchema = z
+  .object({ tourId: z.string().trim().min(1).max(64), version: z.string().max(40) })
+  .strict();
+
+class ConflictError extends Error {}
+
+const fail = (error: Extract<PlanResult, { ok: false }>["error"]) => ({
+  ok: false as const,
+  error,
+});
+
+const depotSchema = z.object({ lat: z.number(), lng: z.number() });
+
+/**
+ * Updates a RELEASED / IN_PROGRESS tour to the current confirmed orders and releases it again.
+ * `version` is the tour's `updatedAt` the office saw next to the diff; if the tour, its stops or
+ * the orders changed since, nothing is written (`conflict`).
+ */
+export async function reReleaseTourWith(
+  deps: ReReleaseDeps,
+  rawInput: unknown,
+  now: Date = new Date(),
+): Promise<PlanResult<ReReleaseOk>> {
+  const input = reReleaseSchema.safeParse(rawInput);
+  if (!input.success) return fail("invalid");
+  const version = new Date(input.data.version);
+  if (!Number.isFinite(version.getTime())) return fail("invalid");
+  const { db, provider } = deps;
+
+  const tour = await loadReleaseTour(db, input.data.tourId);
+  if (!tour) return fail("not_found");
+  if (!isReReleasable(tour.status)) {
+    return fail(isReleasedStatus(tour.status) ? "tour_not_editable" : "not_released");
+  }
+  if (!tour.driverId) return fail("driver_required");
+  if (!tour.driver?.active || tour.driver.role !== "DRIVER") return fail("driver_invalid");
+  if (tour.updatedAt.getTime() !== version.getTime()) return fail("conflict");
+
+  const loaded = await loadReleasePlan(db, tour);
+  const { plan } = loaded;
+  const dispatchable = isDispatchable(plan.diff);
+  const lockKey = `tour:${tour.date.toISOString().slice(0, 10)}`;
+  const counts = {
+    added: plan.diff.added.length,
+    removed: plan.diff.removed.length,
+    changedStops: plan.diff.changed.length,
+    completedChanged: plan.diff.completedChanged.length,
+  };
+
+  // Guards shared by both paths, run inside the transaction behind the per-date lock.
+  const recheck = async (tx: Pick<PrismaClient, "tour" | "stop" | "order">) => {
+    const fresh = await tx.tour.findUnique({
+      where: { id: tour.id },
+      select: { updatedAt: true, status: true, stops: { select: { id: true, status: true } } },
+    });
+    if (
+      !fresh ||
+      fresh.updatedAt.getTime() !== tour.updatedAt.getTime() ||
+      !isReReleasable(fresh.status) ||
+      stopSignature(fresh.stops) !== loaded.stopSignature ||
+      orderSignature(await listConfirmedOrdersForDate(tx, tour.date)) !== loaded.orderSignature
+    ) {
+      throw new ConflictError();
+    }
+  };
+  const replaceLinks = async (
+    tx: Pick<PrismaClient, "stop" | "stopOrder">,
+    stopId: string,
+    orderIds: string[],
+    data: Prisma.StopUncheckedUpdateManyInput,
+  ) => {
+    // Guarded on PENDING: a stop the driver completed meanwhile is never touched.
+    const updated = await tx.stop.updateMany({ where: { id: stopId, status: "PENDING" }, data });
+    if (updated.count !== 1) throw new ConflictError();
+    await tx.stopOrder.deleteMany({ where: { stopId } });
+    await tx.stopOrder.createMany({ data: orderIds.map((orderId) => ({ stopId, orderId })) });
+  };
+
+  if (!dispatchable) {
+    try {
+      await db.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+          await recheck(tx);
+          for (const entry of plan.entries) {
+            if (entry.kind === "existing") {
+              // `sequence` unchanged: a real UPDATE whose row count proves the stop is still PENDING.
+              await replaceLinks(tx, entry.stopId, entry.orderIds, {
+                sequence: tour.stops.find((s) => s.id === entry.stopId)!.sequence,
+              });
+            }
+          }
+          await tx.tour.update({ where: { id: tour.id }, data: { isOutdated: false } });
+        },
+        { timeout: 20_000, maxWait: 10_000 },
+      );
+    } catch (error) {
+      if (error instanceof ConflictError) return fail("conflict");
+      throw error;
+    }
+    return { ok: true, changed: false, revision: tour.releaseRevision, ...counts };
+  }
+
+  // Dispatchable change: route over the new sequence (outside the transaction, like the builder).
+  const settings = await deps.loadSettings();
+  const depot = depotSchema.safeParse(tour.depotSnapshot);
+  if (!settings || !depot.success) return fail("invalid");
+  const customerPoint = (customerId: string) => {
+    const c = loaded.customers.get(customerId);
+    return c && c.lat !== null && c.lng !== null ? { lat: c.lat, lng: c.lng } : null;
+  };
+  const points: Array<{ lat: number; lng: number }> = [];
+  for (const entry of plan.entries) {
+    const point = customerPoint(entry.customerId);
+    if (!point) return fail("pin_missing");
+    points.push(point);
+  }
+  let route;
+  try {
+    route = await provider.route({ depot: depot.data, orderedStops: points });
+  } catch (error) {
+    if (error instanceof RoutingError && error.code === "TOO_MANY_STOPS") {
+      return fail("too_many_stops");
+    }
+    throw error;
+  }
+  if (route.legs.length !== plan.entries.length + 1) {
+    throw new Error(
+      `Routing provider returned ${route.legs.length} legs, expected ${plan.entries.length + 1}`,
+    );
+  }
+  const legs = route.legs.map((l) => ({
+    distanceM: Math.round(l.distanceM),
+    durationS: Math.round(l.durationS),
+  }));
+  const schedule = computeSchedule({
+    departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
+    legDurationsS: legs.map((l) => l.durationS),
+    serviceSecondsPerStop: settings.serviceMinutesPerStop * 60,
+  });
+
+  const revision = tour.releaseRevision + 1;
+  const stopById = new Map(tour.stops.map((s) => [s.id, s]));
+  const customerLabel = (customerId: string) => {
+    const c = loaded.customers.get(customerId);
+    return { customerId, customerNumber: c?.customerNumber ?? "", name: c?.name ?? "" };
+  };
+  const lastChange = {
+    revision,
+    at: now.toISOString(),
+    added: plan.diff.added.map((e) => ({ ...customerLabel(e.customerId), items: e.items })),
+    removed: plan.diff.removed.map((e) => ({ ...customerLabel(e.customerId), items: e.items })),
+    changed: plan.diff.changed.map((e) => ({
+      stopId: e.stopId,
+      ...customerLabel(e.customerId),
+      items: e.items,
+    })),
+  };
+  const finalStatuses = plan.entries.map((e) =>
+    e.kind === "completed" ? stopById.get(e.stopId)!.status : "PENDING",
+  );
+  const nextStatus = deriveTourStatus(tour.status, finalStatuses);
+  if (!canTransition(tour.status, nextStatus)) {
+    throw new Error(`Illegal tour transition ${tour.status} -> ${nextStatus}`);
+  }
+
+  try {
+    await db.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        await recheck(tx);
+
+        if (plan.removedStopIds.length > 0) {
+          const deleted = await tx.stop.deleteMany({
+            where: { id: { in: plan.removedStopIds }, status: "PENDING" },
+          });
+          if (deleted.count !== plan.removedStopIds.length) throw new ConflictError();
+        }
+
+        for (const [index, entry] of plan.entries.entries()) {
+          const sequence = index + 1;
+          if (entry.kind === "completed") {
+            // Frozen: only the position may move (a stop removed before it closes the gap).
+            if (stopById.get(entry.stopId)!.sequence !== sequence) {
+              await tx.stop.update({ where: { id: entry.stopId }, data: { sequence } });
+            }
+            continue;
+          }
+          const timing = {
+            sequence,
+            etaAt: schedule.etas[index],
+            legDistanceM: legs[index].distanceM,
+            legDurationS: legs[index].durationS,
+            items: entry.items.map((i) => ({
+              productId: i.productId,
+              quantityCents: i.quantityCents,
+            })),
+          };
+          if (entry.kind === "existing") {
+            const marker =
+              entry.changes.length > 0
+                ? {
+                    previousItems: readStopItems(stopById.get(entry.stopId)!.items),
+                    changeKind: "CHANGED" as const,
+                    changedInRevision: revision,
+                  }
+                : {};
+            await replaceLinks(tx, entry.stopId, entry.orderIds, { ...timing, ...marker });
+          } else {
+            await tx.stop.create({
+              data: {
+                ...timing,
+                tourId: tour.id,
+                customerId: entry.customerId,
+                changeKind: "ADDED",
+                changedInRevision: revision,
+                orders: { create: entry.orderIds.map((orderId) => ({ orderId })) },
+              },
+            });
+          }
+        }
+
+        await tx.tour.update({
+          where: { id: tour.id },
+          data: {
+            geometry: route.geometry,
+            totalDistanceM: Math.round(legs.reduce((sum, l) => sum + l.distanceM, 0)),
+            totalDurationS: schedule.totalDurationS,
+            approximate: route.approximate,
+            isOutdated: false,
+            releaseRevision: revision,
+            reReleasedAt: now,
+            lastChange,
+            status: nextStatus,
+            ...(nextStatus === "COMPLETED" ? { completedAt: now } : {}),
+          },
+        });
+      },
+      { timeout: 20_000, maxWait: 10_000 },
+    );
+  } catch (error) {
+    if (error instanceof ConflictError) return fail("conflict");
+    throw error;
+  }
+  return { ok: true, changed: true, revision, ...counts };
+}

@@ -15,16 +15,33 @@ import {
   totalToDecimal,
 } from "@/domain/order-overview";
 import { calendarDayIn } from "@/domain/settings";
+import { type OrderState, outdatedTourDates } from "@/domain/tour-diff";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import type { Storage } from "./storage/types";
-import type { TourService } from "./tour-service";
+import type { TourDb, TourService } from "./tour-service";
 
 /** What the order mutations need from the tour side (see `tour-service.ts`). */
 export type TourHook = Pick<TourService, "markOutdatedForDate">;
 
-type OrderDb = Pick<PrismaClient, "order" | "customer" | "product" | "screenshot">;
+type OrderDb = Pick<PrismaClient, "order" | "customer" | "product" | "screenshot" | "$transaction">;
+
+/**
+ * Flags the tours of every delivery day that a change from `before` to `after` affects, through
+ * the transaction client of the order write (so both succeed or both fail). Draft edits and saves
+ * that change nothing a tour contains flag nothing.
+ */
+async function flagAffectedTours(
+  tours: TourHook,
+  tx: TourDb,
+  before: OrderState | null,
+  after: OrderState | null,
+): Promise<void> {
+  for (const date of outdatedTourDates(before, after)) {
+    await tours.markOutdatedForDate(date, tx);
+  }
+}
 
 export type OrderSaveResult =
   | { ok: true; id: string; status: "CONFIRMED" | "DRAFT" }
@@ -97,27 +114,38 @@ export async function createOrder(
     if (used) return { ok: false, error: "screenshot_in_use" };
   }
 
-  const order = await db.order.create({
-    data: {
-      customer: { connect: { id: v.customerId } },
-      deliveryDate: v.deliveryDate,
-      status: v.status,
-      source: v.screenshotKey ? "SCREENSHOT" : "MANUAL",
-      screenshot: v.screenshotKey
-        ? { create: { storageKey: v.screenshotKey, uploadedById: actorId } }
-        : undefined,
-      internalNote: v.internalNote,
-      createdBy: { connect: { id: actorId } },
-      items: {
-        create: v.lines.map((l) => ({
-          productId: l.productId,
-          quantity: centsToDecimal(l.quantityCents),
-        })),
+  const order = await db.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        customer: { connect: { id: v.customerId } },
+        deliveryDate: v.deliveryDate,
+        status: v.status,
+        source: v.screenshotKey ? "SCREENSHOT" : "MANUAL",
+        screenshot: v.screenshotKey
+          ? { create: { storageKey: v.screenshotKey, uploadedById: actorId } }
+          : undefined,
+        internalNote: v.internalNote,
+        createdBy: { connect: { id: actorId } },
+        items: {
+          create: v.lines.map((l) => ({
+            productId: l.productId,
+            quantity: centsToDecimal(l.quantityCents),
+          })),
+        },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    });
+    await flagAffectedTours(tours, tx, null, {
+      status: v.status,
+      customerId: v.customerId,
+      deliveryDate: v.deliveryDate,
+      items: v.lines.map((l) => ({
+        productId: l.productId,
+        quantity: centsToDecimal(l.quantityCents),
+      })),
+    });
+    return created;
   });
-  await tours.markOutdatedForDate(v.deliveryDate);
   return { ok: true, id: order.id, status: v.status };
 }
 
@@ -505,26 +533,46 @@ export async function updateOrder(
     return { ok: false, error: "product_inactive" };
   }
 
-  await db.order.update({
-    where: { id: id.data },
-    data: {
-      deliveryDate: v.deliveryDate,
-      status: v.status,
-      internalNote: v.internalNote,
-      items: {
-        deleteMany: {},
-        create: v.lines.map((l) => ({
-          productId: l.productId,
-          quantity: centsToDecimal(l.quantityCents),
-        })),
+  const stored = await db.$transaction(async (tx) => {
+    // Read the state we replace inside the transaction: the flag must reflect what was really there.
+    const before = await tx.order.findUnique({
+      where: { id: id.data },
+      select: {
+        customerId: true,
+        status: true,
+        deliveryDate: true,
+        items: { select: { productId: true, quantity: true } },
       },
-    },
-    select: { id: true },
+    });
+    if (!before) return false;
+    await tx.order.update({
+      where: { id: id.data },
+      data: {
+        deliveryDate: v.deliveryDate,
+        status: v.status,
+        internalNote: v.internalNote,
+        items: {
+          deleteMany: {},
+          create: v.lines.map((l) => ({
+            productId: l.productId,
+            quantity: centsToDecimal(l.quantityCents),
+          })),
+        },
+      },
+      select: { id: true },
+    });
+    await flagAffectedTours(tours, tx, before, {
+      status: v.status,
+      customerId: before.customerId,
+      deliveryDate: v.deliveryDate,
+      items: v.lines.map((l) => ({
+        productId: l.productId,
+        quantity: centsToDecimal(l.quantityCents),
+      })),
+    });
+    return true;
   });
-  await tours.markOutdatedForDate(existing.deliveryDate);
-  if (existing.deliveryDate.getTime() !== v.deliveryDate.getTime()) {
-    await tours.markOutdatedForDate(v.deliveryDate);
-  }
+  if (!stored) return { ok: false, error: "not_found" };
   return { ok: true, id: id.data, status: v.status };
 }
 
@@ -537,7 +585,7 @@ export type OrderCancelResult =
  * past days and already cancelled orders are rejected with `not_editable`.
  */
 export async function cancelOrder(
-  db: Pick<PrismaClient, "order">,
+  db: Pick<PrismaClient, "order" | "$transaction">,
   rawId: unknown,
   today: Date,
   tours: TourHook,
@@ -550,12 +598,26 @@ export async function cancelOrder(
   });
   if (!existing) return { ok: false, error: "not_found" };
   if (!isOrderEditable(existing, today)) return { ok: false, error: "not_editable" };
-  await db.order.update({
-    where: { id: id.data },
-    data: { status: "CANCELLED" },
-    select: { id: true },
+  const cancelled = await db.$transaction(async (tx) => {
+    const before = await tx.order.findUnique({
+      where: { id: id.data },
+      select: {
+        customerId: true,
+        status: true,
+        deliveryDate: true,
+        items: { select: { productId: true, quantity: true } },
+      },
+    });
+    if (!before) return false;
+    await tx.order.update({
+      where: { id: id.data },
+      data: { status: "CANCELLED" },
+      select: { id: true },
+    });
+    await flagAffectedTours(tours, tx, before, { ...before, status: "CANCELLED" });
+    return true;
   });
-  await tours.markOutdatedForDate(existing.deliveryDate);
+  if (!cancelled) return { ok: false, error: "not_found" };
   return { ok: true, id: id.data };
 }
 
@@ -593,23 +655,32 @@ export async function duplicateOrder(
   if (!source) return { ok: false, error: "not_found" };
   if (!source.customer.active) return { ok: false, error: "customer_inactive" };
   if (source.items.some((i) => !i.product.active)) return { ok: false, error: "product_inactive" };
-  const copy = await db.order.create({
-    data: {
-      customer: { connect: { id: source.customerId } },
-      deliveryDate: date,
-      status: "DRAFT",
-      source: "MANUAL",
-      internalNote: source.internalNote,
-      createdBy: { connect: { id: actorId } },
-      items: {
-        create: source.items.map((i) => ({
-          productId: i.productId,
-          quantity: i.quantity.toString(),
-        })),
+  const copy = await db.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        customer: { connect: { id: source.customerId } },
+        deliveryDate: date,
+        status: "DRAFT",
+        source: "MANUAL",
+        internalNote: source.internalNote,
+        createdBy: { connect: { id: actorId } },
+        items: {
+          create: source.items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity.toString(),
+          })),
+        },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    });
+    // A copy is a draft, so this flags nothing; it stays here so the rule lives in one place.
+    await flagAffectedTours(tours, tx, null, {
+      status: "DRAFT",
+      customerId: source.customerId,
+      deliveryDate: date,
+      items: source.items,
+    });
+    return created;
   });
-  await tours.markOutdatedForDate(date);
   return { ok: true, id: copy.id };
 }

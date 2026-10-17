@@ -218,7 +218,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | done |
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | done |
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | done |
-| NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | todo |
+| NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | done |
 | NUD-050 | Driver first-start language picker | M1 | 005 | todo |
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | todo |
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | todo |
@@ -242,6 +242,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
+| NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -868,7 +869,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-043 · Tour lifecycle & change handling (outdated tours)
-**Status:** todo · **depends_on:** 042
+**Status:** done · **depends_on:** 042
 
 **Goal:** the driver never silently works with stale quantities (priority #2).
 
@@ -880,8 +881,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Driver view (used by NUD-051) shows a banner "Tour was updated" after a re-release, highlighting changed stops.
 
 **Acceptance criteria**
-- [ ] Changing a quantity after release flags the tour; after re-release the driver sees the new quantity and the change highlight.
-- [ ] Completed stops are never reset by re-release (test).
+- [x] Changing a quantity after release flags the tour; after re-release the driver sees the new quantity and the change highlight. (Data layer: `getDriverTour` returns the new quantity, `change: CHANGED`, `changedInRevision`, `previousItems`, `updated`, tested in `tour-rerelease.integration.test.ts`; e2e `tour-rerelease.spec.ts` covers edit -> banner -> re-release in the admin UI. **The driver screen that renders banner and highlight is NUD-051**, so that part is not visible to a driver yet.)
+- [x] Completed stops are never reset by re-release (test). (Integration tests: delivered and problem stops keep id, sequence, status, `completedAt`, problem data, quantities, links and ETA through a re-release in which their orders were edited, cancelled and extended; a stop completed by the driver while the re-release is routing makes it fail with `conflict`; unit tests of `planReRelease`.)
+
+**Implementation notes**
+- Pure rules in `src/domain/`: `tour-status.ts` (state machine: `canTransition`, `deriveTourStatus`, `isReReleasable`; a stop counts as done when it is not PENDING; the tour never moves backwards, COMPLETED is final; 9 tests) and `tour-diff.ts` (`planReRelease(stops, orders)` = the diff stops added / removed / quantities changed / completed stops edited afterwards plus the new stop order, `sameItems`, `itemChanges`, and `outdatedTourDates(before, after)` = which delivery days an order change really affects; 18 tests).
+- Outdated flag (refines NUD-032): `createOrder` / `updateOrder` / `cancelOrder` / `duplicateOrder` now run the order write and the flag in ONE transaction (`db.$transaction`, the hook gets the transaction client: `markOutdatedForDate(date, tx)`), so an order change can no longer be saved without its flag. Only changes that involve a CONFIRMED order flag (draft edits, copies, cancelling a draft and saves that leave customer, day and quantities as they were flag nothing); a date change flags both days. `markOutdatedForDate` itself still flags every not COMPLETED tour of the day (also unreleased ones: the release refusal from NUD-042 stays). Tests: `order-management.integration.test.ts` (hook cases rewritten, atomicity test: a failing hook rolls back create, update and cancel).
+- Data (migration `20261017180000_tour_release_revision`, backfills existing stops): `Stop.items` (JSON `[{productId, quantityCents}]` = the quantities the office released, written by the builder and by re-release), `Stop.previousItems`, `Stop.changeKind` (`StopChange` ADDED | CHANGED), `Stop.changedInRevision`, `Tour.releaseRevision` (0 never released, 1 first release, +1 per re-release that changed something), `Tour.reReleasedAt`, `Tour.lastChange` (JSON of the last re-release incl. names of removed stops). First release now sets `releaseRevision = 1` and checks the transition through the status machine.
+- Re-release `reReleaseTourAction({tourId, version})` -> `reReleaseTourWith` in `src/server/tour-rerelease.ts` (`requireRole("ADMIN")`, strict zod, errors `not_released`, `tour_not_editable` (COMPLETED), `driver_required`, `driver_invalid`, `conflict`, `pin_missing`, `too_many_stops`): only RELEASED / IN_PROGRESS tours; compares the stored `Stop.items` with the confirmed orders of routable customers (`loadReleasePlan`), keeps the order of the open stops, appends new customers, removes open stops without orders (reused stop rows keep their ids), recomputes legs / ETAs / geometry / totals with `route()` over the whole sequence and writes timing only to open stops, bumps the revision, sets markers and `lastChange`, clears `isOutdated`, and derives the tour status. Completed stops (DELIVERED / PROBLEM) are frozen: status, completion data, quantities, order links and ETA are never written (their position only shifts if an earlier stop was removed); edits to their orders are reported (`completedChanged`), not re-dispatched; a new order of an already delivered customer becomes a second, open stop at the end. All writes to open stops are guarded by `status = PENDING` and the transaction (per-date advisory lock) re-checks tour version, stop statuses and the confirmed orders; any mismatch rolls back and returns `conflict`. If nothing the driver would see differs (changes cancelled each other out) only the flag is cleared (and the order links refreshed); `changed: false`.
+- Admin UI (`TourPlanner`, new `TourDiffList`): for a RELEASED / IN_PROGRESS tour with `isOutdated` a red banner "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben" with the diff (new stops, removed stops, quantity before -> after per product, edited completed stops) and a "Erneut freigeben" button with a confirmation dialog (counts); afterwards stop rows show their status and a "Menge geändert" / "Neu seit Freigabe" badge, the header "Aktualisiert am … (Version n)". The read model `getTourPlan` returns `releaseRevision`, `reReleasedAt`, `diff`, per stop `status` and `changeKind`. Strings `admin.tours.change.*` (de, zh-Hans by hand, Hant generated).
+- Driver data layer for NUD-051: `getDriverTour(db, driverId, date)` in `src/server/tour-driver.ts` (no page, no action). Only released tours of that driver; quantities come from the `Stop.items` snapshot, NOT from the live order lines, so an order edited after release shows up for the driver only through a re-release (never half-updated). Returns `revision`, `updated` (show the "Tour was updated" banner), `removedCustomers`, per stop `change`, `changedInRevision`, `previousQuantityCents` per item. NUD-051 should remember the last revision the driver has seen (client side) and highlight stops with `changedInRevision` above it. `syncTourProgress(tx, tourId)` in `tour-service.ts` moves RELEASED -> IN_PROGRESS -> COMPLETED (`completedAt`) from the stop statuses; the stop-status mutation of NUD-053 must call it inside its transaction and take the same per-date advisory lock (`pg_advisory_xact_lock(hashtext('tour:<YYYY-MM-DD>'))`) as release / re-release.
+- Tests: `tour-rerelease.integration.test.ts` (16: first release snapshot, flag -> diff -> driver data before / after, added / removed stops, reverted change, revisions, completed stops frozen (all fields), second visit, completing every open stop, race with a driver completing a stop, refusals, authorization (anonymous and DRIVER rejected, nothing changed), driver read model access, `syncTourProgress`), e2e `tests/e2e/tour-rerelease.spec.ts` (release, delivered stop A, change B 3 -> 5 through the order form, banner and diff in all four locales without console errors, re-release dialog, A still delivered, B marked, DB assertions).
+- Verified: lint, typecheck, `pnpm test` (548 passed incl. DB tests on embedded PostgreSQL), `i18n:check`, prettier (except the untracked sandbox file `pw.local.config.ts`), `pnpm build`, e2e `tour-rerelease` (desktop), `tours` (desktop, alone), `order-overview` and `orders` (desktop, one `orders` mobile run failed in `pickProduct` with two open comboboxes and passed on the desktop rerun: timing, code untouched), `shells` (mobile); screenshots at 1280 px inspected (banner with diff, re-release dialog, after re-release), no horizontal scroll asserted.
+- NOT verified: the driver screen itself (NUD-051 renders banner / highlight; only the data layer is tested); `route()` of the real ORS provider on re-release (heuristic only, as before); a real driver mutation racing a re-release (simulated by completing a stop while routing; NUD-053 must follow the lock rule above); mobile / touch use; `tours.spec.ts` fails when it runs in the same server session after specs that already loaded the settings (settings are cached by the app and the spec flips `depotPinConfirmed` directly in the DB), it passes alone; Chinese strings are agent-written (NUD-073).
+- Follow-ups: a new confirmed order for a day whose tour is already COMPLETED is not flagged and has no way into a tour (NUD-099 added); the "Tour was updated" acknowledgement is client-side only (no server record that the driver saw revision n); archiving a customer or changing a customer's address/pin after release does not flag the tour.
 
 ---
 
@@ -912,6 +925,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Numbered list of all stops with status icon (pending / ✓ / ⚠), tap → detail.
 - Toggle "List / Map" (TourMap with numbered markers).
 - Updated-tour banner from NUD-043.
+- _Added by NUD-043:_ read the tour with `getDriverTour(db, driverId, date)` (`src/server/tour-driver.ts`): quantities come from the released snapshot (`Stop.items`), never from live order lines. Show the banner while `updated` is true and until the driver has seen `revision` (remember the last seen revision on the device); highlight stops with `changedInRevision` above it (`change` = `ADDED` / `CHANGED`, `previousQuantityCents` per item); list `removedCustomers` in the banner.
 
 **Acceptance criteria**
 - [ ] Driver sees only his own tour (authz test).
@@ -950,6 +964,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Problem sheet: predefined reasons (`ProblemReason`, localized, with icons) + optional free text (stored as `LocalizedText` with `source = driver locale`; translation follows in NUD-072).
 - After success: auto-advance to the next pending stop; toast with **Undo** (5 minutes, server-enforced).
 - First completed stop sets tour `IN_PROGRESS`; last sets `COMPLETED` and shows a "tour finished" screen.
+- _Added by NUD-043:_ call `syncTourProgress(tx, tourId)` (`src/server/tour-service.ts`) inside the transaction that writes the stop status, and take the per-date advisory lock `pg_advisory_xact_lock(hashtext('tour:<YYYY-MM-DD>'))` first, as release / re-release do. COMPLETED is final in the status machine: decide how "Undo" of the last stop behaves (e.g. no undo once the tour is completed).
 - Each mutation carries a client-generated `clientMutationId` (UUID) → idempotent (prepares NUD-082).
 
 **Acceptance criteria**
@@ -1266,6 +1281,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 ---
 
+#### NUD-099 · Late orders for an already completed tour
+**Status:** todo · **depends_on:** 043
+
+**Goal:** an order confirmed after the tour of its day is COMPLETED must not vanish (found in NUD-043).
+
+**Scope**
+- Today `outdatedTourDates` / `markOutdatedForDate` ignore COMPLETED tours and `generateTour` / re-release refuse them, so a new confirmed order for such a day is on no tour and nobody is told.
+- Decide with the office (simplest first): warn on the order form and in the overview ("tour of that day is already completed"), or allow a second tour for the date (D5: no unique constraint on `Tour.date`; `getTourPlan` shows only the latest tour of a day, so the page needs to list several).
+
+**Acceptance criteria**
+- [ ] A confirmed order for a date whose only tour is COMPLETED is visibly reported to the office (and, if a second tour is chosen, can be delivered).
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -1404,6 +1433,15 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-042 | Stop "item count" = number of distinct products over the stop's linked orders; "photos missing" flags use the current STORE / PARKING photos of the customer | Ticket asks for item count and missing-photo flags only; quantities are shown by the driver screens |
 | 2026-10-17 | NUD-042 | Pin warnings are recomputed from the confirmed orders on every page load (not only after "generate") | They must stay visible after reload and when no tour exists yet |
 | 2026-10-17 | NUD-042 | Date picker is a native `<input type="date">` bound to `?date=`; no/invalid date = next delivery date | Same choice as NUD-030/032 |
+| 2026-10-17 | NUD-043 | The quantities released to the driver are stored per stop (`Stop.items` snapshot, backfilled by the migration); the driver read model uses the snapshot, not the live order lines | An order edited after release must not change what the driver sees before the office re-releases (priority 2); the snapshot is also the base of the diff |
+| 2026-10-17 | NUD-043 | Order changes flag tours only when a CONFIRMED order is involved and something a tour contains changed (customer, day or quantities); the flag is written in the same transaction as the order change | Ticket says 'create/update/cancel'; drafts and no-op saves are not on a tour, and a change without its flag would break priority 2 |
+| 2026-10-17 | NUD-043 | `markOutdatedForDate` still flags all not COMPLETED tours of the day (also unreleased ones), the diff on the page decides what really differs | Over-flagging is safe and the release refusal of NUD-042 stays; a re-release with no visible difference just clears the flag |
+| 2026-10-17 | NUD-043 | Re-release keeps the order of the open stops, appends new customers, removes open stops without orders and recomputes legs / ETAs with `route()` (no re-optimization); ETAs stay planned values from the departure time, not a live prediction | The driver is already underway and must not see his remaining stops reshuffled; same rule as a locked tour (NUD-041) |
+| 2026-10-17 | NUD-043 | Completed stops (DELIVERED / PROBLEM) are frozen: status, completion data, quantities, order links and ETA are never written; later edits to their orders are only reported (`completedChanged`); a new order of an already delivered customer becomes a second open stop at the end | Never reset completed work (ticket); a delivered quantity cannot change retroactively, but the office must be told |
+| 2026-10-17 | NUD-043 | A re-release that changes nothing the driver sees (changes cancelled out, or only completed stops edited) clears the flag and does not bump the revision | Otherwise the driver would get a 'Tour was updated' banner without anything to look at |
+| 2026-10-17 | NUD-043 | Change data for the driver app: `Tour.releaseRevision` (1 = first release, +1 per effective re-release), `reReleasedAt`, `lastChange` (JSON incl. removed customers' names), `Stop.changeKind` ADDED / CHANGED, `changedInRevision`, `previousItems`; the 'seen' state is kept on the device by NUD-051 | Ticket allows markers or a revision field; both together let the driver app highlight stops it has not seen yet and name removed stops, without a server-side acknowledgement |
+| 2026-10-17 | NUD-043 | Re-release needs an assigned, active driver and the `version` (tour `updatedAt`) the office saw; inside the transaction (per-date advisory lock) tour version, stop statuses and confirmed orders are re-checked and writes to open stops are guarded by `status = PENDING`, otherwise `conflict` | Same pattern as release / generate; a stop completed by the driver or an order saved meanwhile must never be overwritten |
+| 2026-10-17 | NUD-043 | Status machine: DRAFT -> OPTIMIZED -> RELEASED -> IN_PROGRESS -> COMPLETED, self-transitions only for rebuild (OPTIMIZED), re-release (RELEASED / IN_PROGRESS); a stop is done when it is not PENDING; `syncTourProgress` derives the status from the stops; COMPLETED is final | Matches the ticket; PROBLEM also closes a stop (NUD-053); how Undo interacts with COMPLETED is left to NUD-053 (noted there) |
 
 ---
 

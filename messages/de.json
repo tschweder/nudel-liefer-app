@@ -665,7 +665,35 @@
         "no_stops_release": "Eine Tour ohne Stopps kann nicht freigegeben werden.",
         "driver_required": "Bitte zuerst einen Fahrer zuweisen.",
         "driver_invalid": "Dieser Fahrer ist nicht aktiv. Bitte einen anderen Fahrer wählen.",
-        "outdated": "Bestellungen wurden geändert. Bitte die Tour zuerst neu erstellen."
+        "outdated": "Bestellungen wurden geändert. Bitte die Tour zuerst neu erstellen.",
+        "not_released": "Diese Tour ist noch nicht freigegeben."
+      },
+      "change": {
+        "title": "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben",
+        "body": "Der Fahrer arbeitet noch mit den freigegebenen Mengen. Nach der erneuten Freigabe sieht er „Tour aktualisiert“ und die geänderten Stopps.",
+        "noDifference": "Für den Fahrer ändert sich nichts mehr: Die Änderungen haben sich aufgehoben. Die erneute Freigabe entfernt nur diese Markierung.",
+        "button": "Erneut freigeben",
+        "reReleasedAt": "Aktualisiert am {time} (Version {revision})",
+        "sections": {
+          "added": "{count, plural, =0 {Neue Stopps} one {# neuer Stopp} other {# neue Stopps}}",
+          "removed": "{count, plural, =0 {Entfernte Stopps} one {# Stopp entfällt} other {# Stopps entfallen}}",
+          "changed": "{count, plural, =0 {Geänderte Mengen} one {Mengen an # Stopp geändert} other {Mengen an # Stopps geändert}}",
+          "completedChanged": "{count, plural, one {# bereits erledigter Stopp wurde nachträglich geändert (bleibt unverändert, wird nicht neu geplant)} other {# bereits erledigte Stopps wurden nachträglich geändert (bleiben unverändert, werden nicht neu geplant)}}"
+        },
+        "stop": {
+          "ADDED": "Neu seit Freigabe",
+          "CHANGED": "Menge geändert"
+        },
+        "dialog": {
+          "title": "Tour erneut freigeben?",
+          "description": "Die offenen Stopps werden an die aktuellen Bestellungen angepasst. Bereits erledigte Stopps bleiben unverändert. Der Fahrer sieht danach „Tour aktualisiert“.",
+          "confirm": "Jetzt erneut freigeben"
+        },
+        "toast": {
+          "reReleased": "Tour erneut freigegeben (Version {revision}).",
+          "nothingChanged": "Für den Fahrer hat sich nichts geändert; die Markierung wurde entfernt.",
+          "completedChanged": "{count, plural, one {# bereits erledigter Stopp wurde nach der Lieferung geändert und nicht neu geplant.} other {# bereits erledigte Stopps wurden nach der Lieferung geändert und nicht neu geplant.}}"
+        }
       }
     }
   },

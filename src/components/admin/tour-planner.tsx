@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { durationParts, isTourEditable, moveItem, releaseBlocker } from "@/domain/tour-plan";
+import { isReReleasable } from "@/domain/tour-status";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
@@ -39,9 +40,12 @@ import {
   generateTourAction,
   releaseTourAction,
   reorderStopsAction,
+  reReleaseTourAction,
   setTourLockedAction,
 } from "@/server/tour-actions";
 import type { PlanStop, TourPlan } from "@/server/tour-planning";
+
+import { TourDiffList } from "./tour-diff-list";
 
 const selectClass = "h-10 min-w-56 rounded-md border border-input bg-background px-3 text-base";
 
@@ -68,6 +72,7 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
   const [error, setError] = useState<{ code: string; max?: number } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
+  const [reReleaseOpen, setReReleaseOpen] = useState(false);
   if ((tour?.version ?? "") !== syncKey) {
     setSyncKey(tour?.version ?? "");
     setOrder(null);
@@ -226,6 +231,39 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
     );
   }
 
+  function reRelease() {
+    run(
+      () => reReleaseTourAction({ tourId: tour!.id, version: tour!.version }),
+      (result) => {
+        const r = result as unknown as {
+          changed: boolean;
+          revision: number;
+          completedChanged: number;
+        };
+        setReReleaseOpen(false);
+        toast.success(
+          r.changed
+            ? t("change.toast.reReleased", { revision: r.revision })
+            : t("change.toast.nothingChanged"),
+        );
+        if (r.completedChanged > 0) {
+          toast.warning(t("change.toast.completedChanged", { count: r.completedChanged }));
+        }
+        router.refresh();
+      },
+      () => setReReleaseOpen(false),
+    );
+  }
+
+  const changeBanner = tour.isOutdated && isReReleasable(tour.status);
+  const diffEmpty =
+    !tour.diff ||
+    tour.diff.added.length +
+      tour.diff.removed.length +
+      tour.diff.changed.length +
+      tour.diff.completedChanged.length ===
+      0;
+
   return (
     <div className="flex flex-col gap-6" data-testid="tour-planner" data-tour-id={tour.id}>
       <Warnings plan={plan} />
@@ -235,6 +273,28 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
           <TriangleAlertIcon aria-hidden />
           <AlertTitle>{t("outdatedTitle")}</AlertTitle>
           <AlertDescription>{t("outdatedBody")}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {changeBanner ? (
+        <Alert variant="destructive" data-testid="tour-changed-banner">
+          <TriangleAlertIcon aria-hidden />
+          <AlertTitle>{t("change.title")}</AlertTitle>
+          <AlertDescription className="gap-3">
+            <p>{diffEmpty ? t("change.noDifference") : t("change.body")}</p>
+            {tour.diff && !diffEmpty ? <TourDiffList diff={tour.diff} /> : null}
+            <div>
+              <Button
+                type="button"
+                onClick={() => setReReleaseOpen(true)}
+                disabled={busy}
+                data-testid="tour-rerelease"
+              >
+                <RocketIcon aria-hidden />
+                {t("change.button")}
+              </Button>
+            </div>
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -263,6 +323,14 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
           {tour.releasedAt ? (
             <span className="text-sm text-muted-foreground" data-testid="tour-released-at">
               {t("releasedAt", { time: fmt.dateTime(new Date(tour.releasedAt)) })}
+            </span>
+          ) : null}
+          {tour.reReleasedAt ? (
+            <span className="text-sm text-muted-foreground" data-testid="tour-rereleased-at">
+              {t("change.reReleasedAt", {
+                time: fmt.dateTime(new Date(tour.reReleasedAt)),
+                revision: tour.releaseRevision,
+              })}
             </span>
           ) : null}
         </div>
@@ -434,6 +502,24 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
                     <Badge variant="outline" data-testid="stop-items">
                       {t("stop.items", { count: stop.itemCount })}
                     </Badge>
+                    {!editable ? (
+                      <Badge
+                        variant={stop.status === "PENDING" ? "outline" : "secondary"}
+                        data-testid="stop-status"
+                        data-status={stop.status}
+                      >
+                        {tc(`statuses.stop.${stop.status}`)}
+                      </Badge>
+                    ) : null}
+                    {stop.changeKind ? (
+                      <Badge
+                        variant="outline"
+                        data-testid="stop-change"
+                        data-change={stop.changeKind}
+                      >
+                        {t(`change.stop.${stop.changeKind}`)}
+                      </Badge>
+                    ) : null}
                     {!stop.hasStorePhoto ? (
                       <Badge variant="outline" className="gap-1" data-testid="stop-missing-store">
                         <ImageOffIcon className="size-3.5" aria-hidden />
@@ -491,6 +577,49 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
           </ol>
         </div>
       </div>
+
+      <Dialog open={reReleaseOpen} onOpenChange={setReReleaseOpen}>
+        <DialogContent data-testid="rerelease-dialog">
+          <DialogHeader>
+            <DialogTitle>{t("change.dialog.title")}</DialogTitle>
+            <DialogDescription>{t("change.dialog.description")}</DialogDescription>
+          </DialogHeader>
+          {tour.diff ? (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-base">
+              <dt className="text-muted-foreground">{t("change.sections.added", { count: 0 })}</dt>
+              <dd className="font-medium" data-testid="rerelease-added">
+                {tour.diff.added.length}
+              </dd>
+              <dt className="text-muted-foreground">
+                {t("change.sections.removed", { count: 0 })}
+              </dt>
+              <dd className="font-medium" data-testid="rerelease-removed">
+                {tour.diff.removed.length}
+              </dd>
+              <dt className="text-muted-foreground">
+                {t("change.sections.changed", { count: 0 })}
+              </dt>
+              <dd className="font-medium" data-testid="rerelease-changed">
+                {tour.diff.changed.length}
+              </dd>
+            </dl>
+          ) : null}
+          <ErrorAlert error={error} errorText={errorText} />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setReReleaseOpen(false)}>
+              {tc("actions.cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={reRelease}
+              disabled={pending}
+              data-testid="rerelease-confirm"
+            >
+              {t("change.dialog.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={releaseOpen} onOpenChange={setReleaseOpen}>
         <DialogContent data-testid="release-dialog">

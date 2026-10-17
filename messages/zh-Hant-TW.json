@@ -666,7 +666,35 @@
         "no_stops_release": "沒有站點的配送線路不能釋出。",
         "driver_required": "請先指派司機。",
         "driver_invalid": "該司機已停用，請選擇其他司機。",
-        "outdated": "訂單已更改，請先重新生成配送線路。"
+        "outdated": "訂單已更改，請先重新生成配送線路。",
+        "not_released": "此配送線路尚未釋出。"
+      },
+      "change": {
+        "title": "釋出後訂單已更改——請檢查並重新發布",
+        "body": "司機仍在使用已釋出的數量。重新發布後，司機會看到“配送線路已更新”以及有變動的站點。",
+        "noDifference": "對司機來說已沒有變化：更改已相互抵消。重新發布只會移除此提示。",
+        "button": "重新發布",
+        "reReleasedAt": "更新時間：{time}（第 {revision} 版）",
+        "sections": {
+          "added": "{count, plural, =0 {新增站點} other {新增 # 個站點}}",
+          "removed": "{count, plural, =0 {移除的站點} other {移除 # 個站點}}",
+          "changed": "{count, plural, =0 {數量有變動} other {# 個站點的數量有變動}}",
+          "completedChanged": "{count, plural, other {# 個已完成的站點在事後被修改（保持不變，不會重新安排）}}"
+        },
+        "stop": {
+          "ADDED": "釋出後新增",
+          "CHANGED": "數量已更改"
+        },
+        "dialog": {
+          "title": "重新發布配送線路？",
+          "description": "未完成的站點將按當前訂單更新。已完成的站點保持不變。之後司機會看到“配送線路已更新”。",
+          "confirm": "立即重新發布"
+        },
+        "toast": {
+          "reReleased": "配送線路已重新發布（第 {revision} 版）。",
+          "nothingChanged": "對司機沒有變化；提示已移除。",
+          "completedChanged": "{count, plural, other {# 個已完成的站點在送達後被修改，未重新安排。}}"
+        }
       }
     }
   },

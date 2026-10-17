@@ -18,7 +18,8 @@ vi.mock("./db", async (importOriginal) => ({
 const { cancelOrderAction, createOrderAction, duplicateOrderAction, updateOrderAction } =
   await import("./order-actions");
 const { orderDetailQuery, orderOverviewQuery } = await import("./order-queries");
-const { listConfirmedOrdersForDate } = await import("./orders");
+const { cancelOrder, createOrder, listConfirmedOrdersForDate, todayIn, updateOrder } =
+  await import("./orders");
 const { setStorageForTests } = await import("./storage");
 const { FakeStorage } = await import("./storage/fake");
 
@@ -404,7 +405,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     });
   });
 
-  describe("tour hook (NUD-043 extends it)", () => {
+  describe("tour hook (refined by NUD-043)", () => {
     it("create, update, cancel and duplicate flag the tours of the affected day only", async () => {
       const t1 = await tour(D1);
       const t2 = await tour(D2);
@@ -445,12 +446,81 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       await reset();
       const source = await create({ deliveryDate: D2 });
       await reset();
-      await duplicateOrderAction(source, D3);
+      // A copy is a draft: it is not on any tour until confirmed, so nothing is flagged.
+      const copy = await duplicateOrderAction(source, D3);
       expect([await outdated(t1), await outdated(t2), await outdated(t3)]).toEqual([
         false,
         false,
-        true,
+        false,
       ]);
+      if (!copy.ok) throw new Error("duplicate failed");
+      await edit(copy.id, { deliveryDate: D3, status: "CONFIRMED" });
+      expect(await outdated(t3)).toBe(true);
+    });
+
+    it("draft orders and saves that change nothing a tour contains flag nothing", async () => {
+      const t1 = await tour(D1);
+      const draft = await create({ status: "DRAFT" });
+      expect(await outdated(t1)).toBe(false);
+      await edit(draft, { status: "DRAFT", lines: [{ productId: p1, quantity: "7" }] });
+      await cancelOrderAction(draft);
+      expect(await outdated(t1)).toBe(false);
+
+      const id = await create(); // confirmed -> flags
+      expect(await outdated(t1)).toBe(true);
+      await t.prisma.tour.updateMany({ data: { isOutdated: false } });
+      await edit(id, { internalNote: "only a note" }); // same customer, day and quantities
+      await edit(id, { lines: [{ productId: p1, quantity: "2.50" }] });
+      expect(await outdated(t1)).toBe(false);
+      await edit(id, { lines: [{ productId: p1, quantity: "3" }] }); // quantity changed
+      expect(await outdated(t1)).toBe(true);
+    });
+
+    it("confirming and un-confirming a draft flags the day", async () => {
+      const t1 = await tour(D1);
+      const id = await create({ status: "DRAFT" });
+      await edit(id, { status: "CONFIRMED" });
+      expect(await outdated(t1)).toBe(true);
+      await t.prisma.tour.updateMany({ data: { isOutdated: false } });
+      await edit(id, { status: "DRAFT" });
+      expect(await outdated(t1)).toBe(true);
+    });
+
+    it("the flag is atomic with the order write: a failing hook rolls the change back", async () => {
+      const id = await create();
+      const boom = { markOutdatedForDate: async () => Promise.reject(new Error("hook failed")) };
+      const today = todayIn("Europe/Vienna", new Date("2099-01-01T00:00:00Z"));
+      const orders = await t.prisma.order.count();
+
+      await expect(
+        createOrder(
+          t.prisma,
+          adminId,
+          { customerId, deliveryDate: D1, lines: [{ productId: p1, quantity: "1" }] },
+          today,
+          new FakeStorage(),
+          boom,
+        ),
+      ).rejects.toThrow("hook failed");
+      expect(await t.prisma.order.count()).toBe(orders);
+
+      await expect(
+        updateOrder(
+          t.prisma,
+          id,
+          {
+            deliveryDate: D1,
+            status: "CONFIRMED",
+            lines: [{ productId: p1, quantity: "9" }],
+          },
+          today,
+          boom,
+        ),
+      ).rejects.toThrow("hook failed");
+      expect(await quantities(id)).toEqual(["p1=2.5"]);
+
+      await expect(cancelOrder(t.prisma, id, today, boom)).rejects.toThrow("hook failed");
+      expect((await load(id)).status).toBe("CONFIRMED");
     });
 
     it("a rejected change does not flag anything", async () => {

@@ -665,7 +665,35 @@
         "no_stops_release": "没有站点的配送线路不能发布。",
         "driver_required": "请先指派司机。",
         "driver_invalid": "该司机已停用，请选择其他司机。",
-        "outdated": "订单已更改，请先重新生成配送线路。"
+        "outdated": "订单已更改，请先重新生成配送线路。",
+        "not_released": "此配送线路尚未发布。"
+      },
+      "change": {
+        "title": "发布后订单已更改——请检查并重新发布",
+        "body": "司机仍在使用已发布的数量。重新发布后，司机会看到“配送线路已更新”以及有变动的站点。",
+        "noDifference": "对司机来说已没有变化：更改已相互抵消。重新发布只会移除此提示。",
+        "button": "重新发布",
+        "reReleasedAt": "更新时间：{time}（第 {revision} 版）",
+        "sections": {
+          "added": "{count, plural, =0 {新增站点} other {新增 # 个站点}}",
+          "removed": "{count, plural, =0 {移除的站点} other {移除 # 个站点}}",
+          "changed": "{count, plural, =0 {数量有变动} other {# 个站点的数量有变动}}",
+          "completedChanged": "{count, plural, other {# 个已完成的站点在事后被修改（保持不变，不会重新安排）}}"
+        },
+        "stop": {
+          "ADDED": "发布后新增",
+          "CHANGED": "数量已更改"
+        },
+        "dialog": {
+          "title": "重新发布配送线路？",
+          "description": "未完成的站点将按当前订单更新。已完成的站点保持不变。之后司机会看到“配送线路已更新”。",
+          "confirm": "立即重新发布"
+        },
+        "toast": {
+          "reReleased": "配送线路已重新发布（第 {revision} 版）。",
+          "nothingChanged": "对司机没有变化；提示已移除。",
+          "completedChanged": "{count, plural, other {# 个已完成的站点在送达后被修改，未重新安排。}}"
+        }
       }
     }
   },
