@@ -42,6 +42,17 @@ export function isCustomerPhotoKey(key: string): boolean {
   return CUSTOMER_PHOTO_KEY_PATTERN.test(key);
 }
 
+/**
+ * Keys the server issues for `screenshot` uploads: `screenshots/<uuid>.<ext>`. An order may only
+ * be attached to a key of exactly this shape (same rule as for customer photos).
+ */
+export const SCREENSHOT_KEY_PATTERN =
+  /^screenshots\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|heic)$/;
+
+export function isScreenshotKey(key: string): boolean {
+  return SCREENSHOT_KEY_PATTERN.test(key);
+}
+
 export function isAllowedImageType(type: string): type is AllowedImageType {
   return (ALLOWED_IMAGE_TYPES as readonly string[]).includes(type);
 }

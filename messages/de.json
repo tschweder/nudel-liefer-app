@@ -500,10 +500,27 @@
           "customerNotFound": "Der Kunde wurde nicht gefunden.",
           "productInactive": "Ein gewähltes Produkt ist inzwischen deaktiviert. Bitte Seite neu laden.",
           "productNotFound": "Ein gewähltes Produkt wurde nicht gefunden. Bitte Seite neu laden.",
-          "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+          "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+          "screenshotMissing": "Der Screenshot wurde nicht gefunden. Bitte erneut hochladen.",
+          "screenshotInUse": "Dieser Screenshot gehört bereits zu einer anderen Bestellung."
         },
         "savedConfirmed": "Bestellung gespeichert.",
-        "savedDraft": "Entwurf gespeichert."
+        "savedDraft": "Entwurf gespeichert.",
+        "screenshot": {
+          "heading": "Screenshot",
+          "hint": "Optional: Screenshot der WhatsApp-/WeChat-Nachricht hochladen, hineinziehen oder mit Strg+V einfügen. Er wird neben dem Formular angezeigt und bei der Bestellung gespeichert.",
+          "remove": "Screenshot entfernen",
+          "alt": "Screenshot der Bestellnachricht",
+          "zoomHint": "Mausrad oder Plus/Minus zum Zoomen, ziehen zum Verschieben, Doppelklick zum Heranzoomen.",
+          "previewFailed": "Der Screenshot wurde hochgeladen, konnte aber nicht angezeigt werden. Bitte erneut versuchen."
+        }
+      },
+      "detail": {
+        "title": "Bestellung",
+        "noNote": "Keine interne Notiz.",
+        "noScreenshot": "Zu dieser Bestellung gehört kein Screenshot.",
+        "screenshotAlt": "Screenshot der Bestellnachricht",
+        "screenshotHint": "Zum Vergrößern anklicken."
       }
     }
   },

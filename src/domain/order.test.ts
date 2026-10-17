@@ -241,3 +241,34 @@ describe("default delivery date of the order form", () => {
     ).toBe(true);
   });
 });
+
+describe("orderInputSchema screenshotKey (NUD-031)", () => {
+  const base = {
+    customerId: "c1",
+    deliveryDate: "2026-10-19",
+    lines: [{ productId: "p1", quantity: "1" }],
+  };
+  const key = "screenshots/3f2504e0-4f89-41d3-9a0c-0305e82c3301.jpg";
+
+  it("accepts an upload-endpoint screenshot key and defaults to null", () => {
+    expect(orderInputSchema.parse(base).screenshotKey).toBeNull();
+    expect(orderInputSchema.parse({ ...base, screenshotKey: null }).screenshotKey).toBeNull();
+    expect(orderInputSchema.parse({ ...base, screenshotKey: key }).screenshotKey).toBe(key);
+  });
+
+  it("rejects keys the upload endpoint would not issue", () => {
+    for (const bad of [
+      "customers/3f2504e0-4f89-41d3-9a0c-0305e82c3301.jpg",
+      "screenshots/x.jpg",
+      "screenshots/3f2504e0-4f89-41d3-9a0c-0305e82c3301.svg",
+      `${key}/..`,
+      `x/${key}`,
+      "",
+      5,
+    ]) {
+      expect(orderInputSchema.safeParse({ ...base, screenshotKey: bad }).success, String(bad)).toBe(
+        false,
+      );
+    }
+  });
+});

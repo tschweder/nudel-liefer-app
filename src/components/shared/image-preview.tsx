@@ -2,7 +2,7 @@
 
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type PointerEvent, useRef, useState, type WheelEvent } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,10 +14,12 @@ type Props = {
   src: string;
   alt: string;
   className?: string;
+  /** `contain` shows the whole image in the thumbnail (screenshots), `cover` crops it to fill. */
+  fit?: "cover" | "contain";
 };
 
 /** Thumbnail that opens a fullscreen viewer with wheel / pinch / double-tap zoom and panning. */
-export function ImagePreview({ src, alt, className }: Props) {
+export function ImagePreview({ src, alt, className, fit = "cover" }: Props) {
   const t = useTranslations("common.upload.preview");
   return (
     <Dialog>
@@ -31,7 +33,11 @@ export function ImagePreview({ src, alt, className }: Props) {
           )}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, already resized */}
-          <img src={src} alt={alt} className="size-full object-cover" />
+          <img
+            src={src}
+            alt={alt}
+            className={cn("size-full", fit === "contain" ? "object-contain" : "object-cover")}
+          />
         </button>
       </DialogTrigger>
       <DialogContent className="h-dvh max-h-dvh w-screen max-w-none gap-0 rounded-none border-0 bg-black p-0 sm:max-w-none">
@@ -44,7 +50,11 @@ export function ImagePreview({ src, alt, className }: Props) {
 
 const IDLE: ViewState = { scale: 1, x: 0, y: 0 };
 
-function ZoomableImage({ src, alt }: { src: string; alt: string }) {
+/**
+ * Zoomable, pannable image that fills its parent (which must have a height). Wheel zoom uses a
+ * non-passive listener so the page does not scroll while zooming inline (NUD-031 split view).
+ */
+export function ZoomableImage({ src, alt }: { src: string; alt: string }) {
   const t = useTranslations("common.upload.preview");
   const [view, setView] = useState<ViewState>(IDLE);
   const frame = useRef<HTMLDivElement>(null);
@@ -87,10 +97,21 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
     setView((v) => (v.scale <= 1 ? IDLE : v));
   }
 
-  function onWheel(event: WheelEvent) {
-    const centre = local(event.clientX, event.clientY);
-    setView((v) => zoomAt(v, event.deltaY < 0 ? 1.2 : 1 / 1.2, centre));
-  }
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    const onWheel = (event: globalThis.WheelEvent) => {
+      event.preventDefault();
+      const rect = element.getBoundingClientRect();
+      const centre = {
+        x: event.clientX - rect.left - rect.width / 2,
+        y: event.clientY - rect.top - rect.height / 2,
+      };
+      setView((v) => zoomAt(v, event.deltaY < 0 ? 1.2 : 1 / 1.2, centre));
+    };
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, []);
 
   function onDoubleClick(event: React.MouseEvent) {
     const centre = local(event.clientX, event.clientY);
@@ -107,7 +128,6 @@ function ZoomableImage({ src, alt }: { src: string; alt: string }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onWheel={onWheel}
         onDoubleClick={onDoubleClick}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, already resized */}

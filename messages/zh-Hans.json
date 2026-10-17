@@ -500,10 +500,27 @@
           "customerNotFound": "未找到该客户。",
           "productInactive": "所选产品已被停用，请刷新页面。",
           "productNotFound": "未找到所选产品，请刷新页面。",
-          "generic": "保存失败，请重试。"
+          "generic": "保存失败，请重试。",
+          "screenshotMissing": "未找到该截图，请重新上传。",
+          "screenshotInUse": "该截图已属于另一个订单。"
         },
         "savedConfirmed": "订单已保存。",
-        "savedDraft": "草稿已保存。"
+        "savedDraft": "草稿已保存。",
+        "screenshot": {
+          "heading": "截图",
+          "hint": "可选：上传、拖入或用 Ctrl+V 粘贴 WhatsApp / 微信消息的截图。截图会显示在表单旁边，并随订单一起保存。",
+          "remove": "移除截图",
+          "alt": "订单消息截图",
+          "zoomHint": "滚轮或加减按钮缩放，拖动平移，双击放大。",
+          "previewFailed": "截图已上传，但无法显示，请重试。"
+        }
+      },
+      "detail": {
+        "title": "订单",
+        "noNote": "没有内部备注。",
+        "noScreenshot": "该订单没有截图。",
+        "screenshotAlt": "订单消息截图",
+        "screenshotHint": "点击放大。"
       }
     }
   },

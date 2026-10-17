@@ -213,7 +213,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | done |
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | done |
 | NUD-030 | Manual order entry | M1 | 014, 020 | done |
-| NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | todo |
+| NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | done |
 | NUD-032 | Order overview & editing | M1 | 030 | todo |
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | todo |
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | todo |
@@ -725,7 +725,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-031 · Screenshot attachment & split-view entry
-**Status:** todo · **depends_on:** 006, 030
+**Status:** done · **depends_on:** 006, 030
 
 **Goal:** office types an order while looking at the customer's WhatsApp/WeChat screenshot.
 
@@ -735,8 +735,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Screenshot remains viewable from the order detail later (for disputes about quantities).
 
 **Acceptance criteria**
-- [ ] Pasting an image from clipboard attaches it without a file dialog.
-- [ ] Order detail shows the screenshot thumbnail → fullscreen.
+- [x] Pasting an image from clipboard attaches it without a file dialog. (e2e dispatches a `ClipboardEvent("paste")` carrying a `File` on `document`; asserts no `filechooser` event, the signed image decodes in the pane; desktop + mobile. A real OS clipboard / Ctrl+V keystroke was not exercised.)
+- [x] Order detail shows the screenshot thumbnail → fullscreen. (e2e: `/admin/orders/[id]` thumbnail opens the zoom dialog, image decodes via signed URL; desktop + mobile.)
+
+**Implementation notes**
+- Order form (`src/components/admin/order-form.tsx`): new "Screenshot" section with the NUD-006 `ImageUploader` (`purpose="screenshot"`, file picker, drop, `pasteAnywhere` so Ctrl+V works anywhere on the page). After upload the server action `screenshotPreviewUrlAction(key)` (ADMIN, key must match `screenshots/<uuid>.<ext>` and exist) returns a signed URL. With a screenshot the page becomes `data-testid="order-entry" data-split="true"`: from 1024 px (`lg`) a 2-column grid, zoomable/pannable image left (sticky, `ZoomableImage` now exported from `image-preview.tsx`, wheel zoom is a non-passive listener so the page does not scroll, +/-/reset buttons, drag pan, double-click zoom), form right; below 1024 px the image is stacked above the form (50dvh). "Remove screenshot" returns to the uploader. After a successful save the form state is reset (Next keeps the previous route hidden with its state, which would have kept the saved order's screenshot in the next new-order form).
+- Server: `orderInputSchema` takes optional `screenshotKey` (`isScreenshotKey`, pattern in `src/lib/uploads.ts`, tied to the keys `/api/uploads` issues by a test). `createOrder(db, actor, input, today, storage)`: key must exist (`Storage.head`, 0 < bytes <= 15 MB), not be used by another `Screenshot` row (`screenshot_missing`, `screenshot_in_use`), then order + `Screenshot` are created in ONE nested create with `source=SCREENSHOT`; a client-sent `source` is ignored. New read `getOrderDetail` / `orderDetailQuery` (ADMIN, signed 1 h URL) and `screenshotPreviewUrlAction` (ADMIN).
+- Order detail: new minimal read-only `/admin/orders/[id]` (`OrderDetailView`: customer, date, status, source, lines, internal note, screenshot thumbnail -> fullscreen `ImagePreview` with `fit="contain"`, or "no screenshot"). The date in the order list links to it. NUD-032 extends this page (edit, cancel, duplicate).
+- i18n: `admin.orders.form.screenshot.*`, `admin.orders.detail.*`, two new form errors, de + zh-Hans by hand, Hant generated.
+- Tests: 8 integration tests in `order-actions.integration.test.ts` (auth on the two new reads/actions, forged keys incl. other prefix / traversal / URL / extension, missing object, empty/oversize object, key reuse, no orphan Screenshot after a rejected order, client `source` ignored, detail incl. signed URL), unit tests for the schema and key pattern, e2e `tests/e2e/order-screenshot.spec.ts` (paste, split layout geometry, wheel zoom without page scroll, pan, save, DB assertions, list -> detail -> fullscreen, file picker, drag-and-drop, remove -> MANUAL, clean form on next order, anonymous redirect, unknown id).
+- Verified: lint, typecheck, prettier, `pnpm test` (383 passed incl. DB), `i18n:check`, `pnpm build`, e2e `order-screenshot` + `orders` (desktop + mobile), `customer-photos`, `uploads`, `shells` (desktop) against the s3rver emulator; screenshots inspected at 1280 px (desktop) and Pixel 7 (412 px, mobile project), no horizontal scroll.
+- NOT verified: real MinIO / R2 (s3rver only, as NUD-006/015); a real clipboard paste from a chat app (synthetic ClipboardEvent only); pinch zoom / touch panning on a real phone (the pane uses `touch-none`, so touch-dragging on the image does not scroll the page); 375 px exactly (the mobile project is Pixel 7, 412 px); mobile e2e of `customer-photos`/`shells` not rerun; Chinese strings are agent-written (NUD-073).
+- Follow-ups: an uploaded but unsaved/removed screenshot stays orphaned in storage (cleanup with NUD-094); uniqueness of `Screenshot.storageKey` is checked in app code only (two concurrent saves with the same key could both pass; a unique index would need a migration); the unsaved form (incl. screenshot) is kept when navigating away and back (Next route retention), there is no "discard changes" prompt.
 
 ---
 
@@ -1321,6 +1331,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-030 | Delivery date field is a native `<input type="date">` (value `YYYY-MM-DD`), not the calendar popover | No time-zone shift through `Date`, keyboard friendly, simplest |
 | 2026-10-17 | NUD-030 | Unconfirmed pin and existing same-day orders are warnings only; saving is allowed. Archived customers and inactive products are rejected on the server and not offered | Ticket scope; routing is blocked later by the tour builder |
 | 2026-10-17 | NUD-030 | After saving, the form redirects to `/admin/orders` (minimal list of orders from today on, cancelled included) | Simplest way to show the result; NUD-032 replaces the page |
+| 2026-10-17 | NUD-031 | Screenshot is optional on the existing order form; its presence (validated key) makes `source=SCREENSHOT`, the client never sends a source | Simplest; keeps one create path and one authority for `source` |
+| 2026-10-17 | NUD-031 | Screenshot key validated like NUD-015 (`screenshots/<uuid>.<ext>` pattern, `Storage.head` must find it, used once); Screenshot row is created in the same statement as the order | No orphan rows, no forged keys |
+| 2026-10-17 | NUD-031 | Split view is a CSS grid at `lg` (1024 px) with a sticky pane; "remove" is the only way to change the screenshot (no replace button) | Simplest; paste/upload is offered again after removing |
+| 2026-10-17 | NUD-031 | Minimal read-only order detail `/admin/orders/[id]` added here; list date links to it | Ticket requires viewing the screenshot from order detail; NUD-032 extends it |
+| 2026-10-17 | NUD-031 | Order form state is reset after a successful save | Next keeps the previous route hidden with its state; otherwise the next new-order form would still hold the saved screenshot |
 
 ---
 

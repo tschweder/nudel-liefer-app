@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { isCustomerPhotoKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import { isCustomerPhotoKey, isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import { type Actor, AuthorizationError, resolveActor, type Role } from "./auth/actor";
 import { FakeStorage } from "./storage/fake";
@@ -127,6 +127,9 @@ describe("POST /api/uploads", () => {
       await handleCreateUpload(post({ ...valid, purpose: "screenshot" }), deps("admin"))
     ).json();
     expect(isCustomerPhotoKey(shot.storageKey)).toBe(false);
+    expect(isScreenshotKey(shot.storageKey), shot.storageKey).toBe(true);
+    const photo = await (await handleCreateUpload(post(valid), deps("admin"))).json();
+    expect(isScreenshotKey(photo.storageKey)).toBe(false);
   });
 
   it("re-throws unexpected errors instead of reporting them as auth failures", async () => {

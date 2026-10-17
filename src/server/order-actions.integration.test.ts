@@ -15,8 +15,12 @@ vi.mock("./db", async (importOriginal) => ({
   getDb: () => state.db,
 }));
 
-const { confirmedOrderCountAction, createOrderAction } = await import("./order-actions");
-const { orderableCustomersQuery, orderOverviewQuery } = await import("./order-queries");
+const { confirmedOrderCountAction, createOrderAction, screenshotPreviewUrlAction } =
+  await import("./order-actions");
+const { orderableCustomersQuery, orderDetailQuery, orderOverviewQuery } =
+  await import("./order-queries");
+const { setStorageForTests } = await import("./storage");
+const { FakeStorage } = await import("./storage/fake");
 const { activeProductsQuery } = await import("./product-queries");
 
 const FUTURE = "2099-06-15";
@@ -93,10 +97,22 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     await t?.teardown();
   });
 
+  let storage: InstanceType<typeof FakeStorage>;
+  let seq = 0;
+  /** Simulates a finished browser upload; returns the key `POST /api/uploads` would have issued. */
+  const uploadedScreenshot = (bytes = 2048) => {
+    const key = `screenshots/${(++seq).toString(16).padStart(8, "0")}-0000-4000-8000-000000000000.jpg`;
+    storage.put(key, new Uint8Array(bytes), "image/jpeg");
+    return key;
+  };
+
   beforeEach(async () => {
     state.session = null;
+    storage = new FakeStorage();
+    setStorageForTests(storage);
     await t.prisma.orderItem.deleteMany();
     await t.prisma.order.deleteMany();
+    await t.prisma.screenshot.deleteMany();
   });
 
   const asAdmin = () => {
@@ -115,6 +131,8 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       () => confirmedOrderCountAction(customerId, FUTURE),
       () => orderableCustomersQuery(),
       () => orderOverviewQuery(),
+      () => orderDetailQuery("whatever"),
+      () => screenshotPreviewUrlAction(uploadedScreenshot()),
     ];
     const sessions: Array<[typeof state.session, string]> = [
       [null, "UNAUTHENTICATED"],
@@ -301,5 +319,151 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     });
     expect(rows[0]?.items).toHaveLength(1);
     expect(rows[0]?.items[0]?.quantity).toBe("4");
+  });
+
+  describe("screenshot attachment (NUD-031)", () => {
+    it("stores a Screenshot, sets source=SCREENSHOT and shows it in the detail with a signed URL", async () => {
+      asAdmin();
+      const key = uploadedScreenshot();
+      const result = await createOrderAction(input({ screenshotKey: key }));
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const order = await t.prisma.order.findUniqueOrThrow({
+        where: { id: result.id },
+        include: { screenshot: true },
+      });
+      expect(order.source).toBe("SCREENSHOT");
+      expect(order.screenshot).toMatchObject({ storageKey: key, uploadedById: adminId });
+      expect(order.customerId).toBe(customerId);
+      expect(order.createdById).toBe(adminId);
+
+      const detail = await orderDetailQuery(result.id);
+      expect(detail?.source).toBe("SCREENSHOT");
+      expect(detail?.screenshot?.url).toContain(key);
+      expect(detail?.items).toHaveLength(1);
+      expect(detail?.customer.customerNumber).toBe("C1");
+      expect((await orderOverviewQuery())[0]?.source).toBe("SCREENSHOT");
+    });
+
+    it("an order without screenshot stays MANUAL and has no screenshot in the detail", async () => {
+      asAdmin();
+      const result = await createOrderAction(input({ screenshotKey: null }));
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const detail = await orderDetailQuery(result.id);
+      expect(detail).toMatchObject({ source: "MANUAL", screenshot: null });
+      expect(await t.prisma.screenshot.count()).toBe(0);
+    });
+
+    it("a client-sent source is ignored (only a real screenshot makes SCREENSHOT)", async () => {
+      asAdmin();
+      const result = await createOrderAction(input({ source: "SCREENSHOT" }));
+      expect(result.ok).toBe(true);
+      expect(await t.prisma.order.count({ where: { source: "SCREENSHOT" } })).toBe(0);
+    });
+
+    it("rejects forged keys: wrong prefix, other uploads, traversal, URLs, wrong extension", async () => {
+      asAdmin();
+      const uuid = "0000000a-0000-4000-8000-00000000000b";
+      const forged = [
+        `customers/${uuid}.jpg`,
+        `screenshots/${uuid}.gif`,
+        `screenshots/${uuid}.jpg/../../x`,
+        `screenshots/../customers/${uuid}.jpg`,
+        `/screenshots/${uuid}.jpg`,
+        `screenshots/${uuid.toUpperCase()}.jpg`,
+        `screenshots/not-a-uuid.jpg`,
+        `https://evil.example/screenshots/${uuid}.jpg`,
+        `screenshots/${uuid}.jpg?x=1`,
+        "",
+        "screenshots/",
+        42,
+        { key: "x" },
+      ];
+      for (const key of forged) {
+        // Even if an object existed under the forged key, it must not be accepted.
+        if (typeof key === "string") storage.put(key, new Uint8Array(10), "image/jpeg");
+        expect(await createOrderAction(input({ screenshotKey: key })), String(key)).toEqual({
+          ok: false,
+          error: "invalid",
+        });
+      }
+      expect(await t.prisma.order.count()).toBe(0);
+      expect(await t.prisma.screenshot.count()).toBe(0);
+    });
+
+    it("rejects a key whose object was never uploaded", async () => {
+      asAdmin();
+      const key = "screenshots/00000002-0000-4000-8000-000000000000.jpg";
+      expect(await createOrderAction(input({ screenshotKey: key }))).toEqual({
+        ok: false,
+        error: "screenshot_missing",
+      });
+      expect(await t.prisma.order.count()).toBe(0);
+    });
+
+    it("rejects an empty or oversize stored object", async () => {
+      asAdmin();
+      for (const bytes of [0, 15 * 1024 * 1024 + 1]) {
+        const key = uploadedScreenshot(bytes);
+        expect(await createOrderAction(input({ screenshotKey: key }))).toEqual({
+          ok: false,
+          error: "invalid",
+        });
+      }
+    });
+
+    it("a screenshot can be attached to one order only", async () => {
+      asAdmin();
+      const key = uploadedScreenshot();
+      expect((await createOrderAction(input({ screenshotKey: key }))).ok).toBe(true);
+      expect(await createOrderAction(input({ screenshotKey: key }))).toEqual({
+        ok: false,
+        error: "screenshot_in_use",
+      });
+      expect(await t.prisma.order.count()).toBe(1);
+      expect(await t.prisma.screenshot.count()).toBe(1);
+    });
+
+    it("a rejected order leaves no Screenshot row behind", async () => {
+      asAdmin();
+      const key = uploadedScreenshot();
+      const result = await createOrderAction(
+        input({ screenshotKey: key, lines: [{ productId: p1, quantity: "0" }] }),
+      );
+      expect(result).toEqual({ ok: false, error: "invalid" });
+      expect(
+        await createOrderAction(input({ screenshotKey: key, customerId: archivedId })),
+      ).toEqual({ ok: false, error: "customer_inactive" });
+      expect(await t.prisma.screenshot.count()).toBe(0);
+    });
+
+    it("preview URL is only signed for existing keys in the screenshot namespace", async () => {
+      asAdmin();
+      const key = uploadedScreenshot();
+      expect(await screenshotPreviewUrlAction(key)).toContain(key);
+      storage.put(
+        "customers/00000003-0000-4000-8000-000000000000.jpg",
+        new Uint8Array(5),
+        "image/jpeg",
+      );
+      for (const bad of [
+        "customers/00000003-0000-4000-8000-000000000000.jpg",
+        "screenshots/ffffffff-0000-4000-8000-000000000000.jpg",
+        "../etc/passwd",
+        "",
+        null,
+        7,
+      ]) {
+        expect(await screenshotPreviewUrlAction(bad), String(bad)).toBeNull();
+      }
+    });
+
+    it("detail returns null for unknown or malformed ids", async () => {
+      asAdmin();
+      expect(await orderDetailQuery("does-not-exist")).toBeNull();
+      expect(await orderDetailQuery("")).toBeNull();
+      expect(await orderDetailQuery(undefined)).toBeNull();
+    });
   });
 });

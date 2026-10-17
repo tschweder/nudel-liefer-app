@@ -45,7 +45,13 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
         {orders.map((order) => (
           <TableRow key={order.id} data-testid="order-row" data-order-id={order.id}>
             <TableCell className="whitespace-nowrap">
-              {fmt.calendarDate(order.deliveryDate)}
+              <Link
+                href={`/admin/orders/${order.id}`}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                data-testid="order-open"
+              >
+                {fmt.calendarDate(order.deliveryDate)}
+              </Link>
             </TableCell>
             <TableCell>
               <Link

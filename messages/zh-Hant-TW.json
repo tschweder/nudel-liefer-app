@@ -501,10 +501,27 @@
           "customerNotFound": "未找到該客戶。",
           "productInactive": "所選產品已被停用，請重新整理頁面。",
           "productNotFound": "未找到所選產品，請重新整理頁面。",
-          "generic": "儲存失敗，請重試。"
+          "generic": "儲存失敗，請重試。",
+          "screenshotMissing": "未找到該截圖，請重新上傳。",
+          "screenshotInUse": "該截圖已屬於另一個訂單。"
         },
         "savedConfirmed": "訂單已儲存。",
-        "savedDraft": "草稿已儲存。"
+        "savedDraft": "草稿已儲存。",
+        "screenshot": {
+          "heading": "截圖",
+          "hint": "可選：上傳、拖入或用 Ctrl+V 貼上 WhatsApp / 微信訊息的截圖。截圖會顯示在表單旁邊，並隨訂單一起儲存。",
+          "remove": "移除截圖",
+          "alt": "訂單訊息截圖",
+          "zoomHint": "滾輪或加減按鈕縮放，拖動平移，雙擊放大。",
+          "previewFailed": "截圖已上傳，但無法顯示，請重試。"
+        }
+      },
+      "detail": {
+        "title": "訂單",
+        "noNote": "沒有內部備註。",
+        "noScreenshot": "該訂單沒有截圖。",
+        "screenshotAlt": "訂單訊息截圖",
+        "screenshotHint": "點選放大。"
       }
     }
   },

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isScreenshotKey } from "@/lib/uploads";
+
 /**
  * Pure order-entry rules (NUD-030): quantity parsing, line merging, input validation and the
  * non-blocking warnings. No framework or database imports.
@@ -121,6 +123,17 @@ export const orderInputSchema = z
       .max(MAX_NOTE_LENGTH)
       .nullish()
       .transform((v) => (v ? v : null)),
+    /**
+     * Optional screenshot the order was typed from (NUD-031): a key issued by `POST /api/uploads`
+     * for purpose `screenshot`. Its presence makes the order `source=SCREENSHOT`; the client
+     * cannot choose the source otherwise.
+     */
+    screenshotKey: z
+      .string()
+      .max(200)
+      .refine(isScreenshotKey)
+      .nullish()
+      .transform((v) => v ?? null),
     lines: z
       .array(z.object({ productId: idSchema, quantity: quantitySchema }))
       .min(1)
