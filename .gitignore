@@ -46,3 +46,7 @@ next-env.d.ts
 !.env.example
 playwright-report/
 test-results/
+
+# generated / local
+/src/generated
+/.embedded-postgres

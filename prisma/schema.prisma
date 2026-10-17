@@ -1,0 +1,264 @@
+// Core v1 schema (backlog §6). AuditLog is added by NUD-092.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+}
+
+/// Mapped to BCP-47 tags in the database; see src/lib/localized-text.ts.
+enum Locale {
+  de
+  zh_Hans    @map("zh-Hans")
+  zh_Hant_HK @map("zh-Hant-HK")
+  zh_Hant_TW @map("zh-Hant-TW")
+}
+
+enum Unit {
+  KG
+  PACK
+  CRATE
+  PIECE
+}
+
+enum PhotoKind {
+  STORE
+  PARKING
+}
+
+enum OrderSource {
+  MANUAL
+  SCREENSHOT
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
+enum TourStatus {
+  DRAFT
+  OPTIMIZED
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum StopStatus {
+  PENDING
+  DELIVERED
+  PROBLEM
+}
+
+enum ProblemReason {
+  CLOSED
+  NOBODY_THERE
+  NO_PARKING
+  WRONG_QUANTITY
+  REFUSED
+  ADDRESS_NOT_FOUND
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  role         Role
+  email        String?  @unique
+  username     String?  @unique
+  passwordHash String
+  locale       Locale   @default(de)
+  localeChosen Boolean  @default(false)
+  displayName  String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  photos      Photo[]
+  screenshots Screenshot[]
+  orders      Order[]
+  tours       Tour[]
+}
+
+/// Singleton row (id = 1).
+model Settings {
+  id                    Int    @id @default(1)
+  depotName             String
+  depotAddress          String
+  depotLat              Float
+  depotLng              Float
+  timezone              String @default("Europe/Vienna")
+  departureTime         String @default("07:00")
+  serviceMinutesPerStop Int    @default(10)
+  deliveryWeekdays      Int[]  @default([1, 2, 3, 4, 5])
+}
+
+model Customer {
+  id                String   @id @default(cuid())
+  customerNumber    String   @unique
+  name              String
+  street            String
+  postalCode        String
+  city              String
+  country           String   @default("AT")
+  lat               Float?
+  lng               Float?
+  pinConfirmed      Boolean  @default(false)
+  /// LocalizedText
+  notes             Json?
+  deliveryHoursInfo String?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  photos Photo[]
+  orders Order[]
+  stops  Stop[]
+
+  @@index([name])
+}
+
+model Photo {
+  id           String    @id @default(cuid())
+  customerId   String
+  kind         PhotoKind
+  storageKey   String
+  width        Int
+  height       Int
+  bytes        Int
+  uploadedById String
+  isCurrent    Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  uploadedBy User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, kind, isCurrent])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  sku       String   @unique
+  /// LocalizedText
+  name      Json
+  unit      Unit
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Screenshot {
+  id           String   @id @default(cuid())
+  storageKey   String
+  uploadedById String
+  createdAt    DateTime @default(now())
+  /// Filled by AI extraction in M3.
+  extraction   Json?
+
+  uploadedBy User    @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  orders     Order[]
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customerId   String
+  deliveryDate DateTime    @db.Date
+  status       OrderStatus @default(DRAFT)
+  source       OrderSource @default(MANUAL)
+  screenshotId String?
+  internalNote String?
+  createdById  String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  screenshot Screenshot? @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
+  createdBy  User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items      OrderItem[]
+  stopOrders StopOrder[]
+
+  @@index([deliveryDate, status])
+  @@index([customerId, deliveryDate])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+/// No unique constraint on date: several tours per date are allowed later (D5).
+model Tour {
+  id             String     @id @default(cuid())
+  date           DateTime   @db.Date
+  driverId       String?
+  status         TourStatus @default(DRAFT)
+  isOutdated     Boolean    @default(false)
+  locked         Boolean    @default(false)
+  depotSnapshot  Json
+  geometry       Json?
+  totalDistanceM Int?
+  totalDurationS Int?
+  optimizedAt    DateTime?
+  releasedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  driver User?  @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  stops  Stop[]
+
+  @@index([date])
+}
+
+model Stop {
+  id               String         @id @default(cuid())
+  tourId           String
+  customerId       String
+  sequence         Int
+  status           StopStatus     @default(PENDING)
+  etaAt            DateTime?
+  legDistanceM     Int?
+  legDurationS     Int?
+  problemReason    ProblemReason?
+  /// LocalizedText (source = driver locale)
+  problemNote      Json?
+  completedAt      DateTime?
+  clientMutationId String?        @unique
+
+  tour     Tour        @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orders   StopOrder[]
+
+  @@index([tourId, sequence])
+  @@index([customerId])
+}
+
+model StopOrder {
+  stopId  String
+  orderId String
+
+  stop  Stop  @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@id([stopId, orderId])
+  @@index([orderId])
+}

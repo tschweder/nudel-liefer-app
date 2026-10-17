@@ -21,7 +21,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 
 ## Commands
 
-`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` (`db:*` from NUD-002).
+`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` | `pnpm db:migrate` | `pnpm db:seed` | `pnpm db:embedded` (Postgres without Docker).
 
 ## Definition of Done (backlog §5)
 

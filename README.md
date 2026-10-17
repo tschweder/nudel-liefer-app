@@ -9,7 +9,10 @@ Requirements: [`projektbeschreibung.md`](./projektbeschreibung.md), work plan an
 Requires Node 22+ and pnpm (`corepack enable`).
 
 ```bash
+cp .env.example .env
+docker compose up -d            # postgres + minio (or: pnpm db:embedded, no Docker)
 pnpm install
+pnpm db:migrate && pnpm db:seed
 pnpm dev            # http://localhost:3000
 ```
 
