@@ -6,6 +6,7 @@ import {
   LOCALES,
   localizedTextSchema,
   pick,
+  pickWithSource,
   tagToDbLocale,
   withDerivedHant,
 } from "./localized-text";
@@ -83,5 +84,22 @@ describe("withDerivedHant", () => {
       "zh-Hans",
     );
     expect(withDerivedHant(full)).toBe(full);
+  });
+});
+
+describe("pickWithSource", () => {
+  const base = { meta: { source: "de" as const, machine: {}, updatedAt: "x" } };
+  it("says which language the picked text is in", () => {
+    expect(pickWithSource({ ...base, de: "Hallo" }, "zh-Hans")).toEqual({
+      value: "Hallo",
+      locale: "de",
+    });
+    expect(pickWithSource({ ...base, de: "Hallo", "zh-Hant-TW": "你好" }, "zh-Hant-HK")).toEqual({
+      value: "你好",
+      locale: "zh-Hant-TW",
+    });
+  });
+  it("is null when nothing is set", () => {
+    expect(pickWithSource({ ...base, de: "  " }, "de")).toBeNull();
   });
 });

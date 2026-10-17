@@ -749,7 +749,20 @@
     },
     "stop": {
       "back": "返回線路",
-      "comingSoon": "詳情頁面即將推出。"
+      "position": "第 {position} 站，共 {total} 站",
+      "copyAddress": "複製地址",
+      "copied": "地址已複製",
+      "photoStore": "店鋪 / 入口",
+      "photoParking": "停車 / 卸貨",
+      "noPhoto": "暫無照片",
+      "items": "送貨內容",
+      "notes": "備註",
+      "notesGerman": "僅有德語文本",
+      "hours": "收貨時間",
+      "appleMaps": "Apple 地圖",
+      "stopNavigation": "切換站點",
+      "previous": "上一站",
+      "next": "下一站"
     }
   }
 }

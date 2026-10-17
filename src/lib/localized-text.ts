@@ -70,12 +70,20 @@ const FALLBACK_CHAIN: Record<AppLocale, AppLocale[]> = {
  * (HK <-> TW, then Hans), then `de`, then the source locale. Returns "" if nothing is set.
  */
 export function pick(text: LocalizedText, locale: AppLocale): string {
+  return pickWithSource(text, locale)?.value ?? "";
+}
+
+/** Like `pick`, but also says which locale the returned text is written in (`null` if empty). */
+export function pickWithSource(
+  text: LocalizedText,
+  locale: AppLocale,
+): { value: string; locale: AppLocale } | null {
   const chain = [...FALLBACK_CHAIN[locale], "de" as const, text.meta.source];
   for (const candidate of chain) {
     const value = text[candidate];
-    if (value && value.trim() !== "") return value;
+    if (value && value.trim() !== "") return { value, locale: candidate };
   }
-  return "";
+  return null;
 }
 
 const isEmpty = (value: string | undefined): boolean => value === undefined || value.trim() === "";

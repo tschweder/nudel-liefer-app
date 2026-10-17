@@ -54,6 +54,7 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
   legDurationS: 600,
   change: null,
   changedInRevision: null,
+  customerId: `c${sequence}`,
   customerNumber: `K${sequence}`,
   customerName: `Trattoria ${sequence}`,
   street: "Hauptstraße 1",
@@ -65,6 +66,7 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
     {
       productId: "a",
       name: "Spaghetti",
+      germanName: null,
       unit: "KG",
       quantityCents: 1250,
       previousQuantityCents: null,
@@ -72,6 +74,7 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
     {
       productId: "b",
       name: "Penne",
+      germanName: null,
       unit: "PACK",
       quantityCents: 400,
       previousQuantityCents: null,
@@ -142,6 +145,7 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
         {
           productId: "a",
           name: "Spaghetti",
+          germanName: null,
           unit: "KG",
           quantityCents: 500,
           previousQuantityCents: 300,

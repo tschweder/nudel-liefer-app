@@ -748,7 +748,20 @@
     },
     "stop": {
       "back": "返回线路",
-      "comingSoon": "详情页面即将推出。"
+      "position": "第 {position} 站，共 {total} 站",
+      "copyAddress": "复制地址",
+      "copied": "地址已复制",
+      "photoStore": "店铺 / 入口",
+      "photoParking": "停车 / 卸货",
+      "noPhoto": "暂无照片",
+      "items": "送货内容",
+      "notes": "备注",
+      "notesGerman": "仅有德语文本",
+      "hours": "收货时间",
+      "appleMaps": "Apple 地图",
+      "stopNavigation": "切换站点",
+      "previous": "上一站",
+      "next": "下一站"
     }
   }
 }

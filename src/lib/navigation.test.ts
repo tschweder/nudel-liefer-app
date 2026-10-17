@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { googleMapsNavigationUrl } from "./navigation";
+import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "./navigation";
 
 describe("googleMapsNavigationUrl", () => {
   it("uses the pinned coordinates", () => {
@@ -10,5 +10,13 @@ describe("googleMapsNavigationUrl", () => {
   });
   it("keeps negative coordinates", () => {
     expect(googleMapsNavigationUrl(-33.86, -70.5)).toContain("destination=-33.86,-70.5&");
+  });
+});
+
+describe("appleMapsNavigationUrl", () => {
+  it("uses the pinned coordinates, never an address", () => {
+    expect(appleMapsNavigationUrl(48.2082, 16.3738)).toBe(
+      "https://maps.apple.com/?daddr=48.2082,16.3738",
+    );
   });
 });

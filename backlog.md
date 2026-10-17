@@ -221,7 +221,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | done |
 | NUD-050 | Driver first-start language picker | M1 | 005 | done |
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | done |
-| NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | todo |
+| NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | done |
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | todo |
 | NUD-054 | Admin live tour progress | M1 | 053 | todo |
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | todo |
@@ -954,7 +954,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-052 · Driver stop detail + navigation
-**Status:** todo · **depends_on:** 015, 051
+**Status:** done · **depends_on:** 015, 051
 
 **Goal:** projektbeschreibung §5 "Bei Auswahl eines Kunden" + §6.
 
@@ -967,9 +967,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Prev/next stop swipe or buttons.
 
 **Acceptance criteria**
-- [ ] Quantities on this screen equal the merged quantities of the stop's confirmed orders (integration test).
-- [ ] Navigate link contains the confirmed pin coordinates, not the address string.
-- [ ] Missing photos never break the layout.
+- [x] Quantities on this screen equal the merged quantities of the stop's confirmed orders (integration test). (`driver-stop.integration.test.ts`: two confirmed orders of one customer for the day are merged by the real tour builder + release, a DRAFT and a CANCELLED order are excluded; detail shows 15 kg / 3 packs.)
+- [x] Navigate link contains the confirmed pin coordinates, not the address string. (Unit + component + e2e assert the exact URL; Apple Maps link likewise.)
+- [x] Missing photos never break the layout. (Both photos are in a fixed 4:3 box; e2e compares box size with photos, with one and with no photo; 375 px, 4 locales, no horizontal scroll.)
+
+**Implementation notes**
+- Route `/[locale]/driver/stops/[stopId]` now renders `components/driver/stop-detail.tsx` from `driverStopQuery(locale, stopId)` (`src/server/driver-stop.ts`). The query builds on `getDriverToday`, so the ownership rule is unchanged: the stop must be in the session driver's own released tour of today, else `notFound()`; admins and other drivers get nothing. Extra reads only for that stop's customer: `notes`, `deliveryHoursInfo`, current photos via `getCustomerPhotos` (signed URLs, server side). Quantities are the released snapshot (as NUD-051).
+- Screen order: back, "Stopp n von N", sequence badge, untranslated name, address (whole row is a 48 px button, copies "street, postal code city", short "Adresse kopiert" confirmation), ETA, Navigate (Google Maps with pin lat/lng; "Apple Karten" additionally when the browser is iOS/iPadOS, detected client-side via `useSyncExternalStore`; "no pin" notice instead when there is no pin), store photo, parking photo, items, notes (+ "DE" badge when the shown text is German and the UI is not German), delivery hours, an empty `data-testid="status-actions-slot"` marked for NUD-053, previous / next buttons (disabled at the ends).
+- Photos: `ImagePreview` (NUD-006) in a fixed `aspect-[4/3]` frame with `contain`; missing photo = same frame with icon + "Noch kein Foto". Items: localized name 20 px semibold, German name small below (only if different), quantity 30 px bold + localized unit.
+- Helpers: `domain/driver-stop.ts` (`neighbourStops`, `formatAddress`), `pickWithSource` in `lib/localized-text.ts` (which locale a picked text is in), `appleMapsNavigationUrl` in `lib/navigation.ts`; `TodayItem` got `germanName`, `TodayStop` got `customerId`. Removed the `driver.stop.comingSoon` string; new keys under `driver.stop.*` (de, zh-Hans; Hant generated).
+- Tests: `domain/driver-stop.test.ts`, `localized-text.test.ts`, `navigation.test.ts`, `components/driver/stop-detail.test.tsx` (4 locales + copy, iOS, no pin), `server/driver-stop.integration.test.ts` (7), e2e `tests/e2e/driver-stop.spec.ts` (4 locales at 375 px with and without photos, one photo missing, fullscreen viewer opens and zooms, copy, prev/next, iOS Apple Maps, other driver sees nothing). Verified: lint, typecheck, prettier, `i18n:check`, `pnpm test` (628 passed incl. DB), `pnpm build`, e2e mobile `driver-stop` + `driver-today`; screenshots (de with photos, zh-Hant-TW without photos) inspected.
+- NOT verified: real phone / Safari (iOS detection, Apple Maps and Google Maps app hand-over, real pinch gesture; only the zoom button was exercised), real S3/R2 photos (e2e answers the signed image requests itself), the clipboard on a real phone (HTTP contexts without clipboard API silently do not copy), the desktop Playwright project, Chinese strings are agent-written (NUD-073). Swipe between stops not built (optional; buttons only).
+- Notes for later: Next keeps visited routes hidden in the DOM after client navigation, so e2e locators on such pages need `:visible`; the stop page streams, so a foreign stop id still returns HTTP 200 with the not-found UI (nothing of the stop is sent). The change highlight of NUD-051 is not repeated on this screen.
+
 
 ---
 
@@ -1480,3 +1490,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - Which Chinese variant(s) the drivers actually read → collected in UAT (NUD-096); all four locales ship regardless.
 - Vehicle type (car vs. van/truck profile for routing) → ORS profile setting (NUD-040).
 - Map tile provider account for production (NUD-011) and DeepL API account (NUD-070).
+| 2026-10-17 | NUD-052 | No swipe between stops, only prev / next buttons (disabled at ends); order = tour sequence regardless of status | Swipe is optional in the ticket; buttons are simplest and 48 px accessible |
+| 2026-10-17 | NUD-052 | Apple Maps button only when the browser reports iOS/iPadOS; Google Maps button always first | Ticket: secondary option on iOS, detected client-side |
+| 2026-10-17 | NUD-052 | Photos shown `contain` in a fixed 4:3 frame; missing photo uses the same frame | Layout never shifts; the whole photo is visible without cropping |
+| 2026-10-17 | NUD-052 | DE badge shown whenever the picked note text is German and the UI locale is not German (via `pickWithSource`) | Becomes invisible automatically once NUD-071 adds translations |
+| 2026-10-17 | NUD-052 | German product name is shown only when it differs from the displayed name; copied address = "street, postal code city" | Avoids a duplicate line in German; address format matches the list |

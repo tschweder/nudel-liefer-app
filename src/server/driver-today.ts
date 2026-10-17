@@ -13,6 +13,8 @@ import { type DriverTour, getDriverTour } from "./tour-driver";
 export type TodayItem = {
   productId: string;
   name: string;
+  /** German product name (matches the box labels); `null` when the product has none. */
+  germanName: string | null;
   unit: string;
   quantityCents: number;
   previousQuantityCents: number | null;
@@ -26,6 +28,7 @@ export type TodayStop = {
   legDurationS: number | null;
   change: "ADDED" | "CHANGED" | null;
   changedInRevision: number | null;
+  customerId: string;
   /** Customer data is never translated (the driver matches it to real signage). */
   customerNumber: string;
   customerName: string;
@@ -119,6 +122,7 @@ export async function getDriverToday(
         legDurationS: stop.legDurationS,
         change: stop.change,
         changedInRevision: stop.changedInRevision,
+        customerId: stop.customerId,
         customerNumber: customer?.customerNumber ?? "",
         customerName: customer?.name ?? "",
         street: customer?.street ?? "",
@@ -130,7 +134,8 @@ export async function getDriverToday(
           const name = localizedTextSchema.safeParse(item.name);
           return {
             productId: item.productId,
-            name: name.success ? pick(name.data, locale) : item.sku,
+            name: name.success ? pick(name.data, locale) || item.sku : item.sku,
+            germanName: name.success && name.data.de?.trim() ? name.data.de : null,
             unit: item.unit,
             quantityCents: item.quantityCents,
             previousQuantityCents: item.previousQuantityCents,

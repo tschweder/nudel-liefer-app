@@ -748,7 +748,20 @@
     },
     "stop": {
       "back": "Zurück zur Tour",
-      "comingSoon": "Die Detailansicht folgt in Kürze."
+      "position": "Stopp {position} von {total}",
+      "copyAddress": "Adresse kopieren",
+      "copied": "Adresse kopiert",
+      "photoStore": "Geschäft / Eingang",
+      "photoParking": "Parken / Entladen",
+      "noPhoto": "Noch kein Foto",
+      "items": "Lieferung",
+      "notes": "Hinweis",
+      "notesGerman": "Text nur auf Deutsch vorhanden",
+      "hours": "Lieferzeiten",
+      "appleMaps": "Apple Karten",
+      "stopNavigation": "Zwischen Stopps wechseln",
+      "previous": "Zurück",
+      "next": "Weiter"
     }
   }
 }
