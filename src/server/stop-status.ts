@@ -195,6 +195,10 @@ export async function applyStopMutation(
               problemNote: note
                 ? (createLocalizedText({ [locale]: note }, locale, {
                     now,
+                    // Non-German text is stored with the pending marker (NUD-072): the office sees
+                    // "translation pending" until `translateStopProblemNote` (after the commit) or
+                    // the cron retry job fills the German version. German needs no translation.
+                    pendingTranslation: locale !== "de",
                   }) as Prisma.InputJsonValue)
                 : Prisma.DbNull,
               completedAt: now,

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
+import { scheduleProblemNoteTranslation } from "./problem-note-translation";
 import { applyStopMutation, type StopMutationInput, type StopStatusResult } from "./stop-status";
 
 /**
@@ -13,7 +14,10 @@ import { applyStopMutation, type StopMutationInput, type StopStatusResult } from
  */
 export async function stopStatusAction(input: StopMutationInput): Promise<StopStatusResult> {
   const actor = await requireRole("DRIVER");
-  const result = await applyStopMutation(getDb(), actor, input);
+  const db = getDb();
+  const result = await applyStopMutation(db, actor, input);
+  // German version of a free-text problem note for the office: after the response, never blocks.
+  scheduleProblemNoteTranslation(db, result);
   // Drops the client router cache so the stop and tour screens show the new state.
   if (result.ok) revalidatePath("/", "layout");
   return result;

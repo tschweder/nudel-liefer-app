@@ -227,7 +227,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | done |
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | done |
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | done |
-| NUD-072 | Driver problem text → German for office | M2 | 053, 070 | todo |
+| NUD-072 | Driver problem text → German for office | M2 | 053, 070 | done |
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | todo |
 | NUD-080 | PWA installability | M2 | 051 | todo |
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | todo |
@@ -1130,7 +1130,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-072 · Driver problem text → German for office
-**Status:** todo · **depends_on:** 053, 070
+**Status:** done · **depends_on:** 053, 070
 
 **Goal:** office understands what the driver wrote.
 
@@ -1140,7 +1140,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Predefined reasons need no translation (already i18n keys).
 
 **Acceptance criteria**
-- [ ] Driver writes `門口鎖住了，沒人應門` (zh-Hant-HK) → admin sees a German translation and the original.
+- [x] Driver writes `門口鎖住了，沒人應門` (zh-Hant-HK) → admin sees a German translation and the original. (e2e `problem-translation.spec.ts` with the FAKE translator, no DeepL key: the German text on the admin tour page is `[de] 門口鎖住了，沒人應門`, marked "maschinell übersetzt", and the original is behind "Original anzeigen". A real DeepL translation was NOT exercised.)
+
+**Implementation notes**
+- Where the hook sits: `applyStopMutation` (NUD-053) stays free of the translator. For a non-German free text it stores the `LocalizedText` (source = driver locale) with `meta.pendingTranslation = true` in the same transaction; a German note is stored without the flag (German is already what the office reads, nothing to translate, the Chinese variants of a German note are not needed). The translation runs after the commit and outside the driver's transaction: `src/server/problem-note-translation.ts` has `translateStopProblemNote(db, stopId)` (reads the note, `completeTranslation` = one provider call to German + OpenCC variants, saves through `stopProblemNoteSource.save`, i.e. only if the stored text still has the version that was read; never throws, never logs the text; provider failure -> stays pending) and `scheduleProblemNoteTranslation(db, result)` which runs it inside `after()` (`next/server`), so on Vercel the function is kept alive after the response. It does nothing for replays, delivered stops, undo and rejected mutations, and swallows a scheduling failure. `stopStatusAction` calls it after `applyStopMutation`; NUD-082's batch sync should call the same function for each applied entry (`applyStopMutation` itself is unchanged for it). Safety net: if the translation fails or the function dies, the note stays pending and the existing cron job (`Stop.problemNote` in `PENDING_SOURCES`) completes it. An undo (note removed) or a new report (new `meta.updatedAt`) in between wins over a late translation.
+- Read model: `PlanStop.problemNote` is now `{ text, locale, german, germanMachine, pending }` (`readProblemNote` in `tour-planning.ts`): original = source-locale value, `german` = the `de` version of a non-German note, `germanMachine` = `meta.machine.de !== false`, `pending` = no German yet and `meta.pendingTranslation`. Authorization unchanged (`tourPlanQuery` is admin only).
+- UI: `ProblemNote` (`components/admin/problem-note.tsx`) replaces the inline original text on the tour page: German translation first (`<q lang="de">`, badge "maschinell übersetzt"), a "Original anzeigen / ausblenden" toggle (`aria-expanded`) for the driver's original (label "Originaltext des Fahrers", `lang` = the driver's locale); while the translation is missing a badge "Übersetzung folgt" and the original is shown; a note written in German is shown as before (no badge, no toggle). Strings `admin.tours.progress.{translatedNote,machineTranslated,translationPending,showOriginal,hideOriginal}` (de, zh-Hans by hand, Hant generated). The dashboard card lists only customer + reason of problem stops (no free text), so it needed no change.
+- Tests: `problem-note-translation.integration.test.ts` on PostgreSQL (7: pending marker without any provider call, translation after commit incl. Fake `[de]` prefix and original kept, German note not marked / not translated, provider outage -> mutation result unaffected + stays pending + the retry job completes it later, scheduler skips replay / delivered / undo / rejected and survives a throwing scheduler, the server action still succeeds when `after()` is unavailable, an undone report is not overwritten, the plan read model for translated / German / pending), `problem-note.test.tsx` (3 cases x 4 UI locales), e2e `tests/e2e/problem-translation.spec.ts` (desktop: zh-Hant-HK driver on a phone viewport reports CLOSED with `門口鎖住了，沒人應門`, the stored note gets `de`, admin tour page at 1280 px shows the German text + machine badge, toggle shows / hides the original with `lang="zh-Hant-HK"`, zh-Hans UI shows the same, a hand-set pending note shows "Übersetzung folgt" + original; screenshots `test-results/nud-072-tour-{german,original,pending}.png`, inspected).
+- Verified: lint, typecheck, prettier on changed files, `i18n:check`, all 77 vitest files (DB tests on embedded PostgreSQL, run in two groups), `pnpm build`, e2e `problem-translation` (desktop), `admin-progress` (desktop, `LIVE_POLL_INTERVAL_MS=5000`), `driver-status` (mobile, 4 locales), `note-translations` (desktop). Everything translated in tests / e2e comes from the Fake translator (visible `[de] ` prefix); a real DeepL translation was NOT exercised.
+- NOT verified: a real DeepL call; `after()` on Vercel itself (works under `next start`; a lost task falls back to the cron job, which needs the 10 minute schedule = Pro plan and a DeepL key, with only the Fake translator it skips); the "translation pending" state under a real outage in e2e (pending state is set up by SQL, the outage itself is covered by integration tests); other e2e specs not rerun; Chinese strings agent-written (NUD-073).
+- Follow-ups: NUD-082 must call `scheduleProblemNoteTranslation` per applied entry of the batch sync. In production without `DEEPL_API_KEY` the Fake translator would store prefixed text as a "translation" (same as NUD-071 notes); `checkDeployEnv` already warns.
 
 ---
 
@@ -1571,6 +1580,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-071 | Source change: one provider call (Simplified) + OpenCC for Hant, applied to machine/empty versions only; a changed German text with a failing provider empties them and sets `pendingTranslation` | Same cost as NUD-070 `localize`; failures never block saving |
 | 2026-10-18 | NUD-071 | "Re-translate" with a failing provider changes nothing and shows an error | Never destroy hand-written text without a replacement |
 | 2026-10-18 | NUD-071 | Saves from the tab carry `baseUpdatedAt` and write guarded on `meta.updatedAt`; mismatch returns `conflict` and reloads | Protects against the retry job / a second office user without locks |
+| 2026-10-18 | NUD-072 | Non-German problem text is stored with `meta.pendingTranslation` inside the driver's transaction; translation runs afterwards in `after()` (`scheduleProblemNoteTranslation`), the cron retry job is the safety net; `applyStopMutation` itself never calls the translator | Driver mutation can never be delayed or failed by a provider; serverless-safe; same hook reusable by NUD-082 |
+| 2026-10-18 | NUD-072 | German problem text: no flag, no translation, no Chinese variants | Office reads German; ticket only asks for German for the office |
+| 2026-10-18 | NUD-072 | Admin shows the German text first with a "maschinell übersetzt" badge and a toggle for the original; while pending: "Übersetzung folgt" + original shown | Office needs something readable at once; original always reachable |
+| 2026-10-18 | NUD-072 | A late translation is saved only if the note still has the `meta.updatedAt` that was read (existing `stopProblemNoteSource.save`) | Undo or a new report in between must win |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

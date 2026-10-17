@@ -760,7 +760,12 @@
         "completedAt": "{time} 完成",
         "reason": "原因：{reason}",
         "reasonUnknown": "原因：未填写",
-        "originalNote": "司机的原文："
+        "originalNote": "司机的原文：",
+        "translatedNote": "德语译文：",
+        "machineTranslated": "机器翻译",
+        "translationPending": "翻译中",
+        "showOriginal": "显示原文",
+        "hideOriginal": "隐藏原文"
       }
     }
   },

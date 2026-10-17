@@ -50,6 +50,7 @@ import {
 } from "@/server/tour-actions";
 import type { PlanStop, TourPlan } from "@/server/tour-planning";
 
+import { ProblemNote } from "./problem-note";
 import { TourDiffList } from "./tour-diff-list";
 
 const selectClass = "h-10 min-w-56 rounded-md border border-input bg-background px-3 text-base";
@@ -597,16 +598,7 @@ export function TourPlanner({
                                 })
                               : t("progress.reasonUnknown")}
                           </span>
-                          {stop.problemNote ? (
-                            <p data-testid="stop-problem-note">
-                              <span className="text-muted-foreground">
-                                {t("progress.originalNote")}{" "}
-                              </span>
-                              <q lang={stop.problemNote.locale} className="whitespace-pre-wrap">
-                                {stop.problemNote.text}
-                              </q>
-                            </p>
-                          ) : null}
+                          {stop.problemNote ? <ProblemNote note={stop.problemNote} /> : null}
                         </>
                       ) : null}
                     </div>

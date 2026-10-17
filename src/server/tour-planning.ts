@@ -53,9 +53,17 @@ export type PlanStop = {
   problemReason: string | null;
   /**
    * The driver's free text exactly as written (NUD-054): the text in `locale`, the language he
-   * wrote it in. The German translation for the office is NUD-072.
+   * wrote it in. NUD-072 adds the German version for the office: `german` is `null` while there is
+   * none (`pending` = translation still expected) and for notes written in German; `germanMachine`
+   * tells whether it is machine-translated.
    */
-  problemNote: { text: string; locale: AppLocale } | null;
+  problemNote: {
+    text: string;
+    locale: AppLocale;
+    german: string | null;
+    germanMachine: boolean;
+    pending: boolean;
+  } | null;
   /** Set by a re-release (NUD-043): the stop was added or its quantities changed. */
   changeKind: "ADDED" | "CHANGED" | null;
 };
@@ -111,9 +119,17 @@ function readProblemNote(value: unknown): PlanStop["problemNote"] {
   const parsed = localizedTextSchema.safeParse(value);
   if (!parsed.success) return null;
   const original = pickWithSource(parsed.data, parsed.data.meta.source);
-  return original && original.value.trim() !== ""
-    ? { text: original.value, locale: original.locale }
-    : null;
+  if (!original || original.value.trim() === "") return null;
+  const source = parsed.data.meta.source;
+  const german = source === "de" ? undefined : parsed.data.de?.trim();
+  return {
+    text: original.value,
+    locale: original.locale,
+    german: german ? german : null,
+    // Anything the office did not write itself in `de` is machine output (no editor exists yet).
+    germanMachine: german ? parsed.data.meta.machine.de !== false : false,
+    pending: source !== "de" && !german && parsed.data.meta.pendingTranslation === true,
+  };
 }
 
 function readDepot(value: unknown): PlanTour["depot"] {

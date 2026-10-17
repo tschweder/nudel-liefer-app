@@ -760,7 +760,12 @@
         "completedAt": "Erledigt um {time}",
         "reason": "Grund: {reason}",
         "reasonUnknown": "Grund: nicht angegeben",
-        "originalNote": "Originaltext des Fahrers:"
+        "originalNote": "Originaltext des Fahrers:",
+        "translatedNote": "Deutsche Übersetzung:",
+        "machineTranslated": "maschinell übersetzt",
+        "translationPending": "Übersetzung folgt",
+        "showOriginal": "Original anzeigen",
+        "hideOriginal": "Original ausblenden"
       }
     }
   },

@@ -761,7 +761,12 @@
         "completedAt": "{time} 完成",
         "reason": "原因：{reason}",
         "reasonUnknown": "原因：未填寫",
-        "originalNote": "司機的原文："
+        "originalNote": "司機的原文：",
+        "translatedNote": "德語譯文：",
+        "machineTranslated": "機器翻譯",
+        "translationPending": "翻譯中",
+        "showOriginal": "顯示原文",
+        "hideOriginal": "隱藏原文"
       }
     }
   },
