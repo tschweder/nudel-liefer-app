@@ -1,8 +1,8 @@
 import { getDb } from "../db";
-import { type Actor, AuthorizationError, resolveActor, type Role } from "./actor";
+import { type Actor, authErrorStatus, AuthorizationError, resolveActor, type Role } from "./actor";
 import { auth } from "./auth";
 
-export { type Actor, AuthorizationError, resolveActor, type Role };
+export { type Actor, authErrorStatus, AuthorizationError, resolveActor, type Role };
 
 /**
  * Server-side role check for every server action and route handler. Throws
@@ -11,13 +11,4 @@ export { type Actor, AuthorizationError, resolveActor, type Role };
 export async function requireRole(...roles: Role[]): Promise<Actor> {
   const session = await auth();
   return resolveActor(session?.user, roles, getDb());
-}
-
-/** Maps an AuthorizationError to an HTTP status for route handlers. */
-export function authErrorStatus(error: unknown): 401 | 403 | null {
-  return error instanceof AuthorizationError
-    ? error.code === "UNAUTHENTICATED"
-      ? 401
-      : 403
-    : null;
 }

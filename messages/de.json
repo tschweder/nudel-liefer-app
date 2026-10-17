@@ -81,6 +81,33 @@
     "error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Die Seite konnte nicht angezeigt werden. Bitte erneut versuchen."
+    },
+    "upload": {
+      "dropHere": "Bild hierher ziehen",
+      "choose": "Bild auswählen",
+      "camera": "Foto aufnehmen",
+      "pasteHint": "oder ein Bild aus der Zwischenablage einfügen (Strg+V)",
+      "uploading": "Wird hochgeladen … {percent} %",
+      "done": "Hochgeladen",
+      "cancel": "Abbrechen",
+      "errors": {
+        "NOT_AN_IMAGE": "Das ist keine Bilddatei.",
+        "HEIC_UNSUPPORTED": "HEIC-Fotos werden von diesem Browser nicht unterstützt. Bitte als JPEG oder PNG speichern.",
+        "DECODE_FAILED": "Das Bild konnte nicht gelesen werden.",
+        "TOO_LARGE": "Das Bild ist zu groß.",
+        "UNAUTHENTICATED": "Bitte erneut anmelden.",
+        "FORBIDDEN": "Dazu fehlt die Berechtigung.",
+        "REQUEST_FAILED": "Der Upload konnte nicht vorbereitet werden. Bitte erneut versuchen.",
+        "UPLOAD_FAILED": "Der Upload ist fehlgeschlagen. Bitte erneut versuchen.",
+        "ABORTED": "Upload abgebrochen."
+      },
+      "preview": {
+        "open": "Bild vergrößern",
+        "title": "Bildansicht",
+        "zoomIn": "Vergrößern",
+        "zoomOut": "Verkleinern",
+        "reset": "Zurücksetzen"
+      }
     }
   },
   "home": {

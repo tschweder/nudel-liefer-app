@@ -82,6 +82,33 @@
     "error": {
       "title": "出錯了",
       "description": "無法顯示此頁面，請重試。"
+    },
+    "upload": {
+      "dropHere": "將圖片拖到此處",
+      "choose": "選擇圖片",
+      "camera": "拍照",
+      "pasteHint": "或從剪貼板粘貼圖片（Ctrl+V）",
+      "uploading": "正在上傳… {percent}%",
+      "done": "已上傳",
+      "cancel": "取消",
+      "errors": {
+        "NOT_AN_IMAGE": "這不是圖片文件。",
+        "HEIC_UNSUPPORTED": "此瀏覽器不支持 HEIC 照片，請另存為 JPEG 或 PNG。",
+        "DECODE_FAILED": "無法讀取該圖片。",
+        "TOO_LARGE": "圖片太大。",
+        "UNAUTHENTICATED": "請重新登錄。",
+        "FORBIDDEN": "沒有權限執行此操作。",
+        "REQUEST_FAILED": "無法準備上傳，請重試。",
+        "UPLOAD_FAILED": "上傳失敗，請重試。",
+        "ABORTED": "上傳已取消。"
+      },
+      "preview": {
+        "open": "放大圖片",
+        "title": "圖片預覽",
+        "zoomIn": "放大",
+        "zoomOut": "縮小",
+        "reset": "重置"
+      }
     }
   },
   "home": {

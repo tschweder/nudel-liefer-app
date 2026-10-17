@@ -202,7 +202,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-003 | i18n foundation (4 locales, OpenCC build, LocalizedText) | M0 | 001 | done |
 | NUD-004 | Authentication & roles | M0 | 002, 003 | blocked |
 | NUD-005 | App shells & UI kit (admin + driver) | M0 | 003, 004 | done |
-| NUD-006 | Object storage & image upload pipeline | M0 | 002 | todo |
+| NUD-006 | Object storage & image upload pipeline | M0 | 002 | blocked |
 | NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | todo |
 | NUD-008 | Admin user management (drivers) | M0 | 005 | todo |
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | todo |
@@ -417,7 +417,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-006 · Object storage & image upload pipeline
-**Status:** todo · **depends_on:** 002
+**Status:** blocked (not verified against real MinIO/R2: no Docker and no MinIO binary reachable here, see Implementation notes) · **depends_on:** 002
 
 **Goal:** reusable, secure image upload for customer photos and order screenshots.
 
@@ -429,9 +429,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - `<ImageUploader>` component (drop zone + file picker + **clipboard paste**), `<ImagePreview>` with fullscreen zoom (pinch-zoom on mobile).
 
 **Acceptance criteria**
-- [ ] Upload of a 6000×4000 JPEG results in a stored image ≤ 1600 px and < 600 KB.
-- [ ] Unauthenticated upload request → 401. Wrong content type → 400.
-- [ ] Works against local MinIO in dev and the Fake in tests.
+- [x] Upload of a 6000×4000 JPEG results in a stored image ≤ 1600 px and < 600 KB. (Real headless Chromium -> `/api/uploads` -> presigned PUT -> S3-compatible server: synthetic 4.25 MB 6000×4000 JPEG became 1600×1067, 113 KB; verified on the stored object.)
+- [x] Unauthenticated upload request → 401. Wrong content type → 400. (Vitest + Playwright, desktop and mobile.)
+- [ ] Works against local MinIO in dev and the Fake in tests. (Fake: tested. MinIO/R2: not available here; verified against the npm `s3rver` S3 emulator only, see notes.)
+
+
+**Implementation notes**
+- Server: `Storage` interface (`src/server/storage/types.ts`: `createUploadUrl`, `getReadUrl` (default 1 h), `delete`), `S3Storage` (`@aws-sdk/client-s3` + `s3-request-presigner`; MinIO/R2; path-style when `S3_ENDPOINT` is set; presigned PUT signs `content-type` and `content-length`; CRC32 checksums disabled so browsers need no extra headers), `FakeStorage` (in-memory), `getStorage()` (env `S3_*`; Fake + warning when unset in dev/test; throws in production). `POST /api/uploads` (`src/server/uploads.ts` + thin `src/app/api/uploads/route.ts`): body `{ purpose: "customer-photo" | "screenshot", contentType, size }` -> `{ storageKey, uploadUrl, method, headers, expiresAt }`. The key is always server-generated (`customers/<uuid>.<ext>`, `screenshots/<uuid>.<ext>`). Status codes: 401 unauthenticated/inactive, 403 wrong role, 400 bad body or content type, 413 > 15 MB. Roles: `customer-photo` ADMIN + DRIVER (drivers take photos in NUD-083), `screenshot` ADMIN only. `authErrorStatus` moved to `auth/actor.ts` (still re-exported from `guards.ts`) so the handler is testable without Auth.js.
+- Client: `uploadImage(file, { purpose, onProgress, signal })` in `src/lib/upload-image.ts` (decode with EXIF orientation -> max 1600 px -> JPEG q 0.8 (also strips EXIF/GPS) -> grant -> XHR PUT with progress); typed `UploadError` codes with localized messages (`common.upload.errors.*`). `<ImageUploader>` (drop zone, file picker, optional camera button, paste on the focused zone or `pasteAnywhere`) and `<ImagePreview>` (thumbnail -> fullscreen dialog, wheel / pinch / double-tap zoom, drag to pan, +/-/reset buttons, `src/lib/zoom.ts`) in `src/components/shared/`. Nothing uses them yet (NUD-015, NUD-031, NUD-083).
+- Env: `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` in `.env.example` (MinIO defaults matching `docker-compose.yml`) and `docs/env.md` (incl. the R2 CORS rule the browser PUT needs).
+- Verified: lint, typecheck, `pnpm test` (118 passed incl. DB tests), `i18n:build/check`, `pnpm build`, full Playwright suite (52 passed, desktop + mobile) incl. new `tests/e2e/uploads.spec.ts` (401 anonymous, 200 admin, 400 PDF, driver 403 for screenshot / 200 for photo). Browser pipeline and `S3Storage` roundtrip (signed PUT, signed GET, expired GET -> 403, delete -> 404, double delete) were run against the `s3rver` emulator (throw-away script, not committed).
+- NOT verified: real MinIO / Cloudflare R2. `s3rver` does not enforce signatures on PUT or privacy on anonymous GET, so enforcement of the signed `content-type`/`content-length` and the private bucket is unproven (presigned URL contents are asserted offline in unit tests). Also not verified: browser CORS against R2, `<ImageUploader>`/`<ImagePreview>` in a real browser (jsdom tests only; pinch gestures untested), Safari/HEIC decoding, a real camera photo (the 6000×4000 test image was synthetic). To close: `cp .env.example .env && docker compose up -d`, then `pnpm dev`, upload a real photo through a page that uses `<ImageUploader>` (NUD-015) or run `pnpm test:e2e`; check the object in the MinIO console and that anonymous GET of the object URL is denied; if green tick the last criterion and set `done`.
 
 ---
 
@@ -1145,6 +1153,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-005 | No `global-error.tsx`; `[locale]/error.tsx` is the global boundary | Root layout is the locale layout, so intl is available; a root-level fallback would need hard-coded strings (§4.3) |
 | 2026-10-17 | NUD-005 | Connection indicator = `navigator.onLine` only | Placeholder; real sync state comes with NUD-081/082 |
 | 2026-10-17 | NUD-005 | Dark colour tokens via `prefers-color-scheme` (no theme toggle) | Simplest; Tailwind `dark:` is media-based by default |
+| 2026-10-17 | NUD-006 | Client output is always JPEG q 0.8 (not WebP); HEIC is decoded only where the browser can (Safari), otherwise a localized "save as JPEG/PNG" error | Safari cannot encode WebP from canvas; no HEIC decoder bundled (size); server still accepts `image/heic` per ticket |
+| 2026-10-17 | NUD-006 | Upload API takes `{ purpose, contentType, size }`; server picks the key and role rules per purpose (screenshot = ADMIN only, customer-photo = ADMIN + DRIVER); oversize -> 413 | Client never controls keys; drivers need photo upload for NUD-083 |
+| 2026-10-17 | NUD-006 | Presigned PUT signs content-type + content-length | Limits a leaked URL to one type/size; real enforcement to be confirmed against MinIO/R2 |
+| 2026-10-17 | NUD-006 | Without `S3_*` dev/test use `FakeStorage` with a warning, production throws | Keeps the §4.3 Fake convention but avoids silently losing uploads in production |
+| 2026-10-17 | NUD-006 | `authErrorStatus` moved to `auth/actor.ts` (re-exported by `guards.ts`); no `dynamic` export on the route | Handler testable without Auth.js; `dynamic` is incompatible with `cacheComponents` |
 
 ---
 

@@ -35,3 +35,12 @@ export async function resolveActor(
     name: user.displayName,
   };
 }
+
+/** Maps an AuthorizationError to an HTTP status for route handlers. */
+export function authErrorStatus(error: unknown): 401 | 403 | null {
+  return error instanceof AuthorizationError
+    ? error.code === "UNAUTHENTICATED"
+      ? 401
+      : 403
+    : null;
+}
