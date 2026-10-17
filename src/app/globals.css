@@ -135,3 +135,23 @@ body {
     "Microsoft JhengHei",
     sans-serif;
 }
+
+/* Print view of a freshly generated PIN (NUD-008): only the dialog content is printed. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .pin-sheet,
+  .pin-sheet * {
+    visibility: visible;
+  }
+  .pin-sheet {
+    position: absolute !important;
+    inset-inline-start: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    max-width: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+}

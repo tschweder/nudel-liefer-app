@@ -156,6 +156,77 @@
       "products": "产品",
       "drivers": "司机",
       "settings": "设置"
+    },
+    "drivers": {
+      "title": "司机",
+      "description": "管理司机账号。司机使用用户名和6位数字PIN码登录。",
+      "create": "新增司机",
+      "empty": "还没有司机账号。",
+      "columns": {
+        "name": "姓名",
+        "username": "用户名",
+        "language": "语言",
+        "status": "状态",
+        "lastLogin": "上次登录",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "启用",
+        "inactive": "已停用"
+      },
+      "neverLoggedIn": "从未登录",
+      "form": {
+        "title": "新增司机",
+        "displayName": "显示名称",
+        "username": "用户名",
+        "usernameHint": "3至32个字符：小写字母、数字、点、连字符、下划线。",
+        "locale": "语言",
+        "submit": "创建"
+      },
+      "pin": {
+        "title": "{name}的PIN码",
+        "warning": "此PIN码只显示一次，请立即记下或打印。之后无法再查看，只能重新生成。",
+        "username": "用户名",
+        "label": "PIN码",
+        "copy": "复制PIN码",
+        "copied": "已复制PIN码。",
+        "print": "打印",
+        "done": "完成"
+      },
+      "actions": {
+        "resetPin": "重置PIN码",
+        "deactivate": "停用",
+        "reactivate": "重新启用",
+        "changeLanguage": "更改{name}的语言"
+      },
+      "confirm": {
+        "resetTitle": "重置{name}的PIN码？",
+        "resetBody": "旧PIN码会立即失效。新PIN码只显示一次。",
+        "deactivateTitle": "停用{name}？",
+        "deactivateBody": "该用户在下一次请求时会被退出登录，并且无法再登录。"
+      },
+      "toast": {
+        "activated": "已重新启用{name}。",
+        "deactivated": "已停用{name}。",
+        "localeChanged": "已更改{name}的语言。"
+      },
+      "errors": {
+        "invalid": "请检查输入内容。",
+        "usernameTaken": "该用户名已被使用。",
+        "emailTaken": "该电子邮箱已被使用。",
+        "notFound": "找不到该用户。",
+        "self": "不能停用自己的账号。",
+        "generic": "操作失败，请重试。"
+      },
+      "admins": {
+        "title": "管理员",
+        "create": "新增管理员",
+        "formTitle": "新增管理员",
+        "email": "电子邮箱",
+        "password": "密码",
+        "passwordHint": "至少10个字符。",
+        "you": "您"
+      }
     }
   },
   "driver": {

@@ -204,7 +204,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-005 | App shells & UI kit (admin + driver) | M0 | 003, 004 | done |
 | NUD-006 | Object storage & image upload pipeline | M0 | 002 | blocked |
 | NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | blocked |
-| NUD-008 | Admin user management (drivers) | M0 | 005 | todo |
+| NUD-008 | Admin user management (drivers) | M0 | 005 | done |
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | todo |
 | NUD-011 | Map component with draggable pin | M1 | 005 | todo |
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | todo |
@@ -479,7 +479,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-008 · Admin user management (drivers)
-**Status:** todo · **depends_on:** 005
+**Status:** done · **depends_on:** 005
 
 **Goal:** office creates and manages driver accounts without developer help.
 
@@ -490,11 +490,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Admins can also create further admin accounts (email + password).
 
 **Acceptance criteria**
-- [ ] Newly created driver can log in with the shown PIN on a phone.
-- [ ] Reset PIN invalidates the old PIN immediately.
-- [ ] Deactivated driver's next request is logged out.
+- [x] Newly created driver can log in with the shown PIN on a phone. (Playwright: PIN read from the one-time dialog, then login in a 375x812 context lands on the driver home in the driver's locale; no real phone, see notes.)
+- [x] Reset PIN invalidates the old PIN immediately. (integration test + Playwright)
+- [x] Deactivated driver's next request is logged out. (integration test of the server-side check + Playwright: after deactivation the driver's existing session is sent to the login page, the session cookie is removed, no redirect loop)
 
 ---
+
+**Implementation notes**
+- Page `/admin/drivers` (`UsersManager`, client component, UI kit only): driver table (name, username, language, status badge with icon, last login in the factory time zone, actions), create-driver dialog (display name, username, language `<select>` with each language in its own script), one-time PIN dialog (large PIN, copy, print via `@media print` rules in `globals.css`, nothing stored: the PIN only lives in client state until the dialog is closed), reset PIN and deactivate with confirm dialogs, reactivate, inline language change. Second section "Administratoren": list, create admin (email + password >= 10 chars), deactivate/reactivate others (not oneself).
+- Server: `src/server/users.ts` (zod-validated services taking an injected db, returning `{ ok } | { ok:false, error }`) and `src/server/user-actions.ts` (`"use server"`; every action starts with `requireRole("ADMIN")`, so drivers, anonymous callers and deactivated admins get an `AuthorizationError` before any input is read). PINs: `crypto.randomInt`, 6 digits with leading zeros, bcrypt hash only. Username normalised to lowercase (`^[a-z0-9][a-z0-9._-]{2,31}$`), uniqueness checked case-insensitively (login matches case-insensitively); email lowercased. Resetting a PIN also clears the driver's login rate-limit counter. An admin cannot deactivate himself (`self` error).
+- Migration `20261017140000_user_last_login` adds `User.lastLoginAt`, set by `authenticate()` on every successful login (list column "last login").
+- Deactivation enforcement: `requireRole` already re-read `active` from the DB (NUD-004), but page-level rejection redirected to the login page while the JWT cookie stayed valid, so the proxy bounced the user straight back (redirect loop). `requirePageActor` now redirects UNAUTHENTICATED to the new route handler `GET /api/session-ended?locale=&section=` which deletes the Auth.js session cookie and redirects to the matching login page (locale/section validated, no open redirect; `sessionEndedTarget` is unit-tested). Server actions and route handlers of a deactivated user were already rejected (401 / `AuthorizationError`).
+- Tests: `users.integration.test.ts` (create/login with shown PIN, duplicates, validation, reset invalidates old PIN, deactivation + `resolveActor`, locale change, admin creation, list has no secrets), `user-actions.integration.test.ts` (authorization: every action rejects anonymous, driver and deactivated-admin callers, data unchanged), `session-ended.test.ts`, e2e `tests/e2e/drivers.spec.ts` (desktop + mobile).
+- Verified: lint, typecheck, `pnpm test` (157 passed incl. DB tests on embedded PostgreSQL 16), `i18n:build/check`, `pnpm build`, seed on a fresh DB (e2e script), full Playwright suite via the Chromium workaround (drivers, auth, home, shells; `uploads.spec.ts` needs `S3_*` set under `next start`, run with dummy values: passed). `shells.spec.ts` "all placeholder pages ... in de" (desktop) timed out once under load and passed on rerun.
+- NOT verified: a real phone / Safari; the print output (only the CSS exists, `window.print()` not exercised); the clipboard button in a browser; layout was not inspected as a screenshot (only the no-horizontal-scroll assertion, 1280 px desktop and Pixel 7 projects); agent-written Chinese strings are unreviewed (NUD-073); CI.
+- Follow-up ideas (no ticket): the driver's own session is only ended on his next page/action request, not pushed; no audit log of PIN resets until NUD-092.
 
 ### M1 — MVP (demo end-to-end)
 
@@ -1178,6 +1188,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-007 | Migrations run in the Vercel build (`pnpm build:vercel` = env check + `prisma migrate deploy` + `next build`) using `DATABASE_URL_UNPOOLED`; failed migration fails the build, the old deployment stays live | Simplest; PgBouncer-pooled Neon URLs break migration locks |
 | 2026-10-17 | NUD-007 | `/api/health` is public, returns only statuses/latency/short SHA/region, 503 on failure; storage probe = `ListObjectsV2(MaxKeys=1)` via new `Storage.checkReachable()` | Usable by uptime monitors without leaking secrets; works with a bucket-scoped R2 token and detects wrong bucket/credentials |
 | 2026-10-17 | NUD-007 | Seed gets `SEED_ADMIN_EMAIL` and `SEED_DRIVERS=false`; production seed runs once from the owner's computer, `SEED_ADMIN_PASSWORD` never lives in Vercel | Avoids a public `admin@example.com` and demo drivers with PIN 123456 on production |
+| 2026-10-17 | NUD-008 | Added `User.lastLoginAt` (migration) set on each successful login | List needs "last login"; no other source (sessions are stateless JWTs) |
+| 2026-10-17 | NUD-008 | PINs are random 6 digits via `crypto.randomInt`, shown once from client state and never stored; driver usernames normalised to lowercase `[a-z0-9._-]{3,32}`, unique case-insensitively | Simplest option consistent with D13; login already matches case-insensitively |
+| 2026-10-17 | NUD-008 | Admin accounts: password >= 10 chars chosen by the creating admin; admins cannot deactivate themselves; no admin PIN/password reset UI | Scope says only "create further admin accounts" |
+| 2026-10-17 | NUD-008 | Deactivated users are logged out via `GET /api/session-ended` (deletes the session cookie, redirects to the login page) called from `requirePageActor` | Pages cannot delete cookies; redirecting straight to login looped via the proxy while the JWT was still valid |
+| 2026-10-17 | NUD-008 | Language change by the admin does not touch `localeChosen`; creating a driver leaves it `false` | The first-start picker (NUD-050) is the driver's own choice |
 
 ---
 

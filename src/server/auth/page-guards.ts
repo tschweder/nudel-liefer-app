@@ -17,6 +17,8 @@ export async function requirePageActor(
   } catch (error) {
     if (!(error instanceof AuthorizationError)) throw error;
     if (error.code === "FORBIDDEN") redirect(`/${locale}/driver`);
-    redirect(`/${locale}${section === "admin" ? "/login" : "/driver/login"}`);
+    // Unknown / deactivated user: end the session (clears the cookie) instead of linking to the
+    // login page directly, which the proxy would bounce back while the JWT is still valid.
+    redirect(`/api/session-ended?locale=${encodeURIComponent(locale)}&section=${section}`);
   }
 }

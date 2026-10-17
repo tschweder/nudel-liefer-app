@@ -157,6 +157,77 @@
       "products": "產品",
       "drivers": "司機",
       "settings": "設定"
+    },
+    "drivers": {
+      "title": "司機",
+      "description": "管理司機賬號。司機使用使用者名稱和6位數字PIN碼登入。",
+      "create": "新增司機",
+      "empty": "還沒有司機賬號。",
+      "columns": {
+        "name": "姓名",
+        "username": "使用者名稱",
+        "language": "語言",
+        "status": "狀態",
+        "lastLogin": "上次登入",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "啟用",
+        "inactive": "已停用"
+      },
+      "neverLoggedIn": "從未登入",
+      "form": {
+        "title": "新增司機",
+        "displayName": "顯示名稱",
+        "username": "使用者名稱",
+        "usernameHint": "3至32個字元：小寫字母、數字、點、連字元、下劃線。",
+        "locale": "語言",
+        "submit": "建立"
+      },
+      "pin": {
+        "title": "{name}的PIN碼",
+        "warning": "此PIN碼只顯示一次，請立即記下或列印。之後無法再檢視，只能重新生成。",
+        "username": "使用者名稱",
+        "label": "PIN碼",
+        "copy": "複製PIN碼",
+        "copied": "已複製PIN碼。",
+        "print": "列印",
+        "done": "完成"
+      },
+      "actions": {
+        "resetPin": "重置PIN碼",
+        "deactivate": "停用",
+        "reactivate": "重新啟用",
+        "changeLanguage": "更改{name}的語言"
+      },
+      "confirm": {
+        "resetTitle": "重置{name}的PIN碼？",
+        "resetBody": "舊PIN碼會立即失效。新PIN碼只顯示一次。",
+        "deactivateTitle": "停用{name}？",
+        "deactivateBody": "該使用者在下一次請求時會被退出登入，並且無法再登入。"
+      },
+      "toast": {
+        "activated": "已重新啟用{name}。",
+        "deactivated": "已停用{name}。",
+        "localeChanged": "已更改{name}的語言。"
+      },
+      "errors": {
+        "invalid": "請檢查輸入內容。",
+        "usernameTaken": "該使用者名稱已被使用。",
+        "emailTaken": "該電子郵箱已被使用。",
+        "notFound": "找不到該使用者。",
+        "self": "不能停用自己的賬號。",
+        "generic": "操作失敗，請重試。"
+      },
+      "admins": {
+        "title": "管理員",
+        "create": "新增管理員",
+        "formTitle": "新增管理員",
+        "email": "電子郵箱",
+        "password": "密碼",
+        "passwordHint": "至少10個字元。",
+        "you": "您"
+      }
     }
   },
   "driver": {

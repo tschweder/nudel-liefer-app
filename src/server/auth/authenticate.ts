@@ -73,6 +73,7 @@ export async function authenticate(input: {
     return { ok: false, reason: "invalid" };
   }
   await clearFailures(db, keys);
+  await db.user.update({ where: { id: user.id }, data: { lastLoginAt: now } });
   return {
     ok: true,
     user: {

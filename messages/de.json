@@ -156,6 +156,77 @@
       "products": "Produkte",
       "drivers": "Fahrer",
       "settings": "Einstellungen"
+    },
+    "drivers": {
+      "title": "Fahrer",
+      "description": "Fahrerkonten verwalten. Fahrer melden sich mit Benutzername und 6-stelliger PIN an.",
+      "create": "Fahrer anlegen",
+      "empty": "Noch keine Fahrer angelegt.",
+      "columns": {
+        "name": "Name",
+        "username": "Benutzername",
+        "language": "Sprache",
+        "status": "Status",
+        "lastLogin": "Letzte Anmeldung",
+        "actions": "Aktionen"
+      },
+      "status": {
+        "active": "Aktiv",
+        "inactive": "Deaktiviert"
+      },
+      "neverLoggedIn": "Noch nie",
+      "form": {
+        "title": "Fahrer anlegen",
+        "displayName": "Anzeigename",
+        "username": "Benutzername",
+        "usernameHint": "3 bis 32 Zeichen: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich.",
+        "locale": "Sprache",
+        "submit": "Anlegen"
+      },
+      "pin": {
+        "title": "PIN für {name}",
+        "warning": "Diese PIN wird nur einmal angezeigt. Bitte jetzt notieren oder ausdrucken. Sie kann später nicht mehr abgerufen, sondern nur neu erzeugt werden.",
+        "username": "Benutzername",
+        "label": "PIN",
+        "copy": "PIN kopieren",
+        "copied": "PIN kopiert.",
+        "print": "Drucken",
+        "done": "Fertig"
+      },
+      "actions": {
+        "resetPin": "PIN zurücksetzen",
+        "deactivate": "Deaktivieren",
+        "reactivate": "Reaktivieren",
+        "changeLanguage": "Sprache von {name} ändern"
+      },
+      "confirm": {
+        "resetTitle": "PIN von {name} zurücksetzen?",
+        "resetBody": "Die alte PIN funktioniert sofort nicht mehr. Die neue PIN wird einmalig angezeigt.",
+        "deactivateTitle": "{name} deaktivieren?",
+        "deactivateBody": "Die Person wird bei der nächsten Anfrage abgemeldet und kann sich nicht mehr anmelden."
+      },
+      "toast": {
+        "activated": "{name} wurde reaktiviert.",
+        "deactivated": "{name} wurde deaktiviert.",
+        "localeChanged": "Sprache von {name} geändert."
+      },
+      "errors": {
+        "invalid": "Bitte Eingaben prüfen.",
+        "usernameTaken": "Dieser Benutzername ist bereits vergeben.",
+        "emailTaken": "Diese E-Mail-Adresse ist bereits vergeben.",
+        "notFound": "Benutzer nicht gefunden.",
+        "self": "Das eigene Konto kann nicht deaktiviert werden.",
+        "generic": "Aktion fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "admins": {
+        "title": "Administratoren",
+        "create": "Admin anlegen",
+        "formTitle": "Admin anlegen",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "passwordHint": "Mindestens 10 Zeichen.",
+        "you": "Sie"
+      }
     }
   },
   "driver": {

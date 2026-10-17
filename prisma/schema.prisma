@@ -79,6 +79,8 @@ model User {
   localeChosen Boolean  @default(false)
   displayName  String
   active       Boolean  @default(true)
+  /// Set on every successful login (NUD-008).
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

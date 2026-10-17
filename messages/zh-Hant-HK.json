@@ -157,6 +157,77 @@
       "products": "產品",
       "drivers": "司機",
       "settings": "設置"
+    },
+    "drivers": {
+      "title": "司機",
+      "description": "管理司機賬號。司機使用用户名和6位數字PIN碼登錄。",
+      "create": "新增司機",
+      "empty": "還沒有司機賬號。",
+      "columns": {
+        "name": "姓名",
+        "username": "用户名",
+        "language": "語言",
+        "status": "狀態",
+        "lastLogin": "上次登錄",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "啓用",
+        "inactive": "已停用"
+      },
+      "neverLoggedIn": "從未登錄",
+      "form": {
+        "title": "新增司機",
+        "displayName": "顯示名稱",
+        "username": "用户名",
+        "usernameHint": "3至32個字符：小寫字母、數字、點、連字符、下劃線。",
+        "locale": "語言",
+        "submit": "創建"
+      },
+      "pin": {
+        "title": "{name}的PIN碼",
+        "warning": "此PIN碼只顯示一次，請立即記下或打印。之後無法再查看，只能重新生成。",
+        "username": "用户名",
+        "label": "PIN碼",
+        "copy": "複製PIN碼",
+        "copied": "已複製PIN碼。",
+        "print": "打印",
+        "done": "完成"
+      },
+      "actions": {
+        "resetPin": "重置PIN碼",
+        "deactivate": "停用",
+        "reactivate": "重新啓用",
+        "changeLanguage": "更改{name}的語言"
+      },
+      "confirm": {
+        "resetTitle": "重置{name}的PIN碼？",
+        "resetBody": "舊PIN碼會立即失效。新PIN碼只顯示一次。",
+        "deactivateTitle": "停用{name}？",
+        "deactivateBody": "該用户在下一次請求時會被退出登錄，並且無法再登錄。"
+      },
+      "toast": {
+        "activated": "已重新啓用{name}。",
+        "deactivated": "已停用{name}。",
+        "localeChanged": "已更改{name}的語言。"
+      },
+      "errors": {
+        "invalid": "請檢查輸入內容。",
+        "usernameTaken": "該用户名已被使用。",
+        "emailTaken": "該電子郵箱已被使用。",
+        "notFound": "找不到該用户。",
+        "self": "不能停用自己的賬號。",
+        "generic": "操作失敗，請重試。"
+      },
+      "admins": {
+        "title": "管理員",
+        "create": "新增管理員",
+        "formTitle": "新增管理員",
+        "email": "電子郵箱",
+        "password": "密碼",
+        "passwordHint": "至少10個字符。",
+        "you": "您"
+      }
     }
   },
   "driver": {
