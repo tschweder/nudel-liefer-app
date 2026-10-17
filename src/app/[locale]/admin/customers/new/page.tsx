@@ -1,26 +1,46 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
-import { EmptyState, LoadingSkeleton } from "@/components/shared/states";
-import { buttonVariants } from "@/components/ui/button";
+import { CustomerForm } from "@/components/admin/customer-form";
+import { LoadingSkeleton } from "@/components/shared/states";
 import { Link } from "@/i18n/navigation";
+import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
+import { nextCustomerNumberQuery } from "@/server/customer-queries";
 
-/** Placeholder so the "New customer" button does not 404. NUD-014 replaces it with the form. */
 async function Guarded({ locale }: { locale: string }) {
   await requirePageActor("admin", locale);
   const t = await getTranslations({ locale, namespace: "admin.customers" });
-  const tc = await getTranslations({ locale, namespace: "common" });
+  const suggestion = await nextCustomerNumberQuery();
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-3xl font-semibold" data-testid="section-title">
-        {t("new")}
-      </h1>
-      <EmptyState description={tc("states.comingSoon")}>
-        <Link href="/admin/customers" className={buttonVariants({ variant: "outline" })}>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Link
+          href="/admin/customers"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
           {t("backToList")}
         </Link>
-      </EmptyState>
+        <h1 className="text-3xl font-semibold" data-testid="section-title">
+          {t("new")}
+        </h1>
+      </div>
+      <CustomerForm
+        customerId={null}
+        tiles={getMapTileConfig()}
+        initial={{
+          customerNumber: suggestion,
+          name: "",
+          street: "",
+          postalCode: "",
+          city: "",
+          country: "AT",
+          pin: null,
+          pinConfirmed: false,
+          deliveryHoursInfo: "",
+          notes: "",
+        }}
+      />
     </div>
   );
 }

@@ -209,7 +209,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-011 | Map component with draggable pin | M1 | 005 | done |
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | done |
 | NUD-013 | Customer list & search | M1 | 005 | done |
-| NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | todo |
+| NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | done |
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | todo |
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | todo |
 | NUD-030 | Manual order entry | M1 | 014, 020 | todo |
@@ -615,7 +615,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-014 · Customer create/edit with pin confirmation
-**Status:** todo · **depends_on:** 010, 011, 013
+**Status:** done · **depends_on:** 010, 011, 013
 
 **Goal:** complete customer master data, with a pin the office has verified.
 
@@ -626,9 +626,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Customer detail page summarising data, photos (placeholder until NUD-015), upcoming orders.
 
 **Acceptance criteria**
-- [ ] Customer cannot be saved with a duplicate customer number (validation message, localized).
-- [ ] Editing the street sets `pinConfirmed=false` and shows the ⚠ flag.
-- [ ] E2E: create customer with confirmed pin, find it via search.
+- [x] Customer cannot be saved with a duplicate customer number (validation message, localized).
+- [x] Editing the street sets `pinConfirmed=false` and shows the ⚠ flag.
+- [x] E2E: create customer with confirmed pin, find it via search.
+
+**Implementation notes**
+- Pages: `/admin/customers/new` (replaces the placeholder), `/admin/customers/[id]` (detail: address, hours, driver note, pin state + coordinates, photo status + placeholder for NUD-015, upcoming orders, edit and archive/restore with confirmation dialog), `/admin/customers/[id]/edit`. List rows now link to the detail page. Form `src/components/admin/customer-form.tsx`: "find on map" calls `geocodeAddressAction`, shows a candidate list (low confidence flagged), choosing one sets the pin; pin can also be clicked/dragged or typed with `LatLngInputs`; "pin checked" checkbox required for `pinConfirmed`. `PinPickerMap` got an optional `focus` prop so the map centres on a chosen candidate.
+- Pin rule (pure, `src/domain/customer.ts`, used by form and server): confirmation needs a pin; once the address (street, postal code, city, country) of an existing customer changed, the pin must also have been moved/searched again, otherwise `pinConfirmed` is stored as false. The form withdraws the checkbox on every address/pin edit.
+- Server: `src/server/customer-admin.ts` (zod `customerInputSchema`, `createCustomer`, `updateCustomer`, `setCustomerActive`, `nextCustomerNumber`, `getCustomerDetail`, `listUpcomingOrders`), actions in `customer-actions.ts` and reads in `customer-queries.ts`, all starting with `requireRole("ADMIN")`. Duplicate numbers (case-insensitive, also DB unique race via P2002) return `number_taken`, shown as a localized field error. No hard delete.
+- Upcoming orders query real `Order` rows (today or later in the factory time zone, not cancelled, with items); empty until NUD-030 creates orders.
+- Tests: `domain/customer.test.ts`, `customer-actions.integration.test.ts` (anonymous/driver/deactivated admin rejected on all 3 actions and 3 reads, validation table, duplicate numbers, pin reset rules, notes, archive, upcoming orders incl. time-zone day), e2e `tests/e2e/customer-form.spec.ts` (desktop + mobile: create with confirmed pin via candidate, find via search, duplicate number, street edit resets pin and shows flag, re-confirm after moving pin, archive/restore, no horizontal scroll, anonymous redirect). Verified: lint, typecheck, `pnpm test` (278 passed), i18n:check, build, e2e customer-form/customers/settings/maps; form and detail screenshots at 375 px inspected.
+- NOT verified: real ORS geocoding (Fake geocoder used), real map tiles, agent-written Chinese strings (NUD-073), full shells/drivers e2e suites not rerun.
+- Follow-ups: NUD-030 should not offer archived customers for new orders; archiving a customer with upcoming orders is currently allowed without warning.
 
 ---
 
@@ -1249,6 +1258,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-013 | Accent-insensitive search = SQL function `nudel_fold` + trigger-maintained `Customer.searchText` + `LIKE`, no `unaccent`/`pg_trgm` | Works unchanged on Neon and embedded Postgres without extensions; 150 customers need no index |
 | 2026-10-17 | NUD-013 | List shows active customers by default (status filter active/archived/all), 25 per page with prev/next, sorted by name then number | Simplest; archived are soft-deleted (4.3) |
 | 2026-10-17 | NUD-013 | Placeholder `/admin/customers/new` page until NUD-014; `createPrismaClient(url, schema)` sets `search_path` for tests | Avoids 404; raw SQL/trigger need unqualified names to resolve in the test schema |
+| 2026-10-17 | NUD-014 | After an address change `pinConfirmed` is only kept if the pin was also moved/searched again (rule shared by form and server); otherwise reset | Satisfies "changing the address resets pinConfirmed" while still allowing a re-confirmation in the same save |
+| 2026-10-17 | NUD-014 | Next free number = highest number ending in digits + 1 (prefix and zero padding kept), "1001" if none; uniqueness is case-insensitive | Simple, works for "K-0099" and "1041" style numbers |
+| 2026-10-17 | NUD-014 | Driver notes stored as `LocalizedText` with only `de` (source de); a changed text drops old translations, an unchanged one keeps the stored JSON | Multilingual editor and translation come with NUD-071/070 |
+| 2026-10-17 | NUD-014 | Country is a 2-letter text field (default AT), stored upper-case; archiving needs a confirmation dialog, reactivating does not | Simplest; no country list needed in v1 |
 
 ---
 

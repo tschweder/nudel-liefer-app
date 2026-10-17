@@ -81,7 +81,13 @@ export function CustomersTable({
             <TableRow key={c.id} data-testid="customer-row" data-number={c.customerNumber}>
               <TableCell className="font-mono">{c.customerNumber}</TableCell>
               <TableCell>
-                <div className="font-medium">{c.name}</div>
+                <Link
+                  href={`/admin/customers/${c.id}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  data-testid="customer-link"
+                >
+                  {c.name}
+                </Link>
                 <div className="text-sm text-muted-foreground">{c.street}</div>
               </TableCell>
               <TableCell>

@@ -5,7 +5,7 @@ import "./map.css";
 
 import type L from "leaflet";
 import { LocateFixedIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,11 @@ export type PinPickerMapProps = {
   /** Geocodes an address (an admin-only server action). Without it no locate button is shown. */
   onLocate?: (address: string) => Promise<LocateResult>;
   labels: PinPickerLabels;
+  /**
+   * Asks the map to centre on a point (e.g. a geocoder candidate chosen outside the map).
+   * A new `nonce` triggers a new move, even to the same point.
+   */
+  focus?: { point: LatLng; zoom?: number; nonce: number } | null;
   className?: string;
 };
 
@@ -75,6 +80,7 @@ export function PinPickerMap({
   address = "",
   onLocate,
   labels,
+  focus,
   className,
 }: PinPickerMapProps) {
   const [busy, setBusy] = useState(false);
@@ -118,6 +124,12 @@ export function PinPickerMap({
   }
 
   const center = value ?? fallbackCenter;
+  const flyTarget = useMemo<FlyTarget | null>(
+    () => (focus ? { point: focus.point, zoom: focus.zoom ?? 17, nonce: focus.nonce } : target),
+    // The nonce identifies a focus request; the point object may be recreated on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [focus?.nonce, target],
+  );
   return (
     <div className={cn("nudel-map-wrap flex flex-col gap-2", className)} data-testid="pin-picker">
       {onLocate ? (
@@ -145,7 +157,7 @@ export function PinPickerMap({
       >
         <TileLayer url={tiles.url} attribution={tiles.attribution} />
         <ClickToPlace onPlace={emit} />
-        <Flyer target={target} />
+        <Flyer target={flyTarget} />
         {value ? (
           <Marker
             position={[value.lat, value.lng]}
