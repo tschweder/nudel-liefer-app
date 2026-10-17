@@ -2,6 +2,11 @@ import { expect, type Page, test } from "@playwright/test";
 
 // Needs a seeded database (`pnpm db:seed`) and SEED_ADMIN_PASSWORD in the environment.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
+// 1x1 transparent PNG used as map tile.
+const TILE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
 const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
 const SECTIONS = ["orders", "tours", "customers", "products", "drivers", "settings"] as const;
 const NOT_FOUND_TITLE: Record<(typeof LOCALES)[number], string> = {
@@ -83,7 +88,12 @@ test.describe("admin shell", () => {
 
   for (const locale of LOCALES) {
     test(`all placeholder pages render in ${locale} without console errors`, async ({ page }) => {
+      test.setTimeout(90_000); // visits every section, including the map-heavy settings page
       const errors = collectErrors(page);
+      // The settings page shows a map; never depend on a live tile server.
+      await page.route(/\/\d+\/\d+\/\d+\.png/, (route) =>
+        route.fulfill({ status: 200, contentType: "image/png", body: TILE_PNG }),
+      );
       await loginAdmin(page);
       for (const section of ["", ...SECTIONS]) {
         await page.goto(`/${locale}/admin${section ? `/${section}` : ""}`);

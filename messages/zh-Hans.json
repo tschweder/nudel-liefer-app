@@ -234,7 +234,11 @@
       "noAddress": "请先输入地址。",
       "notFound": "未找到该地址，请在地图上设置标记。",
       "failed": "地址查找失败，请在地图上设置标记。",
-      "lowConfidence": "位置不确定，请在地图上核对标记。"
+      "lowConfidence": "位置不确定，请在地图上核对标记。",
+      "coordinates": "坐标",
+      "latitude": "纬度",
+      "longitude": "经度",
+      "coordinatesInvalid": "坐标无效（纬度 −90 至 90，经度 −180 至 180）。"
     },
     "devMaps": {
       "title": "地图（开发）",
@@ -246,6 +250,44 @@
       "changes": "更改次数：{count}",
       "tourMap": "路线地图",
       "sampleNote": "示例数据，并非真实配送。"
+    },
+    "settings": {
+      "title": "设置",
+      "description": "仓库和常规规划参数。所有配送路线都从仓库出发并返回仓库。",
+      "depot": {
+        "heading": "仓库（工厂）",
+        "status": {
+          "confirmed": "已确认位置",
+          "unconfirmed": "未确认位置"
+        },
+        "unconfirmedNotice": "仓库位置尚未确认。在确认之前，无法生成配送路线。",
+        "name": "名称",
+        "address": "地址",
+        "addressPlaceholder": "例如：Graben 1, 1010 Wien",
+        "pinHeading": "地图标记点",
+        "pinHint": "点击地图、拖动标记或输入坐标。标记必须准确位于车辆装货的地点。",
+        "confirm": "我已核实标记点位置正确。"
+      },
+      "planning": {
+        "heading": "规划",
+        "timezone": "时区",
+        "departureTime": "默认出发时间",
+        "serviceMinutes": "每个站点停留分钟数",
+        "serviceMinutesHint": "在每位客户处计划停留的时间（0 至 180）。",
+        "weekdays": "配送日",
+        "weekdaysHint": "仅在这些星期几配送。新订单默认使用下一个配送日。"
+      },
+      "save": "保存",
+      "saving": "正在保存…",
+      "saved": "设置已保存。",
+      "errors": {
+        "needPin": "请先在地图上设置仓库标记点。",
+        "needConfirm": "请确认标记点位置正确。",
+        "needWeekday": "请至少选择一个配送日。",
+        "invalid": "请检查输入内容（名称、地址、时间）。",
+        "generic": "保存失败，请重试。",
+        "depotNotSet": "无法生成配送路线：尚未设置仓库位置。请在设置中设置并确认仓库标记点。"
+      }
     }
   },
   "driver": {

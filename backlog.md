@@ -162,7 +162,7 @@ enum StopStatus   { PENDING DELIVERED PROBLEM }
 enum ProblemReason{ CLOSED NOBODY_THERE NO_PARKING WRONG_QUANTITY REFUSED ADDRESS_NOT_FOUND OTHER }
 
 model User      { id, role, email?(unique), username?(unique), passwordHash, locale, localeChosen Boolean, displayName, active, createdAt, updatedAt }
-model Settings  { id(singleton), depotName, depotAddress, depotLat, depotLng, timezone, departureTime "07:00",
+model Settings  { id(singleton), depotName, depotAddress, depotLat, depotLng, depotPinConfirmed Boolean @default(false), timezone, departureTime "07:00",
                   serviceMinutesPerStop Int @default(10), deliveryWeekdays Int[] @default([1,2,3,4,5]) }
 model Customer  { id, customerNumber(unique), name, street, postalCode, city, country @default("AT"),
                   lat?, lng?, pinConfirmed Boolean, notes Json? /*LocalizedText*/, deliveryHoursInfo String?,
@@ -207,7 +207,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-008 | Admin user management (drivers) | M0 | 005 | done |
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | done |
 | NUD-011 | Map component with draggable pin | M1 | 005 | done |
-| NUD-012 | Depot & general settings page | M1 | 010, 011 | todo |
+| NUD-012 | Depot & general settings page | M1 | 010, 011 | done |
 | NUD-013 | Customer list & search | M1 | 005 | todo |
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | todo |
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | todo |
@@ -563,7 +563,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-012 · Depot & general settings page
-**Status:** todo · **depends_on:** 010, 011
+**Status:** done · **depends_on:** 010, 011
 
 **Goal:** office configures where tours start/end and basic planning parameters.
 
@@ -572,8 +572,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Settings are cached server-side and invalidated on save.
 
 **Acceptance criteria**
-- [ ] Tour building (NUD-041) refuses to run with a clear message if the depot pin is not set.
-- [ ] Changing delivery weekdays changes the default delivery date in order entry (unit-tested helper `nextDeliveryDate(now, settings)`).
+- [ ] Tour building (NUD-041) refuses to run with a clear message if the depot pin is not set. (Settings-side guard done and tested: `requireDepot` / `requireDepotConfigured()` throw `DepotNotSetError` (`code: "DEPOT_NOT_SET"`), message key `admin.settings.errors.depotNotSet`. **Left unticked: NUD-041 must call it and show the message**; the tour builder does not exist yet.)
+- [x] Changing delivery weekdays changes the default delivery date in order entry (unit-tested helper `nextDeliveryDate(now, settings)`). (Helper + `getDefaultDeliveryDate()` tested; the order-entry form itself is NUD-030 and must call `getDefaultDeliveryDate()`.)
+
+**Implementation notes**
+- `/admin/settings` (replaces the placeholder): depot name + address, pin picker (`PinPickerMapLazy` with the admin-only "locate address" action), **editable lat/lng inputs** (`src/components/maps/lat-lng-inputs.tsx`, reusable by NUD-014; keyboard alternative promised in NUD-011), a "pin checked" checkbox that is withdrawn whenever the pin or address changes, time zone (native select, options computed on the server), departure time, service minutes (0-180), delivery weekdays (checkboxes, localized day names via `Intl`).
+- Data: new column `Settings.depotPinConfirmed` (migration `20261017150000_settings_depot_pin_confirmed`, default false; written by hand, `prisma generate` run with the dummy schema engine). The seed's placeholder depot stays unconfirmed, so tour building is blocked until an admin saves the page. Saving requires `depotPinConfirmed: true` (D9).
+- `src/domain/settings.ts` (pure): `nextDeliveryDate(now, {timezone, deliveryWeekdays})`, `getDepot`, `requireDepot`, `DepotNotSetError`. `src/server/settings.ts`: `settingsInputSchema` (zod), `readSettings`/`saveSettings`, `getSettings()` (`'use cache'` + `cacheTag("settings")`, `cacheLife("hours")`), `getFactoryTimezone()` now uses it, `requireDepotConfigured()` (for NUD-041), `getDefaultDeliveryDate()` (for NUD-030). `saveSettingsAction` (`settings-actions.ts`): `requireRole("ADMIN")`, zod, then `updateTag("settings")` so the next read is fresh.
+- Tests: `src/domain/settings.test.ts` (weekday/time-zone/DST cases, depot guard), `settings-actions.integration.test.ts` (anonymous / driver / deactivated admin rejected, normalization, 12 invalid-input cases, cache tag), `lat-lng-inputs.test.tsx`, seed assertion in `db.integration.test.ts`, e2e `tests/e2e/settings.spec.ts` (desktop + mobile: typed coordinates, confirmation required, persistence after reload, no horizontal scroll, anonymous redirect). `shells.spec.ts` now stubs tiles and has a longer timeout for the all-sections test because the settings page contains a map.
+- `ORS_GEOCODE_COUNTRIES` stays an env var (moving it would need another column + UI; not trivial enough). No new env vars.
+- Verified: lint, typecheck, `pnpm test` (216 passed before the last small test edit; the three touched files re-run green), `i18n:check`, prettier, `pnpm build`, e2e settings/shells/maps/home/auth/drivers specs (uploads spec not rerun, code untouched).
+- NOT verified: the real invalidation of the Next data cache across several Vercel instances (only the `updateTag` call is tested with a mock; locally the page shows the new values immediately after save, see e2e); tiles and ORS geocoding are not real here (stubbed tiles, Fake geocoder).
 
 ---
 
@@ -651,6 +660,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Goal:** office records an order in under 30 seconds.
 
 **Scope**
+- _Added by NUD-012:_ preselect the delivery date with `getDefaultDeliveryDate()` (`src/server/settings.ts`).
 - `/admin/orders/new`: customer combobox (search by name/number), delivery date (default `nextDeliveryDate`), product lines (product picker + quantity + unit shown), add/remove lines, internal note (office only, not shown to driver).
 - Keyboard-friendly: Enter adds a line, quantities accept `,` and `.` decimals.
 - Save as `CONFIRMED` (default) or `DRAFT`.
@@ -729,6 +739,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Goal:** one click creates an optimized tour for a date.
 
 **Scope**
+- _Added by NUD-012:_ call `requireDepotConfigured()` (`src/server/settings.ts`) first; on `DepotNotSetError` show `admin.settings.errors.depotNotSet` and do not build. Then tick the "refuses without depot" criterion of NUD-012.
 - Domain function `buildStops(orders)`: group confirmed orders by customer → one stop per customer, with merged item quantities per product (keep the link to each order via `StopOrder`).
 - Service `generateTour(date)`: validates depot; excludes customers with unconfirmed pins (returned as warnings with links); calls `optimize`; persists `Tour` (`OPTIMIZED`), `Stop`s with sequence, legs, ETAs (`departureTime` + cumulative leg durations + service minutes), geometry, totals.
 - Re-running on an unreleased tour replaces stops; on a **locked** tour it only adds new customers at the end (log decision if different).
@@ -1218,6 +1229,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-011 | Tile URL/attribution are read server-side (`getMapTileConfig`) and passed to the map components as props; custom `MAP_TILE_URL` without `MAP_TILE_ATTRIBUTION` shows no attribution | Client components cannot read non-`NEXT_PUBLIC_` env; avoids baking tile config into the client bundle |
 | 2026-10-17 | NUD-011 | Markers are CSS `divIcon`s; `TourMap.geometry` = GeoJSON LineString coordinates `[lng, lat][]` | Avoids Leaflet's bundler-broken default icons; matches ORS output so NUD-040/042 can pass it through |
 | 2026-10-17 | NUD-011 | "Locate address" uses the first geocoder candidate, warns when confidence < 0.5, and goes through the admin-only server action `geocodeAddressAction` | Geocoder only proposes; admin confirms the pin (D9) |
+| 2026-10-17 | NUD-012 | `Settings.depotPinConfirmed` column (default false); depot counts as set only when true, so the seed's placeholder depot does not allow tour building | `depotLat/Lng` are NOT NULL and the seed fills them; D9 requires an admin to confirm the pin |
+| 2026-10-17 | NUD-012 | `nextDeliveryDate` = first delivery weekday strictly after today in the factory time zone; weekdays are ISO numbers 1 = Monday ... 7 = Sunday; falls back to tomorrow if none | Orders are taken for the next delivery day; default `[1,2,3,4,5]` is Mon-Fri |
+| 2026-10-17 | NUD-012 | Settings cached with `'use cache'` + tag `settings`, expired by `updateTag` in the save action (no hand-made in-memory cache) | Works with `cacheComponents` and across instances where the cache handler is shared |
+| 2026-10-17 | NUD-012 | Saving the depot requires the "pin checked" box; moving the pin or editing the address clears it | Simplest way to enforce D9 on the depot; the box is the confirmation |
+| 2026-10-17 | NUD-012 | `ORS_GEOCODE_COUNTRIES` stays in env | Moving it to Settings needs a column and UI beyond this ticket |
 
 ---
 

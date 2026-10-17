@@ -71,6 +71,8 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
       depotAddress: "Stephansplatz 1, 1010 Wien",
       depotLat: 48.2082,
       depotLng: 16.3738,
+      // Placeholder location: an admin must confirm the real depot pin in Settings (NUD-012).
+      depotPinConfirmed: false,
       timezone: "Europe/Vienna",
     },
   });

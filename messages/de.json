@@ -234,7 +234,11 @@
       "noAddress": "Bitte zuerst eine Adresse eingeben.",
       "notFound": "Adresse nicht gefunden. Pin bitte auf der Karte setzen.",
       "failed": "Adresssuche fehlgeschlagen. Pin bitte auf der Karte setzen.",
-      "lowConfidence": "Unsichere Position – bitte Pin auf der Karte prüfen."
+      "lowConfidence": "Unsichere Position – bitte Pin auf der Karte prüfen.",
+      "coordinates": "Koordinaten",
+      "latitude": "Breitengrad",
+      "longitude": "Längengrad",
+      "coordinatesInvalid": "Ungültige Koordinaten (Breite −90 bis 90, Länge −180 bis 180)."
     },
     "devMaps": {
       "title": "Karten (Entwicklung)",
@@ -246,6 +250,44 @@
       "changes": "Änderungen: {count}",
       "tourMap": "Tourenkarte",
       "sampleNote": "Beispieldaten, keine echten Lieferungen."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Depot und allgemeine Planungswerte. Alle Touren starten und enden am Depot.",
+      "depot": {
+        "heading": "Depot (Fabrik)",
+        "status": {
+          "confirmed": "Pin bestätigt",
+          "unconfirmed": "Pin nicht bestätigt"
+        },
+        "unconfirmedNotice": "Der Depot-Pin ist noch nicht bestätigt. Solange das so ist, können keine Touren erstellt werden.",
+        "name": "Name",
+        "address": "Adresse",
+        "addressPlaceholder": "z. B. Graben 1, 1010 Wien",
+        "pinHeading": "Kartenpunkt (Pin)",
+        "pinHint": "Auf die Karte klicken, den Pin ziehen oder die Koordinaten eintragen. Der Pin muss genau dort liegen, wo die Fahrzeuge beladen werden.",
+        "confirm": "Ich habe geprüft, dass der Pin am richtigen Ort liegt."
+      },
+      "planning": {
+        "heading": "Planung",
+        "timezone": "Zeitzone",
+        "departureTime": "Standard-Abfahrtszeit",
+        "serviceMinutes": "Minuten pro Stopp",
+        "serviceMinutesHint": "Geplante Standzeit bei jedem Kunden (0 bis 180).",
+        "weekdays": "Liefertage",
+        "weekdaysHint": "An diesen Wochentagen wird geliefert. Neue Bestellungen schlagen den nächsten Liefertag vor."
+      },
+      "save": "Speichern",
+      "saving": "Speichern …",
+      "saved": "Einstellungen gespeichert.",
+      "errors": {
+        "needPin": "Bitte zuerst den Depot-Pin auf der Karte setzen.",
+        "needConfirm": "Bitte bestätigen, dass der Pin am richtigen Ort liegt.",
+        "needWeekday": "Bitte mindestens einen Liefertag wählen.",
+        "invalid": "Bitte die Eingaben prüfen (Name, Adresse, Zeiten).",
+        "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+        "depotNotSet": "Es kann keine Tour erstellt werden: Der Depot-Standort ist noch nicht festgelegt. Bitte unter Einstellungen den Depot-Pin setzen und bestätigen."
+      }
     }
   },
   "driver": {

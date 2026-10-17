@@ -70,19 +70,19 @@ enum ProblemReason {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   role         Role
-  email        String?  @unique
-  username     String?  @unique
+  email        String?   @unique
+  username     String?   @unique
   passwordHash String
-  locale       Locale   @default(de)
-  localeChosen Boolean  @default(false)
+  locale       Locale    @default(de)
+  localeChosen Boolean   @default(false)
   displayName  String
-  active       Boolean  @default(true)
+  active       Boolean   @default(true)
   /// Set on every successful login (NUD-008).
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   photos      Photo[]
   screenshots Screenshot[]
@@ -92,15 +92,17 @@ model User {
 
 /// Singleton row (id = 1).
 model Settings {
-  id                    Int    @id @default(1)
+  id                    Int     @id @default(1)
   depotName             String
   depotAddress          String
   depotLat              Float
   depotLng              Float
-  timezone              String @default("Europe/Vienna")
-  departureTime         String @default("07:00")
-  serviceMinutesPerStop Int    @default(10)
-  deliveryWeekdays      Int[]  @default([1, 2, 3, 4, 5])
+  /// True once an admin has confirmed the depot pin on the map (D9). Tour building requires it.
+  depotPinConfirmed     Boolean @default(false)
+  timezone              String  @default("Europe/Vienna")
+  departureTime         String  @default("07:00")
+  serviceMinutesPerStop Int     @default(10)
+  deliveryWeekdays      Int[]   @default([1, 2, 3, 4, 5])
 }
 
 model Customer {

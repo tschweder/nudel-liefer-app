@@ -235,7 +235,11 @@
       "noAddress": "請先輸入地址。",
       "notFound": "未找到該地址，請在地圖上設定標記。",
       "failed": "地址查詢失敗，請在地圖上設定標記。",
-      "lowConfidence": "位置不確定，請在地圖上核對標記。"
+      "lowConfidence": "位置不確定，請在地圖上核對標記。",
+      "coordinates": "座標",
+      "latitude": "緯度",
+      "longitude": "經度",
+      "coordinatesInvalid": "座標無效（緯度 −90 至 90，經度 −180 至 180）。"
     },
     "devMaps": {
       "title": "地圖（開發）",
@@ -247,6 +251,44 @@
       "changes": "更改次數：{count}",
       "tourMap": "路線地圖",
       "sampleNote": "示例資料，並非真實配送。"
+    },
+    "settings": {
+      "title": "設定",
+      "description": "倉庫和常規規劃引數。所有配送路線都從倉庫出發並返回倉庫。",
+      "depot": {
+        "heading": "倉庫（工廠）",
+        "status": {
+          "confirmed": "已確認位置",
+          "unconfirmed": "未確認位置"
+        },
+        "unconfirmedNotice": "倉庫位置尚未確認。在確認之前，無法生成配送路線。",
+        "name": "名稱",
+        "address": "地址",
+        "addressPlaceholder": "例如：Graben 1, 1010 Wien",
+        "pinHeading": "地圖示記點",
+        "pinHint": "點選地圖、拖動標記或輸入座標。標記必須準確位於車輛裝貨的地點。",
+        "confirm": "我已核實標記點位置正確。"
+      },
+      "planning": {
+        "heading": "規劃",
+        "timezone": "時區",
+        "departureTime": "默認出發時間",
+        "serviceMinutes": "每個站點停留分鐘數",
+        "serviceMinutesHint": "在每位客戶處計劃停留的時間（0 至 180）。",
+        "weekdays": "配送日",
+        "weekdaysHint": "僅在這些星期幾配送。新訂單預設使用下一個配送日。"
+      },
+      "save": "儲存",
+      "saving": "正在儲存…",
+      "saved": "設定已儲存。",
+      "errors": {
+        "needPin": "請先在地圖上設定倉庫標記點。",
+        "needConfirm": "請確認標記點位置正確。",
+        "needWeekday": "請至少選擇一個配送日。",
+        "invalid": "請檢查輸入內容（名稱、地址、時間）。",
+        "generic": "儲存失敗，請重試。",
+        "depotNotSet": "無法生成配送路線：尚未設定倉庫位置。請在設定中設定並確認倉庫標記點。"
+      }
     }
   },
   "driver": {

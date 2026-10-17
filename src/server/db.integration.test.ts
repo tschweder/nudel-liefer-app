@@ -108,6 +108,8 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     const settings = await prisma.settings.findUniqueOrThrow({ where: { id: 1 } });
     expect(settings.timezone).toBe("Europe/Vienna");
     expect(settings.deliveryWeekdays).toEqual([1, 2, 3, 4, 5]);
+    // The seeded depot is a placeholder: tour building must stay blocked until an admin confirms it.
+    expect(settings.depotPinConfirmed).toBe(false);
     expect(await prisma.user.count({ where: { email: "admin@example.com", role: "ADMIN" } })).toBe(
       1,
     );
