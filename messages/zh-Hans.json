@@ -228,6 +228,44 @@
         "you": "您"
       }
     },
+    "customers": {
+      "title": "客户",
+      "description": "搜索客户资料。搜索不区分大小写和重音符号。",
+      "new": "新增客户",
+      "backToList": "返回客户列表",
+      "search": {
+        "label": "搜索",
+        "placeholder": "编号、名称、街道或城市"
+      },
+      "filters": {
+        "photosMissing": "缺少照片",
+        "pinUnconfirmed": "位置未确认",
+        "status": "显示",
+        "statusActive": "启用",
+        "statusArchived": "已归档",
+        "statusAll": "全部"
+      },
+      "columns": {
+        "number": "编号",
+        "name": "名称",
+        "city": "城市",
+        "flags": "提示"
+      },
+      "flags": {
+        "photosMissing": "缺少照片",
+        "pinUnconfirmed": "位置未确认",
+        "archived": "已归档"
+      },
+      "emptyTitle": "还没有客户",
+      "empty": "还没有创建任何客户。",
+      "emptyFilteredTitle": "没有结果",
+      "emptyFiltered": "没有符合搜索和筛选条件的客户。",
+      "resetFilters": "重置筛选",
+      "pagination": {
+        "label": "分页",
+        "status": "第 {page} 页，共 {pageCount} 页"
+      }
+    },
     "maps": {
       "locate": "查找地址",
       "locating": "正在查找…",

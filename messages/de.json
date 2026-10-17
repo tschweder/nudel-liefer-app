@@ -228,6 +228,44 @@
         "you": "Sie"
       }
     },
+    "customers": {
+      "title": "Kunden",
+      "description": "Kundenstamm durchsuchen. Die Suche ignoriert Groß-/Kleinschreibung und Akzente.",
+      "new": "Neuer Kunde",
+      "backToList": "Zurück zur Kundenliste",
+      "search": {
+        "label": "Suche",
+        "placeholder": "Nummer, Name, Straße oder Ort"
+      },
+      "filters": {
+        "photosMissing": "Fotos fehlen",
+        "pinUnconfirmed": "Pin unbestätigt",
+        "status": "Anzeigen",
+        "statusActive": "Aktive",
+        "statusArchived": "Archivierte",
+        "statusAll": "Alle"
+      },
+      "columns": {
+        "number": "Nr.",
+        "name": "Name",
+        "city": "Ort",
+        "flags": "Hinweise"
+      },
+      "flags": {
+        "photosMissing": "Fotos fehlen",
+        "pinUnconfirmed": "Pin unbestätigt",
+        "archived": "Archiviert"
+      },
+      "emptyTitle": "Noch keine Kunden",
+      "empty": "Es wurden noch keine Kunden angelegt.",
+      "emptyFilteredTitle": "Keine Treffer",
+      "emptyFiltered": "Kein Kunde passt zu Suche und Filtern.",
+      "resetFilters": "Filter zurücksetzen",
+      "pagination": {
+        "label": "Seiten",
+        "status": "Seite {page} von {pageCount}"
+      }
+    },
     "maps": {
       "locate": "Adresse suchen",
       "locating": "Suche läuft …",

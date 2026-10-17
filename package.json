@@ -19,6 +19,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:customers": "tsx scripts/seed-test-customers.ts",
     "db:embedded": "tsx scripts/embedded-postgres.ts"
   },
   "dependencies": {

@@ -208,7 +208,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | done |
 | NUD-011 | Map component with draggable pin | M1 | 005 | done |
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | done |
-| NUD-013 | Customer list & search | M1 | 005 | todo |
+| NUD-013 | Customer list & search | M1 | 005 | done |
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | todo |
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | todo |
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | todo |
@@ -587,7 +587,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-013 · Customer list & search
-**Status:** todo · **depends_on:** 005
+**Status:** done · **depends_on:** 005
 
 **Goal:** office finds any customer in seconds.
 
@@ -597,8 +597,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - "New customer" button → NUD-014 form.
 
 **Acceptance criteria**
-- [ ] Search for part of a name returns matches in < 300 ms with 500 seeded customers.
-- [ ] Filter "photos missing" shows exactly the customers lacking a current STORE or PARKING photo.
+- [x] Search for part of a name returns matches in < 300 ms with 500 seeded customers. (Integration test on embedded PostgreSQL 16: slowest of six queries ~5 ms; this measures the DB query, not the browser round trip.)
+- [x] Filter "photos missing" shows exactly the customers lacking a current STORE or PARKING photo. (Integration test covers none / store only / parking only / both / replaced (non-current) photos / mixed.)
+
+**Implementation notes**
+- `/admin/customers`: server-rendered list (`customer-queries.ts` -> `customers.ts`), URL-driven state (`q`, `status=active|archived|all`, `photos=missing`, `pin=unconfirmed`, `page`; parsing in `src/lib/customer-list-params.ts`). Client `CustomerFilters` (search box debounced 200 ms, two checkboxes, status select) and server-rendered `CustomersTable` (number, name + street, postal code + city, flag badges with icons: photos missing / pin unconfirmed / archived; count; 25 per page with previous/next; empty and "no match" states with reset). Archived customers are hidden by default (status filter "Aktive"). Rows are not linked yet: the detail/edit page is NUD-014.
+- Accent-insensitive search: migration `20261017160000_customer_search_text` adds SQL function `nudel_fold(text)` (lower-case, `translate` of ~100 Latin diacritics, ss/ae/oe) and `Customer.searchText`, maintained by a BEFORE INSERT/UPDATE trigger from number, name, street, postal code and city. The list query folds each search term with the same SQL function and does `searchText LIKE '%term%'` (all terms must match; `% _ \` escaped). No extension, so it works on Neon and in the embedded Postgres, and every writer (app, seed, NUD-090 import) gets the column for free. `searchText` is never written by app code. CJK text is matched as is (lower-casing only).
+- Query is one parameterised raw SQL (`$queryRaw` with `Prisma.sql`) plus a count query. Photo-missing flag is computed in SQL (`NOT (EXISTS current STORE AND EXISTS current PARKING)`).
+- Authorization: `listCustomersQuery` calls `requireRole("ADMIN")` before the query; the page also calls `requirePageActor`. Test: `customer-queries.integration.test.ts` (anonymous, driver, deactivated admin rejected, admin allowed).
+- `createPrismaClient(url, schema)` now also sets `search_path` to the test schema (raw SQL and triggers use unqualified names; the adapter only qualifies generated model queries).
+- Test seeding helper (not part of `db:seed`): `src/server/testing/seed-customers.ts` (`seedTestCustomers`), CLI `pnpm db:seed:customers [count]` (default 500, numbers `T-0001`..., accents/umlauts, mixed pin/photo/archived states).
+- "New customer" links to `/admin/customers/new`, for which a **placeholder page** (title + "coming soon" + back link) was created so there is no 404; NUD-014 replaces it.
+- Tests: `customers.integration.test.ts` (accents, case, ß, Chinese, AND of terms, LIKE wildcards/injection, trigger on update, status/photo/pin filters, pagination, 500-customer timing), `customer-queries.integration.test.ts`, `customer-list-params.test.ts`, e2e `tests/e2e/customers.spec.ts` (desktop + mobile: accent search, photo and pin filters, empty state + reset, no horizontal scroll, new-customer link; inserts and removes its own rows through `pg`).
+- Verified: lint, typecheck, `pnpm test` (233 passed incl. DB tests), `i18n:check`, prettier, `pnpm build`, e2e customers (desktop + mobile), shells "all placeholder pages" in 4 locales (desktop), home (mobile).
+- NOT verified: the full shells/settings/drivers e2e suites were not rerun (a combined run exceeded the sandbox call time limit; code untouched except the customers page); `prisma migrate deploy` on Neon (migration applied with plain SQL on embedded Postgres 16); real browser round-trip latency; layout not inspected as a screenshot (only the no-horizontal-scroll assertion); agent-written Chinese strings unreviewed (NUD-073).
 
 ---
 
@@ -1234,6 +1246,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-012 | Settings cached with `'use cache'` + tag `settings`, expired by `updateTag` in the save action (no hand-made in-memory cache) | Works with `cacheComponents` and across instances where the cache handler is shared |
 | 2026-10-17 | NUD-012 | Saving the depot requires the "pin checked" box; moving the pin or editing the address clears it | Simplest way to enforce D9 on the depot; the box is the confirmation |
 | 2026-10-17 | NUD-012 | `ORS_GEOCODE_COUNTRIES` stays in env | Moving it to Settings needs a column and UI beyond this ticket |
+| 2026-10-17 | NUD-013 | Accent-insensitive search = SQL function `nudel_fold` + trigger-maintained `Customer.searchText` + `LIKE`, no `unaccent`/`pg_trgm` | Works unchanged on Neon and embedded Postgres without extensions; 150 customers need no index |
+| 2026-10-17 | NUD-013 | List shows active customers by default (status filter active/archived/all), 25 per page with prev/next, sorted by name then number | Simplest; archived are soft-deleted (4.3) |
+| 2026-10-17 | NUD-013 | Placeholder `/admin/customers/new` page until NUD-014; `createPrismaClient(url, schema)` sets `search_path` for tests | Avoids 404; raw SQL/trigger need unqualified names to resolve in the test schema |
 
 ---
 

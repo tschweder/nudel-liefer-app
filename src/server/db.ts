@@ -4,7 +4,12 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 export function createPrismaClient(connectionString = process.env.DATABASE_URL, schema?: string) {
   if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const adapter = new PrismaPg({ connectionString }, schema ? { schema } : undefined);
+  // With a schema (tests) also put it on the connection's search_path: raw SQL, triggers and SQL
+  // functions use unqualified names (the adapter only qualifies the tables of generated queries).
+  const adapter = new PrismaPg(
+    schema ? { connectionString, options: `-c search_path=${schema}` } : { connectionString },
+    schema ? { schema } : undefined,
+  );
   return new PrismaClient({ adapter });
 }
 

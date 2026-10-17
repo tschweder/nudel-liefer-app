@@ -229,6 +229,44 @@
         "you": "您"
       }
     },
+    "customers": {
+      "title": "客户",
+      "description": "搜索客户資料。搜索不區分大小寫和重音符號。",
+      "new": "新增客户",
+      "backToList": "返回客户列表",
+      "search": {
+        "label": "搜索",
+        "placeholder": "編號、名稱、街道或城市"
+      },
+      "filters": {
+        "photosMissing": "缺少照片",
+        "pinUnconfirmed": "位置未確認",
+        "status": "顯示",
+        "statusActive": "啓用",
+        "statusArchived": "已歸檔",
+        "statusAll": "全部"
+      },
+      "columns": {
+        "number": "編號",
+        "name": "名稱",
+        "city": "城市",
+        "flags": "提示"
+      },
+      "flags": {
+        "photosMissing": "缺少照片",
+        "pinUnconfirmed": "位置未確認",
+        "archived": "已歸檔"
+      },
+      "emptyTitle": "還沒有客户",
+      "empty": "還沒有創建任何客户。",
+      "emptyFilteredTitle": "沒有結果",
+      "emptyFiltered": "沒有符合搜索和篩選條件的客户。",
+      "resetFilters": "重置篩選",
+      "pagination": {
+        "label": "分頁",
+        "status": "第 {page} 頁，共 {pageCount} 頁"
+      }
+    },
     "maps": {
       "locate": "查找地址",
       "locating": "正在查找…",
