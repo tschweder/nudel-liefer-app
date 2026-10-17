@@ -212,7 +212,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | done |
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | done |
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | done |
-| NUD-030 | Manual order entry | M1 | 014, 020 | todo |
+| NUD-030 | Manual order entry | M1 | 014, 020 | done |
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | todo |
 | NUD-032 | Order overview & editing | M1 | 030 | todo |
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | todo |
@@ -697,7 +697,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-030 · Manual order entry
-**Status:** todo · **depends_on:** 014, 020
+**Status:** done · **depends_on:** 014, 020
 
 **Goal:** office records an order in under 30 seconds.
 
@@ -710,9 +710,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Warning if the customer's pin is unconfirmed: "this customer cannot be routed until the pin is confirmed".
 
 **Acceptance criteria**
-- [ ] Quantity must be > 0; at least one line required; same product twice in one order is merged or rejected (pick one, log decision).
-- [ ] Unit tests for order validation (zod) and the date default.
-- [ ] E2E: create order with 3 lines, see it in the overview (NUD-032 placeholder list is fine).
+- [x] Quantity must be > 0; at least one line required; same product twice in one order is merged or rejected (pick one, log decision). (Merged; server-side tests for 0, negative, text, 3 decimals, no lines.)
+- [x] Unit tests for order validation (zod) and the date default.
+- [x] E2E: create order with 3 lines, see it in the overview (NUD-032 placeholder list is fine). (`tests/e2e/orders.spec.ts`, desktop + mobile.)
+
+**Implementation notes**
+- Pure rules in `src/domain/order.ts` (zod, no framework imports): `parseQuantity`/`parseQuantityCents` (`,` and `.`, max 2 decimals, > 0, max 99999999.99; a third decimal such as "1.000" is rejected rather than guessed), `mergeOrderLines` (same product -> quantities added), `orderInputSchema` (customer, `YYYY-MM-DD` date, status CONFIRMED|DRAFT, note <= 1000, 1..100 lines), `orderWarnings` (combined stop, unconfirmed pin), date helpers. Tests: `src/domain/order.test.ts` (60), including the default-date path via `nextDeliveryDate`.
+- Server: `src/server/orders.ts` (`createOrder`: re-validates, rejects past dates, archived/unknown customers and inactive/unknown products, creates order + items in one statement with source MANUAL; `listOrderableCustomers` = active only; `countConfirmedOrders`; `listOrderOverview`), `order-actions.ts` (`createOrderAction`, `confirmedOrderCountAction`, both `requireRole("ADMIN")`), `order-queries.ts` (`orderableCustomersQuery`, `orderOverviewQuery`; product picker uses `activeProductsQuery()`). `src/server/order-actions.integration.test.ts`: anonymous / driver / deactivated admin rejected on all four, 3-line order with `,`/`.` decimals, draft, merge, invalid-input table, past date, archived customer, inactive product, unconfirmed pin still saves, picker lists, count of CONFIRMED only, overview.
+- UI: `/admin/orders/new` (`OrderForm`): customer combobox (number, name, street, city searchable), native date input preselected with `getDefaultDeliveryDate()`, product lines (combobox with names in all locales and SKU searchable, quantity, unit label), Enter in a quantity adds a line and focuses its picker (not when the quantity is invalid), blank lines ignored, internal note, "Bestaetigt speichern" / "Als Entwurf speichern" (buttons only, Enter never submits). Warnings (not errors): existing confirmed orders that day ("combined into one stop", live server check) and unconfirmed pin (link to the customer). `/admin/orders` is now a minimal list of orders from today on (date, customer, items, status, source) with a "new order" button; NUD-032 replaces it. The NUD-043 hook is NOT implemented (NUD-032 owns the hook point: call it in `createOrder`'s callers / `createOrderAction`).
+- Verified: lint, typecheck, prettier, `pnpm test` (371 passed incl. DB), `i18n:check`, `pnpm build`, e2e `orders` (desktop + mobile), `customers`, `shells` (desktop, orders page in 4 locales); form screenshots at 1280 and 375 px inspected, no horizontal scroll.
+- NOT verified: `customer-form`, `settings`, `maps`, `drivers`, `customer-photos` e2e and the shells mobile project were not rerun (untouched code); Chinese UI strings are agent-written (NUD-073); the customer picker uses cmdk's fuzzy filter (not accent-folded, loose matches may appear); no real touch-device check.
+- Follow-ups: archiving a customer with upcoming orders is still allowed without warning; NUD-031 adds `source=SCREENSHOT` to this form; NUD-032 must call the outdated-tour hook after create/update/cancel.
 
 ---
 
@@ -1307,6 +1315,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-020 | A product's unit cannot be changed once it has order items (error `unit_locked`, select disabled) | Changing PACK to KG on old orders would silently alter delivered quantities (client priority 2) |
 | 2026-10-17 | NUD-020 | Reordering = up/down buttons over the full list (active and inactive together), renumbering `sortOrder` 0..n-1 in a transaction; the picker query returns active products in that order | Ticket allows drag or up/down; renumbering also repairs ties |
 | 2026-10-17 | NUD-020 | Deactivate/reactivate without a confirmation dialog | Fully reversible and affects only new orders; customers need a dialog because of routing impact |
+| 2026-10-17 | NUD-030 | Same product twice in one order is MERGED (quantities added), with a hint in the form | Office typing from a chat message may repeat a product; adding is what the customer meant, rejection costs time |
+| 2026-10-17 | NUD-030 | Quantity input allows at most 2 decimals; a third decimal (e.g. "1.000") is rejected, never rounded or read as thousands | Correct quantities are client priority 2; "1.000" is ambiguous |
+| 2026-10-17 | NUD-030 | Delivery dates before today (factory time zone) are rejected by the server; future dates allowed | A past order can never be routed; avoids typo orders |
+| 2026-10-17 | NUD-030 | Delivery date field is a native `<input type="date">` (value `YYYY-MM-DD`), not the calendar popover | No time-zone shift through `Date`, keyboard friendly, simplest |
+| 2026-10-17 | NUD-030 | Unconfirmed pin and existing same-day orders are warnings only; saving is allowed. Archived customers and inactive products are rejected on the server and not offered | Ticket scope; routing is blocked later by the tour builder |
+| 2026-10-17 | NUD-030 | After saving, the form redirects to `/admin/orders` (minimal list of orders from today on, cancelled included) | Simplest way to show the result; NUD-032 replaces the page |
 
 ---
 

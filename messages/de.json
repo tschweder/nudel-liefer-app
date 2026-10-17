@@ -444,6 +444,67 @@
         "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
         "depotNotSet": "Es kann keine Tour erstellt werden: Der Depot-Standort ist noch nicht festgelegt. Bitte unter Einstellungen den Depot-Pin setzen und bestätigen."
       }
+    },
+    "orders": {
+      "title": "Bestellungen",
+      "description": "Anstehende Bestellungen ab heute. Die vollständige Übersicht mit Filtern kommt später.",
+      "new": "Neue Bestellung",
+      "newTitle": "Neue Bestellung erfassen",
+      "backToList": "Zurück zu den Bestellungen",
+      "emptyTitle": "Noch keine Bestellungen",
+      "empty": "Für heute oder später gibt es keine Bestellungen.",
+      "columns": {
+        "date": "Lieferdatum",
+        "customer": "Kunde",
+        "items": "Positionen",
+        "status": "Status",
+        "source": "Quelle"
+      },
+      "source": {
+        "MANUAL": "Manuell",
+        "SCREENSHOT": "Screenshot"
+      },
+      "form": {
+        "customer": "Kunde",
+        "customerPlaceholder": "Kunde wählen",
+        "customerSearch": "Nach Name oder Nummer suchen",
+        "customerEmpty": "Kein Kunde gefunden.",
+        "date": "Lieferdatum",
+        "linesHeading": "Positionen",
+        "product": "Produkt",
+        "productPlaceholder": "Produkt wählen",
+        "productSearch": "Nach Name oder Artikelnummer suchen",
+        "productEmpty": "Kein Produkt gefunden.",
+        "quantity": "Menge",
+        "quantityHint": "Dezimalzahlen mit Komma oder Punkt, z. B. 2,5. Mit Enter kommt eine neue Position.",
+        "lineLabel": "Position {n}",
+        "addLine": "Position hinzufügen",
+        "removeLine": "Position {n} entfernen",
+        "duplicateNotice": "Ein Produkt kommt mehrfach vor. Beim Speichern werden die Mengen zusammengezählt.",
+        "internalNote": "Interne Notiz",
+        "internalNoteHint": "Nur für das Büro, wird dem Fahrer nicht angezeigt.",
+        "saveConfirmed": "Bestätigt speichern",
+        "saveDraft": "Als Entwurf speichern",
+        "warningCombined": "{count, plural, one {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellung} other {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellungen}}. Alle Bestellungen werden zu einem Stopp zusammengefasst.",
+        "warningPin": "Der Kartenpunkt dieses Kunden ist nicht bestätigt: Der Kunde kann erst in eine Tour aufgenommen werden, wenn der Kartenpunkt bestätigt ist.",
+        "openCustomer": "Kunde öffnen",
+        "errors": {
+          "customerRequired": "Bitte einen Kunden wählen.",
+          "dateInvalid": "Bitte ein gültiges Lieferdatum angeben.",
+          "datePast": "Das Lieferdatum darf nicht in der Vergangenheit liegen.",
+          "linesRequired": "Mindestens eine Position mit Produkt und Menge ist erforderlich.",
+          "productRequired": "Bitte ein Produkt wählen.",
+          "quantityInvalid": "Menge muss größer als 0 sein, höchstens 2 Nachkommastellen haben und aus Ziffern mit Komma oder Punkt bestehen.",
+          "invalid": "Bitte Eingaben prüfen.",
+          "customerInactive": "Dieser Kunde ist archiviert und kann keine neuen Bestellungen bekommen.",
+          "customerNotFound": "Der Kunde wurde nicht gefunden.",
+          "productInactive": "Ein gewähltes Produkt ist inzwischen deaktiviert. Bitte Seite neu laden.",
+          "productNotFound": "Ein gewähltes Produkt wurde nicht gefunden. Bitte Seite neu laden.",
+          "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+        },
+        "savedConfirmed": "Bestellung gespeichert.",
+        "savedDraft": "Entwurf gespeichert."
+      }
     }
   },
   "driver": {

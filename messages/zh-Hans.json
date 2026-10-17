@@ -444,6 +444,67 @@
         "generic": "保存失败，请重试。",
         "depotNotSet": "无法生成配送路线：尚未设置仓库位置。请在设置中设置并确认仓库标记点。"
       }
+    },
+    "orders": {
+      "title": "订单",
+      "description": "今天及以后的待处理订单。带筛选功能的完整总览稍后上线。",
+      "new": "新建订单",
+      "newTitle": "录入新订单",
+      "backToList": "返回订单列表",
+      "emptyTitle": "暂无订单",
+      "empty": "今天及以后没有订单。",
+      "columns": {
+        "date": "送货日期",
+        "customer": "客户",
+        "items": "订单明细",
+        "status": "状态",
+        "source": "来源"
+      },
+      "source": {
+        "MANUAL": "手动录入",
+        "SCREENSHOT": "截图"
+      },
+      "form": {
+        "customer": "客户",
+        "customerPlaceholder": "选择客户",
+        "customerSearch": "按名称或编号搜索",
+        "customerEmpty": "未找到客户。",
+        "date": "送货日期",
+        "linesHeading": "订单明细",
+        "product": "产品",
+        "productPlaceholder": "选择产品",
+        "productSearch": "按名称或货号搜索",
+        "productEmpty": "未找到产品。",
+        "quantity": "数量",
+        "quantityHint": "小数可用逗号或句点，例如 2,5。按回车键添加新的明细行。",
+        "lineLabel": "第 {n} 行",
+        "addLine": "添加明细行",
+        "removeLine": "删除第 {n} 行",
+        "duplicateNotice": "同一产品出现多次，保存时数量将合并相加。",
+        "internalNote": "内部备注",
+        "internalNoteHint": "仅供办公室使用，司机看不到。",
+        "saveConfirmed": "确认并保存",
+        "saveDraft": "保存为草稿",
+        "warningCombined": "该客户在这一天已有 {count} 个已确认订单，所有订单将合并为一个停靠点。",
+        "warningPin": "该客户的地图定位点尚未确认：确认定位点之前，无法将该客户编入路线。",
+        "openCustomer": "打开客户",
+        "errors": {
+          "customerRequired": "请选择客户。",
+          "dateInvalid": "请填写有效的送货日期。",
+          "datePast": "送货日期不能早于今天。",
+          "linesRequired": "至少需要一行包含产品和数量的明细。",
+          "productRequired": "请选择产品。",
+          "quantityInvalid": "数量必须大于 0，最多两位小数，且只能由数字加逗号或句点组成。",
+          "invalid": "请检查输入内容。",
+          "customerInactive": "该客户已归档，无法再添加新订单。",
+          "customerNotFound": "未找到该客户。",
+          "productInactive": "所选产品已被停用，请刷新页面。",
+          "productNotFound": "未找到所选产品，请刷新页面。",
+          "generic": "保存失败，请重试。"
+        },
+        "savedConfirmed": "订单已保存。",
+        "savedDraft": "草稿已保存。"
+      }
     }
   },
   "driver": {

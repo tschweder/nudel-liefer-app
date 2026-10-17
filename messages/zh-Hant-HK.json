@@ -445,6 +445,67 @@
         "generic": "保存失敗，請重試。",
         "depotNotSet": "無法生成配送路線：尚未設置倉庫位置。請在設置中設置並確認倉庫標記點。"
       }
+    },
+    "orders": {
+      "title": "訂單",
+      "description": "今天及以後的待處理訂單。帶篩選功能的完整總覽稍後上線。",
+      "new": "新建訂單",
+      "newTitle": "錄入新訂單",
+      "backToList": "返回訂單列表",
+      "emptyTitle": "暫無訂單",
+      "empty": "今天及以後沒有訂單。",
+      "columns": {
+        "date": "送貨日期",
+        "customer": "客户",
+        "items": "訂單明細",
+        "status": "狀態",
+        "source": "來源"
+      },
+      "source": {
+        "MANUAL": "手動錄入",
+        "SCREENSHOT": "截圖"
+      },
+      "form": {
+        "customer": "客户",
+        "customerPlaceholder": "選擇客户",
+        "customerSearch": "按名稱或編號搜索",
+        "customerEmpty": "未找到客户。",
+        "date": "送貨日期",
+        "linesHeading": "訂單明細",
+        "product": "產品",
+        "productPlaceholder": "選擇產品",
+        "productSearch": "按名稱或貨號搜索",
+        "productEmpty": "未找到產品。",
+        "quantity": "數量",
+        "quantityHint": "小數可用逗號或句點，例如 2,5。按回車鍵添加新的明細行。",
+        "lineLabel": "第 {n} 行",
+        "addLine": "添加明細行",
+        "removeLine": "刪除第 {n} 行",
+        "duplicateNotice": "同一產品出現多次，保存時數量將合併相加。",
+        "internalNote": "內部備註",
+        "internalNoteHint": "僅供辦公室使用，司機看不到。",
+        "saveConfirmed": "確認並保存",
+        "saveDraft": "保存為草稿",
+        "warningCombined": "該客户在這一天已有 {count} 個已確認訂單，所有訂單將合併為一個停靠點。",
+        "warningPin": "該客户的地圖定位點尚未確認：確認定位點之前，無法將該客户編入路線。",
+        "openCustomer": "打開客户",
+        "errors": {
+          "customerRequired": "請選擇客户。",
+          "dateInvalid": "請填寫有效的送貨日期。",
+          "datePast": "送貨日期不能早於今天。",
+          "linesRequired": "至少需要一行包含產品和數量的明細。",
+          "productRequired": "請選擇產品。",
+          "quantityInvalid": "數量必須大於 0，最多兩位小數，且只能由數字加逗號或句點組成。",
+          "invalid": "請檢查輸入內容。",
+          "customerInactive": "該客户已歸檔，無法再添加新訂單。",
+          "customerNotFound": "未找到該客户。",
+          "productInactive": "所選產品已被停用，請刷新頁面。",
+          "productNotFound": "未找到所選產品，請刷新頁面。",
+          "generic": "保存失敗，請重試。"
+        },
+        "savedConfirmed": "訂單已保存。",
+        "savedDraft": "草稿已保存。"
+      }
     }
   },
   "driver": {
