@@ -23,7 +23,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 
 ## Commands
 
-`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` | `pnpm db:migrate` | `pnpm db:seed` | `pnpm db:embedded` (Postgres without Docker).
+`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` | `pnpm db:migrate` | `pnpm db:seed` | `pnpm db:embedded` (Postgres without Docker) | `pnpm build:vercel` (Vercel build: env check, `prisma migrate deploy`, `next build`). Deployment guide: `docs/deploy.md`; `GET /api/health` checks DB + storage.
 
 ## Definition of Done (backlog §5)
 

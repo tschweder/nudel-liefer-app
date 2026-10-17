@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { DeleteObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeStorage } from "./fake";
@@ -120,5 +120,26 @@ describe("getStorage", () => {
     ).toBeInstanceOf(S3Storage);
     setStorageForTests(undefined);
     warn.mockRestore();
+  });
+});
+
+describe("S3Storage.checkReachable", () => {
+  it("lists at most one key and resolves when the bucket answers", async () => {
+    const send = vi.fn().mockResolvedValue({});
+    await expect(
+      new S3Storage(config, { send } as unknown as S3Client).checkReachable(),
+    ).resolves.toBeUndefined();
+    const command = send.mock.calls[0][0] as ListObjectsV2Command;
+    expect(command).toBeInstanceOf(ListObjectsV2Command);
+    expect(command.input).toEqual({ Bucket: "nudel-photos", MaxKeys: 1 });
+  });
+
+  it("rejects on a missing bucket, bad credentials and network errors", async () => {
+    for (const message of ["NoSuchBucket", "AccessDenied", "ECONNREFUSED"]) {
+      const send = vi.fn().mockRejectedValue(new Error(message));
+      await expect(
+        new S3Storage(config, { send } as unknown as S3Client).checkReachable(),
+      ).rejects.toThrow(message);
+    }
   });
 });

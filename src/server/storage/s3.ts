@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -90,5 +91,14 @@ export class S3Storage implements Storage {
 
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
+  }
+
+  /**
+   * Lists at most one key: succeeds only when endpoint, bucket and credentials are all valid
+   * (wrong bucket = NoSuchBucket, bad keys = 403). Needs only the object read permission of the
+   * bucket-scoped R2 token and changes nothing.
+   */
+  async checkReachable() {
+    await this.client.send(new ListObjectsV2Command({ Bucket: this.config.bucket, MaxKeys: 1 }));
   }
 }

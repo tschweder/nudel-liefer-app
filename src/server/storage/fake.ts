@@ -30,6 +30,8 @@ export class FakeStorage implements Storage {
     this.objects.delete(key);
   }
 
+  async checkReachable() {}
+
   /** Test helper: simulates the client's PUT to the presigned URL. */
   put(key: string, body: Uint8Array, contentType: string) {
     this.objects.set(key, { body, contentType });

@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+
+import { checkDeployEnv } from "./deploy-env";
+
+const good = {
+  VERCEL_ENV: "production",
+  DATABASE_URL: "postgresql://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/nudel?sslmode=require",
+  DATABASE_URL_UNPOOLED: "postgresql://u:p@ep-x.eu-central-1.aws.neon.tech/nudel?sslmode=require",
+  AUTH_SECRET: "a".repeat(44),
+  S3_ENDPOINT: "https://0123456789abcdef.eu.r2.cloudflarestorage.com",
+  S3_BUCKET: "nudel-photos",
+  S3_ACCESS_KEY_ID: "id",
+  S3_SECRET_ACCESS_KEY: "secret",
+};
+
+describe("checkDeployEnv", () => {
+  it("accepts a complete production environment", () => {
+    expect(checkDeployEnv(good)).toEqual({ errors: [], warnings: [] });
+  });
+
+  it("reports every missing variable without echoing values", () => {
+    const { errors } = checkDeployEnv({ VERCEL_ENV: "production" });
+    expect(errors.join("\n")).toMatch(/DATABASE_URL/);
+    expect(errors.join("\n")).toMatch(/AUTH_SECRET/);
+    expect(errors.join("\n")).toMatch(/S3_BUCKET/);
+  });
+
+  it("rejects localhost URLs and the placeholder secret", () => {
+    const { errors } = checkDeployEnv({
+      ...good,
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/nudel",
+      AUTH_SECRET: "replace-with-openssl-rand-base64-32-output",
+      S3_ENDPOINT: "http://localhost:9000",
+    });
+    expect(errors).toHaveLength(3);
+    expect(JSON.stringify(errors)).not.toContain("postgres:postgres");
+  });
+
+  it("requires the unpooled URL when DATABASE_URL is a Neon pooler URL", () => {
+    const { errors } = checkDeployEnv({ ...good, DATABASE_URL_UNPOOLED: undefined });
+    expect(errors).toHaveLength(1);
+  });
+
+  it("warns about a non-EU R2 endpoint and a leftover seed password in production only", () => {
+    const prod = checkDeployEnv({
+      ...good,
+      S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+      SEED_ADMIN_PASSWORD: "x",
+    });
+    expect(prod.errors).toEqual([]);
+    expect(prod.warnings).toHaveLength(2);
+    const preview = checkDeployEnv({
+      ...good,
+      VERCEL_ENV: "preview",
+      S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+    });
+    expect(preview.warnings).toEqual([]);
+  });
+});

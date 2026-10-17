@@ -56,6 +56,9 @@ const PRODUCTS: {
 export async function seed(prisma: PrismaClient = createPrismaClient()) {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
   if (!adminPassword) throw new Error("SEED_ADMIN_PASSWORD is not set (see .env.example)");
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
+  // Demo drivers share one well-known PIN: never create them on production (SEED_DRIVERS=false).
+  const withDrivers = process.env.SEED_DRIVERS !== "false";
   const driverPin = process.env.SEED_DRIVER_PIN ?? "123456";
   if (!/^\d{6}$/.test(driverPin)) throw new Error("SEED_DRIVER_PIN must be exactly 6 digits");
 
@@ -73,11 +76,11 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
   });
 
   await prisma.user.upsert({
-    where: { email: "admin@example.com" },
+    where: { email: adminEmail },
     update: {},
     create: {
       role: "ADMIN",
-      email: "admin@example.com",
+      email: adminEmail,
       passwordHash: await bcrypt.hash(adminPassword, 10),
       displayName: "Admin",
       locale: "de",
@@ -86,7 +89,7 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
   });
 
   const pinHash = await bcrypt.hash(driverPin, 10);
-  for (const driver of DRIVERS) {
+  for (const driver of withDrivers ? DRIVERS : []) {
     await prisma.user.upsert({
       where: { username: driver.username },
       update: {},

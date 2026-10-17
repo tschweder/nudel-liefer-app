@@ -203,7 +203,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-004 | Authentication & roles | M0 | 002, 003 | blocked |
 | NUD-005 | App shells & UI kit (admin + driver) | M0 | 003, 004 | done |
 | NUD-006 | Object storage & image upload pipeline | M0 | 002 | blocked |
-| NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | todo |
+| NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | blocked |
 | NUD-008 | Admin user management (drivers) | M0 | 005 | todo |
 | NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | todo |
 | NUD-011 | Map component with draggable pin | M1 | 005 | todo |
@@ -444,7 +444,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-007 · 👤 Deployment pipeline (Vercel / Neon / R2)
-**Status:** todo · **depends_on:** 002, 004
+**Status:** blocked (human must create the Vercel, Neon and Cloudflare accounts and enter the keys, see Human steps) · **depends_on:** 002, 004
 
 **Goal:** every push to `main` deploys to production, every PR gets a preview.
 
@@ -459,6 +459,22 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] Production URL serves the app; `/api/health` is green.
 - [ ] Seed admin can log in on production (seed run once manually, documented).
+
+**Implementation notes**
+- `docs/deploy.md`: click-by-click guide (GitHub repo, Neon EU Frankfurt, R2 bucket in EU jurisdiction + scoped API token + CORS JSON, Vercel project in `fra1`, env var table per Vercel environment, first deploy, one-time production seed, preview strategy, verification, troubleshooting). Console menu names were written from memory and may differ slightly; nothing was verified against the real services.
+- `vercel.json`: framework, region `fra1`, install `pnpm install --frozen-lockfile`, build `pnpm build:vercel`. `build:vercel` = `tsx scripts/check-deploy-env.ts && prisma migrate deploy && next build`. The env check (`scripts/lib/deploy-env.ts`, unit-tested) runs only when `VERCEL_ENV` is set, lists missing/placeholder/localhost values without echoing them and requires `DATABASE_URL_UNPOOLED` when `DATABASE_URL` is a Neon `-pooler` URL. `prisma.config.ts` prefers `DATABASE_URL_UNPOOLED` (migrations need a direct connection), the app uses `DATABASE_URL`.
+- `GET /api/health` (`src/server/health.ts`, route uses `connection()` so it is never prerendered): `SELECT 1` and `Storage.checkReachable()` (new interface method; S3 = `ListObjectsV2` with `MaxKeys: 1`, needs only the bucket-scoped object read/write token; Fake = no-op, reported as `skipped`). 4 s timeout per check, 200/503, `Cache-Control: no-store`, body has statuses, latencies, short git SHA and region only (no hostnames or error messages; tested). Public on purpose (the proxy matcher already excludes `/api`).
+- Seed: new optional `SEED_ADMIN_EMAIL` (default `admin@example.com`) and `SEED_DRIVERS=false` (skips the 4 demo drivers, which share the PIN 123456, on production). Both documented in `.env.example`, `docs/env.md`, `docs/deploy.md`.
+- Verified: lint, typecheck, `pnpm test` (133 passed), `i18n:check`, `pnpm build` (`/api/health` is dynamic). Live against `next start` + embedded PostgreSQL + the `s3rver` emulator: health 200 (db ok, storage ok); 503 without S3 config; 503 with a wrong bucket; 503 with the database down; seed with `SEED_DRIVERS=false SEED_ADMIN_EMAIL=...` creates only the one admin. `check-deploy-env` fails correctly on a localhost URL / missing variables.
+- NOT verified: anything against real Vercel, Neon or R2 (no accounts, by design); `prisma migrate deploy` itself (native schema engine unavailable here, see NUD-002); `ListObjectsV2` with a real R2 bucket-scoped token; R2 CORS rule; Vercel build with `pnpm build:vercel`.
+
+**Human steps** (details and exact clicks in `docs/deploy.md`)
+1. Create a private GitHub repo and push `main` (section 1); confirm CI is green (also closes open checks of NUD-001/004).
+2. Neon: create project in AWS Europe (Frankfurt), copy pooled + direct URLs for `main`; create branch `staging` and copy its two URLs (section 2).
+3. Cloudflare R2: buckets `nudel-photos` and `nudel-photos-staging` in the EU jurisdiction (private), bucket-scoped Object Read & Write API tokens, CORS rule, note the Account ID (section 3).
+4. Vercel: Pro plan (Hobby is non-commercial), import the repo, check region `fra1`, Node 22, enter the env vars for Production and Preview (sections 4 and 5), deploy.
+5. Run the production seed once from your computer with `SEED_DRIVERS=false` and your real admin email (section 7).
+6. Verify `/api/health` is green with `region: fra1` and the admin can log in (section 9), then tell the agent the production URL; tick the two criteria above and set `done`.
 
 ---
 
@@ -1158,6 +1174,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-006 | Presigned PUT signs content-type + content-length | Limits a leaked URL to one type/size; real enforcement to be confirmed against MinIO/R2 |
 | 2026-10-17 | NUD-006 | Without `S3_*` dev/test use `FakeStorage` with a warning, production throws | Keeps the §4.3 Fake convention but avoids silently losing uploads in production |
 | 2026-10-17 | NUD-006 | `authErrorStatus` moved to `auth/actor.ts` (re-exported by `guards.ts`); no `dynamic` export on the route | Handler testable without Auth.js; `dynamic` is incompatible with `cacheComponents` |
+| 2026-10-17 | NUD-007 | Preview deployments share one Neon branch `staging` (fake data) and an R2 bucket `nudel-photos-staging`; no Neon branch per PR | Per-PR branches (Neon Vercel integration) are feasible but copy production data into previews unless a clean parent is configured; shared staging is free, simpler and keeps real data out. Revisit when parallel PRs with conflicting migrations hurt |
+| 2026-10-17 | NUD-007 | Migrations run in the Vercel build (`pnpm build:vercel` = env check + `prisma migrate deploy` + `next build`) using `DATABASE_URL_UNPOOLED`; failed migration fails the build, the old deployment stays live | Simplest; PgBouncer-pooled Neon URLs break migration locks |
+| 2026-10-17 | NUD-007 | `/api/health` is public, returns only statuses/latency/short SHA/region, 503 on failure; storage probe = `ListObjectsV2(MaxKeys=1)` via new `Storage.checkReachable()` | Usable by uptime monitors without leaking secrets; works with a bucket-scoped R2 token and detects wrong bucket/credentials |
+| 2026-10-17 | NUD-007 | Seed gets `SEED_ADMIN_EMAIL` and `SEED_DRIVERS=false`; production seed runs once from the owner's computer, `SEED_ADMIN_PASSWORD` never lives in Vercel | Avoids a public `admin@example.com` and demo drivers with PIN 123456 on production |
 
 ---
 

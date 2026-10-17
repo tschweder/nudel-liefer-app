@@ -19,6 +19,11 @@ export interface Storage {
   getReadUrl(key: string, options?: { expiresInSeconds?: number }): Promise<string>;
   /** Deletes an object; deleting a missing key is not an error. */
   delete(key: string): Promise<void>;
+  /**
+   * Resolves when the storage backend is reachable and the credentials are accepted.
+   * Rejects otherwise. Used by `GET /api/health`; must not create or change anything.
+   */
+  checkReachable(): Promise<void>;
 }
 
 export const UPLOAD_URL_TTL_SECONDS = 5 * 60;
