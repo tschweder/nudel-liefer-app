@@ -5,14 +5,44 @@ import { Suspense } from "react";
 import { CustomerDetailView } from "@/components/admin/customer-detail";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { requirePageActor } from "@/server/auth/page-guards";
-import { getCustomerQuery, upcomingOrdersQuery } from "@/server/customer-queries";
+import {
+  customerPhotosQuery,
+  getCustomerQuery,
+  upcomingOrdersQuery,
+} from "@/server/customer-queries";
+
+const toSlot = ({
+  id,
+  url,
+  width,
+  height,
+}: {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+}) => ({
+  id,
+  url,
+  width,
+  height,
+});
 
 async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const orders = await upcomingOrdersQuery(id);
-  return <CustomerDetailView customer={customer} orders={orders} />;
+  const [orders, photos] = await Promise.all([upcomingOrdersQuery(id), customerPhotosQuery(id)]);
+  return (
+    <CustomerDetailView
+      customer={customer}
+      orders={orders}
+      photos={{
+        STORE: photos.STORE && toSlot(photos.STORE),
+        PARKING: photos.PARKING && toSlot(photos.PARKING),
+      }}
+    />
+  );
 }
 
 export default async function Page({ params }: PageProps<"/[locale]/admin/customers/[id]">) {

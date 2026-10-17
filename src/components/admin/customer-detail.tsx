@@ -2,7 +2,6 @@ import {
   AlertTriangleIcon,
   ArchiveIcon,
   CheckCircle2Icon,
-  ImageIcon,
   ImageOffIcon,
   MapPinOffIcon,
   PencilIcon,
@@ -11,12 +10,14 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { type PhotoKind, photosMissing as photosMissingFor } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
 
 import { CustomerArchiveButton } from "./customer-archive-button";
+import { CustomerPhotoSlots, type PhotoSlotValue } from "./customer-photo-slots";
 
 function Field({
   label,
@@ -45,16 +46,20 @@ function productName(name: unknown, locale: AppLocale): string {
 export function CustomerDetailView({
   customer,
   orders,
+  photos,
 }: {
   customer: CustomerDetail;
   orders: UpcomingOrder[];
+  photos: Record<PhotoKind, PhotoSlotValue | null>;
 }) {
   const t = useTranslations("admin.customers");
   const td = useTranslations("admin.customers.detail");
   const tc = useTranslations("common");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
-  const photosMissing = !(customer.hasStorePhoto && customer.hasParkingPhoto);
+  const photosMissing = photosMissingFor(
+    (Object.keys(photos) as PhotoKind[]).filter((kind) => photos[kind] !== null),
+  );
 
   return (
     <div className="flex w-full max-w-4xl min-w-0 flex-col gap-8">
@@ -151,22 +156,7 @@ export function CustomerDetailView({
         <h2 id="d-photos" className="text-xl font-semibold">
           {td("photosHeading")}
         </h2>
-        <ul className="flex flex-col gap-1 text-base" data-testid="detail-photos">
-          <li>
-            {td("storePhoto")}: {customer.hasStorePhoto ? td("photoPresent") : td("photoMissing")}
-          </li>
-          <li>
-            {td("parkingPhoto")}:{" "}
-            {customer.hasParkingPhoto ? td("photoPresent") : td("photoMissing")}
-          </li>
-        </ul>
-        <p
-          className="flex items-center gap-2 text-sm text-muted-foreground"
-          data-testid="photos-placeholder"
-        >
-          <ImageIcon className="size-4" aria-hidden />
-          {td("photosPlaceholder")}
-        </p>
+        <CustomerPhotoSlots customerId={customer.id} customerName={customer.name} photos={photos} />
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="d-orders">

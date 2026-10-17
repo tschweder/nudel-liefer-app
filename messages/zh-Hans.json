@@ -314,17 +314,24 @@
         "pinUnconfirmed": "位置未确认",
         "pinNone": "尚未设置标记",
         "photosHeading": "照片",
-        "storePhoto": "店铺照片",
-        "parkingPhoto": "停车位置照片",
+        "storePhoto": "店铺 / 入口",
+        "parkingPhoto": "停车 / 卸货",
         "photoPresent": "已有",
         "photoMissing": "缺少",
-        "photosPlaceholder": "暂时还不能上传或更换照片。",
         "ordersHeading": "即将到来的订单",
         "ordersEmpty": "没有即将到来的订单。",
         "archiveTitle": "归档此客户？",
         "archiveDescription": "该客户将不再显示在默认列表中。所有数据都会保留，可随时恢复。",
         "archived": "客户已归档。",
-        "restored": "客户已恢复。"
+        "restored": "客户已恢复。",
+        "photoReplace": "更换照片",
+        "photoSaved": "照片已保存。",
+        "photoErrors": {
+          "invalid": "照片无效。",
+          "not_found": "找不到该客户。",
+          "object_missing": "找不到已上传的图片，请重新上传。",
+          "key_in_use": "该图片已被使用，请重新上传。"
+        }
       }
     },
     "maps": {

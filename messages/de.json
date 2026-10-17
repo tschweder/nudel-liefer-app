@@ -314,17 +314,24 @@
         "pinUnconfirmed": "Pin nicht bestätigt",
         "pinNone": "Noch kein Pin gesetzt",
         "photosHeading": "Fotos",
-        "storePhoto": "Geschäftsfoto",
-        "parkingPhoto": "Parkplatzfoto",
+        "storePhoto": "Geschäft / Eingang",
+        "parkingPhoto": "Parken / Entladen",
         "photoPresent": "vorhanden",
         "photoMissing": "fehlt",
-        "photosPlaceholder": "Hochladen und Ersetzen von Fotos ist noch nicht verfügbar.",
         "ordersHeading": "Anstehende Bestellungen",
         "ordersEmpty": "Keine anstehenden Bestellungen.",
         "archiveTitle": "Kunde archivieren?",
         "archiveDescription": "Der Kunde erscheint nicht mehr in der Standardliste. Alle Daten bleiben erhalten, er kann jederzeit wiederhergestellt werden.",
         "archived": "Kunde archiviert.",
-        "restored": "Kunde wiederhergestellt."
+        "restored": "Kunde wiederhergestellt.",
+        "photoReplace": "Foto ersetzen",
+        "photoSaved": "Foto gespeichert.",
+        "photoErrors": {
+          "invalid": "Das Foto ist ungültig.",
+          "not_found": "Kunde nicht gefunden.",
+          "object_missing": "Das hochgeladene Bild wurde nicht gefunden. Bitte erneut hochladen.",
+          "key_in_use": "Dieses Bild wurde bereits verwendet. Bitte erneut hochladen."
+        }
       }
     },
     "maps": {

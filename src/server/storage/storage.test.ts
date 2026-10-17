@@ -1,5 +1,10 @@
 // @vitest-environment node
-import { DeleteObjectCommand, ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
 
 import { FakeStorage } from "./fake";
@@ -88,7 +93,32 @@ describe("S3Storage (offline presigning, mocked client for delete)", () => {
   });
 });
 
+describe("S3Storage.head", () => {
+  it("returns size and type, null for a missing key, and rethrows other errors", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ ContentLength: 42, ContentType: "image/jpeg" })
+      .mockRejectedValueOnce(Object.assign(new Error("nf"), { name: "NotFound" }))
+      .mockRejectedValueOnce(
+        Object.assign(new Error("denied"), { $metadata: { httpStatusCode: 403 } }),
+      );
+    const s = new S3Storage(config, { send } as unknown as S3Client);
+    expect(await s.head("customers/a.jpg")).toEqual({ bytes: 42, contentType: "image/jpeg" });
+    expect(send.mock.calls[0][0]).toBeInstanceOf(HeadObjectCommand);
+    expect(send.mock.calls[0][0].input).toEqual({ Bucket: "nudel-photos", Key: "customers/a.jpg" });
+    expect(await s.head("customers/missing.jpg")).toBeNull();
+    await expect(s.head("customers/x.jpg")).rejects.toThrow("denied");
+  });
+});
+
 describe("FakeStorage", () => {
+  it("head reports stored objects and null for missing ones", async () => {
+    const fake = new FakeStorage();
+    fake.put("a.jpg", new Uint8Array([1, 2, 3]), "image/jpeg");
+    expect(await fake.head("a.jpg")).toEqual({ bytes: 3, contentType: "image/jpeg" });
+    expect(await fake.head("b.jpg")).toBeNull();
+  });
+
   it("stores, signs and deletes in memory", async () => {
     const fake = new FakeStorage();
     const target = await fake.createUploadUrl({

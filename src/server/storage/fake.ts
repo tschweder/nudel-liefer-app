@@ -26,6 +26,11 @@ export class FakeStorage implements Storage {
     return `fake://read/${key}?expires=${ttl}`;
   }
 
+  async head(key: string) {
+    const object = this.objects.get(key);
+    return object ? { bytes: object.body.byteLength, contentType: object.contentType } : null;
+  }
+
   async delete(key: string) {
     this.objects.delete(key);
   }

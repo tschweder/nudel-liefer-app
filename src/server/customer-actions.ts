@@ -7,7 +7,9 @@ import {
   setCustomerActive,
   updateCustomer,
 } from "./customer-admin";
+import { addCustomerPhoto } from "./customer-photos";
 import { getDb } from "./db";
+import { getStorage } from "./storage";
 
 /**
  * Admin-only server actions for customer master data. The role is checked against the database
@@ -30,4 +32,13 @@ export async function updateCustomerAction(
 export async function setCustomerActiveAction(id: unknown, active: unknown) {
   await requireRole("ADMIN");
   return setCustomerActive(getDb(), id, active);
+}
+
+/**
+ * Attaches an already uploaded object as the customer's current STORE / PARKING photo (the old
+ * one stays as history). Admin only; drivers photograph in NUD-083 through their own action.
+ */
+export async function addCustomerPhotoAction(input: unknown) {
+  const actor = await requireRole("ADMIN");
+  return addCustomerPhoto(getDb(), getStorage(), actor.id, input);
 }

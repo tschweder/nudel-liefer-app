@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import { isCustomerPhotoKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import { type Actor, AuthorizationError, resolveActor, type Role } from "./auth/actor";
 import { FakeStorage } from "./storage/fake";
@@ -114,6 +114,19 @@ describe("POST /api/uploads", () => {
     expect(new Date(grant.expiresAt).getTime()).toBeGreaterThan(Date.now());
     const second = await (await handleCreateUpload(post(valid), deps("admin"))).json();
     expect(second.storageKey).not.toBe(grant.storageKey);
+  });
+
+  it("issues customer-photo keys that match the pattern mutations validate against", async () => {
+    for (const contentType of ["image/jpeg", "image/png", "image/webp", "image/heic"]) {
+      const grant = await (
+        await handleCreateUpload(post({ ...valid, contentType }), deps("admin"))
+      ).json();
+      expect(isCustomerPhotoKey(grant.storageKey), grant.storageKey).toBe(true);
+    }
+    const shot = await (
+      await handleCreateUpload(post({ ...valid, purpose: "screenshot" }), deps("admin"))
+    ).json();
+    expect(isCustomerPhotoKey(shot.storageKey)).toBe(false);
   });
 
   it("re-throws unexpected errors instead of reporting them as auth failures", async () => {

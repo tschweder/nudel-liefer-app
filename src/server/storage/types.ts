@@ -17,6 +17,8 @@ export interface Storage {
   }): Promise<UploadTarget>;
   /** Short-lived signed GET URL (default 1 h). The bucket itself stays private. */
   getReadUrl(key: string, options?: { expiresInSeconds?: number }): Promise<string>;
+  /** Size and type of a stored object, or `null` when the key does not exist. */
+  head(key: string): Promise<{ bytes: number; contentType: string | null } | null>;
   /** Deletes an object; deleting a missing key is not an error. */
   delete(key: string): Promise<void>;
   /**

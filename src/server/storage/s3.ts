@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -87,6 +88,21 @@ export class S3Storage implements Storage {
       new GetObjectCommand({ Bucket: this.config.bucket, Key: key }),
       { expiresIn: options?.expiresInSeconds ?? READ_URL_TTL_SECONDS },
     );
+  }
+
+  async head(key: string) {
+    try {
+      const out = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.config.bucket, Key: key }),
+      );
+      return { bytes: out.ContentLength ?? 0, contentType: out.ContentType ?? null };
+    } catch (error) {
+      const e = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      if (e.name === "NotFound" || e.name === "NoSuchKey" || e.$metadata?.httpStatusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async delete(key: string) {

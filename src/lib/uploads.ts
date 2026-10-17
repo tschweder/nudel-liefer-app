@@ -30,6 +30,18 @@ export type UploadGrant = {
   expiresAt: string;
 };
 
+/**
+ * Keys the server issues for `customer-photo` uploads (`POST /api/uploads`): `customers/<uuid>.<ext>`.
+ * Mutations that attach an uploaded object to a record must check this, so a client cannot point
+ * a record at an arbitrary object (another prefix, `../`, a screenshot, an external URL).
+ */
+export const CUSTOMER_PHOTO_KEY_PATTERN =
+  /^customers\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|heic)$/;
+
+export function isCustomerPhotoKey(key: string): boolean {
+  return CUSTOMER_PHOTO_KEY_PATTERN.test(key);
+}
+
 export function isAllowedImageType(type: string): type is AllowedImageType {
   return (ALLOWED_IMAGE_TYPES as readonly string[]).includes(type);
 }

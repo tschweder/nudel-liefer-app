@@ -315,17 +315,24 @@
         "pinUnconfirmed": "位置未確認",
         "pinNone": "尚未設定標記",
         "photosHeading": "照片",
-        "storePhoto": "店鋪照片",
-        "parkingPhoto": "停車位置照片",
+        "storePhoto": "店鋪 / 入口",
+        "parkingPhoto": "停車 / 卸貨",
         "photoPresent": "已有",
         "photoMissing": "缺少",
-        "photosPlaceholder": "暫時還不能上傳或更換照片。",
         "ordersHeading": "即將到來的訂單",
         "ordersEmpty": "沒有即將到來的訂單。",
         "archiveTitle": "歸檔此客戶？",
         "archiveDescription": "該客戶將不再顯示在預設列表中。所有資料都會保留，可隨時恢復。",
         "archived": "客戶已歸檔。",
-        "restored": "客戶已恢復。"
+        "restored": "客戶已恢復。",
+        "photoReplace": "更換照片",
+        "photoSaved": "照片已儲存。",
+        "photoErrors": {
+          "invalid": "照片無效。",
+          "not_found": "找不到該客戶。",
+          "object_missing": "找不到已上傳的圖片，請重新上傳。",
+          "key_in_use": "該圖片已被使用，請重新上傳。"
+        }
       }
     },
     "maps": {

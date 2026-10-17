@@ -82,7 +82,7 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await expect(page.getByTestId("detail-notes")).toHaveText("Hintereingang im Hof");
     await expect(page.getByTestId("flag-pin-unconfirmed")).toHaveCount(0);
     await expect(page.getByTestId("flag-photos-missing")).toBeVisible();
-    await expect(page.getByTestId("photos-placeholder")).toBeVisible();
+    await expect(page.getByTestId("photo-slots")).toBeVisible();
     await expect(page.getByTestId("orders-empty")).toBeVisible();
     expect(await noHorizontalScroll(page)).toBe(true);
     await page.screenshot({ path: "test-results/customer-detail.png", fullPage: true });

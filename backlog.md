@@ -210,7 +210,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | done |
 | NUD-013 | Customer list & search | M1 | 005 | done |
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | done |
-| NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | todo |
+| NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | done |
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | todo |
 | NUD-030 | Manual order entry | M1 | 014, 020 | todo |
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | todo |
@@ -642,7 +642,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-015 · Customer photos (admin upload/replace)
-**Status:** todo · **depends_on:** 006, 014
+**Status:** done · **depends_on:** 006, 014
 
 **Goal:** office stores the shop photo and parking/unloading photo per customer.
 
@@ -652,9 +652,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - "Photos missing" flag derived from absence of current STORE or PARKING photo.
 
 **Acceptance criteria**
-- [ ] Upload → photo visible on customer detail after reload.
-- [ ] Replace → new photo current, old one still in DB with `isCurrent=false`.
-- [ ] Flag disappears when both photos exist.
+- [x] Upload → photo visible on customer detail after reload. (e2e against the s3rver emulator, desktop + mobile: upload via the real browser pipeline, reload, signed `<img>` decodes.)
+- [x] Replace → new photo current, old one still in DB with `isCurrent=false`. (Integration test + e2e DB assertion.)
+- [x] Flag disappears when both photos exist. (Integration test: detail flag and the NUD-013 list filter agree after each step; e2e.)
+
+**Implementation notes**
+- Detail page `/admin/customers/[id]` now has two slots (`CustomerPhotoSlots`, `src/components/admin/customer-photo-slots.tsx`): "Geschäft / Eingang" (STORE) and "Parken / Entladen" (PARKING), each with status badge, thumbnail that opens the NUD-006 `ImagePreview` fullscreen zoom, `ImageUploader` (file picker, drop, paste, camera) for an empty slot and a "Foto ersetzen" button for a filled one. Flow: browser resizes + PUTs to the presigned URL (NUD-006), then calls `addCustomerPhotoAction({customerId, kind, storageKey, width, height})`, then `router.refresh()`. The NUD-014 placeholder text/key was removed. The "photos missing" badge is derived from the same current photos via the pure `src/domain/photos.ts` (`photosMissing`), the list filter keeps its SQL rule; an integration test asserts both agree.
+- Server (`src/server/customer-photos.ts`): `addCustomerPhoto` (zod; key must match `isCustomerPhotoKey` = `customers/<uuid>.<jpg|png|webp|heic>`, i.e. exactly what `POST /api/uploads` issues, a unit test ties the two together; new `Storage.head()` checks the object really exists and supplies `bytes` (client-sent size is ignored); a key can be attached only once; one transaction under `SELECT ... FOR UPDATE` on the customer sets older current photos of that kind to `isCurrent=false` and inserts the new one, so concurrent uploads never leave two current photos) and `getCustomerPhotos` (signed read URLs, 1 h, generated on the server; the bucket stays private). Wrapped by `addCustomerPhotoAction` (`requireRole("ADMIN")`) and `customerPhotosQuery` (admin only).
+- `Storage` interface got `head(key)` (S3 `HeadObject`, Fake map); needs the read permission only.
+- Tests: `customer-photos.integration.test.ts` (anonymous / driver / deactivated admin rejected on action and query, 12 forged keys, invalid input table, missing object, unknown customer, size from storage, key reuse, replace history, concurrency, flag consistency with list filter), `domain/photos.test.ts`, `storage.test.ts` (head), `uploads.test.ts` (issued keys match pattern), e2e `tests/e2e/customer-photos.spec.ts` (desktop + mobile; skipped without `S3_*`; needs a real S3-compatible store such as MinIO or `s3rver`). Verified: lint, typecheck, prettier, `pnpm test` (290 passed incl. DB), `i18n:check`, `pnpm build`, e2e customer-photos / customers / uploads / customer-form (desktop + mobile; screenshots at 1280 and 375 px inspected, no horizontal scroll).
+- NOT verified: real MinIO / R2 (s3rver only; same gap as NUD-006, the browser upload path has now been exercised in real Chromium through the page); HEIC/real camera photos; pinch zoom on a real phone; the full shells/settings/drivers e2e suites were not rerun. The e2e `customer-form` desktop test failed once in each of two runs (a pin-flag check right after save, and a click from the list to the detail page) and passed otherwise (5 of 6 repeats); the failing steps do not touch photos, so it looks like a pre-existing timing flake, not investigated.
+- Follow-ups: an object uploaded but never attached (action failed, tab closed) stays orphaned in storage, and replaced photos keep their objects (history); a cleanup job belongs with NUD-094. Photos are managed on the detail page only, not on the edit form (see decision log). Driver capture/replace is NUD-083 and needs its own action (the admin action rejects drivers).
 
 ---
 
@@ -1261,6 +1269,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-014 | After an address change `pinConfirmed` is only kept if the pin was also moved/searched again (rule shared by form and server); otherwise reset | Satisfies "changing the address resets pinConfirmed" while still allowing a re-confirmation in the same save |
 | 2026-10-17 | NUD-014 | Next free number = highest number ending in digits + 1 (prefix and zero padding kept), "1001" if none; uniqueness is case-insensitive | Simple, works for "K-0099" and "1041" style numbers |
 | 2026-10-17 | NUD-014 | Driver notes stored as `LocalizedText` with only `de` (source de); a changed text drops old translations, an unchanged one keeps the stored JSON | Multilingual editor and translation come with NUD-071/070 |
+| 2026-10-17 | NUD-015 | Photos are managed on the customer detail page only (not on the edit form); archived customers may still get photos | Edit form is master data; scope says "detail/edit", detail suffices and keeps one place |
+| 2026-10-17 | NUD-015 | Added `Storage.head(key)`; the attach mutation checks the key pattern `customers/<uuid>.<ext>`, that the object exists, takes `bytes` from storage, and refuses a key used by another photo | Server must prove the key belongs to its upload namespace and was really uploaded; client values are not trusted |
+| 2026-10-17 | NUD-015 | One-current-per-kind enforced by a transaction with a row lock on the customer, no partial unique index | Matches the NUD-002 decision (app-level uniqueness); no migration needed |
+| 2026-10-17 | NUD-015 | Slot titles "Geschäft / Eingang" / "Parken / Entladen" (zh-Hans "店铺 / 入口" / "停车 / 卸货") replace the old "Geschäftsfoto"/"Parkplatzfoto" labels | Wording from the ticket scope |
 | 2026-10-17 | NUD-014 | Country is a 2-letter text field (default AT), stored upper-case; archiving needs a confirmation dialog, reactivating does not | Simplest; no country list needed in v1 |
 
 ---
