@@ -50,3 +50,6 @@ test-results/
 # generated / local
 /src/generated
 /.embedded-postgres
+
+# review CSV exports (real review output, never commit)
+/i18n-review*.csv

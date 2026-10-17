@@ -228,7 +228,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | done |
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | done |
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | done |
-| NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | todo |
+| NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | blocked |
 | NUD-080 | PWA installability | M2 | 051 | todo |
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | todo |
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | todo |
@@ -1154,7 +1154,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-073 · 👤 UI string review workflow for native speakers
-**Status:** todo · **depends_on:** 003
+**Status:** blocked (tooling done; native-speaker review is a human step) · **depends_on:** 003
 
 **Goal:** Chinese UI texts are checked by humans before go-live.
 
@@ -1166,7 +1166,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **👤 Human step:** a native reader for Simplified and one for Traditional (HK and/or TW) review the CSV.
 
 **Acceptance criteria**
-- [ ] Round-trip export → edit → import changes exactly the edited keys (test).
+- [x] Round-trip export → edit → import changes exactly the edited keys (test).
+
+**Human steps (open)**
+1. Developer: `pnpm i18n:export`, send `i18n-review.csv` (plus a test deployment or the demo seed login) to the reviewers. See `docs/i18n.md`.
+2. Native reader of **Simplified Chinese** reviews the `zh-Hans` column (fills `corrected_zh-Hans` / `reviewer_comment`). Also confirms or replaces the glossary terms (Tour, Stopp, Einheit, ...) used in the Chinese texts.
+3. Native reader of **Traditional Chinese for Hong Kong** and one for **Taiwan** (or one person for both) review the generated `zh-Hant-HK` / `zh-Hant-TW` columns and fill `corrected_zh-Hant-HK` / `-TW` only where the machine conversion reads unnatural.
+4. Developer: `pnpm i18n:import <returned.csv> --dry-run`, then without `--dry-run`, `pnpm i18n:check`, commit the changed JSON files (never the CSV). Then set this ticket to `done`.
+
+**Implementation notes**
+- `pnpm i18n:export [--out f] [--delimiter ";"]` writes `./i18n-review.csv` (gitignored via `/i18n-review*.csv`): UTF-8 BOM, CRLF, RFC 4180 quoting, 689 rows. Columns: key, de, zh-Hans, zh-Hant-HK, zh-Hant-TW, route_hint, reviewer_comment, corrected_zh-Hans, corrected_zh-Hant-HK, corrected_zh-Hant-TW. Hant columns are computed fresh from zh-Hans + overrides.
+- `pnpm i18n:import <csv> [--dry-run] [--force]` is all-or-nothing: refuses unknown/duplicate/empty keys, invalid ICU, placeholder names that differ from the German text, and rows whose exported text no longer matches the repository (stale CSV, `--force` overrides). `corrected_zh-Hans` goes to `zh-Hans.json`; Hant corrections go to `overrides/<locale>.json` (sorted keys; removed again if equal to the OpenCC output). Then the Hant files are rebuilt and the whole result is validated like `i18n:check`. Empty correction cells = no change. `,` `;` and tab separators are accepted (German Excel), BOM optional. Reviewer comments are only counted, not stored.
+- Code: `scripts/lib/i18n-review.ts` (CSV, export, import), `scripts/lib/i18n-files.ts` (read/write/build, shared with `i18n-build.ts`), `scripts/lib/i18n-routes.ts` (key prefix -> route map; longest prefix wins; one line per new namespace), CLIs `scripts/i18n-export.ts` / `i18n-import.ts`. Test: `scripts/lib/i18n-review.test.ts` (CSV quoting, round trip on a temp copy of `messages/` asserting exactly the edited keys change in each file, refusals, route-hint coverage and stale entries).
+- Surprise: with OpenCC `s2twp`, both `保存` and `储存` become `儲存`, so a Simplified edit does not always change the TW text.
+- Verified: eslint (0 warnings), `tsc --noEmit`, prettier, `vitest` without database (56 files / 556 tests passed, 22 DB files skipped; this ticket touches no DB code), `i18n:check`, and a manual CLI run (export, edit, import, check, restore).
+- NOT verified: opening the CSV in a real Excel / LibreOffice / Google Sheets (only a Python csv round trip and the parser tests); `pnpm` itself (not runnable here, scripts run through `npx tsx`); DB test groups not rerun. **The Chinese UI texts are still agent-written and have NOT been reviewed by anyone.**
 
 ---
 
@@ -1584,6 +1598,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-072 | German problem text: no flag, no translation, no Chinese variants | Office reads German; ticket only asks for German for the office |
 | 2026-10-18 | NUD-072 | Admin shows the German text first with a "maschinell übersetzt" badge and a toggle for the original; while pending: "Übersetzung folgt" + original shown | Office needs something readable at once; original always reachable |
 | 2026-10-18 | NUD-072 | A late translation is saved only if the note still has the `meta.updatedAt` that was read (existing `stopProblemNoteSource.save`) | Undo or a new report in between must win |
+| 2026-10-18 | NUD-073 | CSV is comma separated with UTF-8 BOM by default; import auto-detects `,` `;` tab | German Excel saves `;` files; avoids a `sep=` hack line |
+| 2026-10-18 | NUD-073 | Only `corrected_zh-Hans/-HK/-TW` columns are applied; German corrections go in the comment column; comments are not stored | German is developer-maintained; backlog asks for corrected text per Chinese locale only |
+| 2026-10-18 | NUD-073 | Import is all-or-nothing, refuses placeholder-set changes vs German and stale rows (`--force` to override); Hant correction equal to the OpenCC output removes the override | Protects against broken ICU/outdated CSVs; keeps override files minimal |
+| 2026-10-18 | NUD-073 | Route hints are a plain TS prefix list (`scripts/lib/i18n-routes.ts`), longest prefix wins, text in parentheses = description not URL | Simplest maintainable form; a unit test flags stale entries |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

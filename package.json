@@ -14,6 +14,8 @@
     "format": "prettier --write .",
     "i18n:build": "tsx scripts/i18n-build.ts",
     "i18n:check": "tsx scripts/i18n-check.ts",
+    "i18n:export": "tsx scripts/i18n-export.ts",
+    "i18n:import": "tsx scripts/i18n-import.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
