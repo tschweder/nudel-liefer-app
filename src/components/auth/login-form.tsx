@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState } from "react";
 
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { Link } from "@/i18n/navigation";
 import { type LoginState } from "@/server/auth/actions";
 import { adminLoginAction, driverLoginAction } from "@/server/auth/actions";
@@ -26,6 +27,9 @@ export function LoginForm({
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-4">
+      {kind === "driver" ? (
+        <LanguageSwitcher variant="bar" query={callbackUrl ? { callbackUrl } : undefined} />
+      ) : null}
       <h1 className="text-2xl font-semibold" data-testid="login-title">
         {t(`${ns}.title`)}
       </h1>

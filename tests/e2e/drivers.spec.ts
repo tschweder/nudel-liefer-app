@@ -58,6 +58,9 @@ test("admin manages a driver: create, PIN shown once, reset, deactivate -> logge
   const driverCtx = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const driver = await driverCtx.newPage();
   await driverLogin(driver, username, pin);
+  // a new driver has not chosen a language yet (NUD-050): the first-start picker comes first
+  await expect(driver).toHaveURL(/\/zh-Hant-HK\/driver\/start$/);
+  await driver.getByTestId("pick-zh-Hant-HK").click();
   await expect(driver).toHaveURL(/\/zh-Hant-HK\/driver$/);
   await admin.reload();
   await expect(admin.getByTestId(`driver-row-${username}`)).not.toContainText("Noch nie");

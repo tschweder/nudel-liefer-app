@@ -6,11 +6,14 @@ import { PrismaClient, type Unit } from "../src/generated/prisma/client";
 import { createLocalizedText } from "../src/lib/localized-text";
 import { createPrismaClient } from "../src/server/db";
 
+// `localeChosen`: the four language demo drivers already have their language (they skip the
+// first-start picker, which keeps e2e logins deterministic); `driver-new` shows the picker (NUD-050).
 const DRIVERS = [
-  { username: "fahrer-de", displayName: "Fahrer Deutsch", locale: "de" },
-  { username: "driver-hans", displayName: "司机 简体", locale: "zh_Hans" },
-  { username: "driver-hk", displayName: "司機 香港", locale: "zh_Hant_HK" },
-  { username: "driver-tw", displayName: "司機 台灣", locale: "zh_Hant_TW" },
+  { username: "fahrer-de", displayName: "Fahrer Deutsch", locale: "de", localeChosen: true },
+  { username: "driver-hans", displayName: "司机 简体", locale: "zh_Hans", localeChosen: true },
+  { username: "driver-hk", displayName: "司機 香港", locale: "zh_Hant_HK", localeChosen: true },
+  { username: "driver-tw", displayName: "司機 台灣", locale: "zh_Hant_TW", localeChosen: true },
+  { username: "driver-new", displayName: "Neuer Fahrer", locale: "de", localeChosen: false },
 ] as const;
 
 const PRODUCTS: {
@@ -101,7 +104,7 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
         passwordHash: pinHash,
         displayName: driver.displayName,
         locale: driver.locale,
-        localeChosen: false,
+        localeChosen: driver.localeChosen,
       },
     });
   }

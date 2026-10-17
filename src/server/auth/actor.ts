@@ -13,7 +13,14 @@ export class AuthorizationError extends Error {
   }
 }
 
-export type Actor = { id: string; role: Role; locale: string; name: string };
+export type Actor = {
+  id: string;
+  role: Role;
+  locale: string;
+  name: string;
+  /** False until the driver picked his language on first start (NUD-050). */
+  localeChosen: boolean;
+};
 
 /**
  * Resolves the actor from the session claims against the database: the user must still exist and
@@ -33,6 +40,7 @@ export async function resolveActor(
     role: user.role,
     locale: dbLocaleToTag(user.locale),
     name: user.displayName,
+    localeChosen: user.localeChosen,
   };
 }
 

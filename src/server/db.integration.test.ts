@@ -94,7 +94,7 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     expect(await prisma.tour.count({ where: { date: new Date("2026-11-05") } })).toBe(2);
   });
 
-  it("seeds settings, 1 admin, 4 drivers, 6 products, 0 customers - idempotently", async () => {
+  it("seeds settings, 1 admin, 5 drivers, 6 products, 0 customers - idempotently", async () => {
     const { prisma } = testDb;
     // Fresh schema counts are asserted via deltas to stay independent of other tests' users.
     const before = {
@@ -119,10 +119,13 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     });
     expect(drivers.map((d) => d.locale).sort()).toEqual([
       "de",
+      "de",
       "zh_Hans",
       "zh_Hant_HK",
       "zh_Hant_TW",
     ]);
+    // Only `driver-new` shows the first-start language picker (NUD-050).
+    expect(drivers.filter((d) => !d.localeChosen).map((d) => d.username)).toEqual(["driver-new"]);
     expect(await prisma.product.count()).toBe(before.products + 6);
     expect(await prisma.customer.count()).toBe(before.customers);
   });

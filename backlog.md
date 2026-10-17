@@ -219,7 +219,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | done |
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | done |
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | done |
-| NUD-050 | Driver first-start language picker | M1 | 005 | todo |
+| NUD-050 | Driver first-start language picker | M1 | 005 | done |
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | todo |
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | todo |
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | todo |
@@ -899,7 +899,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-050 · Driver first-start language picker
-**Status:** todo · **depends_on:** 005
+**Status:** done · **depends_on:** 005
 
 **Goal:** a driver who reads no German can use the app from the first second.
 
@@ -909,7 +909,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - The driver login page itself shows the language switcher at the top (icon + own-script labels).
 
 **Acceptance criteria**
-- [ ] E2E (mobile): first login → picker → choose 繁體中文（台灣） → home page in zh-Hant-TW; second login skips picker.
+- [x] E2E (mobile): first login → picker → choose 繁體中文（台灣） → home page in zh-Hant-TW; second login skips picker. (`tests/e2e/driver-language-picker.spec.ts`, 375x812, desktop + mobile projects, passed.)
+
+**Implementation notes**
+- Picker page `/[locale]/driver/start` (outside the `(app)` group, so no shell): `DriverLanguagePicker` with four 96 px buttons in their own script (`lang` set per button), a language icon, no other text. Server action `chooseDriverLocaleAction` (`src/server/driver-locale-actions.ts`): `requireRole("DRIVER")` first, zod-validated locale (`chooseDriverLocale` in `driver-locale.ts`), saves `User.locale` + `localeChosen = true` for the session user only, sets the `NEXT_LOCALE` cookie, refreshes the session token and redirects to `/{locale}/driver` (the original deep link is not restored: simplest, logged).
+- Enforcement is guard-level: `requirePageActor("driver", ...)` redirects a DRIVER with `localeChosen=false` to the picker (`Actor` got `localeChosen`; admins in the support view are not affected); only the picker page passes `allowUnchosen`. Every future driver page must use `requirePageActor`, so deep links cannot skip it. The picker redirects chosen drivers / admins to the home.
+- Login: `LanguageSwitcher` got `variant="bar"` (language icon + visible 48 px select, own-script options) and a `query` prop that keeps `?callbackUrl` when the locale changes; shown on the driver login page only. Later changes: the existing top-bar icon (unchanged).
+- Seed: the four language demo drivers now have `localeChosen=true` (existing e2e logins stay deterministic); new seeded `driver-new` (de, `localeChosen=false`) shows the picker for manual demos. `drivers.spec.ts` was adapted (a freshly created driver now passes the picker). The picker e2e inserts its own driver per run, so it is independent of the seed.
+- Tests: `driver-locale.integration.test.ts` (8: saves choice, invalid locales, anonymous / admin / deactivated rejected with nothing changed, cannot touch other users, guard redirects from every driver page, picker page passes, chosen drivers and admins pass), e2e as above.
+- Verified: lint, typecheck, prettier, `i18n:check`, `pnpm test` (556 incl. DB tests), `pnpm build`, e2e `driver-language-picker`, `auth`, `drivers`, `shells`, `home`, `uploads` (with fake S3), 375 px screenshots of login and picker inspected, no horizontal scroll asserted.
+- NOT verified: real phone / Safari (native select popup of the icon variant); the setting of `localeChosen` is not enforced in the proxy (token has no such claim) nor in future driver mutations (NUD-053 should keep using `requireRole("DRIVER")`; the page guard covers navigation); picker has no heading text by design (screen readers hear the four language names).
 
 ---
 
@@ -1442,6 +1451,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-043 | Change data for the driver app: `Tour.releaseRevision` (1 = first release, +1 per effective re-release), `reReleasedAt`, `lastChange` (JSON incl. removed customers' names), `Stop.changeKind` ADDED / CHANGED, `changedInRevision`, `previousItems`; the 'seen' state is kept on the device by NUD-051 | Ticket allows markers or a revision field; both together let the driver app highlight stops it has not seen yet and name removed stops, without a server-side acknowledgement |
 | 2026-10-17 | NUD-043 | Re-release needs an assigned, active driver and the `version` (tour `updatedAt`) the office saw; inside the transaction (per-date advisory lock) tour version, stop statuses and confirmed orders are re-checked and writes to open stops are guarded by `status = PENDING`, otherwise `conflict` | Same pattern as release / generate; a stop completed by the driver or an order saved meanwhile must never be overwritten |
 | 2026-10-17 | NUD-043 | Status machine: DRAFT -> OPTIMIZED -> RELEASED -> IN_PROGRESS -> COMPLETED, self-transitions only for rebuild (OPTIMIZED), re-release (RELEASED / IN_PROGRESS); a stop is done when it is not PENDING; `syncTourProgress` derives the status from the stops; COMPLETED is final | Matches the ticket; PROBLEM also closes a stop (NUD-053); how Undo interacts with COMPLETED is left to NUD-053 (noted there) |
+| 2026-10-17 | NUD-050 | Seeded demo drivers for the four languages have `localeChosen=true`; new seeded `driver-new` has false | Keeps e2e logins deterministic while a demo of the picker remains |
+| 2026-10-17 | NUD-050 | After picking a language the driver always lands on the driver home, not on a previous deep link | Simplest; the picker only appears once per driver |
+| 2026-10-17 | NUD-050 | Picker is enforced in `requirePageActor` (page guard) for DRIVER only, not in the proxy; admins in support view skip it | Token has no `localeChosen` claim; avoids a DB read per request in the proxy |
 
 ---
 

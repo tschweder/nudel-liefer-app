@@ -10,14 +10,22 @@ import { LOCALES } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
 import { setLocaleAction } from "@/server/locale-actions";
 
-type Variant = "labeled" | "compact" | "icon";
+type Variant = "labeled" | "compact" | "icon" | "bar";
 
 /**
  * Native `<select>` (each language in its own script).
  * `labeled`: visible label (login/start pages). `compact`: label for screen readers only (admin header).
  * `icon`: 48 px icon button that opens the native picker (driver top bar).
+ * `bar`: language icon plus the visible 48 px select (driver login page, nobody logged in yet).
+ * `query`: search params kept when the locale changes (e.g. the login `callbackUrl`).
  */
-export function LanguageSwitcher({ variant = "labeled" }: { variant?: Variant }) {
+export function LanguageSwitcher({
+  variant = "labeled",
+  query,
+}: {
+  variant?: Variant;
+  query?: Record<string, string>;
+}) {
   const t = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
@@ -30,6 +38,7 @@ export function LanguageSwitcher({ variant = "labeled" }: { variant?: Variant })
         variant === "icon"
           ? "absolute inset-0 size-full cursor-pointer appearance-none opacity-0"
           : "min-h-12 rounded-md border border-input bg-background px-3 text-base",
+        variant === "bar" && "w-full",
         variant === "compact" && "min-h-10",
       )}
       value={locale}
@@ -41,7 +50,7 @@ export function LanguageSwitcher({ variant = "labeled" }: { variant?: Variant })
         if (!isAppLocale(next)) return;
         startTransition(async () => {
           await setLocaleAction(next);
-          router.replace(pathname, { locale: next });
+          router.replace(query ? { pathname, query } : pathname, { locale: next });
         });
       }}
     >
@@ -59,6 +68,14 @@ export function LanguageSwitcher({ variant = "labeled" }: { variant?: Variant })
         <LanguagesIcon className="size-6" aria-hidden />
         {select}
       </span>
+    );
+  }
+  if (variant === "bar") {
+    return (
+      <div className="flex items-center gap-2">
+        <LanguagesIcon className="size-6 shrink-0" aria-hidden />
+        {select}
+      </div>
     );
   }
   return (
