@@ -1,0 +1,75 @@
+{
+  "common": {
+    "appName": "Nudel Liefer App",
+    "language": "Sprache",
+    "actions": {
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "archive": "Archivieren",
+      "restore": "Wiederherstellen",
+      "edit": "Bearbeiten",
+      "create": "Anlegen",
+      "add": "Hinzufügen",
+      "remove": "Entfernen",
+      "back": "Zurück",
+      "next": "Weiter",
+      "confirm": "Bestätigen",
+      "close": "Schließen",
+      "search": "Suchen",
+      "retry": "Erneut versuchen",
+      "release": "Freigeben",
+      "optimize": "Optimieren",
+      "upload": "Hochladen",
+      "logout": "Abmelden",
+      "login": "Anmelden"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Packung",
+      "CRATE": "Kiste",
+      "PIECE": "Stück"
+    },
+    "statuses": {
+      "order": {
+        "DRAFT": "Entwurf",
+        "CONFIRMED": "Bestätigt",
+        "CANCELLED": "Storniert"
+      },
+      "tour": {
+        "DRAFT": "Entwurf",
+        "OPTIMIZED": "Optimiert",
+        "RELEASED": "Freigegeben",
+        "IN_PROGRESS": "Unterwegs",
+        "COMPLETED": "Abgeschlossen"
+      },
+      "stop": {
+        "PENDING": "Offen",
+        "DELIVERED": "Geliefert",
+        "PROBLEM": "Problem"
+      }
+    },
+    "problemReasons": {
+      "CLOSED": "Geschlossen",
+      "NOBODY_THERE": "Niemand anwesend",
+      "NO_PARKING": "Kein Parkplatz",
+      "WRONG_QUANTITY": "Falsche Menge",
+      "REFUSED": "Annahme verweigert",
+      "ADDRESS_NOT_FOUND": "Adresse nicht gefunden",
+      "OTHER": "Sonstiges"
+    },
+    "errors": {
+      "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "notFound": "Seite nicht gefunden.",
+      "forbidden": "Dazu fehlt die Berechtigung.",
+      "required": "Pflichtfeld",
+      "invalid": "Ungültiger Wert",
+      "network": "Keine Verbindung."
+    },
+    "itemsCount": "{count, plural, =0 {Keine Einträge} one {# Eintrag} other {# Einträge}}"
+  },
+  "home": {
+    "title": "Nudel Liefer App",
+    "placeholder": "Platzhalter"
+  }
+}

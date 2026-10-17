@@ -1,0 +1,75 @@
+{
+  "common": {
+    "appName": "面条配送应用",
+    "language": "语言",
+    "actions": {
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "archive": "归档",
+      "restore": "恢复",
+      "edit": "编辑",
+      "create": "新建",
+      "add": "添加",
+      "remove": "移除",
+      "back": "返回",
+      "next": "下一步",
+      "confirm": "确认",
+      "close": "关闭",
+      "search": "搜索",
+      "retry": "重试",
+      "release": "发布",
+      "optimize": "优化",
+      "upload": "上传",
+      "logout": "退出登录",
+      "login": "登录"
+    },
+    "units": {
+      "KG": "公斤",
+      "PACK": "包",
+      "CRATE": "箱",
+      "PIECE": "件"
+    },
+    "statuses": {
+      "order": {
+        "DRAFT": "草稿",
+        "CONFIRMED": "已确认",
+        "CANCELLED": "已取消"
+      },
+      "tour": {
+        "DRAFT": "草稿",
+        "OPTIMIZED": "已优化",
+        "RELEASED": "已发布",
+        "IN_PROGRESS": "配送中",
+        "COMPLETED": "已完成"
+      },
+      "stop": {
+        "PENDING": "待送",
+        "DELIVERED": "已送达",
+        "PROBLEM": "有问题"
+      }
+    },
+    "problemReasons": {
+      "CLOSED": "店铺关门",
+      "NOBODY_THERE": "无人在场",
+      "NO_PARKING": "无处停车",
+      "WRONG_QUANTITY": "数量不符",
+      "REFUSED": "拒收",
+      "ADDRESS_NOT_FOUND": "找不到地址",
+      "OTHER": "其他"
+    },
+    "errors": {
+      "generic": "出错了，请重试。",
+      "notFound": "找不到该页面。",
+      "forbidden": "没有权限执行此操作。",
+      "required": "必填项",
+      "invalid": "无效的值",
+      "network": "没有网络连接。"
+    },
+    "itemsCount": "{count, plural, =0 {没有条目} other {# 个条目}}"
+  },
+  "home": {
+    "title": "面条配送应用",
+    "placeholder": "占位页面"
+  }
+}

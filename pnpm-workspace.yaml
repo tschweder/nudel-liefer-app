@@ -7,3 +7,5 @@ allowBuilds:
   "@prisma/client": true
   "@embedded-postgres/linux-x64": true
   workerd: false
+  "@parcel/watcher": false
+  "@swc/core": false

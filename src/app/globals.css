@@ -24,13 +24,37 @@ body {
     system-ui,
     -apple-system,
     "Segoe UI",
-    "PingFang SC",
-    "PingFang HK",
-    "PingFang TC",
     "Noto Sans SC",
     "Noto Sans HK",
     "Noto Sans TC",
+    sans-serif;
+}
+
+/* Per-locale CJK stacks (no bundled web fonts, backlog 4.3). */
+:lang(zh-Hans) body {
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Noto Sans SC",
     "Microsoft YaHei",
+    sans-serif;
+}
+:lang(zh-Hant-HK) body {
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang HK",
+    "Noto Sans HK",
+    "Microsoft JhengHei",
+    sans-serif;
+}
+:lang(zh-Hant-TW) body {
+  font-family:
+    system-ui,
+    -apple-system,
+    "PingFang TC",
+    "Noto Sans TC",
     "Microsoft JhengHei",
     sans-serif;
 }
