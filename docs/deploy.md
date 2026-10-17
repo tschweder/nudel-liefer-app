@@ -113,7 +113,8 @@ Notes:
 
 - Vercel lets you add the same variable name twice with different environments ticked (one entry for Production, one for Preview).
 - Do **not** set `SEED_ADMIN_PASSWORD` in Vercel. It is only needed for the one-time seed on your computer (section 7).
-- Variables for later tickets (`ORS_API_KEY`, `DEEPL_API_KEY`, `MAP_TILE_*`, `SENTRY_DSN`) are added by those tickets.
+- Translation (NUD-070): set `DEEPL_API_KEY` (and optionally `DEEPL_API_PLAN`) and `CRON_SECRET` (`openssl rand -base64 32`) for Production; the cron job in `vercel.json` retries failed translations every 10 minutes and needs the Vercel Pro plan (see `docs/env.md`). The build only warns when they are missing.
+- Variables for later tickets (`ORS_API_KEY`, `MAP_TILE_*`, `SENTRY_DSN`) are added by those tickets.
 - Changing a variable only affects new deployments: after a change click **Deployments > ... > Redeploy**.
 
 ## 6. First deploy

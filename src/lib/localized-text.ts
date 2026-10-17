@@ -34,6 +34,11 @@ export const localizedTextSchema = z.object({
     source: localeSchema,
     machine: z.partialRecord(localeSchema, z.boolean()),
     updatedAt: z.string(),
+    /**
+     * Set by `localize()` (NUD-070) when machine translation failed: only the source is stored and
+     * the retry job fills the missing locales later. Absent = nothing pending.
+     */
+    pendingTranslation: z.boolean().optional(),
   }),
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;
@@ -42,13 +47,18 @@ export type LocalizedText = z.infer<typeof localizedTextSchema>;
 export function createLocalizedText(
   values: Partial<Record<AppLocale, string>>,
   source: AppLocale,
-  options: { machine?: Partial<Record<AppLocale, boolean>>; now?: Date } = {},
+  options: {
+    machine?: Partial<Record<AppLocale, boolean>>;
+    now?: Date;
+    pendingTranslation?: boolean;
+  } = {},
 ): LocalizedText {
   const text: LocalizedText = {
     meta: {
       source,
       machine: options.machine ?? {},
       updatedAt: (options.now ?? new Date()).toISOString(),
+      ...(options.pendingTranslation ? { pendingTranslation: true } : {}),
     },
   };
   for (const locale of LOCALES) {

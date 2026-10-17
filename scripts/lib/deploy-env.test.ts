@@ -11,6 +11,8 @@ const good = {
   S3_BUCKET: "nudel-photos",
   S3_ACCESS_KEY_ID: "id",
   S3_SECRET_ACCESS_KEY: "secret",
+  CRON_SECRET: "c".repeat(44),
+  DEEPL_API_KEY: "deepl-key:fx",
 };
 
 describe("checkDeployEnv", () => {
@@ -53,6 +55,20 @@ describe("checkDeployEnv", () => {
       ...good,
       VERCEL_ENV: "preview",
       S3_ENDPOINT: "https://0123456789abcdef.r2.cloudflarestorage.com",
+    });
+    expect(preview.warnings).toEqual([]);
+  });
+
+  it("warns (production only) when the translation secrets are missing", () => {
+    const prod = checkDeployEnv({ ...good, CRON_SECRET: undefined, DEEPL_API_KEY: undefined });
+    expect(prod.errors).toEqual([]);
+    expect(prod.warnings.join("\n")).toMatch(/CRON_SECRET/);
+    expect(prod.warnings.join("\n")).toMatch(/DEEPL_API_KEY/);
+    const preview = checkDeployEnv({
+      ...good,
+      VERCEL_ENV: "preview",
+      CRON_SECRET: undefined,
+      DEEPL_API_KEY: undefined,
     });
     expect(preview.warnings).toEqual([]);
   });

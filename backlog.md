@@ -225,7 +225,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | done |
 | NUD-054 | Admin live tour progress | M1 | 053 | done |
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | done |
-| NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | todo |
+| NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | done |
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | todo |
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | todo |
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | todo |
@@ -1074,7 +1074,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-070 · Translator interface + DeepL + OpenCC derivation
-**Status:** todo · **depends_on:** 003
+**Status:** done · **depends_on:** 003
 
 **Goal:** machine translation for user-generated text, provider-agnostic.
 
@@ -1086,8 +1086,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Failures never block saving: store source only, mark `pendingTranslation`, retry via a small background job (Vercel cron route, every 10 min).
 
 **Acceptance criteria**
-- [ ] Unit tests with Fake; DeepL client tested with recorded fixtures.
-- [ ] DeepL outage → record saved, retried later (test with failing fake).
+- [x] Unit tests with Fake; DeepL client tested with recorded fixtures. (`translator/translator.test.ts`, `localize.test.ts`; the fixtures are hand-written from the documented DeepL v2 shape, NOT recorded from a live call, see notes.)
+- [x] DeepL outage → record saved, retried later (test with failing fake). (`translation-retry.integration.test.ts` on real PostgreSQL: a failing translator -> `localize` saves the source with `pendingTranslation`, the job keeps it pending while the provider is down, a later run fills it.)
+
+**Implementation notes**
+- `src/server/translator/`: `types.ts` (`Translator { kind, translate(text, from, to) }`, `TranslatorError` codes `TIMEOUT|NETWORK|HTTP|QUOTA|BAD_RESPONSE|INVALID_INPUT`), `base.ts` (`ChineseAwareTranslator`: German <-> Simplified goes through one provider call, Hant targets are produced from the Simplified answer with OpenCC `cn->hk` / `cn->twp`, Chinese -> Chinese never leaves the process), `deepl.ts`, `fake.ts`, `index.ts` (`getTranslator(env)` singleton + `setTranslatorForTests`), `localize.ts`.
+- DeepL: `POST /v2/translate`, JSON body `{text:[…], source_lang: DE|ZH, target_lang: ZH-HANS|DE}`, key in `Authorization: DeepL-Auth-Key …` only, answer validated with zod, 5 s timeout, 1 retry on timeout / network / 5xx / 429 (not on other 4xx; 456 = quota is reported as `QUOTA`). Endpoint: `DEEPL_API_PLAN=free|pro`, default derived from the `:fx` key suffix. Fake: `[zh-Hans] text` / `[de] text` (Hant targets: same prefix, OpenCC-converted text). Missing `DEEPL_API_KEY` -> Fake and one warning, as for the geocoder.
+- `localize(text, sourceLocale, {translator?}) : Promise<LocalizedText>` never throws. German source -> one call to Simplified, Hant via OpenCC; Chinese source (any script) -> one call to German, the other Chinese variants via OpenCC. Translated / derived locales get `meta.machine[locale] = true`, the source never. On a provider failure the result is the source (plus the Chinese variants OpenCC can derive offline) with `meta.pendingTranslation = true`; the text is not logged. `completeTranslation(text, translator)` is the reusable core (also used by the retry job): fills only EMPTY locales, never overwrites a hand-written one (a German note with only a hand-written HK text gets Hans from HK without a provider call), clears the flag. NUD-071/072 call `localize()` on save.
+- Pending marker: optional `pendingTranslation: boolean` in `LocalizedText.meta` (zod schema + `createLocalizedText` option); no migration, no table (see decision log). Registry `src/server/translation-pending.ts` lists the columns (`Customer.notes`, `Stop.problemNote`) with `find` (Prisma JSON-path filter on `meta.pendingTranslation`) and a guarded `save` (only if the stored text still has the `meta.updatedAt` that was read and is still pending, so an office edit in between wins). A future column with a `LocalizedText` must be added to `PENDING_SOURCES`.
+- Job: `retryPendingTranslations({db, translator, limit = 50 per source, timeBudgetMs = 45 s})` in `translation-retry.ts` returns counts per source. A provider error ends the run (records stay pending, next run retries), a refused text (`INVALID_INPUT`) only counts as failed. Route `GET /api/cron/retry-translations` (`src/app/api/cron/retry-translations/route.ts`, logic in `translation-cron.ts`, `maxDuration = 60`), protected by `Authorization: Bearer $CRON_SECRET` (`cron-auth.ts`, constant-time compare, fails closed when the secret is unset -> 401). With only the Fake translator configured the route answers `skipped` and leaves everything pending (it must not "complete" real records with prefixed fake text). `vercel.json` cron `*/10 * * * *`. New env vars `DEEPL_API_KEY`, `DEEPL_API_PLAN`, `CRON_SECRET` in `.env.example` and `docs/env.md` (+ section "Translation retry job"), `docs/deploy.md`; `checkDeployEnv` warns (production only) when `CRON_SECRET` / `DEEPL_API_KEY` are missing.
+- Tests (53 new): Fake, DeepL request/response/retry/error mapping, plan resolution, `getTranslator` single warning, `localize` (all source scripts, outage, empty answer, no text in logs), `completeTranslation` (no overwrite), cron auth (wrong / missing / unset secret, route file wired, Fake skip), retry job on PostgreSQL (both columns, outage then recovery, concurrent edit not overwritten, refused text does not block, invalid JSON skipped, limit, time budget), deploy-env warnings.
+- Verified: lint, typecheck, prettier on changed files, `i18n:check`, all 74 vitest files (775 tests, DB tests on embedded PostgreSQL), `pnpm build` (route listed as dynamic), and against `next start`: the cron route answers `401` without header and `200 {"status":"skipped"}` with the bearer secret (no DeepL key). No UI, no new mutation, no new strings, schema unchanged (seed unaffected).
+- NOT verified: any live DeepL call (no key, by instruction): the request/response shapes are from the documented API (`/v2/translate`, `translations[].text`, `ZH-HANS` target, status 456 for quota) and may differ in detail; Vercel Cron itself (no deployment; Hobby plans only allow daily crons, so the 10 minute schedule needs Pro); the Prisma JSON-path filter at scale (a full scan of `Stop`, fine for this volume); texts translated by the Fake before a key was added stay as they are (they are not pending; NUD-071's "Re-translate" replaces them).
+- Follow-ups for the next tickets: NUD-071/072 call `localize()` on save and may show a "translation pending" hint from `meta.pendingTranslation`; NUD-071's editor must set a fresh `meta.updatedAt` on every save (the retry job's guard relies on it) and should clear `pendingTranslation` itself when the office fills the locales by hand.
 
 ---
 
@@ -1536,6 +1547,14 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-060 | Demo orders: next delivery day by default, `--today` for a live demo; rerun guard = a demo-marked order with `deliveryDate >= today` exists | The driver sees only today's tour; the guard keeps reruns idempotent without touching admin edits |
 | 2026-10-17 | NUD-060 | The happy path creates its own customer + order for TODAY and fails (no skip) when the depot pin is unconfirmed or a tour for today exists; it runs after the plain-seed specs in CI | Never depend on the cached Settings row; a silent skip could hide a broken demo seed |
 ---
+| 2026-10-17 | NUD-070 | Pending marker = optional `meta.pendingTranslation` inside the `LocalizedText` JSON, no new column/table, no migration | Simplest option the ticket offers; it travels with the text, works for every column, and Prisma can filter on the JSON path |
+| 2026-10-17 | NUD-070 | Retry job finds records through a registry (`PENDING_SOURCES`: `Customer.notes`, `Stop.problemNote`) and saves only if `meta.updatedAt` is unchanged | Small and explicit; an office edit between read and write is never overwritten |
+| 2026-10-17 | NUD-070 | Provider only handles German <-> Simplified (`ZH-HANS`, source `ZH`); Hant via OpenCC; `localize` makes one provider call per text | Ticket; saves quota and keeps HK/TW consistent with the UI strings |
+| 2026-10-17 | NUD-070 | `completeTranslation` fills only empty locales and never overwrites existing ones; a German source with any Chinese text present is not sent to the provider | Hand-written / edited translations (D15, NUD-071) must survive a retry |
+| 2026-10-17 | NUD-070 | DeepL endpoint via `DEEPL_API_PLAN=free|pro`, default from the `:fx` key suffix; 5 s timeout, 1 retry (timeout/network/5xx/429) | Ticket asks for env-based free/pro; same limits as the geocoder |
+| 2026-10-17 | NUD-070 | Missing `DEEPL_API_KEY` -> Fake + one warning (also in production); the cron route then skips and leaves pending texts alone | Mirrors NUD-010/040; the retry must not replace real pending records with prefixed fake text |
+| 2026-10-17 | NUD-070 | A provider error ends a retry run; only `INVALID_INPUT` is per-record; 50 records per source and 45 s per run | An outage fails every record the same way; next cron run retries; stays under the 60 s function limit |
+| 2026-10-17 | NUD-070 | Cron route `GET /api/cron/retry-translations` authenticates with `Authorization: Bearer $CRON_SECRET`, fails closed (401) when unset; schedule `*/10 * * * *` | Vercel Cron convention; the 10 minute schedule needs the Vercel Pro plan (Hobby = daily), documented |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

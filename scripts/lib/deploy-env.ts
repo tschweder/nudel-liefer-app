@@ -54,5 +54,15 @@ export function checkDeployEnv(env: Record<string, string | undefined>): DeployE
   if (isProduction && env.SEED_ADMIN_PASSWORD) {
     warnings.push("SEED_ADMIN_PASSWORD is set in the Vercel production environment: remove it");
   }
+  if (isProduction && !env.CRON_SECRET) {
+    warnings.push(
+      "CRON_SECRET is not set: GET /api/cron/retry-translations rejects every request, failed translations are never retried",
+    );
+  }
+  if (isProduction && !env.DEEPL_API_KEY) {
+    warnings.push(
+      "DEEPL_API_KEY is not set: notes and driver texts are not translated (Fake translator with visible prefixes)",
+    );
+  }
   return { errors, warnings };
 }
