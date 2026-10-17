@@ -1,0 +1,44 @@
+{
+  "code": 0,
+  "unassigned": [
+    {
+      "id": 3,
+      "location": [16.39, 48.19]
+    }
+  ],
+  "routes": [
+    {
+      "vehicle": 1,
+      "steps": [
+        {
+          "type": "start",
+          "location": [16.3738, 48.2082],
+          "arrival": 0,
+          "duration": 0
+        },
+        {
+          "type": "job",
+          "location": [16.42, 48.23],
+          "arrival": 0,
+          "duration": 0,
+          "id": 1,
+          "job": 1
+        },
+        {
+          "type": "job",
+          "location": [16.35, 48.2],
+          "arrival": 0,
+          "duration": 0,
+          "id": 2,
+          "job": 2
+        },
+        {
+          "type": "end",
+          "location": [16.3738, 48.2082],
+          "arrival": 0,
+          "duration": 0
+        }
+      ]
+    }
+  ]
+}

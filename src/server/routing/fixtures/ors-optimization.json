@@ -1,0 +1,59 @@
+{
+  "code": 0,
+  "summary": {
+    "cost": 2300,
+    "unassigned": 0,
+    "service": 900,
+    "duration": 2300
+  },
+  "unassigned": [],
+  "routes": [
+    {
+      "vehicle": 1,
+      "cost": 2300,
+      "service": 900,
+      "duration": 2300,
+      "steps": [
+        {
+          "type": "start",
+          "location": [16.3738, 48.2082],
+          "arrival": 0,
+          "duration": 0
+        },
+        {
+          "type": "job",
+          "location": [16.35, 48.2],
+          "arrival": 0,
+          "duration": 0,
+          "id": 2,
+          "job": 2,
+          "service": 300
+        },
+        {
+          "type": "job",
+          "location": [16.39, 48.19],
+          "arrival": 0,
+          "duration": 0,
+          "id": 3,
+          "job": 3,
+          "service": 300
+        },
+        {
+          "type": "job",
+          "location": [16.42, 48.23],
+          "arrival": 0,
+          "duration": 0,
+          "id": 1,
+          "job": 1,
+          "service": 300
+        },
+        {
+          "type": "end",
+          "location": [16.3738, 48.2082],
+          "arrival": 0,
+          "duration": 0
+        }
+      ]
+    }
+  ]
+}

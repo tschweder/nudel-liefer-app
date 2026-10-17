@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "bbox": [16.35, 48.19, 16.42, 48.23],
+  "metadata": {
+    "service": "routing",
+    "engine": {
+      "version": "8.0"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "bbox": [16.35, 48.19, 16.42, 48.23],
+      "properties": {
+        "segments": [
+          {
+            "distance": 2100.4,
+            "duration": 420.2,
+            "steps": []
+          },
+          {
+            "distance": 1800.0,
+            "duration": 360.0,
+            "steps": []
+          },
+          {
+            "distance": 3900.6,
+            "duration": 700.7,
+            "steps": []
+          },
+          {
+            "distance": 4200.0,
+            "duration": 810.4,
+            "steps": []
+          }
+        ],
+        "summary": {
+          "distance": 12001,
+          "duration": 2291.3
+        },
+        "way_points": [0, 2, 4, 6, 8]
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [16.3738, 48.2082, 170.0],
+          [16.36, 48.205, 170.0],
+          [16.35, 48.2, 170.0],
+          [16.37, 48.195, 170.0],
+          [16.39, 48.19, 170.0],
+          [16.41, 48.21, 170.0],
+          [16.42, 48.23, 170.0],
+          [16.39, 48.22, 170.0],
+          [16.3738, 48.2082, 170.0]
+        ]
+      }
+    }
+  ]
+}

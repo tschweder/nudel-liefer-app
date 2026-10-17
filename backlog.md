@@ -215,7 +215,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-030 | Manual order entry | M1 | 014, 020 | done |
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | done |
 | NUD-032 | Order overview & editing | M1 | 030 | done |
-| NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | todo |
+| NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | done |
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | todo |
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | todo |
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | todo |
@@ -780,7 +780,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-040 · RoutingProvider + ORS optimization + fallback heuristic
-**Status:** todo · **depends_on:** 002
+**Status:** done · **depends_on:** 002
 
 **Goal:** given a depot and N coordinates, return the best visiting order with legs and geometry.
 
@@ -798,12 +798,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Handle > 50 stops gracefully (ORS limits): documented error.
 
 **Acceptance criteria**
-- [ ] Pure unit tests for 2-opt (improves a crossing route) and nearest-neighbour.
-- [ ] ORS client tested against recorded fixtures.
-- [ ] Provider falls back automatically on timeout (8 s) and reports `approximate`.
+- [x] Pure unit tests for 2-opt (improves a crossing route) and nearest-neighbour. (`src/domain/routing.test.ts`)
+- [x] ORS client tested against fixtures. (`src/server/routing/routing.test.ts`; fixtures are hand-written from the documented ORS/VROOM shapes, NOT recorded from a live call, see notes.)
+- [x] Provider falls back automatically on timeout (8 s) and reports `approximate`. (tested with a stalled fetch and a short test timeout; the 8 s default is `ROUTING_TIMEOUT_MS`, asserted as a constant, not waited for.)
+
+**Implementation notes**
+- Pure algorithms in `src/domain/routing.ts` (haversine, road factor 1.3, 30 km/h, distance matrix, `nearestNeighbourOrder`, `twoOpt`, `estimateLegs`, `heuristicOrder`). Providers in `src/server/routing/`: `types.ts` (`RoutingProvider` as in the ticket, `RoutingError` with codes `TIMEOUT|NETWORK|HTTP|BAD_RESPONSE|INVALID_INPUT|TOO_MANY_STOPS|NO_ROUTE`, `MAX_STOPS = 50`), `ors.ts` (`OrsRoutingProvider`, zod-checked `mapOptimizationResponse` / `mapDirectionsResponse`), `heuristic.ts` (`LocalHeuristicProvider`), `fallback.ts` (`FallbackRoutingProvider`), `index.ts` (`getRoutingProvider(env)` singleton, `setRoutingProviderForTests`, `parseProfile`).
+- Result type: `{ orderedStopIds, legs, geometry, totalDistanceM, totalDurationS, approximate }`; `route()` returns the same without `orderedStopIds`. `approximate` is a required boolean (`false` for ORS, `true` for the heuristic) for the UI of NUD-042 to show. `legs` has **n + 1** entries (depot -> stop 1 ... stop n -> depot), `totalDurationS` is driving time only (no service time; NUD-041 adds `serviceSeconds`/`serviceMinutesPerStop` for ETAs). `geometry.coordinates` are `[lng, lat]`, directly usable by `TourMap`. Heuristic geometry is straight lines between the points. No stops -> empty result, no request.
+- ORS: `POST /optimization` (one vehicle, start = end = depot, job ids `index + 1`, `service` seconds), then `POST /v2/directions/{profile}/geojson`. Profile from env `ORS_ROUTING_PROFILE` (`driving-car` default, `driving-hgv`; invalid -> warning + default). One 8 s deadline covers both requests, no retries (the fallback is the retry). Key goes in the `Authorization` header. Directions requests are split into chunks of at most 50 coordinates that share their boundary point, because ORS limits waypoints per directions request (a 50-stop tour has 52 points).
+- Fallback: any `RoutingError` except `INVALID_INPUT` / `TOO_MANY_STOPS` (and any unexpected error) logs one warning and the heuristic answers (`approximate: true`). Missing `ORS_API_KEY` -> heuristic only, one warning per process. More than 50 stops raises `RoutingError` `TOO_MANY_STOPS` in every provider (the message says "at most 50 stops"); the tour builder (NUD-041) should show it to the office.
+- New env var `ORS_ROUTING_PROFILE` in `.env.example` and `docs/env.md`; `ORS_API_KEY` is documented there as shared by geocoding and routing. (Prettier re-padded the whole `docs/env.md` table, hence the large diff.)
+- Verified: lint, typecheck, `pnpm test` (456 passed incl. 37 new, DB tests on embedded PostgreSQL), `i18n:check`, prettier. No UI, route, mutation or schema change, so no i18n strings, authorization tests, migration or e2e were needed; nothing calls the provider yet (NUD-041 will, from a server action with `requireRole("ADMIN")`). `pnpm build` was not rerun (no app code imports the module yet).
+- NOT verified: any live call to OpenRouteService (no key, by instruction). The fixtures in `src/server/routing/fixtures/` are hand-written from the documented ORS/VROOM shapes, not recorded. Please run one real `optimize` and `route` once a key exists and compare: the VROOM `steps[].job` ids, `unassigned`, directions `segments[]` and the 50-waypoint directions limit (chunking assumes it) are from memory of the docs; also the free-tier optimization limits.
 
 ---
-
 #### NUD-041 · Tour builder (orders → stops → optimized tour)
 **Status:** todo · **depends_on:** 012, 032, 040
 
@@ -1356,6 +1364,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-032 | `markOutdatedForDate` flags all not COMPLETED tours of the date and is called on every create/update/cancel/duplicate (also for drafts, old and new date on a date change) | Ticket says every change; NUD-043 refines; over-flagging is safe, missing a flag is not |
 | 2026-10-17 | NUD-032 | After creating an order the form redirects to the overview filtered to that order's date | The new default filter (next delivery date) would otherwise hide orders for other days |
 | 2026-10-17 | NUD-032 | Archiving a customer with upcoming orders shows a warning in the archive dialog but is still allowed; orders are not cancelled | Ticket asks for a small warning only; cancelling is a separate office decision |
+| 2026-10-17 | NUD-040 | Result carries a required `approximate: boolean`; `legs` includes the return leg (n + 1); `totalDurationS` excludes service time | Ticket requires `approximate` reporting; the return leg is part of the tour; NUD-041 adds service minutes to ETAs |
+| 2026-10-17 | NUD-040 | ORS profile via env `ORS_ROUTING_PROFILE` (`driving-car` default, `driving-hgv`), not a `Settings` column | Ticket says "if a setting says truck"; no column exists and a migration is out of scope (same reasoning as `ORS_GEOCODE_COUNTRIES`) |
+| 2026-10-17 | NUD-040 | One 8 s deadline for the whole ORS call (optimization + directions), no retries; any failure falls back to the heuristic | Office waits at most 8 s before an approximate result; retrying would exceed that |
+| 2026-10-17 | NUD-040 | Directions are requested in chunks of at most 50 coordinates sharing boundary points | ORS caps waypoints per directions request; 50 stops + depot twice is 52 points |
+| 2026-10-17 | NUD-040 | More than 50 stops -> `RoutingError` `TOO_MANY_STOPS` from every provider, never routed on the fallback either; invalid input does not fall back | Ticket demands a documented error; the fallback must not hide caller mistakes |
+| 2026-10-17 | NUD-040 | Missing key -> `LocalHeuristicProvider` alone with one warning (also in production); its results are flagged `approximate` | Mirrors NUD-010; the heuristic is an estimate, never presented as road data |
 
 ---
 
