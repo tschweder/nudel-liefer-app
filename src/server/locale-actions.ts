@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 
+import { updateSession } from "./auth/auth";
 import { getDb } from "./db";
 import { persistLocale } from "./locale";
 import { getSessionUserId } from "./session";
@@ -15,6 +16,9 @@ export async function setLocaleAction(locale: string): Promise<void> {
         maxAge: 60 * 60 * 24 * 365,
         sameSite: "lax",
       });
+    },
+    syncSession: async (locale) => {
+      await updateSession({ user: { locale } });
     },
     updateUserLocale: async (userId, dbLocale) => {
       await getDb().user.update({ where: { id: userId }, data: { locale: dbLocale } });

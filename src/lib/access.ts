@@ -1,0 +1,71 @@
+import { isAppLocale } from "./locale-resolution";
+
+export type AppRole = "ADMIN" | "DRIVER";
+
+export const ADMIN_LOGIN = "/login";
+export const DRIVER_LOGIN = "/driver/login";
+
+export function homePathFor(role: AppRole): string {
+  return role === "ADMIN" ? "/admin" : "/driver";
+}
+
+/** Splits "/zh-Hans/admin/x" into `{ locale: "zh-Hans", rest: "/admin/x" }`; locale null if absent. */
+export function splitLocalePath(pathname: string): { locale: string | null; rest: string } {
+  const [, first = "", ...others] = pathname.split("/");
+  if (isAppLocale(first))
+    return { locale: first, rest: others.length ? `/${others.join("/")}` : "" };
+  return { locale: null, rest: pathname };
+}
+
+const isSection = (rest: string, base: string) => rest === base || rest.startsWith(`${base}/`);
+
+export type AccessDecision =
+  | { type: "allow" }
+  /** Redirect to `to` (path without locale). `withCallback`: remember where the user wanted to go. */
+  | { type: "redirect"; to: string; withCallback: boolean };
+
+/**
+ * Route access policy (locale prefix already removed).
+ * - /admin/** : ADMIN only.
+ * - /driver/** : DRIVER, and ADMIN (support, read-only views; mutations still use requireRole).
+ * - login pages: only for logged-out visitors.
+ */
+export function decideAccess(rest: string, role: AppRole | null): AccessDecision {
+  if (rest === ADMIN_LOGIN || rest === DRIVER_LOGIN) {
+    return role
+      ? { type: "redirect", to: homePathFor(role), withCallback: false }
+      : { type: "allow" };
+  }
+  if (isSection(rest, "/admin")) {
+    if (role === "ADMIN") return { type: "allow" };
+    if (role === "DRIVER")
+      return { type: "redirect", to: homePathFor("DRIVER"), withCallback: false };
+    return { type: "redirect", to: ADMIN_LOGIN, withCallback: true };
+  }
+  if (isSection(rest, "/driver")) {
+    if (role) return { type: "allow" };
+    return { type: "redirect", to: DRIVER_LOGIN, withCallback: true };
+  }
+  return { type: "allow" };
+}
+
+/**
+ * Where to send a user after login: the requested page (if it is a same-site path the role may
+ * open) or the role's home, always under the user's own locale prefix.
+ */
+export function postLoginPath(input: {
+  role: AppRole;
+  locale: string;
+  callbackUrl?: string | null;
+}): string {
+  const { role, locale, callbackUrl } = input;
+  const fallback = `/${locale}${homePathFor(role)}`;
+  if (!callbackUrl || !callbackUrl.startsWith("/") || callbackUrl.startsWith("//")) return fallback;
+  if (callbackUrl.includes("\\") || /[\u0000-\u001f]/.test(callbackUrl)) return fallback;
+  const pathOnly = callbackUrl.split(/[?#]/)[0] ?? "";
+  const { locale: prefix, rest } = splitLocalePath(pathOnly);
+  if (!prefix || rest === "" || rest === ADMIN_LOGIN || rest === DRIVER_LOGIN) return fallback;
+  if (decideAccess(rest, role).type !== "allow") return fallback;
+  const suffix = callbackUrl.slice(pathOnly.length);
+  return `/${locale}${rest}${suffix}`;
+}

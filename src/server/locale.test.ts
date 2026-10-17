@@ -24,6 +24,15 @@ describe("persistLocale", () => {
     expect(d.updateUserLocale).toHaveBeenCalledWith("u1", "zh_Hant_HK");
   });
 
+  it("syncs the session token locale for logged-in users only", async () => {
+    const syncSession = vi.fn(async () => {});
+    await persistLocale("zh-Hans", { ...deps("u1"), syncSession });
+    expect(syncSession).toHaveBeenCalledWith("zh-Hans");
+    const anon = vi.fn(async () => {});
+    await persistLocale("zh-Hans", { ...deps(null), syncSession: anon });
+    expect(anon).not.toHaveBeenCalled();
+  });
+
   it("rejects unsupported locales without side effects", async () => {
     const d = deps("u1");
     await expect(persistLocale("fr", d)).rejects.toThrow();

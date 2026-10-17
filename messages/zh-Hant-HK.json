@@ -72,5 +72,40 @@
   "home": {
     "title": "麪條配送應用",
     "placeholder": "佔位頁面"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "辦公室登錄",
+      "email": "電子郵箱",
+      "password": "密碼",
+      "submit": "登錄",
+      "driverLink": "司機登錄"
+    },
+    "driverLogin": {
+      "title": "司機登錄",
+      "username": "用户名",
+      "pin": "PIN（6位數字）",
+      "submit": "登錄",
+      "adminLink": "辦公室登錄"
+    },
+    "errors": {
+      "invalid": "登錄失敗，請檢查輸入。",
+      "rateLimited": "失敗次數過多，請15分鐘後再試。",
+      "generic": "暫時無法登錄，請稍後再試。"
+    },
+    "signedInAs": "當前用户：{name}",
+    "logout": "退出登錄"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "總覽",
+      "welcome": "歡迎進入辦公室區域。"
+    }
+  },
+  "driver": {
+    "home": {
+      "title": "今天",
+      "welcome": "你好，{name}。"
+    }
   }
 }

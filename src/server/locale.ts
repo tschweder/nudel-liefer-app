@@ -1,12 +1,14 @@
 import { z } from "zod";
 
 import { LOCALE_COOKIE } from "@/lib/locale-resolution";
-import { localeSchema, tagToDbLocale } from "@/lib/localized-text";
+import { type AppLocale, localeSchema, tagToDbLocale } from "@/lib/localized-text";
 
 export type PersistLocaleDeps = {
   getUserId: () => Promise<string | null>;
   setCookie: (name: string, value: string) => Promise<void> | void;
   updateUserLocale: (userId: string, dbLocale: ReturnType<typeof tagToDbLocale>) => Promise<void>;
+  /** Refreshes the locale stored in the session token (so the proxy sees the new locale). */
+  syncSession?: (locale: AppLocale) => Promise<void>;
 };
 
 /**
@@ -17,5 +19,8 @@ export async function persistLocale(input: unknown, deps: PersistLocaleDeps): Pr
   const locale = z.object({ locale: localeSchema }).parse({ locale: input }).locale;
   await deps.setCookie(LOCALE_COOKIE, locale);
   const userId = await deps.getUserId();
-  if (userId) await deps.updateUserLocale(userId, tagToDbLocale(locale));
+  if (userId) {
+    await deps.updateUserLocale(userId, tagToDbLocale(locale));
+    await deps.syncSession?.(locale);
+  }
 }

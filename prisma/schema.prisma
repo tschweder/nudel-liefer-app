@@ -262,3 +262,13 @@ model StopOrder {
   @@id([stopId, orderId])
   @@index([orderId])
 }
+
+/// Failed login attempts, used for rate limiting (NUD-004). Rows older than the window are pruned.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  /// "user:<admin|driver>:<identifier>" or "ip:<address>"
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}

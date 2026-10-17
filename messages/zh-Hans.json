@@ -71,5 +71,40 @@
   "home": {
     "title": "面条配送应用",
     "placeholder": "占位页面"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "办公室登录",
+      "email": "电子邮箱",
+      "password": "密码",
+      "submit": "登录",
+      "driverLink": "司机登录"
+    },
+    "driverLogin": {
+      "title": "司机登录",
+      "username": "用户名",
+      "pin": "PIN（6位数字）",
+      "submit": "登录",
+      "adminLink": "办公室登录"
+    },
+    "errors": {
+      "invalid": "登录失败，请检查输入。",
+      "rateLimited": "失败次数过多，请15分钟后再试。",
+      "generic": "暂时无法登录，请稍后再试。"
+    },
+    "signedInAs": "当前用户：{name}",
+    "logout": "退出登录"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "总览",
+      "welcome": "欢迎进入办公室区域。"
+    }
+  },
+  "driver": {
+    "home": {
+      "title": "今天",
+      "welcome": "你好，{name}。"
+    }
   }
 }

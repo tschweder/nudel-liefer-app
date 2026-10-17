@@ -71,5 +71,40 @@
   "home": {
     "title": "Nudel Liefer App",
     "placeholder": "Platzhalter"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "Anmeldung Büro",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "driverLink": "Fahrer-Anmeldung"
+    },
+    "driverLogin": {
+      "title": "Fahrer-Anmeldung",
+      "username": "Benutzername",
+      "pin": "PIN (6 Ziffern)",
+      "submit": "Anmelden",
+      "adminLink": "Anmeldung Büro"
+    },
+    "errors": {
+      "invalid": "Anmeldung fehlgeschlagen. Bitte Eingaben prüfen.",
+      "rateLimited": "Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.",
+      "generic": "Anmeldung nicht möglich. Bitte später erneut versuchen."
+    },
+    "signedInAs": "Angemeldet als {name}",
+    "logout": "Abmelden"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Übersicht",
+      "welcome": "Willkommen im Büro-Bereich."
+    }
+  },
+  "driver": {
+    "home": {
+      "title": "Heute",
+      "welcome": "Willkommen, {name}."
+    }
   }
 }

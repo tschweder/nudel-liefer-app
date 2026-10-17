@@ -1,7 +1,7 @@
-/**
- * Current user id, or null when nobody is logged in.
- * Placeholder until Auth.js lands in NUD-004; always null for now.
- */
+import { auth } from "./auth/auth";
+
+/** Current user id from the Auth.js session, or null when nobody is logged in. */
 export async function getSessionUserId(): Promise<string | null> {
-  return null;
+  const session = await auth();
+  return session?.user?.id || null;
 }

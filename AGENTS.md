@@ -16,6 +16,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 - Code, identifiers, comments, commits in English; all UI text through next-intl (4 locales: `de`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`). `zh-Hant-*` message files are generated, never hand-edited.
 - Layout: `src/domain` (pure logic, no framework imports), `src/server` (db, services, providers), `src/components`, `src/lib`, `tests/e2e`, `docs`.
 - Server mutations: zod validation + server-side role check. Providers (geocoder, routing, translator, storage) behind interfaces with a Fake implementation.
+- Auth: every server action / route handler starts with `requireRole(...)` from `src/server/auth/guards.ts` (the proxy is not enough); driver mutations use `requireRole("DRIVER")`.
 - Soft delete only (`active=false`). Driver UI: touch targets >= 48 px, body >= 16 px.
 - Use the glossary in backlog §3 (Tour vs. route, Stop, Release, ...).
 
