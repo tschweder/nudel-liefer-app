@@ -23,6 +23,10 @@ export const ROUTE_HINTS: ReadonlyArray<readonly [prefix: string, hint: string]>
   ["common.upload", "/admin/customers/[id] (photo upload)"],
   ["common", "(shared)"],
   ["home", "/"],
+  ["pwa.name", "(app name on the home screen, from the web app manifest)"],
+  ["pwa.shortName", "(app name on the home screen, from the web app manifest)"],
+  ["pwa.description", "(web app manifest, not visible on a screen)"],
+  ["pwa.offline", "(offline fallback page /offline.html; open /driver with the network off)"],
   // login
   ["auth.adminLogin", "/login"],
   ["auth.driverLogin", "/driver/login"],
@@ -52,6 +56,10 @@ export const ROUTE_HINTS: ReadonlyArray<readonly [prefix: string, hint: string]>
   ["driver.today", "/driver"],
   ["driver.units", "/driver and /driver/stops/[stopId]"],
   ["driver.stop", "/driver/stops/[stopId]"],
+  [
+    "driver.install",
+    "/driver (install hint above the content; on iOS also the instructions overlay)",
+  ],
   ["driver.status", "/driver/stops/[stopId] (delivered / problem buttons)"],
   ["driver", "/driver"],
 ];

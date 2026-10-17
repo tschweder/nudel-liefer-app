@@ -23,6 +23,7 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "test-results/**",
     "src/generated/**",
+    "public/sw.js",
   ]),
 ]);
 

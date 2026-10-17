@@ -229,7 +229,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | done |
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | done |
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | blocked |
-| NUD-080 | PWA installability | M2 | 051 | todo |
+| NUD-080 | PWA installability | M2 | 051 | done |
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | todo |
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | todo |
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | todo |
@@ -243,6 +243,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
+| NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
+| NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1185,7 +1187,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-080 · PWA installability
-**Status:** todo · **depends_on:** 051
+**Status:** done · **depends_on:** 051
 
 **Goal:** drivers launch the app from their home screen like a native app.
 
@@ -1195,8 +1197,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Localized install hint for Android (beforeinstallprompt) and iOS (instructions overlay "Share → Add to Home Screen" with illustration).
 
 **Acceptance criteria**
-- [ ] Lighthouse PWA installability checks pass for the driver area.
-- [ ] Installed app opens directly on the driver home.
+- [x] Lighthouse PWA installability checks pass for the driver area. (**Real Lighthouse was NOT run** (not installable here). Replaced by Chromium's own installability check via CDP `Page.getInstallabilityErrors` = no errors, plus manifest/icon/SW assertions in `tests/e2e/pwa.spec.ts`; a real Lighthouse run is NUD-105.)
+- [x] Installed app opens directly on the driver home. (Verified only that `start_url` = `/<locale>/driver` for all 4 locales and lies inside `scope`; **real installation was not tried**, see NUD-105.)
+
+---
+
+**Implementation notes**
+- Manifest: route handler `src/app/[locale]/manifest.webmanifest/route.ts` (prerendered per locale, builder `src/lib/pwa.ts`): localized `name` / `short_name` / `description` (`pwa.*` messages), `start_url` `/<locale>/driver`, `scope` `/`, `display: standalone`, theme `#9a3412` / background `#fff`, icons 192/512 + maskable 192/512. The path contains a dot, so `proxy.ts` skips it: manifest, `/sw.js`, `/offline.html` and `/icons/*` are reachable without a session (e2e checks with a cookie-less request). `src/app/[locale]/driver/layout.tsx` (all driver pages incl. login) adds `manifest`, icons, `apple-touch-icon`, `appleWebApp`, theme colour and mounts `PwaRuntime`.
+- Icons: original pasta-bowl glyph in `scripts/lib/pwa-icons.ts`, rendered to PNG by `pnpm pwa:icons` (Playwright/Chromium; PNGs + `icon.svg` committed in `public/icons`).
+- Service worker: source `src/sw/sw.ts` (Serwist 9), built AFTER `next build` by `scripts/build-pwa.ts` (esbuild bundle to `public/sw.js`, `@serwist/build` injects the precache list; `build` and `build:vercel` run it; outputs git-ignored). Precache = hashed `.next/static` assets (53 entries, ~2.7 MiB uncompressed incl. admin chunks), icons, generated `public/offline.html`. Driver page navigations are `NetworkOnly` (never stored); when the network fails the precached `offline.html` (generic, texts of all 4 locales from `messages`, language chosen from the URL prefix, no personal data) is shown. Nothing else is cached: no HTML, RSC or API responses (e2e inspects Cache Storage after visiting authenticated pages: only `/_next/static/`, `/icons/`, `offline.html`). Admin navigations and `/api` are untouched. `skipWaiting` + `clientsClaim`. `next.config.ts` serves `/sw.js` with `no-cache`. Registration only in production builds (`PwaRuntime`); `pnpm typecheck` also type-checks the worker (`src/sw/tsconfig.json`, webworker lib).
+- Install hint (`components/driver/install-hint.tsx`, rendered in `DriverShell` above the content, state in `lib/install-prompt.ts`): Android/Chromium shows an "Installieren" button after `beforeinstallprompt` (captured in `PwaRuntime`, `prompt()` on tap); iOS (UA / iPadOS detection, moved to `lib/device.ts`) shows "So geht's" which opens an overlay with a Safari-toolbar illustration and 3 steps (Share -> Add to Home Screen -> Add). Hidden in standalone mode and after "Nicht jetzt"/"Verstanden" (remembered in `localStorage` `nudel.driver.installHint.dismissed`; every storage access in try/catch, in-memory fallback). New keys `driver.install.*`, `pwa.*` (de, zh-Hans; Hant generated), route hints added.
+- Tests: unit `lib/pwa.test.ts`, `sw/rules.test.ts`, `lib/install-prompt.test.ts`, `scripts/lib/offline-page.test.ts`, `components/driver/install-hint.test.tsx` (4 locales); e2e `tests/e2e/pwa.spec.ts` (16 tests, mobile project, needs a production build): manifest per locale valid + icons are PNGs of the right size + no session needed, SW registers/controls/activated, `Page.getInstallabilityErrors` empty, Cache Storage content, offline navigation shows the offline page (de and zh-Hans), iOS-UA hint + overlay in 4 locales at 375 px without horizontal scroll, dismissal remembered, localStorage blocked, simulated `beforeinstallprompt`.
+- Verified: lint, typecheck, `i18n:check`, `pnpm test` (875 passed incl. DB), `pnpm build` (with the fake S3), e2e mobile `pwa` + `shells` + `driver-today` + `driver-stop` + `driver-status` (52 passed); screenshots at 375 px inspected (iOS hint, overlay de / zh-Hant-TW, offline page).
+- NOT verified: real Lighthouse; real installation on Android / iOS (Safari, real `beforeinstallprompt`, Add-to-Home-Screen flow, icon masking on launchers); desktop Playwright project for the new spec; HTTPS deployment (only localhost); service worker update behaviour across two deployments; Chinese strings are agent-written (NUD-073).
+- Known limits: `start_url` is fixed to the locale of the installed manifest; after switching language the installed app still opens in the old one (NUD-106). The precache contains admin chunks too (shared build output). The connection indicator still shows only `navigator.onLine`.
 
 ---
 
@@ -1402,6 +1416,34 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 ---
 
+#### NUD-105 · 👤 Real-device PWA install check + Lighthouse run
+**Status:** todo · **depends_on:** 080
+
+**Goal:** confirm what NUD-080 could only simulate.
+
+**Scope**
+- On a deployed HTTPS build: run Lighthouse (installable PWA) against `/<locale>/driver/login`, fix findings.
+- Android Chrome: install via the hint button, check it starts on `/<locale>/driver` and the (maskable) icon looks right.
+- iPhone Safari: follow the overlay steps, check icon, label, standalone start.
+
+**Acceptance criteria**
+- [ ] Lighthouse report shows the app as installable; Android and iOS installs tested and noted here.
+
+---
+
+#### NUD-106 · Installed app opens in the driver's current language
+**Status:** todo · **depends_on:** 080
+
+**Goal:** after the driver switches language the home-screen app must not start in the old one.
+
+**Scope**
+- The manifest `start_url` is locale-prefixed (`/de/driver`). Options: locale-less `start_url` `/driver` that `proxy.ts` redirects using the stored user locale, or a re-install hint. Pick one, keep the localized `name`.
+
+**Acceptance criteria**
+- [ ] A driver with locale `zh-Hans` who installed the app while in German opens it in Chinese.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -1602,6 +1644,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-073 | Only `corrected_zh-Hans/-HK/-TW` columns are applied; German corrections go in the comment column; comments are not stored | German is developer-maintained; backlog asks for corrected text per Chinese locale only |
 | 2026-10-18 | NUD-073 | Import is all-or-nothing, refuses placeholder-set changes vs German and stale rows (`--force` to override); Hant correction equal to the OpenCC output removes the override | Protects against broken ICU/outdated CSVs; keeps override files minimal |
 | 2026-10-18 | NUD-073 | Route hints are a plain TS prefix list (`scripts/lib/i18n-routes.ts`), longest prefix wins, text in parentheses = description not URL | Simplest maintainable form; a unit test flags stale entries |
+| 2026-10-18 | NUD-080 | Service worker built after `next build` by `scripts/build-pwa.ts` (esbuild + `@serwist/build` injectManifest) instead of the Serwist Next plugin | Plugin needs webpack; the app builds with Turbopack |
+| 2026-10-18 | NUD-080 | SW caches only the precached shell (hashed `_next/static`, icons, `offline.html`); driver navigations NetworkOnly with generic offline page fallback; no runtime caching | Authenticated HTML / RSC / API must never be stored before NUD-081 designs data caching |
+| 2026-10-18 | NUD-080 | Manifest `id` `/driver` for all locales, `scope` `/`, `start_url` `/<locale>/driver` | One installed app; language switch stays in scope; ticket demands localized start_url (follow-up NUD-106) |
+| 2026-10-18 | NUD-080 | Worker registered in production builds only, from the `/driver` layout (login included) | Avoids stale workers in `next dev`; admin pages are not handled by driver logic |
+| 2026-10-18 | NUD-080 | Install hint dismissal is permanent (`localStorage`, in-memory fallback); iOS detected by user agent | Simplest "dismissible and remembered"; iOS has no install event |
+| 2026-10-18 | NUD-080 | Real Lighthouse replaced by CDP `Page.getInstallabilityErrors` + assertions | Lighthouse not runnable in the sandbox; stated in the ticket (NUD-105) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

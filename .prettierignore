@@ -6,3 +6,5 @@ projektbeschreibung.md
 src/generated
 .embedded-postgres
 prisma/migrations
+public/sw.js
+public/offline.html

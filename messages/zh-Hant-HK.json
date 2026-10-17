@@ -867,6 +867,30 @@
         "invalid": "操作沒有成功，請再試一次。",
         "forbidden": "沒有權限。"
       }
+    },
+    "install": {
+      "title": "安裝應用",
+      "androidText": "安裝應用後，可直接從主屏幕打開。",
+      "installButton": "安裝",
+      "iosText": "添加到主屏幕後，可直接打開應用。",
+      "howButton": "查看方法",
+      "notNow": "暫不",
+      "overlayTitle": "將應用添加到主屏幕",
+      "step1": "在 Safari 底部點按“分享”按鈕。",
+      "step2": "選擇“添加到主屏幕”。",
+      "step3": "點按右上角的“添加”。",
+      "done": "知道了",
+      "illustrationLabel": "示意圖：Safari 工具欄中的分享圖標"
+    }
+  },
+  "pwa": {
+    "name": "麪條配送",
+    "shortName": "配送",
+    "description": "司機每日路線、地址與送貨數量",
+    "offline": {
+      "title": "沒有網絡連接",
+      "text": "暫時無法加載頁面，請檢查網絡連接。",
+      "retry": "重試"
     }
   }
 }

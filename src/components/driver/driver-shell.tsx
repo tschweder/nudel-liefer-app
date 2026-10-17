@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ConnectionIndicator } from "@/components/driver/connection-indicator";
+import { InstallHint } from "@/components/driver/install-hint";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 /** Mobile-first driver layout: sticky top bar (date, connection, language) and a large content area. */
@@ -14,7 +15,10 @@ export function DriverShell({ dateLabel, children }: { dateLabel: string; childr
         <ConnectionIndicator />
         <LanguageSwitcher variant="icon" />
       </header>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">{children}</main>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">
+        <InstallHint />
+        {children}
+      </main>
     </div>
   );
 }

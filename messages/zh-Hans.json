@@ -866,6 +866,30 @@
         "invalid": "操作没有成功，请再试一次。",
         "forbidden": "没有权限。"
       }
+    },
+    "install": {
+      "title": "安装应用",
+      "androidText": "安装应用后，可直接从主屏幕打开。",
+      "installButton": "安装",
+      "iosText": "添加到主屏幕后，可直接打开应用。",
+      "howButton": "查看方法",
+      "notNow": "暂不",
+      "overlayTitle": "将应用添加到主屏幕",
+      "step1": "在 Safari 底部点按“分享”按钮。",
+      "step2": "选择“添加到主屏幕”。",
+      "step3": "点按右上角的“添加”。",
+      "done": "知道了",
+      "illustrationLabel": "示意图：Safari 工具栏中的分享图标"
+    }
+  },
+  "pwa": {
+    "name": "面条配送",
+    "shortName": "配送",
+    "description": "司机每日路线、地址与送货数量",
+    "offline": {
+      "title": "没有网络连接",
+      "text": "暂时无法加载页面，请检查网络连接。",
+      "retry": "重试"
     }
   }
 }

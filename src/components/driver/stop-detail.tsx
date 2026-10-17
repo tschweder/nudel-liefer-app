@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { formatAddress } from "@/domain/driver-stop";
 import type { PhotoKind } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
+import { isIosDevice } from "@/lib/device";
 import { createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -35,10 +36,6 @@ type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
 const cents = (value: number) => value / 100;
 
 const subscribeNothing = () => () => {};
-const isIosDevice = () =>
-  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
 /** True on iPhone / iPad (detected in the browser; false during server rendering). */
 function useIsIos(): boolean {
   return useSyncExternalStore(subscribeNothing, isIosDevice, () => false);

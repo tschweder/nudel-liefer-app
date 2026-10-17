@@ -866,6 +866,30 @@
         "invalid": "Das hat nicht geklappt. Bitte erneut versuchen.",
         "forbidden": "Dazu fehlt die Berechtigung."
       }
+    },
+    "install": {
+      "title": "App installieren",
+      "androidText": "Installieren Sie die App, dann öffnet sie direkt vom Startbildschirm.",
+      "installButton": "Installieren",
+      "iosText": "Zum Home-Bildschirm hinzufügen, dann öffnet die App direkt.",
+      "howButton": "So geht's",
+      "notNow": "Nicht jetzt",
+      "overlayTitle": "App zum Home-Bildschirm hinzufügen",
+      "step1": "Tippen Sie unten in Safari auf „Teilen“.",
+      "step2": "Wählen Sie „Zum Home-Bildschirm“.",
+      "step3": "Tippen Sie oben rechts auf „Hinzufügen“.",
+      "done": "Verstanden",
+      "illustrationLabel": "Abbildung: Teilen-Symbol in der Safari-Leiste"
+    }
+  },
+  "pwa": {
+    "name": "Nudel Liefer App",
+    "shortName": "Lieferungen",
+    "description": "Tagestour, Adressen und Liefermengen für Fahrer",
+    "offline": {
+      "title": "Keine Verbindung",
+      "text": "Die Seite kann gerade nicht geladen werden. Bitte Verbindung prüfen.",
+      "retry": "Erneut versuchen"
     }
   }
 }

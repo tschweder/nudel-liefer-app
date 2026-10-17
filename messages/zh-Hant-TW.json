@@ -867,6 +867,30 @@
         "invalid": "操作沒有成功，請再試一次。",
         "forbidden": "沒有許可權。"
       }
+    },
+    "install": {
+      "title": "安裝應用",
+      "androidText": "安裝應用後，可直接從主螢幕開啟。",
+      "installButton": "安裝",
+      "iosText": "新增到主屏幕後，可直接開啟應用。",
+      "howButton": "檢視方法",
+      "notNow": "暫不",
+      "overlayTitle": "將應用新增到主螢幕",
+      "step1": "在 Safari 底部點按“分享”按鈕。",
+      "step2": "選擇“新增到主螢幕”。",
+      "step3": "點按右上角的“新增”。",
+      "done": "知道了",
+      "illustrationLabel": "示意圖：Safari 工具欄中的分享圖示"
+    }
+  },
+  "pwa": {
+    "name": "麵條配送",
+    "shortName": "配送",
+    "description": "司機每日路線、地址與送貨數量",
+    "offline": {
+      "title": "沒有網路連線",
+      "text": "暫時無法載入頁面，請檢查網路連線。",
+      "retry": "重試"
     }
   }
 }
