@@ -226,7 +226,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-054 | Admin live tour progress | M1 | 053 | done |
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | done |
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | done |
-| NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | todo |
+| NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | done |
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | todo |
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | todo |
 | NUD-080 | PWA installability | M2 | 051 | todo |
@@ -1103,7 +1103,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-071 · Customer notes translation & multilingual editor
-**Status:** todo · **depends_on:** 014, 070
+**Status:** done · **depends_on:** 014, 070
 
 **Goal:** drivers read customer notes in their own language.
 
@@ -1114,8 +1114,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Driver stop detail now shows the note in the driver's locale (drop the "DE" badge when a translation exists).
 
 **Acceptance criteria**
-- [ ] Note "Hintereingang benutzen, nach 10 Uhr klingeln" appears in all three Chinese variants on the driver screen.
-- [ ] Manual edit of zh-Hant-HK survives a German source change (with warning flag).
+- [x] Note "Hintereingang benutzen, nach 10 Uhr klingeln" appears in all three Chinese variants on the driver screen. (e2e `note-translations.spec.ts` with the FAKE translator, no DeepL key: the driver sees `[zh-Hans] Hintereingang benutzen, nach 10 Uhr klingeln` in zh-Hans / zh-Hant-HK / zh-Hant-TW, `<p lang>` = the driver's locale, no "DE" badge; the German driver sees the original. A real DeepL translation was NOT exercised.)
+- [x] Manual edit of zh-Hant-HK survives a German source change (with warning flag). (domain + PostgreSQL integration tests and the same e2e: HK text kept, "Quelle geändert, Übersetzung prüfen" badge on HK only, Simplified / Taiwan follow the new German text, the HK driver still reads the hand-written text.)
+
+**Implementation notes**
+- Pure rules in `src/domain/note-translations.ts` (14 unit tests): `describeTranslations` (source / machine / manual / empty per version), `mergeSourceChange` (machine and empty Chinese versions take a fresh translation, hand-written ones are kept and flagged `meta.stale[locale]`; provider failed -> machine versions emptied + `pendingTranslation`), `retranslateAll`, `applyTranslationSave` (edits are detected against the STORED text, so an untouched machine version still follows a changed source; an edited one loses the machine flag and the stale flag; `reviewed` clears a stale flag without a text change; `pendingTranslation` is cleared once all three Chinese versions are filled), `changesSource`. All return a new object with a fresh `meta.updatedAt` (NUD-070's retry-job guard). "Hand-written" = non-empty Chinese version without `meta.machine[locale]`; no new column. `localizedTextSchema.meta` gained the optional `stale` record (no migration).
+- Server `src/server/customer-notes.ts`: `freshTranslations` (one provider call de -> zh-Hans, Hant via OpenCC `hk` / `twp`; `null` on any provider failure, text not logged), `prepareNotes` (customer form save: empty -> `null`; German unchanged -> stored JSON untouched; changed -> `mergeSourceChange`; no valid stored note -> `localize()` from NUD-070, which never blocks saving), `getNoteTranslations`, `saveNoteTranslations`, `retranslateNote`. `createCustomer` / `updateCustomer` take an optional `{translator, now}` and use `prepareNotes`. Saves from the tab send `baseUpdatedAt`; the write is guarded on `meta.updatedAt` (JSON-path `updateMany`), so a concurrent retry-job write or second office user gives `conflict` instead of being overwritten. Actions `saveNoteTranslationsAction`, `retranslateNoteAction` (zod input, `requireRole("ADMIN")`) and `noteTranslationsQuery` (admin only); authorization test covers anonymous / driver / deactivated admin and checks nothing was written.
+- UI: the customer detail page has tabs "Details" / "Übersetzungen" (`tab-details`, `tab-translations`); the tab (`src/components/admin/note-translations.tsx`) lists German (editable source, badge "Vorlage") and the three Chinese versions with badges "maschinell übersetzt" / "von Hand bearbeitet" / "noch nicht übersetzt" and the warning badge "Quelle geändert, Übersetzung prüfen" with a "Als geprüft markieren" button. Typing into a machine version swaps its badge immediately, saving keeps it. "Neu übersetzen" opens a dialog that warns that hand-written versions are lost; if the provider is down nothing is changed and an error toast shows. A "translation pending" hint appears while `pendingTranslation` is set. The customer form still edits only the German note. Strings in `de` + `zh-Hans` (`admin.customers.translations.*`), Hant generated.
+- Driver stop detail needed no code change: NUD-052 already picks the note with `pickWithSource` and shows the "DE" badge only when the picked text is German and the UI is not German, so the badge disappears as soon as a translation exists (asserted in e2e; the existing `driver-stop` spec still asserts the badge for a German-only note).
+- Tests: 14 domain unit tests, 8 new PostgreSQL integration tests (create translates, outage -> pending, manual HK survives source change + stale + "checked", German edited in the tab, invalid / conflict / not found / no note, re-translate incl. outage, source change during outage, concurrent change) and the authorization cases in `customer-actions.integration.test.ts`; e2e `tests/e2e/note-translations.spec.ts` (desktop project; creates its own customer through the UI, a driver and a released tour of today). Screenshots: `test-results/nud-071-*.png` (tab with machine versions and with the stale flag at 1280 px, re-translate warning, driver screen at 375 px for zh-Hant-HK and zh-Hant-TW).
+- Verified: lint, typecheck, prettier, `i18n:check`, all 75 vitest files (797 tests, DB tests on embedded PostgreSQL), `pnpm build`, e2e `note-translations` (desktop, 5x repeated), `customer-form`, `customer-photos`, `customers`, `driver-stop`, `driver-today` (desktop + mobile), `driver-status`, `driver-language-picker`, `orders`, `admin-progress` (desktop), `mvp-happy-path` (demo seed). No 375 px check of the admin tab (admin screens are 1280 px by the DoD).
+- NOT verified: any real DeepL translation (no key, by instruction; every translated text in the tests / e2e comes from the Fake translator and carries its visible `[zh-Hans]` prefix); `tours` / `settings` / `tour-rerelease` / other unrelated e2e specs were not re-run; behaviour under two office users editing the same note at the same time beyond the guarded `conflict` (tested at the database level only).
+- Known edge case: if the provider is down while the German source changes AND a hand-written Chinese version exists, the machine versions are emptied and marked pending; the retry job (NUD-070, fills only empty locales) then derives them with OpenCC from the hand-written (possibly outdated, flagged) version instead of translating the new German text. "Re-translate" fixes it by hand.
 
 ---
 
@@ -1555,6 +1565,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-070 | Missing `DEEPL_API_KEY` -> Fake + one warning (also in production); the cron route then skips and leaves pending texts alone | Mirrors NUD-010/040; the retry must not replace real pending records with prefixed fake text |
 | 2026-10-17 | NUD-070 | A provider error ends a retry run; only `INVALID_INPUT` is per-record; 50 records per source and 45 s per run | An outage fails every record the same way; next cron run retries; stays under the 60 s function limit |
 | 2026-10-17 | NUD-070 | Cron route `GET /api/cron/retry-translations` authenticates with `Authorization: Bearer $CRON_SECRET`, fails closed (401) when unset; schedule `*/10 * * * *` | Vercel Cron convention; the 10 minute schedule needs the Vercel Pro plan (Hobby = daily), documented |
+| 2026-10-18 | NUD-071 | The multilingual editor is a "Translations" tab on the customer detail page with its own save; the customer form keeps editing only the German note | Keeps the form simple; translations are reviewed after the source exists |
+| 2026-10-18 | NUD-071 | All four versions are editable in the tab; editing German there is a source change (same merge as the form) and must not be empty | Backlog says "edit any version"; one code path for source changes |
+| 2026-10-18 | NUD-071 | "Hand-written" = non-empty Chinese version without `meta.machine[locale]`; "source changed, check translation" is the optional `meta.stale[locale]`, cleared by editing the text, "Mark as checked" or Re-translate | No migration or extra column; an unchanged-but-correct version needs a way to dismiss the flag |
+| 2026-10-18 | NUD-071 | Source change: one provider call (Simplified) + OpenCC for Hant, applied to machine/empty versions only; a changed German text with a failing provider empties them and sets `pendingTranslation` | Same cost as NUD-070 `localize`; failures never block saving |
+| 2026-10-18 | NUD-071 | "Re-translate" with a failing provider changes nothing and shows an error | Never destroy hand-written text without a replacement |
+| 2026-10-18 | NUD-071 | Saves from the tab carry `baseUpdatedAt` and write guarded on `meta.updatedAt`; mismatch returns `conflict` and reloads | Protects against the retry job / a second office user without locks |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

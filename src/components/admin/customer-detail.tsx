@@ -10,14 +10,17 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type PhotoKind, photosMissing as photosMissingFor } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
+import type { NoteTranslationsView } from "@/server/customer-notes";
 
 import { CustomerArchiveButton } from "./customer-archive-button";
 import { CustomerPhotoSlots, type PhotoSlotValue } from "./customer-photo-slots";
+import { NoteTranslations } from "./note-translations";
 
 function Field({
   label,
@@ -47,13 +50,17 @@ export function CustomerDetailView({
   customer,
   orders,
   photos,
+  noteTranslations,
 }: {
   customer: CustomerDetail;
   orders: UpcomingOrder[];
   photos: Record<PhotoKind, PhotoSlotValue | null>;
+  /** The four versions of the driver note; `null` when the customer has no note. */
+  noteTranslations: NoteTranslationsView | null;
 }) {
   const t = useTranslations("admin.customers");
   const td = useTranslations("admin.customers.detail");
+  const tt = useTranslations("admin.customers.translations");
   const tc = useTranslations("common");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
@@ -115,86 +122,109 @@ export function CustomerDetailView({
         </div>
       </div>
 
-      <section className="flex flex-col gap-3" aria-labelledby="d-address">
-        <h2 id="d-address" className="text-xl font-semibold">
-          {td("addressHeading")}
-        </h2>
-        <dl className="grid gap-4 sm:grid-cols-2">
-          <Field label={td("address")} testId="detail-address">
-            {customer.street}
-            {"\n"}
-            {customer.postalCode} {customer.city}, {customer.country}
-          </Field>
-          <Field label={td("hours")}>{customer.deliveryHoursInfo ?? td("none")}</Field>
-          <Field label={td("notes")} testId="detail-notes">
-            {customer.notes || td("none")}
-          </Field>
-          <Field label={td("pin")} testId="detail-pin">
-            {customer.lat !== null && customer.lng !== null ? (
-              <span className="flex flex-col gap-1">
-                <span>
-                  {customer.pinConfirmed ? (
-                    <span className="inline-flex items-center gap-1">
-                      <CheckCircle2Icon className="size-4 text-success" aria-hidden />
-                      {td("pinConfirmed")}
+      <Tabs defaultValue="details" className="gap-6">
+        <TabsList>
+          <TabsTrigger value="details" data-testid="tab-details">
+            {tt("tabDetails")}
+          </TabsTrigger>
+          <TabsTrigger value="translations" data-testid="tab-translations">
+            {tt("tabTranslations")}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="details" className="flex flex-col gap-8">
+          <section className="flex flex-col gap-3" aria-labelledby="d-address">
+            <h2 id="d-address" className="text-xl font-semibold">
+              {td("addressHeading")}
+            </h2>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Field label={td("address")} testId="detail-address">
+                {customer.street}
+                {"\n"}
+                {customer.postalCode} {customer.city}, {customer.country}
+              </Field>
+              <Field label={td("hours")}>{customer.deliveryHoursInfo ?? td("none")}</Field>
+              <Field label={td("notes")} testId="detail-notes">
+                {customer.notes || td("none")}
+              </Field>
+              <Field label={td("pin")} testId="detail-pin">
+                {customer.lat !== null && customer.lng !== null ? (
+                  <span className="flex flex-col gap-1">
+                    <span>
+                      {customer.pinConfirmed ? (
+                        <span className="inline-flex items-center gap-1">
+                          <CheckCircle2Icon className="size-4 text-success" aria-hidden />
+                          {td("pinConfirmed")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <AlertTriangleIcon className="size-4" aria-hidden />
+                          {td("pinUnconfirmed")}
+                        </span>
+                      )}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <AlertTriangleIcon className="size-4" aria-hidden />
-                      {td("pinUnconfirmed")}
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {customer.lat}, {customer.lng}
                     </span>
-                  )}
-                </span>
-                <span className="font-mono text-sm text-muted-foreground">
-                  {customer.lat}, {customer.lng}
-                </span>
-              </span>
+                  </span>
+                ) : (
+                  td("pinNone")
+                )}
+              </Field>
+            </dl>
+          </section>
+
+          <section className="flex flex-col gap-3" aria-labelledby="d-photos">
+            <h2 id="d-photos" className="text-xl font-semibold">
+              {td("photosHeading")}
+            </h2>
+            <CustomerPhotoSlots
+              customerId={customer.id}
+              customerName={customer.name}
+              photos={photos}
+            />
+          </section>
+
+          <section className="flex flex-col gap-3" aria-labelledby="d-orders">
+            <h2 id="d-orders" className="text-xl font-semibold">
+              {td("ordersHeading")}
+            </h2>
+            {orders.length === 0 ? (
+              <p className="text-base text-muted-foreground" data-testid="orders-empty">
+                {td("ordersEmpty")}
+              </p>
             ) : (
-              td("pinNone")
+              <ul className="flex flex-col gap-3" data-testid="orders-list">
+                {orders.map((order) => (
+                  <li key={order.id} className="rounded-md border p-3" data-testid="order-row">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{fmt.calendarDate(order.deliveryDate)}</span>
+                      <Badge variant={order.status === "CONFIRMED" ? "success" : "secondary"}>
+                        {tc(`statuses.order.${order.status}`)}
+                      </Badge>
+                    </div>
+                    <ul className="mt-2 flex flex-col gap-0.5 text-base">
+                      {order.items.map((item) => (
+                        <li key={item.id}>
+                          {fmt.quantity(item.quantity)}{" "}
+                          {tc(`units.${item.unit as "KG" | "PACK" | "CRATE" | "PIECE"}`)} ·{" "}
+                          {productName(item.productName, locale)}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
             )}
-          </Field>
-        </dl>
-      </section>
-
-      <section className="flex flex-col gap-3" aria-labelledby="d-photos">
-        <h2 id="d-photos" className="text-xl font-semibold">
-          {td("photosHeading")}
-        </h2>
-        <CustomerPhotoSlots customerId={customer.id} customerName={customer.name} photos={photos} />
-      </section>
-
-      <section className="flex flex-col gap-3" aria-labelledby="d-orders">
-        <h2 id="d-orders" className="text-xl font-semibold">
-          {td("ordersHeading")}
-        </h2>
-        {orders.length === 0 ? (
-          <p className="text-base text-muted-foreground" data-testid="orders-empty">
-            {td("ordersEmpty")}
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-3" data-testid="orders-list">
-            {orders.map((order) => (
-              <li key={order.id} className="rounded-md border p-3" data-testid="order-row">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{fmt.calendarDate(order.deliveryDate)}</span>
-                  <Badge variant={order.status === "CONFIRMED" ? "success" : "secondary"}>
-                    {tc(`statuses.order.${order.status}`)}
-                  </Badge>
-                </div>
-                <ul className="mt-2 flex flex-col gap-0.5 text-base">
-                  {order.items.map((item) => (
-                    <li key={item.id}>
-                      {fmt.quantity(item.quantity)}{" "}
-                      {tc(`units.${item.unit as "KG" | "PACK" | "CRATE" | "PIECE"}`)} ·{" "}
-                      {productName(item.productName, locale)}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          </section>
+        </TabsContent>
+        <TabsContent value="translations">
+          <NoteTranslations
+            key={noteTranslations?.updatedAt ?? "none"}
+            customerId={customer.id}
+            view={noteTranslations}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

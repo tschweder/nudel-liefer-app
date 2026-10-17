@@ -350,6 +350,46 @@
           "key_in_use": "该图片已被使用，请重新上传。"
         },
         "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。"
+      },
+      "translations": {
+        "tabDetails": "详情",
+        "tabTranslations": "翻译",
+        "heading": "给司机的备注（所有语言）",
+        "intro": "德语文本是原文。司机会看到自己语言的备注。修改过的译文视为手动编辑，之后德语原文变更时不会被覆盖。",
+        "empty": "该客户还没有备注。请在编辑客户时填写德语备注。",
+        "addNote": "填写备注",
+        "locales": {
+          "de": "德语",
+          "zh-Hans": "简体中文",
+          "zh-Hant-HK": "繁体中文（香港）",
+          "zh-Hant-TW": "繁体中文（台湾）"
+        },
+        "badges": {
+          "source": "原文",
+          "machine": "机器翻译",
+          "manual": "手动编辑",
+          "empty": "尚未翻译",
+          "stale": "原文已更改，请检查译文"
+        },
+        "markChecked": "标记为已检查",
+        "pending": "翻译尚未完成，稍后会自动补上。",
+        "save": "保存翻译",
+        "saving": "正在保存…",
+        "saved": "翻译已保存。",
+        "retranslate": "重新翻译",
+        "retranslateTitle": "重新翻译？",
+        "retranslateDescription": "三个中文版本都将被德语文本的新机器翻译替换。",
+        "retranslateWarning": "注意：手动编辑过的译文将会丢失。",
+        "retranslateConfirm": "是，重新翻译",
+        "retranslated": "已重新翻译。",
+        "errors": {
+          "invalid": "输入无效。德语文本不能为空。",
+          "not_found": "未找到客户或备注。",
+          "no_notes": "该客户没有备注。",
+          "conflict": "备注在此期间已被修改。页面将重新加载，请重新进行修改。",
+          "translation_failed": "翻译服务暂时无法使用。未做任何更改。"
+        },
+        "sourceChangeHint": "如果修改德语文本，保存时只会重新翻译机器翻译的版本。手动编辑的版本会保留，并被标记为需要检查。"
       }
     },
     "products": {

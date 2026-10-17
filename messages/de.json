@@ -350,6 +350,46 @@
           "key_in_use": "Dieses Bild wurde bereits verwendet. Bitte erneut hochladen."
         },
         "archiveUpcoming": "{count, plural, one {Achtung: Dieser Kunde hat noch # anstehende Bestellung} other {Achtung: Dieser Kunde hat noch # anstehende Bestellungen}}. Sie bleiben bestehen, werden aber nicht automatisch storniert. Bitte vorher prüfen."
+      },
+      "translations": {
+        "tabDetails": "Details",
+        "tabTranslations": "Übersetzungen",
+        "heading": "Hinweis für den Fahrer in allen Sprachen",
+        "intro": "Der deutsche Text ist die Vorlage. Fahrer sehen den Hinweis in ihrer Sprache. Geänderte Übersetzungen gelten als von Hand bearbeitet und werden bei späteren Änderungen am deutschen Text nicht überschrieben.",
+        "empty": "Zu diesem Kunden gibt es noch keinen Hinweis. Der deutsche Hinweis wird beim Bearbeiten des Kunden eingetragen.",
+        "addNote": "Hinweis eintragen",
+        "locales": {
+          "de": "Deutsch",
+          "zh-Hans": "Chinesisch, vereinfacht",
+          "zh-Hant-HK": "Chinesisch, traditionell (Hongkong)",
+          "zh-Hant-TW": "Chinesisch, traditionell (Taiwan)"
+        },
+        "badges": {
+          "source": "Vorlage",
+          "machine": "maschinell übersetzt",
+          "manual": "von Hand bearbeitet",
+          "empty": "noch nicht übersetzt",
+          "stale": "Quelle geändert, Übersetzung prüfen"
+        },
+        "markChecked": "Als geprüft markieren",
+        "pending": "Die Übersetzung steht noch aus und wird automatisch nachgeholt.",
+        "save": "Übersetzungen speichern",
+        "saving": "Speichern …",
+        "saved": "Übersetzungen gespeichert.",
+        "retranslate": "Neu übersetzen",
+        "retranslateTitle": "Neu übersetzen?",
+        "retranslateDescription": "Alle drei chinesischen Versionen werden durch eine neue maschinelle Übersetzung des deutschen Textes ersetzt.",
+        "retranslateWarning": "Achtung: Von Hand bearbeitete Übersetzungen gehen dabei verloren.",
+        "retranslateConfirm": "Ja, neu übersetzen",
+        "retranslated": "Neu übersetzt.",
+        "errors": {
+          "invalid": "Die Eingabe ist ungültig. Der deutsche Text darf nicht leer sein.",
+          "not_found": "Kunde oder Hinweis nicht gefunden.",
+          "no_notes": "Zu diesem Kunden gibt es keinen Hinweis.",
+          "conflict": "Der Hinweis wurde inzwischen geändert. Die Seite wird neu geladen, bitte die Änderung wiederholen.",
+          "translation_failed": "Der Übersetzungsdienst ist gerade nicht erreichbar. Es wurde nichts geändert."
+        },
+        "sourceChangeHint": "Wird der deutsche Text geändert, werden beim Speichern nur maschinell übersetzte Versionen neu übersetzt. Von Hand bearbeitete bleiben erhalten und werden zur Prüfung markiert."
       }
     },
     "products": {

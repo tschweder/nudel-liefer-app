@@ -7,6 +7,7 @@ import {
   setCustomerActive,
   updateCustomer,
 } from "./customer-admin";
+import { retranslateNote, saveNoteTranslations } from "./customer-notes";
 import { addCustomerPhoto } from "./customer-photos";
 import { getDb } from "./db";
 import { getStorage } from "./storage";
@@ -41,4 +42,19 @@ export async function setCustomerActiveAction(id: unknown, active: unknown) {
 export async function addCustomerPhotoAction(input: unknown) {
   const actor = await requireRole("ADMIN");
   return addCustomerPhoto(getDb(), getStorage(), actor.id, input);
+}
+
+/**
+ * Saves the "Translations" tab of a customer's note: edited versions become hand-written, a
+ * changed German source re-translates machine versions only (NUD-071). Admin only.
+ */
+export async function saveNoteTranslationsAction(input: unknown) {
+  await requireRole("ADMIN");
+  return saveNoteTranslations(getDb(), input);
+}
+
+/** "Re-translate": overwrites all Chinese versions of the note with a new machine translation. */
+export async function retranslateNoteAction(customerId: unknown) {
+  await requireRole("ADMIN");
+  return retranslateNote(getDb(), customerId);
 }

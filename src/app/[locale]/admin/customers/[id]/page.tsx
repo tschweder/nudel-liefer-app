@@ -8,6 +8,7 @@ import { requirePageActor } from "@/server/auth/page-guards";
 import {
   customerPhotosQuery,
   getCustomerQuery,
+  noteTranslationsQuery,
   upcomingOrdersQuery,
 } from "@/server/customer-queries";
 
@@ -32,11 +33,16 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const [orders, photos] = await Promise.all([upcomingOrdersQuery(id), customerPhotosQuery(id)]);
+  const [orders, photos, noteTranslations] = await Promise.all([
+    upcomingOrdersQuery(id),
+    customerPhotosQuery(id),
+    noteTranslationsQuery(id),
+  ]);
   return (
     <CustomerDetailView
       customer={customer}
       orders={orders}
+      noteTranslations={noteTranslations}
       photos={{
         STORE: photos.STORE && toSlot(photos.STORE),
         PARKING: photos.PARKING && toSlot(photos.PARKING),

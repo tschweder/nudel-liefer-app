@@ -39,6 +39,11 @@ export const localizedTextSchema = z.object({
      * the retry job fills the missing locales later. Absent = nothing pending.
      */
     pendingTranslation: z.boolean().optional(),
+    /**
+     * Locales whose hand-written text was kept when the source text changed (NUD-071): the office
+     * is told to check them against the new source. Absent = nothing to check.
+     */
+    stale: z.partialRecord(localeSchema, z.boolean()).optional(),
   }),
 });
 export type LocalizedText = z.infer<typeof localizedTextSchema>;

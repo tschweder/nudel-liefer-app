@@ -1,5 +1,6 @@
 import { requireRole } from "./auth/guards";
 import { getCustomerDetail, listUpcomingOrders, nextCustomerNumber } from "./customer-admin";
+import { getNoteTranslations } from "./customer-notes";
 import { getCustomerPhotos } from "./customer-photos";
 import { listCustomers } from "./customers";
 import { getDb } from "./db";
@@ -37,4 +38,10 @@ export async function upcomingOrdersQuery(id: unknown) {
 export async function customerPhotosQuery(id: unknown) {
   await requireRole("ADMIN");
   return getCustomerPhotos(getDb(), getStorage(), id);
+}
+
+/** The four versions of the customer's note for the "Translations" tab (admin only). */
+export async function noteTranslationsQuery(id: unknown) {
+  await requireRole("ADMIN");
+  return getNoteTranslations(getDb(), id);
 }

@@ -3,6 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { hashSecret } from "./auth/password";
 import { createTestDb, type TestDb } from "./test-db";
+import { setTranslatorForTests } from "./translator";
+import { FakeTranslator } from "./translator/fake";
+import { type Translator, TranslatorError } from "./translator/types";
 
 const state: { session: { user?: { id: string } } | null; db: TestDb["prisma"] | null } = {
   session: null,
@@ -15,9 +18,14 @@ vi.mock("./db", async (importOriginal) => ({
   getDb: () => state.db,
 }));
 
-const { createCustomerAction, setCustomerActiveAction, updateCustomerAction } =
-  await import("./customer-actions");
-const { getCustomerQuery, nextCustomerNumberQuery, upcomingOrdersQuery } =
+const {
+  createCustomerAction,
+  retranslateNoteAction,
+  saveNoteTranslationsAction,
+  setCustomerActiveAction,
+  updateCustomerAction,
+} = await import("./customer-actions");
+const { getCustomerQuery, nextCustomerNumberQuery, noteTranslationsQuery, upcomingOrdersQuery } =
   await import("./customer-queries");
 const { listUpcomingOrders, notesText } = await import("./customer-admin");
 
@@ -95,6 +103,14 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       () => getCustomerQuery(existing.id),
       () => nextCustomerNumberQuery(),
       () => upcomingOrdersQuery(existing.id),
+      () => noteTranslationsQuery(existing.id),
+      () =>
+        saveNoteTranslationsAction({
+          customerId: existing.id,
+          baseUpdatedAt: "x",
+          values: { "zh-Hant-HK": "Hacked" },
+        }),
+      () => retranslateNoteAction(existing.id),
     ];
     const sessions: Array<[typeof state.session, string]> = [
       [null, "UNAUTHENTICATED"],
@@ -111,6 +127,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     const row = await t.prisma.customer.findUniqueOrThrow({ where: { id: existing.id } });
     expect(row.name).toBe("Trattoria Bella");
     expect(row.active).toBe(true);
+    expect(row.notes).not.toHaveProperty("zh-Hant-HK", "Hacked");
   });
 
   it("creates a normalized customer with a confirmed pin and German notes", async () => {
@@ -258,14 +275,20 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
   it("keeps stored LocalizedText notes untouched when the German text is unchanged", async () => {
     const { id } = await create({ customerNumber: "NOTE-1" });
     const stored = await t.prisma.customer.findUniqueOrThrow({ where: { id } });
-    const withZh = { ...(stored.notes as object), "zh-Hans": "走后门" };
+    const notes = stored.notes as { meta: object };
+    // A hand-written Chinese text (no machine flag).
+    const withZh = { ...notes, "zh-Hans": "走后门", meta: { ...notes.meta, machine: {} } };
     await t.prisma.customer.update({ where: { id }, data: { notes: withZh } });
     await updateCustomerAction(id, { ...valid, customerNumber: "NOTE-1", name: "Andere" });
     expect((await t.prisma.customer.findUniqueOrThrow({ where: { id } })).notes).toEqual(withZh);
     await updateCustomerAction(id, { ...valid, customerNumber: "NOTE-1", notes: "Anders" });
     const changed = await t.prisma.customer.findUniqueOrThrow({ where: { id } });
     expect(notesText(changed.notes)).toBe("Anders");
-    expect(changed.notes).not.toHaveProperty("zh-Hans");
+    // The Chinese text has no machine flag = hand-written: kept, but flagged for a check (NUD-071).
+    expect(changed.notes).toMatchObject({
+      "zh-Hans": "走后门",
+      meta: { stale: { "zh-Hans": true } },
+    });
     await updateCustomerAction(id, { ...valid, customerNumber: "NOTE-1", notes: "  " });
     expect((await t.prisma.customer.findUniqueOrThrow({ where: { id } })).notes).toBeNull();
   });
@@ -380,5 +403,222 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     expect(utc).toHaveLength(3);
     asAdmin();
     expect(Array.isArray(await upcomingOrdersQuery(id))).toBe(true);
+  });
+
+  describe("note translations (NUD-071)", () => {
+    const NOTE = "Hintereingang benutzen, nach 10 Uhr klingeln";
+    const notesOf = async (id: string) =>
+      (await t.prisma.customer.findUniqueOrThrow({ where: { id } })).notes as Record<
+        string,
+        unknown
+      > & {
+        meta: {
+          machine: Record<string, boolean>;
+          stale?: Record<string, boolean>;
+          updatedAt: string;
+          pendingTranslation?: boolean;
+        };
+      };
+
+    /** The provider is down while `state.up` is false. */
+    function flaky() {
+      const state = { up: true, calls: 0 };
+      const inner = new FakeTranslator();
+      const translator: Translator = {
+        kind: "deepl",
+        async translate(text, from, to) {
+          state.calls++;
+          if (!state.up) throw new TranslatorError("outage", "HTTP", 503);
+          return inner.translate(text, from, to);
+        },
+      };
+      return { state, translator };
+    }
+
+    beforeEach(() => setTranslatorForTests(new FakeTranslator()));
+    afterAll(() => setTranslatorForTests(undefined));
+
+    it("localizes the German note on create; machine flags on the Chinese versions only", async () => {
+      const { id } = await create({ customerNumber: "TR-1", notes: NOTE });
+      const notes = await notesOf(id);
+      expect(notes.de).toBe(NOTE);
+      expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
+      expect(notes["zh-Hant-HK"]).toEqual(expect.stringContaining(NOTE.slice(0, 4)));
+      expect(notes["zh-Hant-TW"]).toEqual(expect.any(String));
+      expect(notes.meta.machine).toEqual({
+        "zh-Hans": true,
+        "zh-Hant-HK": true,
+        "zh-Hant-TW": true,
+      });
+      expect(notes.meta.pendingTranslation).toBeUndefined();
+    });
+
+    it("saving never fails when the provider is down: source stored, translation pending", async () => {
+      const { state, translator } = flaky();
+      state.up = false;
+      setTranslatorForTests(translator);
+      const { id } = await create({ customerNumber: "TR-2", notes: NOTE });
+      const notes = await notesOf(id);
+      expect(notes.de).toBe(NOTE);
+      expect(notes.meta.pendingTranslation).toBe(true);
+      expect(notes["zh-Hans"]).toBeUndefined();
+    });
+
+    it("hand-written HK text survives a German source change and is flagged; machine ones follow", async () => {
+      const { id } = await create({ customerNumber: "TR-3", notes: NOTE });
+      const first = await noteTranslationsQuery(id);
+      expect(first).not.toBeNull();
+      const saved = await saveNoteTranslationsAction({
+        customerId: id,
+        baseUpdatedAt: first!.updatedAt,
+        values: { "zh-Hant-HK": "請用後門，十點後撳鐘" },
+      });
+      expect(saved.ok).toBe(true);
+      let notes = await notesOf(id);
+      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
+      expect(notes.meta.machine).toEqual({ "zh-Hans": true, "zh-Hant-TW": true });
+      expect(notes.meta.updatedAt).not.toBe(first!.updatedAt);
+
+      const NEW = "Seiteneingang benutzen, ab 9 Uhr klingeln";
+      expect(
+        await updateCustomerAction(id, { ...valid, customerNumber: "TR-3", notes: NEW }),
+      ).toMatchObject({ ok: true });
+      notes = await notesOf(id);
+      expect(notes.de).toBe(NEW);
+      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
+      expect(notes.meta.stale).toEqual({ "zh-Hant-HK": true });
+      expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NEW}`);
+      expect(notes["zh-Hant-TW"]).toEqual(expect.stringContaining("Seiteneingang"));
+      expect(notes.meta.machine).toEqual({ "zh-Hans": true, "zh-Hant-TW": true });
+
+      const view = await noteTranslationsQuery(id);
+      expect(view?.rows.find((r) => r.locale === "zh-Hant-HK")).toMatchObject({
+        kind: "manual",
+        stale: true,
+      });
+      // Checking the version clears the flag without touching the text.
+      const checked = await saveNoteTranslationsAction({
+        customerId: id,
+        baseUpdatedAt: view!.updatedAt,
+        values: {},
+        reviewed: ["zh-Hant-HK"],
+      });
+      expect(checked.ok).toBe(true);
+      notes = await notesOf(id);
+      expect(notes.meta.stale).toBeUndefined();
+      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
+    });
+
+    it("editing the German text in the tab re-translates machine versions only", async () => {
+      const { id } = await create({ customerNumber: "TR-4", notes: NOTE });
+      const view = await noteTranslationsQuery(id);
+      const result = await saveNoteTranslationsAction({
+        customerId: id,
+        baseUpdatedAt: view!.updatedAt,
+        values: { de: "Klingeln", "zh-Hant-TW": "按鈴" },
+      });
+      expect(result.ok).toBe(true);
+      const notes = await notesOf(id);
+      expect(notes.de).toBe("Klingeln");
+      expect(notes["zh-Hans"]).toBe("[zh-Hans] Klingeln");
+      expect(notes["zh-Hant-TW"]).toBe("按鈴");
+      expect(notes.meta.stale).toBeUndefined();
+    });
+
+    it("rejects invalid input, stale versions and notes that do not exist", async () => {
+      const { id } = await create({ customerNumber: "TR-5", notes: NOTE });
+      const view = await noteTranslationsQuery(id);
+      const base = { customerId: id, baseUpdatedAt: view!.updatedAt };
+      expect(await saveNoteTranslationsAction({ ...base, values: { de: "  " } })).toEqual({
+        ok: false,
+        error: "invalid",
+      });
+      expect(
+        await saveNoteTranslationsAction({ ...base, values: { "zh-Hans": "x".repeat(2001) } }),
+      ).toEqual({ ok: false, error: "invalid" });
+      expect(await saveNoteTranslationsAction({ ...base, values: { fr: "non" } })).toMatchObject({
+        ok: true, // unknown keys are ignored, never stored
+      });
+      expect(await notesOf(id)).not.toHaveProperty("fr");
+      expect(
+        await saveNoteTranslationsAction({ ...base, values: { "zh-Hans": "旧状态" } }),
+      ).toEqual({ ok: false, error: "conflict" });
+      expect(await saveNoteTranslationsAction({ ...base, customerId: "nope", values: {} })).toEqual(
+        { ok: false, error: "not_found" },
+      );
+      const noNote = await create({ customerNumber: "TR-6", notes: "" });
+      expect(
+        await saveNoteTranslationsAction({ customerId: noNote.id, baseUpdatedAt: "x", values: {} }),
+      ).toEqual({ ok: false, error: "no_notes" });
+      expect(await noteTranslationsQuery(noNote.id)).toBeNull();
+      expect(await retranslateNoteAction(noNote.id)).toEqual({ ok: false, error: "no_notes" });
+    });
+
+    it("re-translate overwrites hand-written versions; a provider outage changes nothing", async () => {
+      const { id } = await create({ customerNumber: "TR-7", notes: NOTE });
+      const view = await noteTranslationsQuery(id);
+      await saveNoteTranslationsAction({
+        customerId: id,
+        baseUpdatedAt: view!.updatedAt,
+        values: { "zh-Hans": "手写" },
+      });
+      const before = await notesOf(id);
+      const { state, translator } = flaky();
+      state.up = false;
+      setTranslatorForTests(translator);
+      expect(await retranslateNoteAction(id)).toEqual({ ok: false, error: "translation_failed" });
+      expect(await notesOf(id)).toEqual(before);
+
+      state.up = true;
+      const result = await retranslateNoteAction(id);
+      expect(result.ok).toBe(true);
+      const notes = await notesOf(id);
+      expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
+      expect(notes.meta.machine).toEqual({
+        "zh-Hans": true,
+        "zh-Hant-HK": true,
+        "zh-Hant-TW": true,
+      });
+      expect(notes.meta.updatedAt).not.toBe(before.meta.updatedAt);
+    });
+
+    it("a source change while the provider is down keeps hand-written text and marks the rest pending", async () => {
+      const { id } = await create({ customerNumber: "TR-8", notes: NOTE });
+      const view = await noteTranslationsQuery(id);
+      await saveNoteTranslationsAction({
+        customerId: id,
+        baseUpdatedAt: view!.updatedAt,
+        values: { "zh-Hant-HK": "手写港" },
+      });
+      const { state, translator } = flaky();
+      state.up = false;
+      setTranslatorForTests(translator);
+      await updateCustomerAction(id, { ...valid, customerNumber: "TR-8", notes: "Neu" });
+      const notes = await notesOf(id);
+      expect(notes.de).toBe("Neu");
+      expect(notes["zh-Hant-HK"]).toBe("手写港");
+      expect(notes.meta.stale).toEqual({ "zh-Hant-HK": true });
+      expect(notes["zh-Hans"]).toBeUndefined();
+      expect(notes.meta.pendingTranslation).toBe(true);
+    });
+
+    it("a concurrent change of the note makes the save fail instead of overwriting it", async () => {
+      const { id } = await create({ customerNumber: "TR-9", notes: NOTE });
+      const view = await noteTranslationsQuery(id);
+      const stored = await notesOf(id);
+      await t.prisma.customer.update({
+        where: { id },
+        data: {
+          notes: { ...stored, meta: { ...stored.meta, updatedAt: "2099-01-01T00:00:00.000Z" } },
+        },
+      });
+      expect(
+        await saveNoteTranslationsAction({
+          customerId: id,
+          baseUpdatedAt: view!.updatedAt,
+          values: { "zh-Hans": "x" },
+        }),
+      ).toEqual({ ok: false, error: "conflict" });
+    });
   });
 });

@@ -2,11 +2,13 @@ import { z } from "zod";
 
 import { resolvePinConfirmed, suggestNextCustomerNumber } from "@/domain/customer";
 import { calendarDayIn } from "@/domain/settings";
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
-import { createLocalizedText, type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
+import { localizedTextSchema } from "@/lib/localized-text";
 
+import { notesJson, prepareNotes } from "./customer-notes";
 import { MAX_ADDRESS_LENGTH } from "./geocoder";
+import type { Translator } from "./translator/types";
 
 type CustomerDb = Pick<PrismaClient, "customer" | "order" | "photo">;
 
@@ -42,7 +44,7 @@ export const customerInputSchema = z
     lng: z.number().min(-180).max(180).transform(roundCoord).nullable().default(null),
     pinConfirmed: z.boolean().default(false),
     deliveryHoursInfo: optionalText(300),
-    /** German note for the driver; the multilingual editor is NUD-071. */
+    /** German note for the driver (source); translations are made on save, edited on the detail page. */
     notes: optionalText(2000),
   })
   .refine((v) => (v.lat === null) === (v.lng === null), { message: "pin" })
@@ -69,19 +71,8 @@ export function notesText(notes: unknown): string {
   return parsed.success ? (parsed.data.de ?? "") : "";
 }
 
-/** A changed German note replaces the stored LocalizedText (translations of old text are stale). */
-function nextNotes(stored: unknown, input: string | null): LocalizedText | null {
-  if (input === null) return null;
-  if (notesText(stored) === input && localizedTextSchema.safeParse(stored).success) {
-    return stored as LocalizedText;
-  }
-  return createLocalizedText({ de: input }, "de");
-}
-
-/** Prisma needs `DbNull` (not `null`) to store SQL NULL in a Json column. */
-function notesData(notes: LocalizedText | null): Prisma.InputJsonValue | typeof Prisma.DbNull {
-  return notes === null ? Prisma.DbNull : (notes as unknown as Prisma.InputJsonValue);
-}
+/** Test seam: the translator used for the notes (default: the configured one, NUD-070). */
+export type NotesOptions = { translator?: Translator; now?: Date };
 
 async function numberTaken(db: CustomerDb, number: string, exceptId?: string): Promise<boolean> {
   const hit = await db.customer.findFirst({
@@ -98,6 +89,7 @@ async function numberTaken(db: CustomerDb, number: string, exceptId?: string): P
 export async function createCustomer(
   db: CustomerDb,
   rawInput: unknown,
+  options: NotesOptions = {},
 ): Promise<CustomerSaveResult> {
   const parsed = customerInputSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "invalid" };
@@ -118,7 +110,7 @@ export async function createCustomer(
         lng: v.lng,
         pinConfirmed,
         deliveryHoursInfo: v.deliveryHoursInfo,
-        notes: notesData(nextNotes(null, v.notes)),
+        notes: notesJson(await prepareNotes(null, v.notes, options)),
       },
       select: { id: true },
     });
@@ -134,6 +126,7 @@ export async function updateCustomer(
   db: CustomerDb,
   rawId: unknown,
   rawInput: unknown,
+  options: NotesOptions = {},
 ): Promise<CustomerSaveResult> {
   const id = idSchema.safeParse(rawId);
   const parsed = customerInputSchema.safeParse(rawInput);
@@ -166,7 +159,7 @@ export async function updateCustomer(
         lng: v.lng,
         pinConfirmed,
         deliveryHoursInfo: v.deliveryHoursInfo,
-        notes: notesData(nextNotes(stored.notes, v.notes)),
+        notes: notesJson(await prepareNotes(stored.notes, v.notes, options)),
       },
     });
     return { ok: true, id: stored.id, pinConfirmed };
