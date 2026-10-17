@@ -223,7 +223,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | done |
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | done |
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | done |
-| NUD-054 | Admin live tour progress | M1 | 053 | todo |
+| NUD-054 | Admin live tour progress | M1 | 053 | done |
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | todo |
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | todo |
 | NUD-071 | Customer notes translation & multilingual editor | M2 | 014, 070 | todo |
@@ -1015,7 +1015,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-054 · Admin live tour progress
-**Status:** todo · **depends_on:** 053
+**Status:** done · **depends_on:** 053
 
 **Goal:** office sees where the delivery stands.
 
@@ -1025,7 +1025,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Polling every 30 s (SWR / `router.refresh`), no websockets.
 
 **Acceptance criteria**
-- [ ] Driver marks a stop delivered → admin view shows it within 30 s without manual reload.
+- [x] Driver marks a stop delivered → admin view shows it within 30 s without manual reload. (e2e `admin-progress.spec.ts`: the driver delivers in the real driver UI in a second browser context; dashboard and tour page, left open, updated by themselves. Default 30 s interval: 28.3 s measured end to end, i.e. inside the limit; with `LIVE_POLL_INTERVAL_MS=5000` 2.6 s.)
+
+**Implementation notes**
+- Dashboard: `TodayCard` (`components/admin/today-card.tsx`) on `/admin`: today's tour in the factory time zone (latest tour of the day), status badge, segmented progress bar (`role=progressbar`, text "3 von 8 Stopps erledigt" next to it), next open stop (name, address, planned ETA) or "all done", problems count with the customer + reason of each problem stop, driver, link to the tour page of the day. No tour / not yet released (DRAFT, OPTIMIZED) shows a hint and a link to planning. Read model `getTodayProgress` / `todayProgressQuery` (`server/tour-progress.ts`, `requireRole("ADMIN")` first); pure rules in `domain/tour-progress.ts` (`summarizeProgress`, next stop = first PENDING by sequence).
+- Tour page (`TourPlanner`): for RELEASED / IN_PROGRESS / COMPLETED a progress block (bar + "x von y Stopps erledigt · n Probleme"), per stop a status badge with icon (check / warning / dashed circle), a "Nächster Stopp" badge, "Erledigt um HH:mm" (factory time zone), and for PROBLEM the reason (`common.problemReasons`) and the driver's text exactly as written, with `lang` = the language he wrote it in and the label "Originaltext des Fahrers" (German translation is NUD-072). `PlanStop` got `completedAt`, `problemReason`, `problemNote {text, locale}` (source-locale value of the `LocalizedText`). Problem rows get a red 2 px border, delivered rows a green one.
+- Map: `TourMapStop.status` (optional, the driver map and the planning map are unchanged without it). Colour AND shape: open = blue circle with number, delivered = dark green circle with number and a check-mark badge, problem = red diamond with number and a "!" badge; the tooltip names the status. Colours are the darker 700 shades (white text contrast >= 5:1).
+- Polling: `LiveRefresh` (`components/shared/live-refresh.tsx`) calls `router.refresh()` every interval while the tab is visible (skips ticks while hidden, refreshes at once when the tab becomes visible again). Active on the dashboard unless the tour is COMPLETED, and on the tour page for RELEASED / IN_PROGRESS tours (not for DRAFT/OPTIMIZED: nothing changes there without an admin action; not for COMPLETED, which is final). Interval comes from the server: `LIVE_POLL_INTERVAL_MS` (default 30000, allowed 1000..300000, else default; `.env.example`, `docs/env.md`); it is meant for tests only.
+- Strings: `admin.dashboard.today.*`, `admin.tours.progress.*` (de, zh-Hans by hand; Hant generated).
+- Tests: `domain/tour-progress.test.ts`, `live-refresh.test.tsx` (interval, disabled, hidden tab, unmount), `today-card.test.tsx` (4 locales: progress, next stop, problems, all done, no tour, not released), `tour-progress.integration.test.ts` (real DB: the driver's `applyStopMutation` moves the read model through delivered / problem / completed; completion time, reason and original text in the plan; authorization: anonymous, driver and a deactivated admin are rejected on `todayProgressQuery`; `tourPlanQuery` was already covered by NUD-042 tests), e2e `tests/e2e/admin-progress.spec.ts` (dashboard + tour page open at 1280 px, driver in a phone context delivers / reports a problem with text via the UI, both admin pages update without reload within one interval, markers carry `data-status` and the check / "!" badges, zh-Hans / HK / TW render the same data, a driver cannot open `/admin`).
+- Verified: lint, typecheck, prettier, `i18n:check`, all 68 vitest files (712 tests, DB tests on embedded PostgreSQL), `pnpm build`, e2e `admin-progress` (desktop) with the default 30 s interval and with 5 s, `tours`, `tour-rerelease`, `shells`, `home`; screenshots at 1280 px of dashboard and tour page (start, finished, zh-Hans / HK / TW) inspected, no horizontal scroll asserted.
+- NOT verified: real browsers / tile layer (tiles stubbed), the visual of the markers on a real map tile, background-tab throttling in real Chrome / Safari, a long-running session (hundreds of refreshes), screen-reader announcement of the progress bar; Chinese strings are agent-written (NUD-073). Specs that edit the depot via SQL (`tours`, `tour-rerelease`) fail when run after other specs on the same `next start` because the settings cache is warm; run them first or alone (environment note, unchanged behaviour).
+- Follow-ups: German translation of the problem text is NUD-072 (the original text is shown today); the offline-queue case (NUD-082) means the admin sees a stop only after the driver's device syncs.
 
 ---
 
@@ -1513,3 +1524,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-053 | Status buttons sit in the page flow (slot after items / notes), no sticky bar; Undo also as a button on the result card within the window | Simplest consistent with NUD-052; toast alone is gone after navigation |
 | 2026-10-17 | NUD-053 | Problem free text is optional for every reason (also OTHER); source locale = `User.locale` of the acting driver | Ticket says optional; the language switcher keeps `User.locale` in sync with the UI |
 | 2026-10-17 | NUD-053 | "Tour finished" screen = enhanced all-done card on `/driver` with delivered / problem counts | The driver is sent there after the last stop; no extra route needed |
+| 2026-10-17 | NUD-054 | Polling interval comes from the server env `LIVE_POLL_INTERVAL_MS` (default 30000, range 1000..300000, invalid -> default) and is passed to the client as a prop | Needed a test hook to run e2e faster; the default stays the product value, no `NEXT_PUBLIC_` env baked into the bundle |
+| 2026-10-17 | NUD-054 | `router.refresh()` polling only while the tab is visible (hidden ticks are skipped, immediate refresh on becoming visible); dashboard polls unless the tour is COMPLETED, the tour page only for RELEASED / IN_PROGRESS | Ticket makes pausing optional; cheap to do; COMPLETED is final and unreleased tours only change by admin actions |
+| 2026-10-17 | NUD-054 | "Today" card shows the latest tour of today's date (factory time zone); an unreleased tour shows a hint, not progress | v1 has one tour per day (D5); progress of a tour the driver cannot see would mislead |
+| 2026-10-17 | NUD-054 | Map markers by status: colour plus shape (diamond for problem) plus badge glyph (check / "!"); darker 700 colour shades | Accessibility: status must not depend on colour alone, white text needs AA contrast |
+| 2026-10-17 | NUD-054 | The driver's problem text is shown as written (source locale of the `LocalizedText`), labelled "Originaltext des Fahrers", with `lang` set to that locale | German translation for the office is NUD-072 |
+

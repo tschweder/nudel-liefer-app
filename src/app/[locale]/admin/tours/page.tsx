@@ -6,6 +6,7 @@ import { TourPlanner } from "@/components/admin/tour-planner";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
+import { getLivePollIntervalMs } from "@/server/tour-progress";
 import { tourPlanQuery } from "@/server/tour-queries";
 
 /** Tour planning (NUD-042): `/admin/tours?date=YYYY-MM-DD` (default = next delivery date). */
@@ -31,7 +32,11 @@ async function Guarded({
         </div>
         <TourDateField value={plan.date} />
       </div>
-      <TourPlanner plan={plan} tiles={getMapTileConfig()} />
+      <TourPlanner
+        plan={plan}
+        tiles={getMapTileConfig()}
+        pollIntervalMs={getLivePollIntervalMs()}
+      />
     </div>
   );
 }

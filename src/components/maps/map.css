@@ -39,3 +39,34 @@
 .nudel-map-wrap .leaflet-container {
   font-family: inherit;
 }
+.nudel-stop-delivered {
+  background: #047857;
+}
+.nudel-stop-problem {
+  width: 30px;
+  height: 30px;
+  margin: 3px;
+  background: #b91c1c;
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+.nudel-stop-num {
+  transform: rotate(-45deg);
+}
+.nudel-stop-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #1f2937;
+  border-radius: 9999px;
+  background: #fff;
+  color: #111827;
+  font:
+    700 11px/1 system-ui,
+    sans-serif;
+}

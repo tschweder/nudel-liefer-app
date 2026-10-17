@@ -3,6 +3,8 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CheckCircle2Icon,
+  CircleDashedIcon,
   GripVerticalIcon,
   ImageOffIcon,
   LockIcon,
@@ -17,6 +19,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { TourMapLazy } from "@/components/maps/lazy";
+import { LiveRefresh } from "@/components/shared/live-refresh";
+import { ProgressBar } from "@/components/shared/progress-bar";
 import { EmptyState } from "@/components/shared/states";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { durationParts, isTourEditable, moveItem, releaseBlocker } from "@/domain/tour-plan";
+import { isLiveStatus, showsStopResults, summarizeProgress } from "@/domain/tour-progress";
 import { isReReleasable } from "@/domain/tour-status";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
@@ -55,7 +60,16 @@ const selectClass = "h-10 min-w-56 rounded-md border border-input bg-background 
  * release. All state-changing calls are server actions (ADMIN only); the page re-reads the plan
  * after every change, so what is shown is what is stored.
  */
-export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileConfig }) {
+export function TourPlanner({
+  plan,
+  tiles,
+  pollIntervalMs,
+}: {
+  plan: TourPlan;
+  tiles: MapTileConfig;
+  /** How often a live (released / in progress) tour is re-read from the server. */
+  pollIntervalMs: number;
+}) {
   const t = useTranslations("admin.tours");
   const ts = useTranslations("admin.settings");
   const tc = useTranslations("common");
@@ -159,6 +173,8 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
   }
 
   const editable = isTourEditable(tour.status);
+  const results = showsStopResults(tour.status);
+  const progress = summarizeProgress(tour.stops);
   const stopById = new Map(tour.stops.map((s) => [s.id, s]));
   const stops: PlanStop[] = order
     ? order.flatMap((id) => (stopById.get(id) ? [stopById.get(id)!] : []))
@@ -266,6 +282,7 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
 
   return (
     <div className="flex flex-col gap-6" data-testid="tour-planner" data-tour-id={tour.id}>
+      <LiveRefresh intervalMs={pollIntervalMs} enabled={isLiveStatus(tour.status)} />
       <Warnings plan={plan} />
       <ErrorAlert error={error} errorText={errorText} />
       {tour.isOutdated && editable ? (
@@ -353,6 +370,23 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
           ) : null}
         </dl>
 
+        {results ? (
+          <div className="flex flex-col gap-2" data-testid="tour-progress">
+            <ProgressBar
+              delivered={progress.delivered}
+              problems={progress.problems}
+              total={progress.total}
+              label={t("progress.label")}
+              valueText={t("progress.summary", { done: progress.done, total: progress.total })}
+            />
+            <p className="text-base font-medium" data-testid="tour-progress-text">
+              {t("progress.summary", { done: progress.done, total: progress.total })}
+              {" · "}
+              {t("progress.problems", { count: progress.problems })}
+            </p>
+          </div>
+        ) : null}
+
         {editable ? (
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <Button
@@ -432,7 +466,8 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
               sequence: index + 1,
               lat: s.lat,
               lng: s.lng,
-              label: s.name,
+              label: results ? `${s.name} · ${tc(`statuses.stop.${s.status}`)}` : s.name,
+              status: results ? s.status : undefined,
             }))}
             depot={
               tour.depot
@@ -471,6 +506,8 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
                 className={cn(
                   "flex items-center gap-3 rounded-lg border bg-card p-3",
                   dragId === stop.id && "opacity-50",
+                  results && stop.status === "PROBLEM" && "border-red-700 border-2",
+                  results && stop.status === "DELIVERED" && "border-emerald-700",
                 )}
                 data-testid="stop-row"
                 data-stop-id={stop.id}
@@ -502,14 +539,25 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
                     <Badge variant="outline" data-testid="stop-items">
                       {t("stop.items", { count: stop.itemCount })}
                     </Badge>
-                    {!editable ? (
+                    {results ? (
                       <Badge
                         variant={stop.status === "PENDING" ? "outline" : "secondary"}
+                        className="gap-1"
                         data-testid="stop-status"
                         data-status={stop.status}
                       >
+                        {stop.status === "DELIVERED" ? (
+                          <CheckCircle2Icon className="size-3.5" aria-hidden />
+                        ) : stop.status === "PROBLEM" ? (
+                          <TriangleAlertIcon className="size-3.5" aria-hidden />
+                        ) : (
+                          <CircleDashedIcon className="size-3.5" aria-hidden />
+                        )}
                         {tc(`statuses.stop.${stop.status}`)}
                       </Badge>
+                    ) : null}
+                    {results && stop.id === progress.nextStopId ? (
+                      <Badge data-testid="stop-next">{t("progress.next")}</Badge>
                     ) : null}
                     {stop.changeKind ? (
                       <Badge
@@ -533,6 +581,36 @@ export function TourPlanner({ plan, tiles }: { plan: TourPlan; tiles: MapTileCon
                       </Badge>
                     ) : null}
                   </div>
+                  {results && stop.completedAt ? (
+                    <div className="flex flex-col gap-1 text-sm" data-testid="stop-result">
+                      <span data-testid="stop-completed-at">
+                        {t("progress.completedAt", {
+                          time: fmt.time(new Date(stop.completedAt)),
+                        })}
+                      </span>
+                      {stop.status === "PROBLEM" ? (
+                        <>
+                          <span className="font-medium" data-testid="stop-problem-reason">
+                            {stop.problemReason
+                              ? t("progress.reason", {
+                                  reason: tc(`problemReasons.${stop.problemReason}`),
+                                })
+                              : t("progress.reasonUnknown")}
+                          </span>
+                          {stop.problemNote ? (
+                            <p data-testid="stop-problem-note">
+                              <span className="text-muted-foreground">
+                                {t("progress.originalNote")}{" "}
+                              </span>
+                              <q lang={stop.problemNote.locale} className="whitespace-pre-wrap">
+                                {stop.problemNote.text}
+                              </q>
+                            </p>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end text-right">
                   <span className="text-xs text-muted-foreground">{t("stop.eta")}</span>

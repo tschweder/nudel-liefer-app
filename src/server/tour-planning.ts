@@ -11,6 +11,7 @@ import {
 } from "@/domain/tour-plan";
 import { canTransition, isReReleasable } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
@@ -46,6 +47,15 @@ export type PlanStop = {
   hasStorePhoto: boolean;
   hasParkingPhoto: boolean;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
+  /** ISO instant the driver completed the stop (DELIVERED or PROBLEM), `null` while open. */
+  completedAt: string | null;
+  /** `ProblemReason` of a PROBLEM stop. */
+  problemReason: string | null;
+  /**
+   * The driver's free text exactly as written (NUD-054): the text in `locale`, the language he
+   * wrote it in. The German translation for the office is NUD-072.
+   */
+  problemNote: { text: string; locale: AppLocale } | null;
   /** Set by a re-release (NUD-043): the stop was added or its quantities changed. */
   changeKind: "ADDED" | "CHANGED" | null;
 };
@@ -94,6 +104,16 @@ function readGeometry(value: unknown): Array<[number, number]> | null {
     .object({ coordinates: z.array(z.tuple([z.number(), z.number()])) })
     .safeParse(value);
   return parsed.success && parsed.data.coordinates.length > 1 ? parsed.data.coordinates : null;
+}
+
+/** The original text of a problem report: the source-locale value of its `LocalizedText`. */
+function readProblemNote(value: unknown): PlanStop["problemNote"] {
+  const parsed = localizedTextSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const original = pickWithSource(parsed.data, parsed.data.meta.source);
+  return original && original.value.trim() !== ""
+    ? { text: original.value, locale: original.locale }
+    : null;
 }
 
 function readDepot(value: unknown): PlanTour["depot"] {
@@ -233,6 +253,9 @@ export async function getTourPlan(
                     hasStorePhoto: s.customer.photos.some((p) => p.kind === "STORE"),
                     hasParkingPhoto: s.customer.photos.some((p) => p.kind === "PARKING"),
                     status: s.status,
+                    completedAt: s.completedAt?.toISOString() ?? null,
+                    problemReason: s.problemReason,
+                    problemNote: readProblemNote(s.problemNote),
                     changeKind: s.changeKind,
                   },
                 ],

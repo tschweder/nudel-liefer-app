@@ -140,7 +140,24 @@
   "admin": {
     "dashboard": {
       "title": "总览",
-      "welcome": "欢迎进入办公室区域。"
+      "welcome": "欢迎进入办公室区域。",
+      "today": {
+        "title": "今天",
+        "noTour": "今天没有行程。",
+        "notReleased": "今天的行程还没有发布。",
+        "progressLabel": "今日行程进度",
+        "progress": "已完成 {done} / {total} 个站点",
+        "percent": "（{percent}%）",
+        "counts": "已送达 {delivered} · 未完成 {open}",
+        "next": "下一站",
+        "eta": "预计 {time} 到达",
+        "allDone": "所有站点都已完成。",
+        "problemsHeading": "问题",
+        "problems": "{count, plural, =0 {没有问题} other {# 个问题}}",
+        "driver": "司机：{name}",
+        "openTour": "查看行程",
+        "openPlanning": "规划行程"
+      }
     },
     "shell": {
       "mainNavigation": "主导航",
@@ -694,6 +711,16 @@
           "nothingChanged": "对司机没有变化；提示已移除。",
           "completedChanged": "{count, plural, other {# 个已完成的站点在送达后被修改，未重新安排。}}"
         }
+      },
+      "progress": {
+        "label": "行程进度",
+        "summary": "已完成 {done} / {total} 个站点",
+        "problems": "{count, plural, =0 {没有问题} other {# 个问题}}",
+        "next": "下一站",
+        "completedAt": "{time} 完成",
+        "reason": "原因：{reason}",
+        "reasonUnknown": "原因：未填写",
+        "originalNote": "司机的原文："
       }
     }
   },

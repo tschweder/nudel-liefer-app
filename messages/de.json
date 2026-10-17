@@ -140,7 +140,24 @@
   "admin": {
     "dashboard": {
       "title": "Übersicht",
-      "welcome": "Willkommen im Büro-Bereich."
+      "welcome": "Willkommen im Büro-Bereich.",
+      "today": {
+        "title": "Heute",
+        "noTour": "Für heute gibt es keine Tour.",
+        "notReleased": "Die Tour für heute ist noch nicht freigegeben.",
+        "progressLabel": "Fortschritt der heutigen Tour",
+        "progress": "{done} von {total} Stopps erledigt",
+        "percent": "({percent} %)",
+        "counts": "{delivered} geliefert · {open} offen",
+        "next": "Nächster Stopp",
+        "eta": "Ankunft ca. {time}",
+        "allDone": "Alle Stopps sind erledigt.",
+        "problemsHeading": "Probleme",
+        "problems": "{count, plural, =0 {Keine Probleme} one {# Problem} other {# Probleme}}",
+        "driver": "Fahrer: {name}",
+        "openTour": "Tour ansehen",
+        "openPlanning": "Tour planen"
+      }
     },
     "shell": {
       "mainNavigation": "Hauptnavigation",
@@ -694,6 +711,16 @@
           "nothingChanged": "Für den Fahrer hat sich nichts geändert; die Markierung wurde entfernt.",
           "completedChanged": "{count, plural, one {# bereits erledigter Stopp wurde nach der Lieferung geändert und nicht neu geplant.} other {# bereits erledigte Stopps wurden nach der Lieferung geändert und nicht neu geplant.}}"
         }
+      },
+      "progress": {
+        "label": "Fortschritt der Tour",
+        "summary": "{done} von {total} Stopps erledigt",
+        "problems": "{count, plural, =0 {keine Probleme} one {# Problem} other {# Probleme}}",
+        "next": "Nächster Stopp",
+        "completedAt": "Erledigt um {time}",
+        "reason": "Grund: {reason}",
+        "reasonUnknown": "Grund: nicht angegeben",
+        "originalNote": "Originaltext des Fahrers:"
       }
     }
   },

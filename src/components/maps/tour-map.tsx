@@ -11,7 +11,7 @@ import type { LatLng } from "@/lib/coords";
 import type { MapTileConfig } from "@/lib/map-config";
 import { cn } from "@/lib/utils";
 
-import { depotIcon, stopIcon } from "./map-icons";
+import { depotIcon, stopIcon, type StopMarkerStatus } from "./map-icons";
 
 export type TourMapStop = {
   id: string;
@@ -19,6 +19,8 @@ export type TourMapStop = {
   lat: number;
   lng: number;
   label?: string;
+  /** Delivery status (NUD-054): colours the marker and adds a shape / badge cue. */
+  status?: StopMarkerStatus;
 };
 
 export type TourMapProps = {
@@ -74,7 +76,7 @@ export function TourMap({ stops, depot, geometry, tiles, className }: TourMapPro
           </Marker>
         ) : null}
         {stops.map((s) => (
-          <Marker key={s.id} position={[s.lat, s.lng]} icon={stopIcon(s.sequence)}>
+          <Marker key={s.id} position={[s.lat, s.lng]} icon={stopIcon(s.sequence, s.status)}>
             {s.label ? <Tooltip>{s.label}</Tooltip> : null}
           </Marker>
         ))}
