@@ -13,7 +13,6 @@ import { ADMIN_SECTIONS } from "./admin/nav-items";
 import { SectionPlaceholder } from "./admin/section-placeholder";
 import { ConnectionIndicator } from "./driver/connection-indicator";
 import { DriverShell } from "./driver/driver-shell";
-import { TodayPlaceholder } from "./driver/today-placeholder";
 import { EmptyState, ErrorState, LoadingSkeleton } from "./shared/states";
 
 const navigation = vi.hoisted(() => ({ pathname: "/admin" }));
@@ -92,7 +91,8 @@ describe.each(Object.keys(LOCALES))("shells in %s", (locale) => {
     renderIn(
       locale,
       <DriverShell dateLabel="17.10.">
-        <TodayPlaceholder name="Hans" locale={locale} />
+        <h1 data-testid="driver-title">Heute</h1>
+        <EmptyState />
       </DriverShell>,
     );
     expect(screen.getByTestId("driver-title")).not.toBeEmptyDOMElement();

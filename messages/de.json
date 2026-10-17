@@ -709,7 +709,46 @@
     },
     "today": {
       "emptyTitle": "Heute keine Tour",
-      "emptyDescription": "Sobald das Büro eine Tour freigibt, erscheint sie hier."
+      "emptyDescription": "Sobald das Büro eine Tour freigibt, erscheint sie hier.",
+      "progressLabel": "Fortschritt",
+      "progress": "{done} / {total}",
+      "progressAria": "{done} von {total} Stopps erledigt",
+      "remaining": "Noch ca. {duration}",
+      "durationMinutes": "{minutes} Min.",
+      "durationHours": "{hours} Std. {minutes} Min.",
+      "nextStop": "Nächster Stopp",
+      "allDoneTitle": "Alle Stopps erledigt",
+      "allDoneDescription": "Die Tour ist abgeschlossen. Danke!",
+      "eta": "Ankunft ca. {time}",
+      "kinds": "{count, plural, one {# Sorte} other {# Sorten}}",
+      "navigate": "Navigation starten",
+      "details": "Details",
+      "noPin": "Kein Kartenpunkt – bitte beim Büro nachfragen",
+      "viewLabel": "Ansicht",
+      "viewList": "Liste",
+      "viewMap": "Karte",
+      "listTitle": "Alle Stopps",
+      "mapLabel": "Karte der Stopps",
+      "statusPending": "Offen",
+      "statusDelivered": "Geliefert",
+      "statusProblem": "Problem",
+      "stopLabel": "Stopp {number}",
+      "changeAdded": "Neuer Stopp",
+      "changeChanged": "Menge geändert",
+      "updatedTitle": "Tour wurde aktualisiert",
+      "updatedDescription": "Das Büro hat die Tour geändert. Bitte die markierten Stopps prüfen. Angezeigt sind immer die aktuellen Mengen.",
+      "removedStops": "Entfernte Stopps",
+      "updatedConfirm": "Verstanden"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "{count, plural, one {Packung} other {Packungen}}",
+      "CRATE": "{count, plural, one {Kiste} other {Kisten}}",
+      "PIECE": "{count, plural, one {Stück} other {Stück}}"
+    },
+    "stop": {
+      "back": "Zurück zur Tour",
+      "comingSoon": "Die Detailansicht folgt in Kürze."
     }
   }
 }

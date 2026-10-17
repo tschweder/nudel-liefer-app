@@ -710,7 +710,46 @@
     },
     "today": {
       "emptyTitle": "今天沒有配送線路",
-      "emptyDescription": "辦公室釋出線路後，會顯示在這裡。"
+      "emptyDescription": "辦公室釋出線路後，會顯示在這裡。",
+      "progressLabel": "進度",
+      "progress": "{done} / {total}",
+      "progressAria": "共 {total} 個站點，已完成 {done} 個",
+      "remaining": "預計還需 {duration}",
+      "durationMinutes": "{minutes} 分鐘",
+      "durationHours": "{hours} 小時 {minutes} 分鐘",
+      "nextStop": "下一站",
+      "allDoneTitle": "所有站點已完成",
+      "allDoneDescription": "本次配送已結束，謝謝！",
+      "eta": "預計 {time} 到達",
+      "kinds": "{count} 種",
+      "navigate": "開始導航",
+      "details": "詳情",
+      "noPin": "沒有地圖定位點，請聯絡辦公室",
+      "viewLabel": "顯示方式",
+      "viewList": "列表",
+      "viewMap": "地圖",
+      "listTitle": "全部站點",
+      "mapLabel": "站點地圖",
+      "statusPending": "待送",
+      "statusDelivered": "已送達",
+      "statusProblem": "有問題",
+      "stopLabel": "第 {number} 站",
+      "changeAdded": "新增站點",
+      "changeChanged": "數量已更改",
+      "updatedTitle": "線路已更新",
+      "updatedDescription": "辦公室更改了線路。請檢視標記的站點。顯示的始終是最新數量。",
+      "removedStops": "已移除的站點",
+      "updatedConfirm": "我知道了"
+    },
+    "units": {
+      "KG": "公斤",
+      "PACK": "包",
+      "CRATE": "箱",
+      "PIECE": "件"
+    },
+    "stop": {
+      "back": "返回線路",
+      "comingSoon": "詳情頁面即將推出。"
     }
   }
 }

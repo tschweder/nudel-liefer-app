@@ -220,7 +220,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | done |
 | NUD-043 | Tour lifecycle & change handling (outdated tours) | M1 | 042 | done |
 | NUD-050 | Driver first-start language picker | M1 | 005 | done |
-| NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | todo |
+| NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | done |
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | todo |
 | NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | todo |
 | NUD-054 | Admin live tour progress | M1 | 053 | todo |
@@ -923,7 +923,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-051 · Driver "today's tour" screen
-**Status:** todo · **depends_on:** 043, 050
+**Status:** done · **depends_on:** 043, 050
 
 **Goal:** projektbeschreibung §5 "Beim Öffnen sieht er".
 
@@ -937,9 +937,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - _Added by NUD-043:_ read the tour with `getDriverTour(db, driverId, date)` (`src/server/tour-driver.ts`): quantities come from the released snapshot (`Stop.items`), never from live order lines. Show the banner while `updated` is true and until the driver has seen `revision` (remember the last seen revision on the device); highlight stops with `changedInRevision` above it (`change` = `ADDED` / `CHANGED`, `previousQuantityCents` per item); list `removedCustomers` in the banner.
 
 **Acceptance criteria**
-- [ ] Driver sees only his own tour (authz test).
-- [ ] Next stop = lowest-sequence `PENDING` stop.
-- [ ] Renders correctly in all 4 locales at 375 px.
+- [x] Driver sees only his own tour (authz test). (`driver-today.integration.test.ts`: another driver's tour of the same day, an admin, unknown users, other days and unreleased tours yield nothing; page query rejects anonymous and deactivated users and takes the driver id from the session only; e2e: a second driver gets the empty state and no access to the first driver's stop route.)
+- [x] Next stop = lowest-sequence `PENDING` stop. (`nextPendingStop` unit tests incl. unordered input and problem stops; component test in 4 locales; e2e: delivering stop 2 moves the card to stop 3.)
+- [x] Renders correctly in all 4 locales at 375 px. (`tests/e2e/driver-today.spec.ts`, seeded released tour, mobile project at 375x812: no horizontal scroll, touch targets >= 48 px, quantity >= 28 px bold, body >= 16 px, no console errors; screenshots of list, map and updated state inspected for de and zh-Hant-TW / de.)
+
+**Implementation notes**
+- Page `/[locale]/driver` (replaces the placeholder): `requirePageActor("driver")`, then `driverTodayQuery(locale)` (`src/server/driver-today.ts`: `requireRole("ADMIN","DRIVER")`, only a DRIVER gets a tour, the driver id is the session user, "today" = calendar day in `Settings.timezone`) built on `getDriverTour` (snapshot quantities; got `legDurationS`). Product names are picked server-side in the URL locale; customer name/address are untranslated. The client screen is `components/driver/today-tour.tsx`: progress `done / total` + bar + remaining time, big next-stop card (number, name, address, ETA in factory time zone, summary, Navigate = Google Maps link with the pinned lat/lng via `lib/navigation.ts`, Details), List / Map toggle (`TourMapLazy`, numbered markers, depot, geometry), numbered list with status icon + text (Offen / Geliefert / Problem), all-done card, empty state when no tour. Pure rules in `domain/driver-today.ts` (next stop, progress, per-unit summary, remaining time, unseen change).
+- Summary "N Sorten · X kg": one total PER UNIT (kg, Packungen, Kisten, Stück), never summed across units; unit words are ICU plurals in `driver.units.*`; quantities are 30 px bold.
+- NUD-043 data: banner "Tour wurde aktualisiert" (with removed customers) while `updated` and the device has not acknowledged `revision`; the last acknowledged revision is kept in `localStorage` (`nudel.driver.seenRevision.<tourId>`, `useSyncExternalStore`, storage failures behave as "never seen"); while the tour has not been re-released the current revision is stored silently. Stops with `changedInRevision` above it get an amber highlight: "Neuer Stopp" or "Menge geändert" with old -> new quantity per changed item. "Verstanden" (48 px) acknowledges and removes banner and highlights. The page refreshes its data when the app becomes visible again (`RefreshOnFocus`).
+- Details: stop rows and the Details button link to the new placeholder route `/driver/stops/[stopId]` (only the customer name, back button; 404 unless the stop is in the driver's own tour of today); NUD-052 replaces it. The logout button and welcome line stay at the bottom of the page. `TodayPlaceholder` was removed.
+- Tests: `domain/driver-today.test.ts` (9), `lib/navigation.test.ts`, `server/driver-today.integration.test.ts` (7), `components/driver/today-tour.test.tsx` (6 x 4 locales, throwing on missing messages), e2e `driver-today.spec.ts` (4 locales + details/authz/next-stop advance + re-release banner/highlight/acknowledge).
+- Verified: lint, typecheck, prettier, `i18n:check`, `pnpm test` (598 passed incl. DB tests), `pnpm build`, e2e mobile project: `driver-today`, `shells`, `home`, `driver-language-picker`, `drivers`, `auth`; screenshots at 375 px inspected.
+- NOT verified: real phones / Safari / Google Maps app hand-over; the desktop Playwright project for the new spec (phone viewport forced, mobile project run only); real map tiles (stubbed); Chinese strings are agent-written (NUD-073); the remaining-time estimate is only checked arithmetically (planned legs + service time of open stops, rounded up to 5 min, without the way back to the depot); the update banner after a real re-release through the admin UI (data seeded directly, the re-release itself is covered by NUD-043 tests).
+- Known limits: a product removed from a stop in a re-release is not listed (the read model only has current items; the stop is still marked "Menge geändert"); the top-bar date truncates on narrow screens in German (pre-existing shell); the 'seen' state is per device/browser (no server record).
 
 ---
 
@@ -1454,6 +1464,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-050 | Seeded demo drivers for the four languages have `localeChosen=true`; new seeded `driver-new` has false | Keeps e2e logins deterministic while a demo of the picker remains |
 | 2026-10-17 | NUD-050 | After picking a language the driver always lands on the driver home, not on a previous deep link | Simplest; the picker only appears once per driver |
 | 2026-10-17 | NUD-050 | Picker is enforced in `requirePageActor` (page guard) for DRIVER only, not in the proxy; admins in support view skip it | Token has no `localeChosen` claim; avoids a DB read per request in the proxy |
+| 2026-10-17 | NUD-051 | "Today" = calendar day in `Settings.timezone`; the driver id comes only from the session; an admin in the support view sees the empty state | Authorization by construction (no id from the client); ticket says own tour only |
+| 2026-10-17 | NUD-051 | Item summary shows one total per unit (kg, Packungen, Kisten, Stück) next to the number of varieties, never one summed number | Adding packs and kg would be wrong quantities (priority 2) |
+| 2026-10-17 | NUD-051 | Remaining time = planned driving legs to the open stops + service minutes per open stop, rounded up to 5 min, without the way back; not shown at 0 | Uses stored plan values only; no live prediction; return leg is not stored per stop |
+| 2026-10-17 | NUD-051 | 'Seen revision' stored in `localStorage` per tour id; banner and highlights stay until the driver taps "Verstanden"; current revision is recorded silently while the tour was never re-released | Ticket asks for device-side memory; no server acknowledgement exists |
+| 2026-10-17 | NUD-051 | Placeholder route `/driver/stops/[stopId]` (name only, 404 for stops outside the driver's own tour today) until NUD-052; page re-fetches when the app becomes visible | Details button needs a target; a long-open app must notice a re-release |
 
 ---
 

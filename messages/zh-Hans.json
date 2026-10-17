@@ -709,7 +709,46 @@
     },
     "today": {
       "emptyTitle": "今天没有配送线路",
-      "emptyDescription": "办公室发布线路后，会显示在这里。"
+      "emptyDescription": "办公室发布线路后，会显示在这里。",
+      "progressLabel": "进度",
+      "progress": "{done} / {total}",
+      "progressAria": "共 {total} 个站点，已完成 {done} 个",
+      "remaining": "预计还需 {duration}",
+      "durationMinutes": "{minutes} 分钟",
+      "durationHours": "{hours} 小时 {minutes} 分钟",
+      "nextStop": "下一站",
+      "allDoneTitle": "所有站点已完成",
+      "allDoneDescription": "本次配送已结束，谢谢！",
+      "eta": "预计 {time} 到达",
+      "kinds": "{count} 种",
+      "navigate": "开始导航",
+      "details": "详情",
+      "noPin": "没有地图定位点，请联系办公室",
+      "viewLabel": "显示方式",
+      "viewList": "列表",
+      "viewMap": "地图",
+      "listTitle": "全部站点",
+      "mapLabel": "站点地图",
+      "statusPending": "待送",
+      "statusDelivered": "已送达",
+      "statusProblem": "有问题",
+      "stopLabel": "第 {number} 站",
+      "changeAdded": "新增站点",
+      "changeChanged": "数量已更改",
+      "updatedTitle": "线路已更新",
+      "updatedDescription": "办公室更改了线路。请查看标记的站点。显示的始终是最新数量。",
+      "removedStops": "已移除的站点",
+      "updatedConfirm": "我知道了"
+    },
+    "units": {
+      "KG": "公斤",
+      "PACK": "包",
+      "CRATE": "箱",
+      "PIECE": "件"
+    },
+    "stop": {
+      "back": "返回线路",
+      "comingSoon": "详情页面即将推出。"
     }
   }
 }

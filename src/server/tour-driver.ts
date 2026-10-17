@@ -38,6 +38,8 @@ export type DriverStop = {
   customerId: string;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   etaAt: string | null;
+  /** Planned driving time of the leg arriving at this stop (seconds). */
+  legDurationS: number | null;
   items: DriverStopItem[];
   change: "ADDED" | "CHANGED" | null;
   changedInRevision: number | null;
@@ -110,6 +112,7 @@ export async function getDriverTour(
         customerId: stop.customerId,
         status: stop.status,
         etaAt: stop.etaAt?.toISOString() ?? null,
+        legDurationS: stop.legDurationS,
         change: stop.changeKind,
         changedInRevision: stop.changedInRevision,
         items: items.map((i) => ({
