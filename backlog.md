@@ -205,7 +205,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-006 | Object storage & image upload pipeline | M0 | 002 | blocked |
 | NUD-007 | 👤 Deployment pipeline (Vercel/Neon/R2) | M0 | 002, 004 | blocked |
 | NUD-008 | Admin user management (drivers) | M0 | 005 | done |
-| NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | todo |
+| NUD-010 | Geocoder interface + ORS + Fake | M1 | 002 | done |
 | NUD-011 | Map component with draggable pin | M1 | 005 | todo |
 | NUD-012 | Depot & general settings page | M1 | 010, 011 | todo |
 | NUD-013 | Customer list & search | M1 | 005 | todo |
@@ -511,7 +511,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-010 · Geocoder interface + ORS + Fake
-**Status:** todo · **depends_on:** 002
+**Status:** done · **depends_on:** 002
 
 **Goal:** turn an address into candidate coordinates.
 
@@ -522,8 +522,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Simple cache table or in-memory LRU to avoid repeated calls for the same normalized address.
 
 **Acceptance criteria**
-- [ ] Unit tests for the Fake and for response mapping of the ORS client (recorded fixture, no live network in CI).
-- [ ] Missing API key → Fake is used and a single warning is logged.
+- [x] Unit tests for the Fake and for response mapping of the ORS client (recorded fixture, no live network in CI). (`src/server/geocoder/geocoder.test.ts`, 20 tests; fixtures are hand-written in the documented ORS/Pelias GeoJSON format, not recorded from a live call, see notes.)
+- [x] Missing API key → Fake is used and a single warning is logged. (tested via `getGeocoder`.)
+
+**Implementation notes**
+- `src/server/geocoder/`: `types.ts` (`Geocoder { search(address), reverse(lat,lng) }`, `GeocodeCandidate {label,lat,lng,confidence}`, `GeocoderError` with codes `TIMEOUT|NETWORK|HTTP|BAD_RESPONSE|INVALID_INPUT`, `normalizeAddress`), `ors.ts` (`OrsGeocoder` + `mapOrsResponse`, zod-checked), `fake.ts` (`FakeGeocoder`), `cache.ts` (`LruCache`, `CachingGeocoder`), `index.ts` (`getGeocoder(env)` singleton, `setGeocoderForTests`). `search` returns up to 5 candidates best first (`[]` when nothing found or the address is blank); `reverse` returns the nearest address or `null`. Errors are thrown as `GeocoderError` so the UI tickets (NUD-014) can show "geocoding unavailable, place the pin by hand".
+- ORS: `GET /geocode/search?text&boundary.country&size=5` and `/geocode/reverse?point.lat&point.lon&size=1`, 5 s timeout (`AbortSignal.timeout`), 1 retry on timeout, network error, 5xx and 429 (never on other 4xx or malformed bodies). The API key goes in the `Authorization` header so it cannot leak through URLs/logs. Addresses are limited to 300 characters.
+- Fake: FNV-1a hash of the normalized address -> point within about +-0.08 deg lat / +-0.12 deg lng of Vienna, one candidate, confidence 0.3 (deliberately low). Used when `ORS_API_KEY` is missing; one `console.warn` per process.
+- Cache: in-memory LRU (500 entries) for search (normalized address) and reverse (rounded to 5 decimals), failures are not cached, results are copied so callers cannot mutate the cache. The ticket allowed "table or in-memory"; per-instance memory is enough for 50-150 customers.
+- New env vars: `ORS_API_KEY` (shared with NUD-040), `ORS_GEOCODE_COUNTRIES` in `.env.example` and `docs/env.md`. No UI, route or mutation, so no authorization tests or i18n strings were needed; nothing calls the geocoder yet (NUD-014 will, through a server action with `requireRole("ADMIN")`).
+- Verified: lint, typecheck, `pnpm test` (177 passed incl. DB tests on embedded PostgreSQL), `i18n:check`, prettier. No schema change, so the seed is unaffected.
+- NOT verified: a live call to OpenRouteService (no real key, by instruction). The fixtures follow the documented Pelias/ORS response shape from memory of the API docs; the real endpoint may return extra fields (ignored) or differ in details, e.g. `boundary.country` accepting alpha-2 codes, `confidence` presence on every feature (missing -> 0). Please run one real `search` once a key exists and compare with `src/server/geocoder/fixtures/`.
 
 ---
 
@@ -1193,6 +1202,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-008 | Admin accounts: password >= 10 chars chosen by the creating admin; admins cannot deactivate themselves; no admin PIN/password reset UI | Scope says only "create further admin accounts" |
 | 2026-10-17 | NUD-008 | Deactivated users are logged out via `GET /api/session-ended` (deletes the session cookie, redirects to the login page) called from `requirePageActor` | Pages cannot delete cookies; redirecting straight to login looped via the proxy while the JWT was still valid |
 | 2026-10-17 | NUD-008 | Language change by the admin does not touch `localeChosen`; creating a driver leaves it `false` | The first-start picker (NUD-050) is the driver's own choice |
+| 2026-10-17 | NUD-010 | Allowed countries come from env `ORS_GEOCODE_COUNTRIES` (default `AT,DE`), not from `Settings` | The ticket says "from settings" but `Settings` has no such column; avoiding a migration for a rarely changed value. Can move to Settings in NUD-012 |
+| 2026-10-17 | NUD-010 | Missing `ORS_API_KEY` uses the Fake with one warning also in production (no throw) | Ticket demands it; admins must confirm every pin (D9), and the Fake's low confidence (0.3) flags it |
+| 2026-10-17 | NUD-010 | Geocoding cache is an in-memory LRU per server instance, no DB table | Simplest option allowed by the ticket; volume is tiny |
+| 2026-10-17 | NUD-010 | ORS key sent in `Authorization` header; retry only timeouts/network/5xx/429 | Keeps the key out of URLs and logs; 4xx will not improve |
 
 ---
 

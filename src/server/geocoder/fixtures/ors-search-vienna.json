@@ -1,0 +1,94 @@
+{
+  "geocoding": {
+    "version": "0.2",
+    "attribution": "https://openrouteservice.org/terms-of-service/#attribution-geocode",
+    "query": {
+      "text": "Stephansplatz 1, 1010 Wien",
+      "size": 5,
+      "layers": [
+        "venue",
+        "street",
+        "country",
+        "macroregion",
+        "region",
+        "county",
+        "localadmin",
+        "locality",
+        "borough",
+        "localadmin",
+        "neighbourhood",
+        "continent",
+        "empire",
+        "dependency",
+        "macrocounty",
+        "macroregion",
+        "marinearea",
+        "disputed",
+        "postalcode",
+        "ocean",
+        "gid",
+        "coarse"
+      ],
+      "private": false,
+      "boundary.country": ["AUT", "DEU"],
+      "lang": {
+        "name": "German",
+        "iso6391": "de",
+        "iso6393": "deu",
+        "via": "default",
+        "defaulted": true
+      },
+      "querySize": 20,
+      "parser": "libpostal",
+      "parsed_text": {
+        "housenumber": "1",
+        "street": "stephansplatz",
+        "postalcode": "1010",
+        "city": "wien"
+      }
+    },
+    "engine": { "name": "Pelias", "author": "Mapzen", "version": "1.0" },
+    "timestamp": 1760700000000
+  },
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [16.372, 48.208492] },
+      "properties": {
+        "id": "node/1",
+        "gid": "openstreetmap:address:node/1",
+        "layer": "address",
+        "source": "openstreetmap",
+        "name": "Stephansplatz 1",
+        "housenumber": "1",
+        "street": "Stephansplatz",
+        "postalcode": "1010",
+        "confidence": 1,
+        "match_type": "exact",
+        "accuracy": "point",
+        "country": "Österreich",
+        "country_a": "AUT",
+        "region": "Wien",
+        "locality": "Wien",
+        "label": "Stephansplatz 1, Wien, Österreich"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [16.3735, 48.2086] },
+      "properties": {
+        "id": "way/2",
+        "gid": "openstreetmap:street:way/2",
+        "layer": "street",
+        "source": "openstreetmap",
+        "name": "Stephansplatz",
+        "confidence": 0.6,
+        "match_type": "fallback",
+        "accuracy": "centroid",
+        "label": "Stephansplatz, Wien, Österreich"
+      }
+    }
+  ],
+  "bbox": [16.372, 48.2086, 16.3735, 48.208492]
+}

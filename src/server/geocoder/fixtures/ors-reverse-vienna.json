@@ -1,0 +1,18 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [16.37201, 48.20849] },
+      "properties": {
+        "id": "node/1",
+        "layer": "address",
+        "name": "Stephansplatz 1",
+        "confidence": 1,
+        "distance": 0.004,
+        "accuracy": "point",
+        "label": "Stephansplatz 1, Wien, Österreich"
+      }
+    }
+  ]
+}
