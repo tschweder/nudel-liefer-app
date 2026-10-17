@@ -739,7 +739,8 @@
       "updatedTitle": "線路已更新",
       "updatedDescription": "辦公室更改了線路。請檢視標記的站點。顯示的始終是最新數量。",
       "removedStops": "已移除的站點",
-      "updatedConfirm": "我知道了"
+      "updatedConfirm": "我知道了",
+      "finishedSummary": "{delivered} 站已送達 · {problems, plural, =0 {無問題} other {# 站有問題}}"
     },
     "units": {
       "KG": "公斤",
@@ -763,6 +764,37 @@
       "stopNavigation": "切換站點",
       "previous": "上一站",
       "next": "下一站"
+    },
+    "status": {
+      "delivered": "已送達",
+      "problem": "有問題",
+      "actionsLabel": "完成此站",
+      "problemTitle": "遇到什麼問題？",
+      "problemDescription": "請選擇原因，文字說明可以不填。",
+      "noteLabel": "補充說明（可不填）",
+      "notePlaceholder": "例如：大門沒開",
+      "submit": "報告問題",
+      "cancel": "取消",
+      "undo": "撤銷",
+      "undone": "已撤銷",
+      "deliveredToast": "已送達：{name}",
+      "problemToast": "已報告問題：{name}",
+      "doneDelivered": "已送達",
+      "doneProblem": "問題：{reason}",
+      "doneAt": "{time} 完成",
+      "errors": {
+        "generic": "操作沒有成功，請再試一次。",
+        "network": "沒有網路連線，請再點一次。",
+        "already_completed": "這一站已經完成。",
+        "not_completed": "這一站還沒有完成。",
+        "undo_expired": "只能在 5 分鐘內撤銷。",
+        "tour_completed": "行程已結束，不能再修改。",
+        "tour_not_active": "這個行程目前無效。",
+        "not_found": "找不到這一站。",
+        "mutation_conflict": "操作沒有成功，請再試一次。",
+        "invalid": "操作沒有成功，請再試一次。",
+        "forbidden": "沒有許可權。"
+      }
     }
   }
 }

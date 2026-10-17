@@ -222,7 +222,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-050 | Driver first-start language picker | M1 | 005 | done |
 | NUD-051 | Driver "today's tour" screen | M1 | 043, 050 | done |
 | NUD-052 | Driver stop detail + navigation | M1 | 015, 051 | done |
-| NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | todo |
+| NUD-053 | Driver stop status (delivered / problem) | M1 | 052 | done |
 | NUD-054 | Admin live tour progress | M1 | 053 | todo |
 | NUD-060 | MVP demo seed + end-to-end happy path | M1 | 054 | todo |
 | NUD-070 | Translator interface + DeepL + OpenCC derivation | M2 | 003 | todo |
@@ -984,7 +984,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-053 · Driver stop status (delivered / problem)
-**Status:** todo · **depends_on:** 052
+**Status:** done · **depends_on:** 052
 
 **Goal:** driver closes each stop with one tap.
 
@@ -997,9 +997,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Each mutation carries a client-generated `clientMutationId` (UUID) → idempotent (prepares NUD-082).
 
 **Acceptance criteria**
-- [ ] Double-tapping "Delivered" creates exactly one state change (idempotency test).
-- [ ] Undo after 5 minutes is rejected.
-- [ ] Tour status transitions as specified (test).
+- [x] Double-tapping "Delivered" creates exactly one state change (idempotency test). (`stop-status.integration.test.ts`: same id twice, also in parallel -> one change, one `StopMutation`, replay returns the stored result; another id on a completed stop -> `already_completed`; component test: three clicks -> one action call; e2e `dblclick` -> one DB mutation.)
+- [x] Undo after 5 minutes is rejected. (Integration test: +5 min 1 s -> `undo_expired`, stop unchanged; exactly 5 min is still allowed; server clock.)
+- [x] Tour status transitions as specified (test). (Integration test: RELEASED -> IN_PROGRESS on the first completed stop (DELIVERED or PROBLEM) -> COMPLETED with `completedAt` on the last; undo of the only done stop leaves IN_PROGRESS; COMPLETED refuses undo; e2e checks the DB status per locale.)
+
+**Implementation notes**
+- Server: `applyStopMutation(db, actor, input, now)` in `src/server/stop-status.ts` is the one function per mutation (NUD-082's `POST /api/driver/sync` can loop over it; each queued entry brings its own `clientMutationId`). Input (strict zod union): `delivered`, `problem` (`reason` = `ProblemReason`, optional `note` <= 500 chars) and `undo`, each with `stopId` + `clientMutationId` (UUID). Result `{ok:true, replayed, kind, status, tourStatus, done, total, nextStopId, completedAt, undoUntil}` or `{ok:false, error}` (`invalid`, `forbidden`, `not_found`, `already_completed`, `not_completed`, `undo_expired`, `tour_completed`, `tour_not_active`, `mutation_conflict`). One transaction: `pg_advisory_xact_lock(hashtext('tour:<date>'))` first, then the id log, then guarded updates (`status = PENDING` / `<> PENDING`), then `syncTourProgress(tx, tourId)`. Server action `stopStatusAction` (`stop-status-actions.ts`): `requireRole("DRIVER")` first, then `applyStopMutation`, `revalidatePath` on success.
+- Data: migration `20261017190000_stop_mutation` adds `StopMutation` (id = clientMutationId, stopId, driverId, kind, stored result). It makes undo idempotent too (`Stop.clientMutationId` holds only one id); `Stop.clientMutationId` is still set on completion and cleared on undo. Accepted ids are recorded, rejections are not (a retry may succeed later). The same id for another stop / driver / kind is `mutation_conflict`.
+- Ownership: the stop must be in a RELEASED / IN_PROGRESS tour assigned to the acting driver (`not_found` otherwise, also for foreign stops). Not limited to "today", so a queued mutation synced after midnight still works. Free text is stored as `LocalizedText` with `source` = the driver's locale (`User.locale`, which the language switcher keeps in sync); translation is NUD-072.
+- Undo: 5 minutes from `completedAt` (server clock), `src/domain/stop-status.ts` (`UNDO_WINDOW_MS`, `isWithinUndoWindow`, `nextPendingAfter`). COMPLETED is final: once the last stop is done nothing can be undone (no undo in the toast, no undo button), and the tour never moves back from IN_PROGRESS.
+- UI: `StopStatusActions` (`components/driver/stop-status-actions.tsx`) fills the `status-actions-slot`: 80 px green "Geliefert", 64 px amber "Problem", bottom sheet with the seven reasons (lucide icons, 64 px, localized with `common.problemReasons`) and a free-text area; after success a toast (10 s, Undo button 48 px) and navigation to the next pending stop (next one behind it in tour order, else an earlier open one, else `/driver`). A completed stop shows a result card (status, reason, time) with Undo while inside the window. Buttons lock while a request runs; the `clientMutationId` is kept after a failed request without an answer (retry = same mutation) and renewed after any answer; `newClientMutationId` falls back to `getRandomValues` on plain HTTP. Stale-screen errors (`already_completed`, `not_found`, ...) show a message and refresh. "Tour finished": the all-done card on `/driver` now has a party icon and a summary ("3 geliefert, kein Problem"). Strings `driver.status.*`, `driver.today.finishedSummary` (de, zh-Hans by hand, Hant generated). `getDriverTour` / `TodayStop` got `problemReason` and `completedAt`.
+- Tests: `stop-status.integration.test.ts` (17: delivered, problem + LocalizedText source, idempotency incl. parallel, id conflicts, undo window, tour status walk, advance, ownership, lock wait, strict zod, action authorization anonymous / admin / deactivated), `domain/stop-status.test.ts`, `lib/client-id.test.ts`, `stop-status-actions.test.tsx` (7 x 4 locales), e2e `tests/e2e/driver-status.spec.ts` (4 locales at 375 px: buttons, sheet, touch targets, double tap, toast Undo, problem + note, finish, no undo after COMPLETED; stale screen; retry keeps the id).
+- Verified: lint, typecheck, prettier, `i18n:check`, all vitest files (incl. DB tests on embedded PostgreSQL, run in groups), `pnpm build`, e2e mobile `driver-status`, `driver-stop`, `driver-today` (fake S3); screenshots at 375 px (buttons de, sheet / toast / finished zh-Hant-TW) inspected, no horizontal scroll asserted.
+- NOT verified: real phone / Safari (touch, sheet with keyboard, toast gestures); the 5-minute expiry only with an injected clock, not waited in e2e; a live race with an admin re-release (covered by the shared advisory lock and a lock-wait test); offline behaviour beyond the retry with the same id (NUD-082); Chinese strings are agent-written (NUD-073); the toast overlaps the list on the finished screen for 10 s.
+- Follow-ups: NUD-054 should show `problemReason` / `problemNote` (the note is in the driver's language until NUD-072); NUD-082 must add the "server state wins" conflict rule on top of `applyStopMutation` and may need a `completedAt` override for entries queued offline (the undo window currently counts from server receipt).
 
 ---
 
@@ -1495,3 +1506,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-052 | Photos shown `contain` in a fixed 4:3 frame; missing photo uses the same frame | Layout never shifts; the whole photo is visible without cropping |
 | 2026-10-17 | NUD-052 | DE badge shown whenever the picked note text is German and the UI locale is not German (via `pickWithSource`) | Becomes invisible automatically once NUD-071 adds translations |
 | 2026-10-17 | NUD-052 | German product name is shown only when it differs from the displayed name; copied address = "street, postal code city" | Avoids a duplicate line in German; address format matches the list |
+| 2026-10-17 | NUD-053 | Idempotency log table `StopMutation` (id = clientMutationId, stored result) in addition to `Stop.clientMutationId` | A single unique column on Stop cannot make undo replay-safe or return the same result for a replay; accepted ids only, rejections are retryable |
+| 2026-10-17 | NUD-053 | Once the tour is COMPLETED nothing can be undone (also not the last stop); undoing the only done stop leaves the tour IN_PROGRESS | COMPLETED is final and the tour never moves backwards in the status machine; avoids widening it |
+| 2026-10-17 | NUD-053 | Auto-advance = next PENDING stop behind the current one in tour order, else the first open one before it, else the tour screen (finished) | Follows the driving order; never leaves the driver on a done stop while others are open |
+| 2026-10-17 | NUD-053 | Stop mutations are not limited to "today"; the stop only has to be in the driver's own RELEASED / IN_PROGRESS tour | Queued offline mutations (NUD-082) may sync after midnight |
+| 2026-10-17 | NUD-053 | Status buttons sit in the page flow (slot after items / notes), no sticky bar; Undo also as a button on the result card within the window | Simplest consistent with NUD-052; toast alone is gone after navigation |
+| 2026-10-17 | NUD-053 | Problem free text is optional for every reason (also OTHER); source locale = `User.locale` of the acting driver | Ticket says optional; the language switcher keeps `User.locale` in sync with the UI |
+| 2026-10-17 | NUD-053 | "Tour finished" screen = enhanced all-done card on `/driver` with delivered / problem counts | The driver is sent there after the last stop; no extra route needed |

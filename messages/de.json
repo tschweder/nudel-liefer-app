@@ -738,7 +738,8 @@
       "updatedTitle": "Tour wurde aktualisiert",
       "updatedDescription": "Das Büro hat die Tour geändert. Bitte die markierten Stopps prüfen. Angezeigt sind immer die aktuellen Mengen.",
       "removedStops": "Entfernte Stopps",
-      "updatedConfirm": "Verstanden"
+      "updatedConfirm": "Verstanden",
+      "finishedSummary": "{delivered} geliefert · {problems, plural, =0 {kein Problem} one {# Problem} other {# Probleme}}"
     },
     "units": {
       "KG": "kg",
@@ -762,6 +763,37 @@
       "stopNavigation": "Zwischen Stopps wechseln",
       "previous": "Zurück",
       "next": "Weiter"
+    },
+    "status": {
+      "delivered": "Geliefert",
+      "problem": "Problem",
+      "actionsLabel": "Stopp abschließen",
+      "problemTitle": "Was ist das Problem?",
+      "problemDescription": "Grund auswählen. Ein Text ist freiwillig.",
+      "noteLabel": "Anmerkung (freiwillig)",
+      "notePlaceholder": "z. B. Tor war zu",
+      "submit": "Problem melden",
+      "cancel": "Abbrechen",
+      "undo": "Rückgängig",
+      "undone": "Rückgängig gemacht",
+      "deliveredToast": "Geliefert: {name}",
+      "problemToast": "Problem gemeldet: {name}",
+      "doneDelivered": "Geliefert",
+      "doneProblem": "Problem: {reason}",
+      "doneAt": "um {time}",
+      "errors": {
+        "generic": "Das hat nicht geklappt. Bitte erneut versuchen.",
+        "network": "Keine Verbindung. Bitte erneut tippen.",
+        "already_completed": "Dieser Stopp ist schon erledigt.",
+        "not_completed": "Dieser Stopp ist nicht erledigt.",
+        "undo_expired": "Rückgängig geht nur in den ersten 5 Minuten.",
+        "tour_completed": "Die Tour ist abgeschlossen, nichts mehr änderbar.",
+        "tour_not_active": "Diese Tour ist nicht aktiv.",
+        "not_found": "Stopp nicht gefunden.",
+        "mutation_conflict": "Das hat nicht geklappt. Bitte erneut versuchen.",
+        "invalid": "Das hat nicht geklappt. Bitte erneut versuchen.",
+        "forbidden": "Dazu fehlt die Berechtigung."
+      }
     }
   }
 }

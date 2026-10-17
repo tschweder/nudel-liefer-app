@@ -50,6 +50,8 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
   id: `s${sequence}`,
   sequence,
   status: "PENDING",
+  problemReason: null,
+  completedAt: null,
   etaAt: `2099-07-02T0${5 + sequence}:15:00Z`,
   legDurationS: 600,
   change: null,
@@ -135,6 +137,23 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     renderIn(locale, <TodayTour today={today([stop(1, { status: "DELIVERED" })])} tiles={TILES} />);
     expect(screen.getByTestId("all-done")).toBeInTheDocument();
     expect(screen.queryByTestId("next-stop")).toBeNull();
+  });
+
+  it("summarizes delivered stops and problems on the finished screen", () => {
+    renderIn(
+      locale,
+      <TodayTour
+        today={today([
+          stop(1, { status: "DELIVERED" }),
+          stop(2, { status: "PROBLEM", problemReason: "CLOSED" }),
+          stop(3, { status: "DELIVERED" }),
+        ])}
+        tiles={TILES}
+      />,
+    );
+    const summary = screen.getByTestId("finished-summary");
+    expect(summary).toHaveTextContent("2");
+    expect(summary).toHaveTextContent("1");
   });
 
   it("shows the updated banner and highlights until acknowledged", () => {

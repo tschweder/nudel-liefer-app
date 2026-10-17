@@ -738,7 +738,8 @@
       "updatedTitle": "线路已更新",
       "updatedDescription": "办公室更改了线路。请查看标记的站点。显示的始终是最新数量。",
       "removedStops": "已移除的站点",
-      "updatedConfirm": "我知道了"
+      "updatedConfirm": "我知道了",
+      "finishedSummary": "{delivered} 站已送达 · {problems, plural, =0 {无问题} other {# 站有问题}}"
     },
     "units": {
       "KG": "公斤",
@@ -762,6 +763,37 @@
       "stopNavigation": "切换站点",
       "previous": "上一站",
       "next": "下一站"
+    },
+    "status": {
+      "delivered": "已送达",
+      "problem": "有问题",
+      "actionsLabel": "完成此站",
+      "problemTitle": "遇到什么问题？",
+      "problemDescription": "请选择原因，文字说明可以不填。",
+      "noteLabel": "补充说明（可不填）",
+      "notePlaceholder": "例如：大门没开",
+      "submit": "报告问题",
+      "cancel": "取消",
+      "undo": "撤销",
+      "undone": "已撤销",
+      "deliveredToast": "已送达：{name}",
+      "problemToast": "已报告问题：{name}",
+      "doneDelivered": "已送达",
+      "doneProblem": "问题：{reason}",
+      "doneAt": "{time} 完成",
+      "errors": {
+        "generic": "操作没有成功，请再试一次。",
+        "network": "没有网络连接，请再点一次。",
+        "already_completed": "这一站已经完成。",
+        "not_completed": "这一站还没有完成。",
+        "undo_expired": "只能在 5 分钟内撤销。",
+        "tour_completed": "行程已结束，不能再修改。",
+        "tour_not_active": "这个行程目前无效。",
+        "not_found": "找不到这一站。",
+        "mutation_conflict": "操作没有成功，请再试一次。",
+        "invalid": "操作没有成功，请再试一次。",
+        "forbidden": "没有权限。"
+      }
     }
   }
 }

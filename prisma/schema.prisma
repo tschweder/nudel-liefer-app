@@ -272,12 +272,33 @@ model Stop {
   /// `Tour.releaseRevision` in which `changeKind` was set; the driver highlights revisions it has not seen yet.
   changedInRevision Int?
 
-  tour     Tour        @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  orders   StopOrder[]
+  tour      Tour           @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orders    StopOrder[]
+  mutations StopMutation[]
 
   @@index([tourId, sequence])
   @@index([customerId])
+}
+
+/// Driver stop-status mutation log (NUD-053): one row per accepted client mutation, keyed by the
+/// client-generated id. A replay of the same id returns `result` without a second state change.
+model StopMutation {
+  id        String           @id
+  stopId    String
+  driverId  String
+  kind      StopMutationKind
+  result    Json
+  createdAt DateTime         @default(now())
+
+  stop Stop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+
+  @@index([stopId])
+}
+
+enum StopMutationKind {
+  COMPLETE
+  UNDO
 }
 
 model StopOrder {

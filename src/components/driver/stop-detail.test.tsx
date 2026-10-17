@@ -11,8 +11,9 @@ import zhHantHK from "../../../messages/zh-Hant-HK.json";
 import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { StopDetail } from "./stop-detail";
 
+vi.mock("@/server/stop-status-actions", () => ({ stopStatusAction: vi.fn() }));
 vi.mock("@/i18n/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
     <a href={href} {...rest}>
       {children}
@@ -61,6 +62,8 @@ const detail = (extra: Partial<DriverStopDetail> = {}): DriverStopDetail => ({
     id: "s2",
     sequence: 2,
     status: "PENDING",
+    problemReason: null,
+    completedAt: null,
     etaAt: "2099-07-02T08:15:00Z",
     legDurationS: 600,
     change: null,

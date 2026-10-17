@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import type { DriverStopDetail, StopPhoto } from "@/server/driver-stop";
 
 import { RefreshOnFocus } from "./refresh-on-focus";
+import { StopStatusActions } from "./stop-status-actions";
 
 type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
 
@@ -285,8 +286,14 @@ export function StopDetail({ detail }: { detail: DriverStopDetail }) {
         </section>
       ) : null}
 
-      {/* NUD-053: status buttons ("Delivered" / "Problem") and the problem sheet go here. */}
-      <div data-testid="status-actions-slot" />
+      <div data-testid="status-actions-slot">
+        <StopStatusActions
+          key={`${stop.id}:${stop.status}`}
+          stop={stop}
+          tourStatus={detail.tourStatus}
+          timezone={detail.timezone}
+        />
+      </div>
 
       <nav className="grid grid-cols-2 gap-3" aria-label={t("stop.stopNavigation")}>
         <StopLink

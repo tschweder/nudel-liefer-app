@@ -24,6 +24,8 @@ export type TodayStop = {
   id: string;
   sequence: number;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
+  problemReason: string | null;
+  completedAt: string | null;
   etaAt: string | null;
   legDurationS: number | null;
   change: "ADDED" | "CHANGED" | null;
@@ -118,6 +120,8 @@ export async function getDriverToday(
         id: stop.id,
         sequence: stop.sequence,
         status: stop.status,
+        problemReason: stop.problemReason,
+        completedAt: stop.completedAt,
         etaAt: stop.etaAt,
         legDurationS: stop.legDurationS,
         change: stop.change,

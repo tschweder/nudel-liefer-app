@@ -37,6 +37,10 @@ export type DriverStop = {
   sequence: number;
   customerId: string;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
+  /** Why the stop is a PROBLEM (NUD-053), else `null`. */
+  problemReason: string | null;
+  /** When the driver completed the stop (ISO), else `null`; the undo window counts from here. */
+  completedAt: string | null;
   etaAt: string | null;
   /** Planned driving time of the leg arriving at this stop (seconds). */
   legDurationS: number | null;
@@ -111,6 +115,8 @@ export async function getDriverTour(
         sequence: stop.sequence,
         customerId: stop.customerId,
         status: stop.status,
+        problemReason: stop.problemReason,
+        completedAt: stop.completedAt?.toISOString() ?? null,
         etaAt: stop.etaAt?.toISOString() ?? null,
         legDurationS: stop.legDurationS,
         change: stop.changeKind,

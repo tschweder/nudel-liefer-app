@@ -10,6 +10,7 @@ import {
   MapPinIcon,
   NavigationIcon,
   PackageIcon,
+  PartyPopperIcon,
   PencilLineIcon,
   PlusCircleIcon,
   RefreshCwIcon,
@@ -380,17 +381,22 @@ export function TodayTour({ today, tiles }: { today: DriverToday; tiles: MapTile
         <NextStopCard stop={next} timezone={today.timezone} unseen={unseen(next)} />
       ) : (
         <div
-          className="flex items-center gap-3 rounded-xl border-2 border-green-600 p-4"
+          className="space-y-3 rounded-xl border-2 border-green-600 bg-green-50 p-5 text-green-950 dark:bg-green-950/40 dark:text-green-50"
           data-testid="all-done"
         >
-          <CheckCircle2Icon
-            className="size-10 shrink-0 text-green-700 dark:text-green-400"
-            aria-hidden
-          />
-          <div>
-            <p className="text-xl font-bold">{t("allDoneTitle")}</p>
-            <p className="text-base">{t("allDoneDescription")}</p>
+          <div className="flex items-center gap-3">
+            <PartyPopperIcon className="size-12 shrink-0" aria-hidden />
+            <div>
+              <p className="text-2xl font-bold">{t("allDoneTitle")}</p>
+              <p className="text-base">{t("allDoneDescription")}</p>
+            </div>
           </div>
+          <p className="text-lg font-semibold" data-testid="finished-summary">
+            {t("finishedSummary", {
+              delivered: today.stops.filter((s) => s.status === "DELIVERED").length,
+              problems: today.stops.filter((s) => s.status === "PROBLEM").length,
+            })}
+          </p>
         </div>
       )}
 
