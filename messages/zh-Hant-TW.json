@@ -335,6 +335,56 @@
         }
       }
     },
+    "products": {
+      "title": "產品",
+      "description": "管理麵條品種。此處的順序也是下訂單時產品選擇列表的順序。",
+      "new": "新建產品",
+      "editTitle": "編輯產品",
+      "backToList": "返回產品列表",
+      "emptyTitle": "還沒有產品",
+      "empty": "尚未建立任何產品。",
+      "columns": {
+        "order": "排序",
+        "sku": "貨號",
+        "nameDe": "名稱（德語）",
+        "nameHans": "名稱（簡體）",
+        "unit": "單位",
+        "status": "狀態",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "啟用",
+        "inactive": "已停用"
+      },
+      "moveUp": "上移 {name}",
+      "moveDown": "下移 {name}",
+      "deactivate": "停用",
+      "activate": "啟用",
+      "deactivated": "產品已停用，新訂單中將不再出現。",
+      "activated": "產品已重新啟用。",
+      "form": {
+        "dataHeading": "基本資訊",
+        "namesHeading": "名稱",
+        "sku": "貨號（SKU）",
+        "skuHint": "可使用字母、數字、點、連字元和下劃線，必須唯一。",
+        "skuTaken": "該貨號已被使用。",
+        "unit": "單位",
+        "unitLocked": "該產品已用於訂單，單位無法再修改。",
+        "unitLockedError": "該產品已用於訂單，無法修改單位。",
+        "namesHint": "德語和簡體中文需手動填寫，兩種繁體名稱會據此自動生成，也可以自行修改。",
+        "nameDe": "名稱（德語）",
+        "nameHans": "名稱（簡體中文）",
+        "nameHk": "名稱（繁體，香港）",
+        "nameTw": "名稱（繁體，臺灣）",
+        "hansRequired": "簡體中文名稱為必填項。",
+        "auto": "自動",
+        "rederive": "根據簡體名稱重新生成",
+        "invalid": "請檢查輸入內容。",
+        "generic": "儲存失敗，請重試。",
+        "savedNew": "產品已建立。",
+        "savedEdit": "產品已儲存。"
+      }
+    },
     "maps": {
       "locate": "查詢地址",
       "locating": "正在查詢…",

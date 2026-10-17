@@ -334,6 +334,56 @@
         }
       }
     },
+    "products": {
+      "title": "Produkte",
+      "description": "Nudelsorten verwalten. Die Reihenfolge gilt auch in der Produktauswahl bei der Bestellung.",
+      "new": "Neues Produkt",
+      "editTitle": "Produkt bearbeiten",
+      "backToList": "Zurück zur Produktliste",
+      "emptyTitle": "Noch keine Produkte",
+      "empty": "Es wurden noch keine Produkte angelegt.",
+      "columns": {
+        "order": "Reihenfolge",
+        "sku": "Artikelnr.",
+        "nameDe": "Name (Deutsch)",
+        "nameHans": "Name (vereinfacht)",
+        "unit": "Einheit",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "status": {
+        "active": "Aktiv",
+        "inactive": "Inaktiv"
+      },
+      "moveUp": "{name} nach oben",
+      "moveDown": "{name} nach unten",
+      "deactivate": "Deaktivieren",
+      "activate": "Aktivieren",
+      "deactivated": "Produkt deaktiviert. Es erscheint nicht mehr bei neuen Bestellungen.",
+      "activated": "Produkt wieder aktiviert.",
+      "form": {
+        "dataHeading": "Stammdaten",
+        "namesHeading": "Namen",
+        "sku": "Artikelnummer (SKU)",
+        "skuHint": "Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich. Muss eindeutig sein.",
+        "skuTaken": "Diese Artikelnummer ist bereits vergeben.",
+        "unit": "Einheit",
+        "unitLocked": "Die Einheit kann nicht mehr geändert werden, weil das Produkt schon in Bestellungen vorkommt.",
+        "unitLockedError": "Die Einheit kann nicht geändert werden, weil das Produkt schon in Bestellungen vorkommt.",
+        "namesHint": "Deutsch und vereinfachtes Chinesisch werden von Hand eingegeben. Die beiden traditionellen Varianten werden daraus automatisch vorgeschlagen und können angepasst werden.",
+        "nameDe": "Name (Deutsch)",
+        "nameHans": "Name (vereinfachtes Chinesisch)",
+        "nameHk": "Name (traditionell, Hongkong)",
+        "nameTw": "Name (traditionell, Taiwan)",
+        "hansRequired": "Der Name auf vereinfachtem Chinesisch ist ein Pflichtfeld.",
+        "auto": "automatisch",
+        "rederive": "Neu aus vereinfachtem Namen ableiten",
+        "invalid": "Bitte Eingaben prüfen.",
+        "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+        "savedNew": "Produkt angelegt.",
+        "savedEdit": "Produkt gespeichert."
+      }
+    },
     "maps": {
       "locate": "Adresse suchen",
       "locating": "Suche läuft …",

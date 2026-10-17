@@ -211,7 +211,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-013 | Customer list & search | M1 | 005 | done |
 | NUD-014 | Customer create/edit with pin confirmation | M1 | 010, 011, 013 | done |
 | NUD-015 | Customer photos (admin upload/replace) | M1 | 006, 014 | done |
-| NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | todo |
+| NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | done |
 | NUD-030 | Manual order entry | M1 | 014, 020 | todo |
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | todo |
 | NUD-032 | Order overview & editing | M1 | 030 | todo |
@@ -241,6 +241,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | todo |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
+| NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -667,7 +668,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-020 · Product catalog CRUD (multilingual names)
-**Status:** todo · **depends_on:** 003, 005
+**Status:** done · **depends_on:** 003, 005
 
 **Goal:** the list of pasta products, readable by every driver.
 
@@ -677,9 +678,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Deactivate instead of delete; inactive products are hidden in order entry but kept on old orders.
 
 **Acceptance criteria**
-- [ ] Saving without `zh-Hans` name is rejected.
-- [ ] Typing `螺旋意面` in zh-Hans pre-fills both Traditional fields with OpenCC output.
-- [ ] Inactive products don't appear in the order entry product picker.
+- [x] Saving without `zh-Hans` name is rejected. (Server: integration test with empty / blank / missing name; UI: localized field error, e2e.)
+- [x] Typing `螺旋意面` in zh-Hans pre-fills both Traditional fields with OpenCC output. (e2e: `螺旋意麪` HK / `螺旋意麵` TW, both marked "automatisch".)
+- [x] Inactive products don't appear in the order entry product picker. (The picker itself is NUD-030; its data source `getActiveProducts()` / `activeProductsQuery()` is integration-tested to hide inactive products while old order items keep their product. NUD-030 must use it.)
+
+
+**Implementation notes**
+- Pages: `/admin/products` (table: up/down buttons, SKU, German name, Simplified name, unit, active badge, edit, deactivate/activate), `/admin/products/new`, `/admin/products/[id]/edit`; the existing admin nav entry is unchanged. All three pages call `requirePageActor("admin")`.
+- Form (`src/components/admin/product-form.tsx`): SKU, unit (native select with localized labels), `de` and `zh-Hans` required, HK/TW names pre-filled live from Simplified. The two Traditional fields carry an "automatisch" badge until the user types in them; a "neu ableiten" button switches a field back to auto. New products start with both auto; on edit a field is auto only if `meta.machine` says it was derived.
+- OpenCC runs on the server: server action `deriveHantAction` (admin only, debounced 200 ms in the form, stale answers dropped), so the dictionaries are not added to the browser bundle by this ticket. On save the server recomputes every field flagged auto (and any empty field) from Simplified, so what is stored never depends on client code; hand-edited names are kept and not flagged in `meta.machine`.
+- Server (`src/server/products.ts`, zod `productInputSchema`; actions in `product-actions.ts`, reads in `product-queries.ts`, all start with `requireRole("ADMIN")`): `createProduct`, `updateProduct`, `setProductActive` (soft delete, no hard delete exists), `moveProduct` (swap with neighbour, renumbers `sortOrder` 0..n-1 in a transaction, which also repairs ties), `listProducts`, `getProduct`, and `getActiveProducts(db)` / `activeProductsQuery()` for the order entry picker (active only, `sortOrder` order). `src/lib/units.ts` holds the unit list for client code.
+- Tests: `src/server/product-actions.integration.test.ts` (11 cases: anonymous / driver / deactivated admin rejected on every action and read, required names, OpenCC derivation and machine flags, server-side recompute vs hand-edited, duplicate SKU case-insensitive, append + up/down + tie repair, picker query hides inactive but old orders keep the product, unit lock, derive action), `tests/e2e/products.spec.ts` (desktop + mobile: required zh-Hans, live pre-fill, auto markers, duplicate SKU, edit, reorder (desktop only, shared list), deactivate/activate, no horizontal scroll, anonymous redirect).
+- Verified: lint, typecheck, prettier, `pnpm test` (301 passed incl. DB), `i18n:check`, `pnpm build`, e2e products (twice, desktop + mobile), shells (34 passed, includes the products page in 4 locales), customers, drivers.
+- NOT verified: the e2e `customer-form` / `customer-photos` / `settings` / `maps` specs were not rerun (untouched code); agent-written Chinese strings unreviewed (NUD-073); the up/down buttons were not tried on a real touch device; layout inspected only through the no-horizontal-scroll assertion at 1280 and Pixel 7 widths.
+- Surprise: the 1.3 MB OpenCC dictionary is already in a client chunk because `language-switcher.tsx` and `users-manager.tsx` import `LOCALES` from `src/lib/localized-text.ts`, which imports OpenCC (NUD-003/008, not this ticket); see NUD-098.
+- Follow-ups: NUD-030 uses `activeProductsQuery()`; the seeded products have identical hand-written HK and TW names (not marked machine), so the form shows them without "automatisch".
 
 ---
 
@@ -1184,6 +1197,20 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 ---
 
+#### NUD-098 · Keep OpenCC out of the client bundle
+**Status:** todo · **depends_on:** 003
+
+**Goal:** the browser must not download the ~1.3 MB OpenCC dictionaries (found in NUD-020: `language-switcher.tsx` and `users-manager.tsx` import `LOCALES` from `src/lib/localized-text.ts`, which imports `src/lib/opencc.ts`).
+
+**Scope**
+- Split locale constants/types/zod schema/`pick` from the OpenCC-based `withDerivedHant` (e.g. a server-only module), keep the public behaviour and tests.
+- Check the production build: no chunk under `.next/static` contains OpenCC data (e.g. grep for a dictionary entry such as `麪`).
+
+**Acceptance criteria**
+- [ ] No client chunk contains OpenCC; all existing tests pass.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -1274,6 +1301,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-015 | One-current-per-kind enforced by a transaction with a row lock on the customer, no partial unique index | Matches the NUD-002 decision (app-level uniqueness); no migration needed |
 | 2026-10-17 | NUD-015 | Slot titles "Geschäft / Eingang" / "Parken / Entladen" (zh-Hans "店铺 / 入口" / "停车 / 卸货") replace the old "Geschäftsfoto"/"Parkplatzfoto" labels | Wording from the ticket scope |
 | 2026-10-17 | NUD-014 | Country is a 2-letter text field (default AT), stored upper-case; archiving needs a confirmation dialog, reactivating does not | Simplest; no country list needed in v1 |
+| 2026-10-17 | NUD-020 | Live OpenCC pre-fill uses a debounced (200 ms) admin-only server action, not opencc-js in the browser | Simplest; keeps the OpenCC dictionaries out of the form's client code (the ~1.3 MB already shipped comes from another import, see NUD-098); the server also recomputes auto fields on save |
+| 2026-10-17 | NUD-020 | "auto" = Traditional field flagged in `LocalizedText.meta.machine`; stays auto until the user types in it (button re-derives); hand-edited names are stored unflagged; an empty Traditional field is derived, never stored empty | Reuses the existing LocalizedText flag; D15 says Hant is derived and editable |
+| 2026-10-17 | NUD-020 | SKU is trimmed, upper-cased, `[A-Za-z0-9._-]{1,32}`, unique case-insensitively; new products are appended (`max(sortOrder)+1`) | Simplest consistent form; matches the seed's SKUs |
+| 2026-10-17 | NUD-020 | A product's unit cannot be changed once it has order items (error `unit_locked`, select disabled) | Changing PACK to KG on old orders would silently alter delivered quantities (client priority 2) |
+| 2026-10-17 | NUD-020 | Reordering = up/down buttons over the full list (active and inactive together), renumbering `sortOrder` 0..n-1 in a transaction; the picker query returns active products in that order | Ticket allows drag or up/down; renumbering also repairs ties |
+| 2026-10-17 | NUD-020 | Deactivate/reactivate without a confirmation dialog | Fully reversible and affects only new orders; customers need a dialog because of routing impact |
 
 ---
 

@@ -334,6 +334,56 @@
         }
       }
     },
+    "products": {
+      "title": "产品",
+      "description": "管理面条品种。此处的顺序也是下订单时产品选择列表的顺序。",
+      "new": "新建产品",
+      "editTitle": "编辑产品",
+      "backToList": "返回产品列表",
+      "emptyTitle": "还没有产品",
+      "empty": "尚未创建任何产品。",
+      "columns": {
+        "order": "排序",
+        "sku": "货号",
+        "nameDe": "名称（德语）",
+        "nameHans": "名称（简体）",
+        "unit": "单位",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "status": {
+        "active": "启用",
+        "inactive": "已停用"
+      },
+      "moveUp": "上移 {name}",
+      "moveDown": "下移 {name}",
+      "deactivate": "停用",
+      "activate": "启用",
+      "deactivated": "产品已停用，新订单中将不再出现。",
+      "activated": "产品已重新启用。",
+      "form": {
+        "dataHeading": "基本信息",
+        "namesHeading": "名称",
+        "sku": "货号（SKU）",
+        "skuHint": "可使用字母、数字、点、连字符和下划线，必须唯一。",
+        "skuTaken": "该货号已被使用。",
+        "unit": "单位",
+        "unitLocked": "该产品已用于订单，单位无法再修改。",
+        "unitLockedError": "该产品已用于订单，无法修改单位。",
+        "namesHint": "德语和简体中文需手动填写，两种繁体名称会据此自动生成，也可以自行修改。",
+        "nameDe": "名称（德语）",
+        "nameHans": "名称（简体中文）",
+        "nameHk": "名称（繁体，香港）",
+        "nameTw": "名称（繁体，台湾）",
+        "hansRequired": "简体中文名称为必填项。",
+        "auto": "自动",
+        "rederive": "根据简体名称重新生成",
+        "invalid": "请检查输入内容。",
+        "generic": "保存失败，请重试。",
+        "savedNew": "产品已创建。",
+        "savedEdit": "产品已保存。"
+      }
+    },
     "maps": {
       "locate": "查找地址",
       "locating": "正在查找…",
