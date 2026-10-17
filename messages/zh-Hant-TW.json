@@ -332,7 +332,8 @@
           "not_found": "找不到該客戶。",
           "object_missing": "找不到已上傳的圖片，請重新上傳。",
           "key_in_use": "該圖片已被使用，請重新上傳。"
-        }
+        },
+        "archiveUpcoming": "{count, plural, other {注意：該客戶還有 # 個待處理訂單}}。這些訂單會保留，但不會自動取消，請先檢查。"
       }
     },
     "products": {
@@ -448,18 +449,20 @@
     },
     "orders": {
       "title": "訂單",
-      "description": "今天及以後的待處理訂單。帶篩選功能的完整總覽稍後上線。",
+      "description": "按送貨日期檢視所有訂單。預設顯示下一個送貨日。",
       "new": "新建訂單",
       "newTitle": "錄入新訂單",
       "backToList": "返回訂單列表",
-      "emptyTitle": "暫無訂單",
-      "empty": "今天及以後沒有訂單。",
+      "emptyTitle": "沒有找到訂單",
+      "empty": "當前篩選條件下沒有訂單。",
       "columns": {
         "date": "送貨日期",
         "customer": "客戶",
         "items": "訂單明細",
         "status": "狀態",
-        "source": "來源"
+        "source": "來源",
+        "lines": "明細行數",
+        "tour": "路線"
       },
       "source": {
         "MANUAL": "手動錄入",
@@ -503,7 +506,9 @@
           "productNotFound": "未找到所選產品，請重新整理頁面。",
           "generic": "儲存失敗，請重試。",
           "screenshotMissing": "未找到該截圖，請重新上傳。",
-          "screenshotInUse": "該截圖已屬於另一個訂單。"
+          "screenshotInUse": "該截圖已屬於另一個訂單。",
+          "notEditable": "該訂單無法再修改（已取消或送貨日已過）。",
+          "notFound": "未找到該訂單。"
         },
         "savedConfirmed": "訂單已儲存。",
         "savedDraft": "草稿已儲存。",
@@ -514,14 +519,69 @@
           "alt": "訂單訊息截圖",
           "zoomHint": "滾輪或加減按鈕縮放，拖動平移，雙擊放大。",
           "previewFailed": "截圖已上傳，但無法顯示，請重試。"
-        }
+        },
+        "savedChanges": "修改已儲存。",
+        "editTitle": "編輯訂單",
+        "customerFixed": "客戶無法事後更改。如果客戶選錯，請取消該訂單並重新錄入。"
       },
       "detail": {
         "title": "訂單",
         "noNote": "沒有內部備註。",
         "noScreenshot": "該訂單沒有截圖。",
         "screenshotAlt": "訂單訊息截圖",
-        "screenshotHint": "點選放大。"
+        "screenshotHint": "點選放大。",
+        "edit": "編輯",
+        "cancel": "取消訂單",
+        "duplicate": "複製到其他日期",
+        "inTour": "該訂單已編入路線。",
+        "notInTour": "尚未編入任何路線。",
+        "tourHeading": "路線",
+        "readOnlyCancelled": "該訂單已取消，無法再修改。",
+        "readOnlyPast": "送貨日已過，訂單無法再修改，但可以複製到其他日期。",
+        "cancelTitle": "取消訂單？",
+        "cancelDescription": "訂單會以“已取消”狀態保留，但不再計入合計，也不會編入任何路線。此操作無法撤銷。",
+        "cancelTourNote": "該訂單已在一條路線中。該路線將被標記為已過期，需要重新規劃。",
+        "cancelConfirm": "確認取消",
+        "cancelled": "訂單已取消。",
+        "duplicateTitle": "複製訂單",
+        "duplicateDescription": "將建立一份新的草稿，包含相同的明細和內部備註。截圖不會被複制。",
+        "duplicateDate": "新的送貨日期",
+        "duplicateConfirm": "建立副本",
+        "duplicated": "已建立草稿副本。",
+        "actionErrors": {
+          "invalid": "請填寫有效的日期。",
+          "not_found": "未找到該訂單。",
+          "not_editable": "該訂單無法再修改。",
+          "date_in_past": "送貨日期不能早於今天。",
+          "customer_inactive": "該客戶已歸檔，無法再新增新訂單。",
+          "product_not_found": "訂單中的某個產品未找到。",
+          "product_inactive": "訂單中的某個產品已被停用，無法複製。",
+          "generic": "操作失敗，請重試。"
+        }
+      },
+      "inTour": "已編入路線",
+      "filters": {
+        "heading": "篩選",
+        "from": "從",
+        "to": "到",
+        "customer": "客戶",
+        "customerAll": "所有客戶",
+        "customerSearch": "按名稱或編號搜尋",
+        "customerEmpty": "未找到客戶。",
+        "status": "狀態",
+        "statusAll": "所有狀態",
+        "source": "來源",
+        "sourceAll": "所有來源",
+        "reset": "重置（下一個送貨日）"
+      },
+      "truncated": "僅顯示前 {count} 個訂單，請縮小日期範圍或篩選條件。",
+      "totals": {
+        "heading": "每個送貨日的合計",
+        "description": "當天所有已確認訂單按產品的數量合計。草稿和已取消的訂單不計入。合計不受客戶、狀態和來源篩選的影響。",
+        "dateHeading": "{date} · {count} 個已確認訂單",
+        "product": "產品",
+        "quantity": "數量",
+        "empty": "所選時間段內沒有已確認訂單。"
       }
     }
   },

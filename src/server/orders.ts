@@ -2,15 +2,27 @@ import { z } from "zod";
 
 import {
   centsToDecimal,
+  formatCalendarDate,
   isPastDeliveryDate,
   orderInputSchema,
   parseCalendarDate,
+  parseQuantityCents,
 } from "@/domain/order";
+import {
+  aggregateTotalsByDate,
+  isOrderEditable,
+  type OrderFilters,
+  totalToDecimal,
+} from "@/domain/order-overview";
 import { calendarDayIn } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import type { Storage } from "./storage/types";
+import type { TourService } from "./tour-service";
+
+/** What the order mutations need from the tour side (see `tour-service.ts`). */
+export type TourHook = Pick<TourService, "markOutdatedForDate">;
 
 type OrderDb = Pick<PrismaClient, "order" | "customer" | "product" | "screenshot">;
 
@@ -44,7 +56,7 @@ export function todayIn(timezone: string, now: Date = new Date()): Date {
  * attached only once; then a `Screenshot` row is created together with the order. The caller checked the role. Validation is repeated here because the client is
  * never trusted: quantities > 0, at least one line, same product merged, customer and products
  * must exist and be active (archived customers / inactive products are not accepted), and the
- * delivery day must not lie in the past.
+ * delivery day must not lie in the past. Afterwards the tours of that day are flagged outdated.
  */
 export async function createOrder(
   db: OrderDb,
@@ -52,6 +64,7 @@ export async function createOrder(
   rawInput: unknown,
   today: Date,
   storage: Pick<Storage, "head">,
+  tours: TourHook,
 ): Promise<OrderSaveResult> {
   const parsed = orderInputSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "invalid" };
@@ -104,6 +117,7 @@ export async function createOrder(
     },
     select: { id: true },
   });
+  await tours.markOutdatedForDate(v.deliveryDate);
   return { ok: true, id: order.id, status: v.status };
 }
 
@@ -141,12 +155,19 @@ export async function countConfirmedOrders(
   db: Pick<PrismaClient, "order">,
   rawCustomerId: unknown,
   rawDate: unknown,
+  rawExcludeOrderId?: unknown,
 ): Promise<number> {
   const customerId = idSchema.safeParse(rawCustomerId);
   const date = typeof rawDate === "string" ? parseCalendarDate(rawDate.trim()) : null;
   if (!customerId.success || !date) return 0;
+  const exclude = idSchema.safeParse(rawExcludeOrderId);
   return db.order.count({
-    where: { customerId: customerId.data, deliveryDate: date, status: "CONFIRMED" },
+    where: {
+      customerId: customerId.data,
+      deliveryDate: date,
+      status: "CONFIRMED",
+      ...(exclude.success ? { id: { not: exclude.data } } : {}),
+    },
   });
 }
 
@@ -158,43 +179,155 @@ export type OrderOverviewRow = {
   source: "MANUAL" | "SCREENSHOT";
   customer: { id: string; customerNumber: string; name: string };
   items: Array<{ id: string; productName: unknown; unit: string; quantity: string }>;
+  /** The tour this order is part of (through its stop), or `null` while no tour contains it. */
+  tour: { tourId: string; stopId: string } | null;
 };
 
-const OVERVIEW_LIMIT = 200;
+export const OVERVIEW_LIMIT = 300;
 
 /**
- * Minimal order list (placeholder until NUD-032): orders from `today` on, oldest day first.
- * Cancelled orders are shown (with their status) because there is no filter yet.
+ * Orders matching the filters (date range inclusive, optional customer / status / source), oldest
+ * day first. Cancelled orders are listed (with their status) unless a status filter says
+ * otherwise. `truncated` is true when more than `OVERVIEW_LIMIT` orders match.
  */
 export async function listOrderOverview(
   db: Pick<PrismaClient, "order">,
-  today: Date,
-): Promise<OrderOverviewRow[]> {
+  filters: OrderFilters,
+): Promise<{ rows: OrderOverviewRow[]; truncated: boolean }> {
+  const from = parseCalendarDate(filters.from);
+  const to = parseCalendarDate(filters.to);
+  if (!from || !to) return { rows: [], truncated: false };
   const rows = await db.order.findMany({
-    where: { deliveryDate: { gte: today } },
+    where: {
+      deliveryDate: { gte: from, lte: to },
+      ...(filters.customerId ? { customerId: filters.customerId } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.source ? { source: filters.source } : {}),
+    },
     orderBy: [{ deliveryDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    take: OVERVIEW_LIMIT,
+    take: OVERVIEW_LIMIT + 1,
     include: {
       customer: { select: { id: true, customerNumber: true, name: true } },
       items: {
         include: { product: { select: { name: true, unit: true } } },
         orderBy: { id: "asc" },
       },
+      stopOrders: { select: { stop: { select: { id: true, tourId: true } } }, take: 1 },
     },
   });
-  return rows.map((o) => ({
-    id: o.id,
-    deliveryDate: o.deliveryDate,
-    status: o.status,
-    source: o.source,
-    customer: o.customer,
-    items: o.items.map((i) => ({
-      id: i.id,
-      productName: i.product.name,
-      unit: i.product.unit,
-      quantity: i.quantity.toString(),
+  return {
+    truncated: rows.length > OVERVIEW_LIMIT,
+    rows: rows.slice(0, OVERVIEW_LIMIT).map((o) => ({
+      id: o.id,
+      deliveryDate: o.deliveryDate,
+      status: o.status,
+      source: o.source,
+      customer: o.customer,
+      items: o.items.map((i) => ({
+        id: i.id,
+        productName: i.product.name,
+        unit: i.product.unit,
+        quantity: i.quantity.toString(),
+      })),
+      tour: o.stopOrders[0]
+        ? { tourId: o.stopOrders[0].stop.tourId, stopId: o.stopOrders[0].stop.id }
+        : null,
     })),
+  };
+}
+
+export type DateTotalsView = {
+  /** `YYYY-MM-DD` */
+  date: string;
+  orderCount: number;
+  products: Array<{
+    productId: string;
+    productName: unknown;
+    sku: string;
+    unit: string;
+    /** Exact sum as a plain decimal string, e.g. `"12.50"`. */
+    quantity: string;
+  }>;
+};
+
+/**
+ * Totals panel: sum per product for every date in the range, from CONFIRMED orders only (via the
+ * pure `aggregateTotalsByDate`). Deliberately independent of the customer / status / source
+ * filters: it answers "what must be produced and loaded for that day".
+ */
+export async function getDateTotals(
+  db: Pick<PrismaClient, "order">,
+  filters: Pick<OrderFilters, "from" | "to">,
+): Promise<DateTotalsView[]> {
+  const from = parseCalendarDate(filters.from);
+  const to = parseCalendarDate(filters.to);
+  if (!from || !to) return [];
+  const orders = await db.order.findMany({
+    where: { deliveryDate: { gte: from, lte: to }, status: "CONFIRMED" },
+    select: {
+      deliveryDate: true,
+      status: true,
+      items: {
+        select: {
+          productId: true,
+          quantity: true,
+          product: { select: { name: true, sku: true, unit: true, sortOrder: true } },
+        },
+      },
+    },
+  });
+  const products = new Map<
+    string,
+    { name: unknown; sku: string; unit: string; sortOrder: number }
+  >();
+  const parsed = orders.map((o) => ({
+    deliveryDate: formatCalendarDate(o.deliveryDate),
+    status: o.status,
+    items: o.items.flatMap((i) => {
+      products.set(i.productId, i.product);
+      const cents = parseQuantityCents(i.quantity.toString());
+      return cents === null ? [] : [{ productId: i.productId, quantityCents: cents }];
+    }),
   }));
+  return aggregateTotalsByDate(parsed).map((day) => ({
+    date: day.date,
+    orderCount: day.orderCount,
+    products: day.products
+      .map((p) => ({ ...p, info: products.get(p.productId) }))
+      .filter((p): p is typeof p & { info: NonNullable<typeof p.info> } => Boolean(p.info))
+      .sort((a, b) => a.info.sortOrder - b.info.sortOrder || a.info.sku.localeCompare(b.info.sku))
+      .map((p) => ({
+        productId: p.productId,
+        productName: p.info.name,
+        sku: p.info.sku,
+        unit: p.info.unit,
+        quantity: totalToDecimal(p.quantityCents),
+      })),
+  }));
+}
+
+/**
+ * The CONFIRMED orders of one delivery day with their items: the only orders a tour may contain
+ * (NUD-041 builds stops from this). Drafts and cancelled orders are never returned.
+ */
+export async function listConfirmedOrdersForDate(db: Pick<PrismaClient, "order">, date: Date) {
+  return db.order.findMany({
+    where: { deliveryDate: date, status: "CONFIRMED" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: { items: { orderBy: { id: "asc" } } },
+  });
+}
+
+export type FilterCustomer = { id: string; customerNumber: string; name: string; city: string };
+
+/** All customers (archived ones too: their old orders can still be filtered) for the filter. */
+export async function listCustomersForFilter(
+  db: Pick<PrismaClient, "customer">,
+): Promise<FilterCustomer[]> {
+  return db.customer.findMany({
+    orderBy: [{ name: "asc" }, { customerNumber: "asc" }],
+    select: { id: true, customerNumber: true, name: true, city: true },
+  });
 }
 
 export type OrderDetail = {
@@ -205,34 +338,64 @@ export type OrderDetail = {
   source: "MANUAL" | "SCREENSHOT";
   internalNote: string | null;
   createdAt: Date;
+  updatedAt: Date;
   createdBy: { displayName: string };
-  customer: { id: string; customerNumber: string; name: string };
-  items: Array<{ id: string; productName: unknown; unit: string; quantity: string }>;
+  customer: {
+    id: string;
+    customerNumber: string;
+    name: string;
+    city: string;
+    pinConfirmed: boolean;
+    active: boolean;
+  };
+  items: Array<{
+    id: string;
+    productId: string;
+    sku: string;
+    productName: unknown;
+    unit: string;
+    quantity: string;
+  }>;
+  /** Open order of today or a later day: it can be edited and cancelled. */
+  editable: boolean;
+  /** The tour this order is part of, if any. */
+  tour: { tourId: string; stopId: string } | null;
   /** Attached screenshot with a signed, short-lived read URL (the bucket stays private). */
   screenshot: { id: string; url: string } | null;
 };
 
 /**
- * Read-only order detail (NUD-031; NUD-032 extends it with editing). Returns `null` for an
+ * Order detail (NUD-031; NUD-032 adds `editable` and the tour link). Returns `null` for an
  * unknown id. The screenshot URL is signed on the server for each request.
  */
 export async function getOrderDetail(
   db: Pick<PrismaClient, "order">,
   storage: Pick<Storage, "getReadUrl">,
   rawId: unknown,
+  today: Date,
 ): Promise<OrderDetail | null> {
   const id = idSchema.safeParse(rawId);
   if (!id.success) return null;
   const o = await db.order.findUnique({
     where: { id: id.data },
     include: {
-      customer: { select: { id: true, customerNumber: true, name: true } },
+      customer: {
+        select: {
+          id: true,
+          customerNumber: true,
+          name: true,
+          city: true,
+          pinConfirmed: true,
+          active: true,
+        },
+      },
       createdBy: { select: { displayName: true } },
       screenshot: { select: { id: true, storageKey: true } },
       items: {
-        include: { product: { select: { name: true, unit: true } } },
+        include: { product: { select: { name: true, unit: true, sku: true } } },
         orderBy: { id: "asc" },
       },
+      stopOrders: { select: { stop: { select: { id: true, tourId: true } } }, take: 1 },
     },
   });
   if (!o) return null;
@@ -243,14 +406,21 @@ export async function getOrderDetail(
     source: o.source,
     internalNote: o.internalNote,
     createdAt: o.createdAt,
+    updatedAt: o.updatedAt,
     createdBy: o.createdBy,
     customer: o.customer,
     items: o.items.map((i) => ({
       id: i.id,
+      productId: i.productId,
+      sku: i.product.sku,
       productName: i.product.name,
       unit: i.product.unit,
       quantity: i.quantity.toString(),
     })),
+    editable: isOrderEditable(o, today),
+    tour: o.stopOrders[0]
+      ? { tourId: o.stopOrders[0].stop.tourId, stopId: o.stopOrders[0].stop.id }
+      : null,
     screenshot: o.screenshot
       ? { id: o.screenshot.id, url: await storage.getReadUrl(o.screenshot.storageKey) }
       : null,
@@ -269,4 +439,177 @@ export async function getScreenshotPreviewUrl(
   if (!isScreenshotKey(key)) return null;
   if (!(await storage.head(key))) return null;
   return storage.getReadUrl(key);
+}
+
+export type OrderMutationError =
+  | "invalid"
+  | "not_found"
+  | "not_editable"
+  | "date_in_past"
+  | "customer_inactive"
+  | "product_not_found"
+  | "product_inactive";
+
+export type OrderUpdateResult =
+  | { ok: true; id: string; status: "CONFIRMED" | "DRAFT" }
+  | { ok: false; error: OrderMutationError };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Edits an open order (status DRAFT / CONFIRMED, delivery day today or later): delivery date,
+ * status, internal note and the lines. The customer and the screenshot never change here. The
+ * input goes through exactly the same validation as order entry (`orderInputSchema`: quantities
+ * > 0 with at most 2 decimals, at least one line, same product merged); the lines are replaced
+ * in one statement. A product that was deactivated meanwhile may stay in the order, but cannot
+ * be added. The tours of the old and of the new delivery day are flagged outdated.
+ */
+export async function updateOrder(
+  db: OrderDb,
+  rawId: unknown,
+  rawInput: unknown,
+  today: Date,
+  tours: TourHook,
+): Promise<OrderUpdateResult> {
+  const id = idSchema.safeParse(rawId);
+  if (!id.success) return { ok: false, error: "not_found" };
+  const existing = await db.order.findUnique({
+    where: { id: id.data },
+    select: {
+      customerId: true,
+      status: true,
+      deliveryDate: true,
+      items: { select: { productId: true } },
+    },
+  });
+  if (!existing) return { ok: false, error: "not_found" };
+  if (!isOrderEditable(existing, today)) return { ok: false, error: "not_editable" };
+
+  const parsed = orderInputSchema.safeParse({
+    ...(isRecord(rawInput) ? rawInput : {}),
+    customerId: existing.customerId,
+    screenshotKey: null,
+  });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const v = parsed.data;
+  if (isPastDeliveryDate(v.deliveryDate, today)) return { ok: false, error: "date_in_past" };
+
+  const products = await db.product.findMany({
+    where: { id: { in: v.lines.map((l) => l.productId) } },
+    select: { id: true, active: true },
+  });
+  if (products.length !== v.lines.length) return { ok: false, error: "product_not_found" };
+  const already = new Set(existing.items.map((i) => i.productId));
+  if (products.some((p) => !p.active && !already.has(p.id))) {
+    return { ok: false, error: "product_inactive" };
+  }
+
+  await db.order.update({
+    where: { id: id.data },
+    data: {
+      deliveryDate: v.deliveryDate,
+      status: v.status,
+      internalNote: v.internalNote,
+      items: {
+        deleteMany: {},
+        create: v.lines.map((l) => ({
+          productId: l.productId,
+          quantity: centsToDecimal(l.quantityCents),
+        })),
+      },
+    },
+    select: { id: true },
+  });
+  await tours.markOutdatedForDate(existing.deliveryDate);
+  if (existing.deliveryDate.getTime() !== v.deliveryDate.getTime()) {
+    await tours.markOutdatedForDate(v.deliveryDate);
+  }
+  return { ok: true, id: id.data, status: v.status };
+}
+
+export type OrderCancelResult =
+  { ok: true; id: string } | { ok: false; error: "invalid" | "not_found" | "not_editable" };
+
+/**
+ * Cancels an open order: status CANCELLED, nothing is deleted (items, screenshot and stop links
+ * stay as history). Cancelled orders leave the totals and can never be part of a tour. Orders of
+ * past days and already cancelled orders are rejected with `not_editable`.
+ */
+export async function cancelOrder(
+  db: Pick<PrismaClient, "order">,
+  rawId: unknown,
+  today: Date,
+  tours: TourHook,
+): Promise<OrderCancelResult> {
+  const id = idSchema.safeParse(rawId);
+  if (!id.success) return { ok: false, error: "invalid" };
+  const existing = await db.order.findUnique({
+    where: { id: id.data },
+    select: { status: true, deliveryDate: true },
+  });
+  if (!existing) return { ok: false, error: "not_found" };
+  if (!isOrderEditable(existing, today)) return { ok: false, error: "not_editable" };
+  await db.order.update({
+    where: { id: id.data },
+    data: { status: "CANCELLED" },
+    select: { id: true },
+  });
+  await tours.markOutdatedForDate(existing.deliveryDate);
+  return { ok: true, id: id.data };
+}
+
+export type OrderDuplicateResult =
+  { ok: true; id: string } | { ok: false; error: OrderMutationError };
+
+/**
+ * Copies an order (any status) to another delivery day, today or later: same customer, lines
+ * and internal note. The copy is a DRAFT with source MANUAL and without screenshot (the
+ * screenshot belongs to the original message); it must be confirmed on purpose. The customer
+ * must still be active and all products active.
+ */
+export async function duplicateOrder(
+  db: OrderDb,
+  actorId: string,
+  rawId: unknown,
+  rawDate: unknown,
+  today: Date,
+  tours: TourHook,
+): Promise<OrderDuplicateResult> {
+  const id = idSchema.safeParse(rawId);
+  if (!id.success) return { ok: false, error: "not_found" };
+  const date = typeof rawDate === "string" ? parseCalendarDate(rawDate.trim()) : null;
+  if (!date) return { ok: false, error: "invalid" };
+  if (isPastDeliveryDate(date, today)) return { ok: false, error: "date_in_past" };
+  const source = await db.order.findUnique({
+    where: { id: id.data },
+    select: {
+      customerId: true,
+      internalNote: true,
+      customer: { select: { active: true } },
+      items: { select: { productId: true, quantity: true, product: { select: { active: true } } } },
+    },
+  });
+  if (!source) return { ok: false, error: "not_found" };
+  if (!source.customer.active) return { ok: false, error: "customer_inactive" };
+  if (source.items.some((i) => !i.product.active)) return { ok: false, error: "product_inactive" };
+  const copy = await db.order.create({
+    data: {
+      customer: { connect: { id: source.customerId } },
+      deliveryDate: date,
+      status: "DRAFT",
+      source: "MANUAL",
+      internalNote: source.internalNote,
+      createdBy: { connect: { id: actorId } },
+      items: {
+        create: source.items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity.toString(),
+        })),
+      },
+    },
+    select: { id: true },
+  });
+  await tours.markOutdatedForDate(date);
+  return { ok: true, id: copy.id };
 }

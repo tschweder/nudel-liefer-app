@@ -15,8 +15,14 @@ vi.mock("./db", async (importOriginal) => ({
   getDb: () => state.db,
 }));
 
-const { confirmedOrderCountAction, createOrderAction, screenshotPreviewUrlAction } =
-  await import("./order-actions");
+const {
+  cancelOrderAction,
+  confirmedOrderCountAction,
+  createOrderAction,
+  duplicateOrderAction,
+  screenshotPreviewUrlAction,
+  updateOrderAction,
+} = await import("./order-actions");
 const { orderableCustomersQuery, orderDetailQuery, orderOverviewQuery } =
   await import("./order-queries");
 const { setStorageForTests } = await import("./storage");
@@ -132,6 +138,9 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       () => orderableCustomersQuery(),
       () => orderOverviewQuery(),
       () => orderDetailQuery("whatever"),
+      () => updateOrderAction("whatever", input()),
+      () => cancelOrderAction("whatever"),
+      () => duplicateOrderAction("whatever", FUTURE),
       () => screenshotPreviewUrlAction(uploadedScreenshot()),
     ];
     const sessions: Array<[typeof state.session, string]> = [
@@ -298,7 +307,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     expect(await confirmedOrderCountAction("", "garbage")).toBe(0);
   });
 
-  it("lists upcoming orders with items for the minimal overview, not past ones", async () => {
+  it("lists the orders of the filtered days with items, not other days", async () => {
     asAdmin();
     await createOrderAction(input({ lines: [{ productId: p1, quantity: "4" }] }));
     // A past order can only exist from before (e.g. imported); insert directly.
@@ -310,15 +319,19 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
         createdById: adminId,
       },
     });
-    const rows = await orderOverviewQuery();
+    const { rows } = await orderOverviewQuery({ from: FUTURE, to: FUTURE });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       status: "CONFIRMED",
       source: "MANUAL",
       customer: { customerNumber: "C1" },
+      tour: null,
     });
     expect(rows[0]?.items).toHaveLength(1);
     expect(rows[0]?.items[0]?.quantity).toBe("4");
+    expect((await orderOverviewQuery({ from: "2020-01-01", to: "2020-01-01" })).rows).toHaveLength(
+      1,
+    );
   });
 
   describe("screenshot attachment (NUD-031)", () => {
@@ -342,7 +355,9 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       expect(detail?.screenshot?.url).toContain(key);
       expect(detail?.items).toHaveLength(1);
       expect(detail?.customer.customerNumber).toBe("C1");
-      expect((await orderOverviewQuery())[0]?.source).toBe("SCREENSHOT");
+      expect((await orderOverviewQuery({ from: FUTURE, to: FUTURE })).rows[0]?.source).toBe(
+        "SCREENSHOT",
+      );
     });
 
     it("an order without screenshot stays MANUAL and has no screenshot in the detail", async () => {

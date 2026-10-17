@@ -214,7 +214,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-020 | Product catalog CRUD (multilingual names) | M1 | 003, 005 | done |
 | NUD-030 | Manual order entry | M1 | 014, 020 | done |
 | NUD-031 | Screenshot attachment & split-view entry | M1 | 006, 030 | done |
-| NUD-032 | Order overview & editing | M1 | 030 | todo |
+| NUD-032 | Order overview & editing | M1 | 030 | done |
 | NUD-040 | RoutingProvider + ORS optimization + fallback heuristic | M1 | 002 | todo |
 | NUD-041 | Tour builder (orders → stops → optimized tour) | M1 | 012, 032, 040 | todo |
 | NUD-042 | Tour planning UI (map, reorder, lock, release) | M1 | 011, 041 | todo |
@@ -751,7 +751,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-032 · Order overview & editing
-**Status:** todo · **depends_on:** 030
+**Status:** done · **depends_on:** 030
 
 **Goal:** central order overview (projektbeschreibung §3).
 
@@ -763,8 +763,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Hook point for NUD-043: every create/update/cancel calls `tourService.markOutdatedForDate(date)`.
 
 **Acceptance criteria**
-- [ ] Totals panel matches the sum of all confirmed orders for the date (unit test on the aggregation function in `src/domain`).
-- [ ] Cancelled orders are excluded from totals and tours.
+- [x] Totals panel matches the sum of all confirmed orders for the date (unit test on the aggregation function in `src/domain`). (`aggregateTotalsByDate` in `src/domain/order-overview.ts`, 5 unit tests; integration test and e2e compare the panel with the sums of the stored orders.)
+- [x] Cancelled orders are excluded from totals and tours. (Totals: unit + integration + e2e. Tours do not exist yet: `listConfirmedOrdersForDate` in `src/server/orders.ts` is the CONFIRMED-only source NUD-041 must use, tested to exclude cancelled and draft orders.)
+
+**Implementation notes**
+- Pure rules in `src/domain/order-overview.ts`: `aggregateTotalsByDate` (CONFIRMED only, exact sums in hundredths, no float drift), `parseOrderFilters` / `orderFiltersToQuery` (URL params to filters, never fails: unusable values fall back to the default; range capped at 62 days), `isOrderEditable` (not cancelled and delivery day today or later). Tests: `order-overview.test.ts` (12).
+- Server (`src/server/orders.ts`, `order-actions.ts`, `order-queries.ts`): `orderOverviewQuery(params)` returns filters, rows (limit 300, `truncated` flag), totals per date and the customer list (all customers, archived too) for the filter; row = customer, date, line count + quantities, status, source icon, "in tour" badge from `StopOrder -> Stop` (`tour: {tourId, stopId}`; empty until NUD-041). New actions `updateOrderAction(id, input)`, `cancelOrderAction(id)`, `duplicateOrderAction(id, date)`, all `requireRole("ADMIN")`. `updateOrder` re-uses `orderInputSchema` (the same zod validation as order entry: quantities > 0, max 2 decimals, `1.000` rejected, merged duplicates, past date rejected) with the customer taken from the stored order and any client `customerId` / `screenshotKey` / `source` ignored; lines are replaced in one nested write. `confirmedOrderCountAction` got an optional `excludeOrderId` so the "combined into one stop" warning does not count the order being edited.
+- Hook point: `src/server/tour-service.ts` (`createTourService(db)`, `getTourService()`); `markOutdatedForDate(date)` sets `Tour.isOutdated=true` for all not COMPLETED tours of that date (column exists in the §6 schema). `createOrder` (NUD-030 path), `updateOrder` (old and new date when the date moved), `cancelOrder` and `duplicateOrder` take a `TourHook` argument and call it after the write; rejected changes call nothing. NUD-043 extends the service (it does not look at order status or what changed, so a draft edit also flags the tour). Tests: `tour-service.integration.test.ts` (3), hook calls in `order-management.integration.test.ts`.
+- UI: `/admin/orders` is the overview (filters in the URL: from/to date inputs default to the next delivery date via `getDefaultDeliveryDate()`, customer combobox, status, source, reset; totals panel per date above the rows; `OrderFilters`, `OrderTotals`, `OrdersTable`). `/admin/orders/[id]` shows edit / duplicate / cancel (`OrderActions`: cancel and copy open dialogs; edit and cancel only for open orders); `/admin/orders/[id]/edit` re-uses `OrderForm` in edit mode (customer fixed, attached screenshot shown read-only in the split view, status via the two save buttons). After creating an order the list opens filtered to that order's date. Archive dialog of a customer shows a warning with the number of upcoming not cancelled orders (`CustomerArchiveButton`, count from the existing upcoming-orders query); archiving is still allowed.
+- i18n: `admin.orders.filters/totals/detail.*` and form keys, `admin.customers.detail.archiveUpcoming`, de + zh-Hans by hand, Hant generated.
+- Tests: 21 integration tests `order-management.integration.test.ts` (authorization of the 3 new mutations and reads for anonymous / driver / deactivated admin without side effects, edit validation table, customer/screenshot immutability, cancel keeps everything, totals, filters, tour link, hook), extended `order-actions.integration.test.ts`, e2e `tests/e2e/order-overview.spec.ts` (default date, filters, totals, in-tour badge, edit with validation error, cancel, duplicate, outdated flag in the DB, archive warning, anonymous redirect; desktop + mobile).
+- Verified: lint, typecheck, prettier, `pnpm test` (419 passed incl. DB), `i18n:check`, `pnpm build`, e2e `order-overview`, `orders`, `order-screenshot` (desktop + mobile), `customers`, `shells`, `customer-form` (desktop); screenshots inspected at 1280 px (overview, edit page, archive dialog), no horizontal scroll (also asserted at the mobile project width).
+- NOT verified: other e2e specs (settings, maps, drivers, products, customer-photos, uploads, auth, home) were not rerun; the "in tour" badge only with a hand-inserted Tour/Stop/StopOrder (no tour builder yet) and it is not a link until NUD-042 has a tour page; `customer-form` e2e failed once under 2 parallel workers (pin flag, passes alone) and was not investigated further; Chinese strings are agent-written (NUD-073); no real touch-device check.
+- Follow-ups: NUD-042 should link the badge (`data-tour-id`) to the tour page; NUD-043 should refine `markOutdatedForDate` (only when a CONFIRMED order is affected, banner, rebuild); NUD-041 must build stops from `listConfirmedOrdersForDate`; the hook is called after the order write without a transaction (a failing hook leaves the order saved and the action throws).
 
 ---
 
@@ -1336,6 +1347,15 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-17 | NUD-031 | Split view is a CSS grid at `lg` (1024 px) with a sticky pane; "remove" is the only way to change the screenshot (no replace button) | Simplest; paste/upload is offered again after removing |
 | 2026-10-17 | NUD-031 | Minimal read-only order detail `/admin/orders/[id]` added here; list date links to it | Ticket requires viewing the screenshot from order detail; NUD-032 extends it |
 | 2026-10-17 | NUD-031 | Order form state is reset after a successful save | Next keeps the previous route hidden with its state; otherwise the next new-order form would still hold the saved screenshot |
+| 2026-10-17 | NUD-032 | Orders of past delivery days (and cancelled orders) are read-only: no edit, no cancel; they can still be duplicated | A tour for a past day is history; keeps the rules simple and the data honest |
+| 2026-10-17 | NUD-032 | Editing keeps the customer and the screenshot fixed (wrong customer: cancel and re-enter); the status can switch DRAFT <-> CONFIRMED, CANCELLED only through cancel and is final | Smallest edit surface; customer change would move stops between customers and tours |
+| 2026-10-17 | NUD-032 | Update re-uses `orderInputSchema` with the stored customer injected; a deactivated product may stay in an existing order but cannot be added | One validation path for quantities (client priority 2); no forced removal of old lines |
+| 2026-10-17 | NUD-032 | Duplicate creates a DRAFT (source MANUAL, no screenshot, internal note and lines copied) and opens it; same day allowed; needs active customer and products | A copy must be confirmed on purpose so wrong quantities do not slip into a tour unnoticed |
+| 2026-10-17 | NUD-032 | Overview default = next delivery date (`getDefaultDeliveryDate`), all statuses incl. cancelled shown until filtered; range capped at 62 days, 300 rows, then a truncation notice | Simplest consistent with NUD-012/030; keeps page and totals readable |
+| 2026-10-17 | NUD-032 | Totals panel counts CONFIRMED orders of each date in the range and ignores the customer/status/source filters | It answers what must be produced and loaded that day; a customer filter must not shrink it |
+| 2026-10-17 | NUD-032 | `markOutdatedForDate` flags all not COMPLETED tours of the date and is called on every create/update/cancel/duplicate (also for drafts, old and new date on a date change) | Ticket says every change; NUD-043 refines; over-flagging is safe, missing a flag is not |
+| 2026-10-17 | NUD-032 | After creating an order the form redirects to the overview filtered to that order's date | The new default filter (next delivery date) would otherwise hide orders for other days |
+| 2026-10-17 | NUD-032 | Archiving a customer with upcoming orders shows a warning in the archive dialog but is still allowed; orders are not cancelled | Ticket asks for a small warning only; cancelling is a separate office decision |
 
 ---
 

@@ -2,10 +2,13 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { ImagePreview } from "@/components/shared/image-preview";
 import { Badge } from "@/components/ui/badge";
+import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { OrderDetail } from "@/server/orders";
+
+import { OrderActions } from "./order-actions";
 
 function productName(name: unknown, locale: AppLocale): string {
   const parsed = localizedTextSchema.safeParse(name);
@@ -13,11 +16,17 @@ function productName(name: unknown, locale: AppLocale): string {
 }
 
 /**
- * Read-only order detail (NUD-031). Shows the lines and, when the order was typed from a
+ * Order detail (NUD-031, NUD-032). Shows the lines and, when the order was typed from a
  * screenshot, its thumbnail that opens the fullscreen zoom view (for disputes about quantities).
- * NUD-032 extends this page with editing, cancelling and duplicating.
+ * Open orders can be edited and cancelled; every order can be copied to another delivery date.
  */
-export function OrderDetailView({ order }: { order: OrderDetail }) {
+export function OrderDetailView({
+  order,
+  defaultDuplicateDate,
+}: {
+  order: OrderDetail;
+  defaultDuplicateDate: Date;
+}) {
   const t = useTranslations("admin.orders");
   const td = useTranslations("admin.orders.detail");
   const tc = useTranslations("common");
@@ -37,6 +46,18 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
           {td("title")}
         </h1>
       </div>
+
+      <OrderActions
+        orderId={order.id}
+        editable={order.editable}
+        inTour={order.tour !== null}
+        defaultDuplicateDate={formatCalendarDate(defaultDuplicateDate)}
+      />
+      {order.editable ? null : (
+        <p className="max-w-3xl text-base text-muted-foreground" data-testid="read-only-note">
+          {order.status === "CANCELLED" ? td("readOnlyCancelled") : td("readOnlyPast")}
+        </p>
+      )}
 
       <dl className="grid max-w-3xl gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-0.5">
@@ -73,6 +94,12 @@ export function OrderDetailView({ order }: { order: OrderDetail }) {
           <dt className="text-sm text-muted-foreground">{t("columns.source")}</dt>
           <dd className="text-base" data-testid="detail-source">
             {t(`source.${order.source}`)}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-sm text-muted-foreground">{td("tourHeading")}</dt>
+          <dd className="text-base" data-testid="detail-tour">
+            {order.tour ? td("inTour") : td("notInTour")}
           </dd>
         </div>
       </dl>

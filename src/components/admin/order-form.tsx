@@ -24,16 +24,31 @@ import {
   confirmedOrderCountAction,
   createOrderAction,
   screenshotPreviewUrlAction,
+  updateOrderAction,
 } from "@/server/order-actions";
 
 export type CustomerOption = ComboboxOption & { pinConfirmed: boolean };
 export type ProductOption = ComboboxOption & { unit: "KG" | "PACK" | "CRATE" | "PIECE" };
+
+/** An existing order that is being edited (NUD-032). */
+export type EditableOrder = {
+  id: string;
+  customerId: string;
+  date: string;
+  status: "CONFIRMED" | "DRAFT";
+  note: string;
+  lines: Array<{ productId: string; quantity: string }>;
+  /** Signed URL of the attached screenshot, shown read-only next to the form. */
+  screenshotUrl: string | null;
+};
 
 type Props = {
   customers: CustomerOption[];
   products: ProductOption[];
   /** `YYYY-MM-DD`, from `getDefaultDeliveryDate()` (next delivery weekday). */
   defaultDate: string;
+  /** Edit mode: the form is filled from this order; customer and screenshot cannot be changed. */
+  order?: EditableOrder;
 };
 
 type Line = { key: number; productId: string | undefined; quantity: string };
@@ -44,6 +59,8 @@ const isComplete = (line: Line) => Boolean(line.productId) && parseQuantity(line
 
 const SERVER_ERRORS: Record<string, string> = {
   invalid: "invalid",
+  not_found: "notFound",
+  not_editable: "notEditable",
   date_in_past: "datePast",
   customer_not_found: "customerNotFound",
   customer_inactive: "customerInactive",
@@ -64,21 +81,31 @@ type Screenshot = { storageKey: string; url: string };
  * Screenshot (NUD-031): can be uploaded, dropped or pasted (Ctrl+V anywhere on the page). With a
  * screenshot the page is a split view from 1024 px: zoomable image left, form right; stacked
  * (image above the form) on smaller screens. The order is saved with `source=SCREENSHOT`.
+ *
+ * Edit mode (NUD-032, `order` given): same fields and the same server validation; the customer is
+ * fixed, the attached screenshot (if any) is shown read-only in the split view.
  */
-export function OrderForm({ customers, products, defaultDate }: Props) {
+export function OrderForm({ customers, products, defaultDate, order }: Props) {
   const t = useTranslations("admin.orders.form");
   const tc = useTranslations("common");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const nextKey = useRef(2);
+  const editing = Boolean(order);
+  const nextKey = useRef(order ? order.lines.length + 1 : 2);
   const focusKey = useRef<number | null>(null);
-  const [customerId, setCustomerId] = useState<string | undefined>(undefined);
-  const [date, setDate] = useState(defaultDate);
-  const [lines, setLines] = useState<Line[]>([{ key: 1, productId: undefined, quantity: "" }]);
-  const [note, setNote] = useState("");
+  const [customerId, setCustomerId] = useState<string | undefined>(order?.customerId);
+  const [date, setDate] = useState(order?.date ?? defaultDate);
+  const [lines, setLines] = useState<Line[]>(
+    order && order.lines.length > 0
+      ? order.lines.map((l, i) => ({ key: i + 1, productId: l.productId, quantity: l.quantity }))
+      : [{ key: 1, productId: undefined, quantity: "" }],
+  );
+  const [note, setNote] = useState(order?.note ?? "");
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [screenshot, setScreenshot] = useState<Screenshot | null>(null);
+  const [screenshot, setScreenshot] = useState<Screenshot | null>(
+    order?.screenshotUrl ? { storageKey: "", url: order.screenshotUrl } : null,
+  );
   const [screenshotError, setScreenshotError] = useState(false);
   const [counted, setCounted] = useState<{ key: string; count: number } | null>(null);
 
@@ -99,7 +126,7 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
   useEffect(() => {
     if (countKey === null || !customerId) return;
     let current = true;
-    confirmedOrderCountAction(customerId, date)
+    confirmedOrderCountAction(customerId, date, order?.id)
       .then((count) => {
         if (current) setCounted({ key: countKey, count });
       })
@@ -109,7 +136,7 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
     return () => {
       current = false;
     };
-  }, [countKey, customerId, date]);
+  }, [countKey, customerId, date, order?.id]);
   const confirmedCount = counted && counted.key === countKey ? counted.count : 0;
 
   const warnings = customer
@@ -198,20 +225,25 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
       deliveryDate: date,
       status,
       internalNote: note,
-      screenshotKey: screenshot?.storageKey ?? null,
+      screenshotKey: editing ? null : (screenshot?.storageKey ?? null),
       lines: filled.map((l) => ({ productId: l.productId, quantity: l.quantity })),
     };
     startTransition(async () => {
       let result;
       try {
-        result = await createOrderAction(input);
+        result = order ? await updateOrderAction(order.id, input) : await createOrderAction(input);
       } catch {
         return setServerError("generic");
       }
       if (!result.ok) return setServerError(SERVER_ERRORS[result.error] ?? "generic");
-      toast.success(t(result.status === "DRAFT" ? "savedDraft" : "savedConfirmed"));
-      resetForm();
-      router.push("/admin/orders");
+      if (order) {
+        toast.success(t("savedChanges"));
+        router.push(`/admin/orders/${order.id}`);
+      } else {
+        toast.success(t(result.status === "DRAFT" ? "savedDraft" : "savedConfirmed"));
+        resetForm();
+        router.push({ pathname: "/admin/orders", query: { from: date, to: date } });
+      }
       router.refresh();
     });
   }
@@ -230,15 +262,17 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
         >
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-xl font-semibold">{t("screenshot.heading")}</h2>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setScreenshot(null)}
-              data-testid="screenshot-remove"
-            >
-              <XIcon aria-hidden />
-              {t("screenshot.remove")}
-            </Button>
+            {editing ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setScreenshot(null)}
+                data-testid="screenshot-remove"
+              >
+                <XIcon aria-hidden />
+                {t("screenshot.remove")}
+              </Button>
+            )}
           </div>
           <div className="relative h-[50dvh] overflow-hidden rounded-md bg-black lg:h-[calc(100dvh-17rem)] lg:min-h-80">
             <ZoomableImage src={screenshot.url} alt={t("screenshot.alt")} />
@@ -252,7 +286,7 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
         noValidate
         data-testid="order-form"
       >
-        {screenshot ? null : (
+        {screenshot || editing ? null : (
           <section className="flex flex-col gap-2" aria-labelledby="order-screenshot">
             <h2 id="order-screenshot" className="text-xl font-semibold">
               {t("screenshot.heading")}
@@ -275,6 +309,7 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
             <Label htmlFor="order-customer">{t("customer")}</Label>
             <Combobox
               id="order-customer"
+              disabled={editing}
               options={customers}
               value={customerId}
               onChange={(value) => {
@@ -285,6 +320,11 @@ export function OrderForm({ customers, products, defaultDate }: Props) {
               searchPlaceholder={t("customerSearch")}
               emptyText={t("customerEmpty")}
             />
+            {editing ? (
+              <p className="text-sm text-muted-foreground" data-testid="customer-fixed">
+                {t("customerFixed")}
+              </p>
+            ) : null}
             {submitted && !customerId ? (
               <p className="text-sm text-destructive" role="alert" data-testid="error-customer">
                 {t("errors.customerRequired")}

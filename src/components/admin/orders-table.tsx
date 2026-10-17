@@ -1,3 +1,4 @@
+import { ImageIcon, PencilLineIcon, RouteIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/shared/states";
@@ -20,7 +21,10 @@ function productName(name: unknown, locale: AppLocale): string {
   return parsed.success ? pick(parsed.data, locale) : "";
 }
 
-/** Minimal list of upcoming orders (NUD-030); NUD-032 replaces it. */
+/**
+ * Order overview rows: date, customer, lines (count + quantities), status, source icon and the
+ * "in tour" badge (the order is part of a stop of a tour). Opens the order detail.
+ */
 export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
   const t = useTranslations("admin.orders");
   const tc = useTranslations("common");
@@ -36,9 +40,10 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
         <TableRow>
           <TableHead>{t("columns.date")}</TableHead>
           <TableHead>{t("columns.customer")}</TableHead>
-          <TableHead>{t("columns.items")}</TableHead>
+          <TableHead>{t("columns.lines")}</TableHead>
           <TableHead>{t("columns.status")}</TableHead>
           <TableHead>{t("columns.source")}</TableHead>
+          <TableHead>{t("columns.tour")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -63,6 +68,9 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
               <div className="text-sm text-muted-foreground">{order.customer.customerNumber}</div>
             </TableCell>
             <TableCell>
+              <div className="font-semibold" data-testid="order-line-count">
+                {order.items.length}
+              </div>
               <ul className="flex flex-col gap-0.5" data-testid="order-items">
                 {order.items.map((item) => (
                   <li key={item.id} data-testid="order-item">
@@ -76,12 +84,40 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
             <TableCell>
               <Badge
                 variant={order.status === "CONFIRMED" ? "success" : "secondary"}
+                className={order.status === "CANCELLED" ? "line-through" : undefined}
                 data-testid="order-status"
               >
                 {tc(`statuses.order.${order.status}`)}
               </Badge>
             </TableCell>
-            <TableCell>{t(`source.${order.source}`)}</TableCell>
+            <TableCell>
+              <span
+                className="inline-flex items-center gap-1.5"
+                data-testid="order-source"
+                data-source={order.source}
+              >
+                {order.source === "SCREENSHOT" ? (
+                  <ImageIcon className="size-4" aria-hidden />
+                ) : (
+                  <PencilLineIcon className="size-4" aria-hidden />
+                )}
+                {t(`source.${order.source}`)}
+              </span>
+            </TableCell>
+            <TableCell>
+              {order.tour ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1"
+                  data-testid="order-in-tour"
+                  data-tour-id={order.tour.tourId}
+                  data-stop-id={order.tour.stopId}
+                >
+                  <RouteIcon className="size-3.5" aria-hidden />
+                  {t("inTour")}
+                </Badge>
+              ) : null}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

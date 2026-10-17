@@ -107,7 +107,11 @@ export function CustomerDetailView({
             <PencilIcon aria-hidden />
             {tc("actions.edit")}
           </Link>
-          <CustomerArchiveButton customerId={customer.id} active={customer.active} />
+          <CustomerArchiveButton
+            customerId={customer.id}
+            active={customer.active}
+            upcomingOrders={orders.length}
+          />
         </div>
       </div>
 

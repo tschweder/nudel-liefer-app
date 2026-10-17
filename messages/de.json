@@ -331,7 +331,8 @@
           "not_found": "Kunde nicht gefunden.",
           "object_missing": "Das hochgeladene Bild wurde nicht gefunden. Bitte erneut hochladen.",
           "key_in_use": "Dieses Bild wurde bereits verwendet. Bitte erneut hochladen."
-        }
+        },
+        "archiveUpcoming": "{count, plural, one {Achtung: Dieser Kunde hat noch # anstehende Bestellung} other {Achtung: Dieser Kunde hat noch # anstehende Bestellungen}}. Sie bleiben bestehen, werden aber nicht automatisch storniert. Bitte vorher prüfen."
       }
     },
     "products": {
@@ -447,18 +448,20 @@
     },
     "orders": {
       "title": "Bestellungen",
-      "description": "Anstehende Bestellungen ab heute. Die vollständige Übersicht mit Filtern kommt später.",
+      "description": "Alle Bestellungen nach Lieferdatum. Standardmäßig wird der nächste Liefertag angezeigt.",
       "new": "Neue Bestellung",
       "newTitle": "Neue Bestellung erfassen",
       "backToList": "Zurück zu den Bestellungen",
-      "emptyTitle": "Noch keine Bestellungen",
-      "empty": "Für heute oder später gibt es keine Bestellungen.",
+      "emptyTitle": "Keine Bestellungen gefunden",
+      "empty": "Für diese Auswahl gibt es keine Bestellungen.",
       "columns": {
         "date": "Lieferdatum",
         "customer": "Kunde",
         "items": "Positionen",
         "status": "Status",
-        "source": "Quelle"
+        "source": "Quelle",
+        "lines": "Positionen",
+        "tour": "Tour"
       },
       "source": {
         "MANUAL": "Manuell",
@@ -502,7 +505,9 @@
           "productNotFound": "Ein gewähltes Produkt wurde nicht gefunden. Bitte Seite neu laden.",
           "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
           "screenshotMissing": "Der Screenshot wurde nicht gefunden. Bitte erneut hochladen.",
-          "screenshotInUse": "Dieser Screenshot gehört bereits zu einer anderen Bestellung."
+          "screenshotInUse": "Dieser Screenshot gehört bereits zu einer anderen Bestellung.",
+          "notEditable": "Diese Bestellung kann nicht mehr geändert werden (storniert oder Liefertag vorbei).",
+          "notFound": "Die Bestellung wurde nicht gefunden."
         },
         "savedConfirmed": "Bestellung gespeichert.",
         "savedDraft": "Entwurf gespeichert.",
@@ -513,14 +518,69 @@
           "alt": "Screenshot der Bestellnachricht",
           "zoomHint": "Mausrad oder Plus/Minus zum Zoomen, ziehen zum Verschieben, Doppelklick zum Heranzoomen.",
           "previewFailed": "Der Screenshot wurde hochgeladen, konnte aber nicht angezeigt werden. Bitte erneut versuchen."
-        }
+        },
+        "savedChanges": "Änderungen gespeichert.",
+        "editTitle": "Bestellung bearbeiten",
+        "customerFixed": "Der Kunde kann nachträglich nicht geändert werden. Bei einem falschen Kunden die Bestellung stornieren und neu erfassen."
       },
       "detail": {
         "title": "Bestellung",
         "noNote": "Keine interne Notiz.",
         "noScreenshot": "Zu dieser Bestellung gehört kein Screenshot.",
         "screenshotAlt": "Screenshot der Bestellnachricht",
-        "screenshotHint": "Zum Vergrößern anklicken."
+        "screenshotHint": "Zum Vergrößern anklicken.",
+        "edit": "Bearbeiten",
+        "cancel": "Stornieren",
+        "duplicate": "Auf anderes Datum kopieren",
+        "inTour": "Diese Bestellung ist Teil einer Tour.",
+        "notInTour": "Noch in keiner Tour.",
+        "tourHeading": "Tour",
+        "readOnlyCancelled": "Diese Bestellung ist storniert und kann nicht mehr geändert werden.",
+        "readOnlyPast": "Der Liefertag ist vorbei: Die Bestellung kann nicht mehr geändert werden. Sie lässt sich aber auf ein anderes Datum kopieren.",
+        "cancelTitle": "Bestellung stornieren?",
+        "cancelDescription": "Die Bestellung bleibt als storniert gespeichert, zählt aber nicht mehr in den Summen und kommt in keine Tour. Das kann nicht rückgängig gemacht werden.",
+        "cancelTourNote": "Die Bestellung ist schon in einer Tour. Die Tour wird als veraltet markiert und muss neu geplant werden.",
+        "cancelConfirm": "Ja, stornieren",
+        "cancelled": "Bestellung storniert.",
+        "duplicateTitle": "Bestellung kopieren",
+        "duplicateDescription": "Es wird ein neuer Entwurf mit denselben Positionen und derselben internen Notiz angelegt. Der Screenshot wird nicht kopiert.",
+        "duplicateDate": "Neues Lieferdatum",
+        "duplicateConfirm": "Kopie anlegen",
+        "duplicated": "Kopie als Entwurf angelegt.",
+        "actionErrors": {
+          "invalid": "Bitte ein gültiges Datum angeben.",
+          "not_found": "Die Bestellung wurde nicht gefunden.",
+          "not_editable": "Diese Bestellung kann nicht mehr geändert werden.",
+          "date_in_past": "Das Lieferdatum darf nicht in der Vergangenheit liegen.",
+          "customer_inactive": "Dieser Kunde ist archiviert und kann keine neuen Bestellungen bekommen.",
+          "product_not_found": "Ein Produkt der Bestellung wurde nicht gefunden.",
+          "product_inactive": "Ein Produkt der Bestellung ist deaktiviert. Die Kopie ist nicht möglich.",
+          "generic": "Aktion fehlgeschlagen. Bitte erneut versuchen."
+        }
+      },
+      "inTour": "In Tour",
+      "filters": {
+        "heading": "Filter",
+        "from": "Von",
+        "to": "Bis",
+        "customer": "Kunde",
+        "customerAll": "Alle Kunden",
+        "customerSearch": "Nach Name oder Nummer suchen",
+        "customerEmpty": "Kein Kunde gefunden.",
+        "status": "Status",
+        "statusAll": "Alle Status",
+        "source": "Quelle",
+        "sourceAll": "Alle Quellen",
+        "reset": "Zurücksetzen (nächster Liefertag)"
+      },
+      "truncated": "Es werden nur die ersten {count} Bestellungen angezeigt. Bitte den Zeitraum oder die Filter eingrenzen.",
+      "totals": {
+        "heading": "Summen je Liefertag",
+        "description": "Summe je Produkt aus allen bestätigten Bestellungen des Tages. Entwürfe und stornierte Bestellungen zählen nicht. Die Summen ignorieren die Filter Kunde, Status und Quelle.",
+        "dateHeading": "{date} · {count, plural, one {# bestätigte Bestellung} other {# bestätigte Bestellungen}}",
+        "product": "Produkt",
+        "quantity": "Menge",
+        "empty": "Im gewählten Zeitraum gibt es keine bestätigten Bestellungen."
       }
     }
   },

@@ -331,7 +331,8 @@
           "not_found": "找不到该客户。",
           "object_missing": "找不到已上传的图片，请重新上传。",
           "key_in_use": "该图片已被使用，请重新上传。"
-        }
+        },
+        "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。"
       }
     },
     "products": {
@@ -447,18 +448,20 @@
     },
     "orders": {
       "title": "订单",
-      "description": "今天及以后的待处理订单。带筛选功能的完整总览稍后上线。",
+      "description": "按送货日期查看所有订单。默认显示下一个送货日。",
       "new": "新建订单",
       "newTitle": "录入新订单",
       "backToList": "返回订单列表",
-      "emptyTitle": "暂无订单",
-      "empty": "今天及以后没有订单。",
+      "emptyTitle": "没有找到订单",
+      "empty": "当前筛选条件下没有订单。",
       "columns": {
         "date": "送货日期",
         "customer": "客户",
         "items": "订单明细",
         "status": "状态",
-        "source": "来源"
+        "source": "来源",
+        "lines": "明细行数",
+        "tour": "路线"
       },
       "source": {
         "MANUAL": "手动录入",
@@ -502,7 +505,9 @@
           "productNotFound": "未找到所选产品，请刷新页面。",
           "generic": "保存失败，请重试。",
           "screenshotMissing": "未找到该截图，请重新上传。",
-          "screenshotInUse": "该截图已属于另一个订单。"
+          "screenshotInUse": "该截图已属于另一个订单。",
+          "notEditable": "该订单无法再修改（已取消或送货日已过）。",
+          "notFound": "未找到该订单。"
         },
         "savedConfirmed": "订单已保存。",
         "savedDraft": "草稿已保存。",
@@ -513,14 +518,69 @@
           "alt": "订单消息截图",
           "zoomHint": "滚轮或加减按钮缩放，拖动平移，双击放大。",
           "previewFailed": "截图已上传，但无法显示，请重试。"
-        }
+        },
+        "savedChanges": "修改已保存。",
+        "editTitle": "编辑订单",
+        "customerFixed": "客户无法事后更改。如果客户选错，请取消该订单并重新录入。"
       },
       "detail": {
         "title": "订单",
         "noNote": "没有内部备注。",
         "noScreenshot": "该订单没有截图。",
         "screenshotAlt": "订单消息截图",
-        "screenshotHint": "点击放大。"
+        "screenshotHint": "点击放大。",
+        "edit": "编辑",
+        "cancel": "取消订单",
+        "duplicate": "复制到其他日期",
+        "inTour": "该订单已编入路线。",
+        "notInTour": "尚未编入任何路线。",
+        "tourHeading": "路线",
+        "readOnlyCancelled": "该订单已取消，无法再修改。",
+        "readOnlyPast": "送货日已过，订单无法再修改，但可以复制到其他日期。",
+        "cancelTitle": "取消订单？",
+        "cancelDescription": "订单会以“已取消”状态保留，但不再计入合计，也不会编入任何路线。此操作无法撤销。",
+        "cancelTourNote": "该订单已在一条路线中。该路线将被标记为已过期，需要重新规划。",
+        "cancelConfirm": "确认取消",
+        "cancelled": "订单已取消。",
+        "duplicateTitle": "复制订单",
+        "duplicateDescription": "将创建一份新的草稿，包含相同的明细和内部备注。截图不会被复制。",
+        "duplicateDate": "新的送货日期",
+        "duplicateConfirm": "创建副本",
+        "duplicated": "已创建草稿副本。",
+        "actionErrors": {
+          "invalid": "请填写有效的日期。",
+          "not_found": "未找到该订单。",
+          "not_editable": "该订单无法再修改。",
+          "date_in_past": "送货日期不能早于今天。",
+          "customer_inactive": "该客户已归档，无法再添加新订单。",
+          "product_not_found": "订单中的某个产品未找到。",
+          "product_inactive": "订单中的某个产品已被停用，无法复制。",
+          "generic": "操作失败，请重试。"
+        }
+      },
+      "inTour": "已编入路线",
+      "filters": {
+        "heading": "筛选",
+        "from": "从",
+        "to": "到",
+        "customer": "客户",
+        "customerAll": "所有客户",
+        "customerSearch": "按名称或编号搜索",
+        "customerEmpty": "未找到客户。",
+        "status": "状态",
+        "statusAll": "所有状态",
+        "source": "来源",
+        "sourceAll": "所有来源",
+        "reset": "重置（下一个送货日）"
+      },
+      "truncated": "仅显示前 {count} 个订单，请缩小日期范围或筛选条件。",
+      "totals": {
+        "heading": "每个送货日的合计",
+        "description": "当天所有已确认订单按产品的数量合计。草稿和已取消的订单不计入。合计不受客户、状态和来源筛选的影响。",
+        "dateHeading": "{date} · {count} 个已确认订单",
+        "product": "产品",
+        "quantity": "数量",
+        "empty": "所选时间段内没有已确认订单。"
       }
     }
   },

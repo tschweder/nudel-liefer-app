@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon, ArchiveRestoreIcon } from "lucide-react";
+import { AlertTriangleIcon, ArchiveIcon, ArchiveRestoreIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -21,9 +21,12 @@ import { setCustomerActiveAction } from "@/server/customer-actions";
 export function CustomerArchiveButton({
   customerId,
   active,
+  upcomingOrders = 0,
 }: {
   customerId: string;
   active: boolean;
+  /** Not cancelled orders from today on: archiving shows a warning (they are not cancelled). */
+  upcomingOrders?: number;
 }) {
   const t = useTranslations("admin.customers.detail");
   const tc = useTranslations("common");
@@ -77,6 +80,16 @@ export function CustomerArchiveButton({
             <DialogTitle>{t("archiveTitle")}</DialogTitle>
             <DialogDescription>{t("archiveDescription")}</DialogDescription>
           </DialogHeader>
+          {upcomingOrders > 0 ? (
+            <p
+              className="flex items-start gap-2 text-base font-medium text-warning"
+              role="status"
+              data-testid="archive-upcoming-warning"
+            >
+              <AlertTriangleIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
+              {t("archiveUpcoming", { count: upcomingOrders })}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {tc("actions.cancel")}

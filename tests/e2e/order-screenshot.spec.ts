@@ -199,7 +199,7 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
     await page.screenshot({ path: testInfo.outputPath("split-view-filled.png") });
 
     await page.getByTestId("order-save").click();
-    await expect(page).toHaveURL(/\/admin\/orders$/);
+    await expect(page).toHaveURL(/\/admin\/orders(\?.*)?$/);
 
     const stored = await f.client.query<{
       id: string;
@@ -299,7 +299,7 @@ test("screenshot order: file picker and drag-and-drop attach, remove brings the 
     await page.keyboard.press("Enter");
     await page.getByTestId("line-quantity").fill("1");
     await page.getByTestId("order-save").click();
-    await expect(page).toHaveURL(/\/admin\/orders$/);
+    await expect(page).toHaveURL(/\/admin\/orders(\?.*)?$/);
     const rows = await f.client.query(
       `SELECT "source"::text AS source, "screenshotId" FROM "Order" WHERE "customerId"=$1`,
       [f.id],

@@ -135,7 +135,7 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     await page.screenshot({ path: testInfo.outputPath("order-form.png") });
 
     await page.getByTestId("order-save").click();
-    await expect(page).toHaveURL(/\/admin\/orders$/);
+    await expect(page).toHaveURL(/\/admin\/orders(\?.*)?$/);
 
     // Visible in the (placeholder) overview with all three lines.
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name });
@@ -233,7 +233,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     await lines.nth(1).getByTestId("line-quantity").fill("2");
     await expect(page.getByTestId("duplicate-notice")).toBeVisible();
     await page.getByTestId("order-save-draft").click();
-    await expect(page).toHaveURL(/\/admin\/orders$/);
+    await expect(page).toHaveURL(/\/admin\/orders(\?.*)?$/);
 
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name }).last();
     await expect(row.getByTestId("order-status")).toHaveText("Entwurf");
