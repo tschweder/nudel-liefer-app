@@ -1,25 +1,22 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
-import { LogoutButton } from "@/components/auth/logout-button";
-import { LanguageSwitcher } from "@/components/shared/language-switcher";
+import { LoadingSkeleton } from "@/components/shared/states";
 import { requirePageActor } from "@/server/auth/page-guards";
 
 async function Dashboard({ locale }: { locale: string }) {
   const actor = await requirePageActor("admin", locale);
   const t = await getTranslations({ locale });
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4">
       <h1 className="text-3xl font-semibold" data-testid="admin-title">
         {t("admin.dashboard.title")}
       </h1>
       <p className="text-base">{t("admin.dashboard.welcome")}</p>
-      <p className="text-base" data-testid="signed-in-as">
+      <p className="text-base text-muted-foreground" data-testid="signed-in-as-page">
         {t("auth.signedInAs", { name: actor.name })}
       </p>
-      <LanguageSwitcher />
-      <LogoutButton locale={locale} />
-    </main>
+    </div>
   );
 }
 
@@ -27,7 +24,7 @@ export default async function AdminDashboardPage({ params }: PageProps<"/[locale
   const { locale } = await params;
   setRequestLocale(locale);
   return (
-    <Suspense>
+    <Suspense fallback={<LoadingSkeleton />}>
       <Dashboard locale={locale} />
     </Suspense>
   );

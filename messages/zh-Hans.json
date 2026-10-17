@@ -66,7 +66,22 @@
       "invalid": "无效的值",
       "network": "没有网络连接。"
     },
-    "itemsCount": "{count, plural, =0 {没有条目} other {# 个条目}}"
+    "itemsCount": "{count, plural, =0 {没有条目} other {# 个条目}}",
+    "states": {
+      "emptyTitle": "暂无内容",
+      "comingSoon": "此部分即将上线。",
+      "errorTitle": "出错了",
+      "loading": "加载中…"
+    },
+    "notFound": {
+      "title": "找不到页面",
+      "description": "此页面不存在或已被移动。",
+      "home": "返回首页"
+    },
+    "error": {
+      "title": "出错了",
+      "description": "无法显示此页面，请重试。"
+    }
   },
   "home": {
     "title": "面条配送应用",
@@ -99,12 +114,36 @@
     "dashboard": {
       "title": "总览",
       "welcome": "欢迎进入办公室区域。"
+    },
+    "shell": {
+      "mainNavigation": "主导航",
+      "openMenu": "打开菜单",
+      "userMenu": "用户菜单",
+      "skipToContent": "跳到正文"
+    },
+    "nav": {
+      "dashboard": "总览",
+      "orders": "订单",
+      "tours": "配送线路",
+      "customers": "客户",
+      "products": "产品",
+      "drivers": "司机",
+      "settings": "设置"
     }
   },
   "driver": {
     "home": {
       "title": "今天",
       "welcome": "你好，{name}。"
+    },
+    "shell": {
+      "connectionOnline": "在线",
+      "connectionOffline": "离线",
+      "changeLanguage": "更改语言"
+    },
+    "today": {
+      "emptyTitle": "今天没有配送线路",
+      "emptyDescription": "办公室发布线路后，会显示在这里。"
     }
   }
 }

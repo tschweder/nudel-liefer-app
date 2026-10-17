@@ -66,7 +66,22 @@
       "invalid": "Ungültiger Wert",
       "network": "Keine Verbindung."
     },
-    "itemsCount": "{count, plural, =0 {Keine Einträge} one {# Eintrag} other {# Einträge}}"
+    "itemsCount": "{count, plural, =0 {Keine Einträge} one {# Eintrag} other {# Einträge}}",
+    "states": {
+      "emptyTitle": "Noch nichts vorhanden",
+      "comingSoon": "Dieser Bereich wird in Kürze ergänzt.",
+      "errorTitle": "Etwas ist schiefgelaufen",
+      "loading": "Wird geladen …"
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "description": "Diese Seite gibt es nicht oder sie wurde verschoben.",
+      "home": "Zur Startseite"
+    },
+    "error": {
+      "title": "Etwas ist schiefgelaufen",
+      "description": "Die Seite konnte nicht angezeigt werden. Bitte erneut versuchen."
+    }
   },
   "home": {
     "title": "Nudel Liefer App",
@@ -99,12 +114,36 @@
     "dashboard": {
       "title": "Übersicht",
       "welcome": "Willkommen im Büro-Bereich."
+    },
+    "shell": {
+      "mainNavigation": "Hauptnavigation",
+      "openMenu": "Menü öffnen",
+      "userMenu": "Benutzermenü",
+      "skipToContent": "Zum Inhalt springen"
+    },
+    "nav": {
+      "dashboard": "Übersicht",
+      "orders": "Bestellungen",
+      "tours": "Touren",
+      "customers": "Kunden",
+      "products": "Produkte",
+      "drivers": "Fahrer",
+      "settings": "Einstellungen"
     }
   },
   "driver": {
     "home": {
       "title": "Heute",
       "welcome": "Willkommen, {name}."
+    },
+    "shell": {
+      "connectionOnline": "Online",
+      "connectionOffline": "Offline",
+      "changeLanguage": "Sprache ändern"
+    },
+    "today": {
+      "emptyTitle": "Heute keine Tour",
+      "emptyDescription": "Sobald das Büro eine Tour freigibt, erscheint sie hier."
     }
   }
 }

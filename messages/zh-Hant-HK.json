@@ -67,7 +67,22 @@
       "invalid": "無效的值",
       "network": "沒有網絡連接。"
     },
-    "itemsCount": "{count, plural, =0 {沒有條目} other {# 個條目}}"
+    "itemsCount": "{count, plural, =0 {沒有條目} other {# 個條目}}",
+    "states": {
+      "emptyTitle": "暫無內容",
+      "comingSoon": "此部分即將上線。",
+      "errorTitle": "出錯了",
+      "loading": "加載中…"
+    },
+    "notFound": {
+      "title": "找不到頁面",
+      "description": "此頁面不存在或已被移動。",
+      "home": "返回首頁"
+    },
+    "error": {
+      "title": "出錯了",
+      "description": "無法顯示此頁面，請重試。"
+    }
   },
   "home": {
     "title": "麪條配送應用",
@@ -100,12 +115,36 @@
     "dashboard": {
       "title": "總覽",
       "welcome": "歡迎進入辦公室區域。"
+    },
+    "shell": {
+      "mainNavigation": "主導航",
+      "openMenu": "打開菜單",
+      "userMenu": "用户菜單",
+      "skipToContent": "跳到正文"
+    },
+    "nav": {
+      "dashboard": "總覽",
+      "orders": "訂單",
+      "tours": "配送線路",
+      "customers": "客户",
+      "products": "產品",
+      "drivers": "司機",
+      "settings": "設置"
     }
   },
   "driver": {
     "home": {
       "title": "今天",
       "welcome": "你好，{name}。"
+    },
+    "shell": {
+      "connectionOnline": "在線",
+      "connectionOffline": "離線",
+      "changeLanguage": "更改語言"
+    },
+    "today": {
+      "emptyTitle": "今天沒有配送線路",
+      "emptyDescription": "辦公室發佈線路後，會顯示在這裏。"
     }
   }
 }

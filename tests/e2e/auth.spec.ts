@@ -35,14 +35,21 @@ test("the 6th wrong PIN is rejected with a localized rate-limit message", async 
   const username = `nobody-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const form = page.getByTestId("driver-login-form");
   await page.goto("/de/driver/login");
-  for (let i = 0; i < 5; i++) {
+  // Waits for the server action's response: React resets the form after each submit, so filling
+  // again before the action finished (or reading the previous attempt's message) is racy.
+  const attempt = async () => {
     await form.locator('input[name="username"]').fill(username);
     await form.locator('input[name="pin"]').fill("000000");
-    await page.getByTestId("login-submit").click();
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === "POST"),
+      page.getByTestId("login-submit").click(),
+    ]);
+    await expect(page.getByTestId("login-submit")).toBeEnabled();
+  };
+  for (let i = 0; i < 5; i++) {
+    await attempt();
     await expect(page.getByTestId("login-error")).toContainText("fehlgeschlagen");
   }
-  await form.locator('input[name="username"]').fill(username);
-  await form.locator('input[name="pin"]').fill("000000");
-  await page.getByTestId("login-submit").click();
+  await attempt();
   await expect(page.getByTestId("login-error")).toContainText("Zu viele Fehlversuche");
 });
