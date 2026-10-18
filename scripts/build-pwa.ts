@@ -11,6 +11,7 @@ import { injectManifest } from "@serwist/build";
 import { build } from "esbuild";
 
 import { PWA_THEME_COLOR } from "../src/lib/pwa";
+import { offlineShellUrls } from "../src/sw/rules";
 import { buildOfflineHtml, OFFLINE_LOCALES, type OfflineTexts } from "./lib/offline-page";
 
 const root = process.cwd();
@@ -30,6 +31,7 @@ function offlineTexts(): Record<(typeof OFFLINE_LOCALES)[number], OfflineTexts> 
 }
 
 async function main() {
+  const buildId = readFileSync(path.join(root, ".next", "BUILD_ID"), "utf8").trim();
   writeFileSync(
     path.join(publicDir, "offline.html"),
     buildOfflineHtml(offlineTexts(), PWA_THEME_COLOR),
@@ -59,6 +61,9 @@ async function main() {
     // Files under /_next/static carry a content hash in their name: no extra revision needed.
     dontCacheBustURLsMatching: /^\/_next\/static\//,
     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+    // The public offline shell pages (NUD-081, one per locale). The worker fetches them when it
+    // installs; they are prerendered, carry no personal data and change with every build.
+    additionalPrecacheEntries: offlineShellUrls().map((url) => ({ url, revision: buildId })),
   });
   for (const warning of result.warnings) console.warn("pwa:", warning);
   console.log(

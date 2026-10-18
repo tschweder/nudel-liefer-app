@@ -4,6 +4,8 @@ export type AppRole = "ADMIN" | "DRIVER";
 
 export const ADMIN_LOGIN = "/login";
 export const DRIVER_LOGIN = "/driver/login";
+/** Public shell the service worker serves for driver pages while offline (NUD-081, no personal data). */
+export const DRIVER_OFFLINE_SHELL = "/driver/offline-shell";
 
 export function homePathFor(role: AppRole): string {
   return role === "ADMIN" ? "/admin" : "/driver";
@@ -36,6 +38,7 @@ export function decideAccess(rest: string, role: AppRole | null): AccessDecision
       ? { type: "redirect", to: homePathFor(role), withCallback: false }
       : { type: "allow" };
   }
+  if (rest === DRIVER_OFFLINE_SHELL) return { type: "allow" };
   if (isSection(rest, "/admin")) {
     if (role === "ADMIN") return { type: "allow" };
     if (role === "DRIVER")

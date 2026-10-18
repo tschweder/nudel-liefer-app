@@ -2,28 +2,16 @@
 
 import { WifiIcon, WifiOffIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useSyncExternalStore } from "react";
 
-function subscribe(callback: () => void) {
-  window.addEventListener("online", callback);
-  window.addEventListener("offline", callback);
-  return () => {
-    window.removeEventListener("online", callback);
-    window.removeEventListener("offline", callback);
-  };
-}
+import { useOnline } from "@/lib/offline/use-online";
 
 /**
- * Placeholder for the connection indicator: shows the browser's online state only.
- * The offline queue / sync state arrives with NUD-081/082.
+ * Header indicator: the browser's online state. The detailed offline state ("last updated",
+ * "ready offline") is shown by `OfflineStatusBar` (NUD-081); the queue state comes with NUD-082.
  */
 export function ConnectionIndicator() {
   const t = useTranslations("driver.shell");
-  const online = useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true,
-  );
+  const online = useOnline();
   const Icon = online ? WifiIcon : WifiOffIcon;
   return (
     <span

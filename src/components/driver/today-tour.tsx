@@ -29,11 +29,11 @@ import {
   summarizeItems,
 } from "@/domain/driver-today";
 import { Link } from "@/i18n/navigation";
+import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
 import { googleMapsNavigationUrl } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import type { DriverToday, TodayItem, TodayStop } from "@/server/driver-today";
 
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { useSeenRevision } from "./seen-revision";
@@ -302,7 +302,16 @@ function formatDuration(
 }
 
 /** The driver's tour for today: progress, next stop, list / map, updated-tour notice. */
-export function TodayTour({ today, tiles }: { today: DriverToday; tiles: MapTileConfig }) {
+export function TodayTour({
+  today,
+  tiles,
+  offline = false,
+}: {
+  today: DriverToday;
+  tiles: MapTileConfig;
+  /** Rendered from the offline copy (NUD-081): nothing here asks the server. */
+  offline?: boolean;
+}) {
   const t = useTranslations("driver.today");
   const [view, setView] = useState<"list" | "map">("list");
   const [seen, markSeen] = useSeenRevision(today.tourId, today.revision, today.updated);
@@ -315,7 +324,7 @@ export function TodayTour({ today, tiles }: { today: DriverToday; tiles: MapTile
 
   return (
     <div className="flex flex-col gap-4" data-testid="today-tour">
-      <RefreshOnFocus />
+      {offline ? null : <RefreshOnFocus />}
 
       {showBanner ? (
         <div

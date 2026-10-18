@@ -13,6 +13,7 @@ import {
   ScaleIcon,
   Undo2Icon,
   UserXIcon,
+  WifiOffIcon,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -35,6 +36,7 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import { newClientMutationId } from "@/lib/client-id";
 import { createAppFormatters } from "@/lib/format";
+import { requestOfflineSync } from "@/lib/offline/browser";
 import { cn } from "@/lib/utils";
 import type { StopMutationInput, StopStatusError } from "@/server/stop-status";
 import { stopStatusAction } from "@/server/stop-status-actions";
@@ -90,10 +92,13 @@ export function StopStatusActions({
   stop,
   tourStatus,
   timezone,
+  offline = false,
 }: {
   stop: StopForStatus;
   tourStatus: string;
   timezone: string;
+  /** Offline copy (NUD-081): the status is shown but cannot be changed until NUD-082 queues it. */
+  offline?: boolean;
 }) {
   const t = useTranslations("driver.status");
   const tReasons = useTranslations("common.problemReasons");
@@ -148,6 +153,7 @@ export function StopStatusActions({
       toast.error(`${name}: ${t(`errors.${result.error}`)}`);
       return;
     }
+    requestOfflineSync();
     toast.success(t("undone"));
     router.push(`/driver/stops/${stopId}`);
   }
@@ -155,6 +161,7 @@ export function StopStatusActions({
   async function complete(intent: string, build: (id: string) => StopMutationInput) {
     const result = await send(intent, build);
     if (!result?.ok) return;
+    requestOfflineSync(); // the offline copy must show the new status
     setSheetOpen(false);
     setReason(null);
     setNote("");
@@ -180,6 +187,7 @@ export function StopStatusActions({
   if (stop.status !== "PENDING") {
     const completedAt = stop.completedAt ? new Date(stop.completedAt) : null;
     const canUndo =
+      !offline &&
       tourStatus !== "COMPLETED" &&
       completedAt !== null &&
       isWithinUndoWindow(completedAt, new Date(now));
@@ -242,11 +250,20 @@ export function StopStatusActions({
 
   return (
     <section className="space-y-3" data-testid="stop-actions" aria-label={t("actionsLabel")}>
+      {offline ? (
+        <p
+          className="flex items-center gap-2 rounded-lg border-2 border-amber-500 bg-amber-50 p-3 text-base font-semibold text-amber-950 dark:bg-amber-950/40 dark:text-amber-50"
+          data-testid="status-offline-notice"
+        >
+          <WifiOffIcon className="size-5 shrink-0" aria-hidden />
+          {t("offlineNotice")}
+        </p>
+      ) : null}
       <Button
         type="button"
         size="lg"
         className="h-20 w-full gap-3 bg-green-700 text-2xl font-bold text-white hover:bg-green-800 focus-visible:ring-green-900"
-        disabled={busy}
+        disabled={busy || offline}
         onClick={() =>
           void complete("delivered", (clientMutationId) => ({
             type: "delivered",
@@ -264,7 +281,7 @@ export function StopStatusActions({
         variant="outline"
         size="lg"
         className="h-16 w-full gap-3 border-2 border-amber-600 bg-amber-50 text-xl font-bold text-amber-950 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-50"
-        disabled={busy}
+        disabled={busy || offline}
         onClick={() => {
           setError(null);
           setSheetOpen(true);

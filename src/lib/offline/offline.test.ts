@@ -1,0 +1,260 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { DRIVER_TOUR_SCHEMA_VERSION, type DriverTourResponse } from "@/lib/driver-tour-model";
+
+import { photoCacheUrl } from "./constants";
+import { type PhotoCache, syncPhotos } from "./photos";
+import {
+  createMemoryStore,
+  loadCurrentRecord,
+  type OfflineRecord,
+  purgeStaleRecords,
+  saveRecord,
+} from "./store";
+import { syncDriverTour } from "./sync";
+
+const photo = (id: string) => ({ id, url: `https://s3.test/${id}?sig=1`, width: 4, height: 3 });
+const text = {
+  de: "x",
+  meta: { source: "de" as const, machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
+};
+
+function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResponse {
+  return {
+    schemaVersion: DRIVER_TOUR_SCHEMA_VERSION,
+    date,
+    generatedAt: `${date}T05:00:00.000Z`,
+    timezone: "Europe/Vienna",
+    serviceSecondsPerStop: 600,
+    tour: {
+      id: "t1",
+      status: "RELEASED",
+      revision: 1,
+      updated: false,
+      removedCustomers: [],
+      depot: null,
+      geometry: null,
+      stops: photoIds.map((id, i) => ({
+        id: `s${i}`,
+        sequence: i + 1,
+        status: "PENDING",
+        problemReason: null,
+        completedAt: null,
+        etaAt: null,
+        legDurationS: null,
+        change: null,
+        changedInRevision: null,
+        customerId: `c${i}`,
+        customerNumber: `K${i}`,
+        customerName: "N",
+        street: "S",
+        postalCode: "1",
+        city: "C",
+        lat: null,
+        lng: null,
+        notes: text,
+        deliveryHoursInfo: null,
+        photos: { STORE: photo(id), PARKING: null },
+        items: [],
+      })),
+    },
+  };
+}
+
+const record = (
+  userId: string,
+  date: string,
+  savedAt = `${date}T06:00:00.000Z`,
+): OfflineRecord => ({
+  userId,
+  date,
+  savedAt,
+  data: response(date),
+});
+
+class MemoryPhotos implements PhotoCache {
+  map = new Map<string, Response>();
+  cleared = 0;
+  async ids() {
+    return [...this.map.keys()];
+  }
+  async put(id: string, r: Response) {
+    this.map.set(id, r);
+  }
+  async delete(id: string) {
+    this.map.delete(id);
+  }
+  async clear() {
+    this.cleared += 1;
+    this.map.clear();
+  }
+}
+
+const image = () => new Response("img", { status: 200, headers: { "content-type": "image/jpeg" } });
+
+describe("offline store rules", () => {
+  it("keeps one user's tour: saving removes everybody else's data", async () => {
+    const store = createMemoryStore();
+    await saveRecord(store, record("u1", "2099-07-02"));
+    await saveRecord(store, record("u2", "2099-07-02"));
+    expect([...store.rows.keys()]).toEqual(["u2"]);
+  });
+
+  it("purges previous days and never shows them", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-01"));
+    const now = new Date("2099-07-02T07:00:00Z");
+    expect(await loadCurrentRecord(store, now)).toBeNull();
+    expect(store.rows.size).toBe(0);
+  });
+
+  it("uses the factory time zone for 'today' (22:30 UTC is already tomorrow in Vienna)", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-02"));
+    const lateEvening = new Date("2099-07-01T22:30:00Z");
+    expect((await loadCurrentRecord(store, lateEvening))?.userId).toBe("u1");
+    await purgeStaleRecords(store, new Date("2099-07-03T10:00:00Z"));
+    expect(store.rows.size).toBe(0);
+  });
+
+  it("loads only the asked user's record", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-02"));
+    const now = new Date("2099-07-02T07:00:00Z");
+    expect(await loadCurrentRecord(store, now, "u2")).toBeNull();
+    expect((await loadCurrentRecord(store, now, "u1"))?.userId).toBe("u1");
+  });
+
+  it("drops damaged or old-schema records", async () => {
+    const store = createMemoryStore();
+    store.rows.set("u1", {
+      userId: "u1",
+      date: "2099-07-02",
+      savedAt: "x",
+      data: { schemaVersion: 0 },
+    });
+    expect(await loadCurrentRecord(store, new Date("2099-07-02T07:00:00Z"))).toBeNull();
+    expect(store.rows.size).toBe(0);
+  });
+});
+
+describe("photo prefetch", () => {
+  let cache: MemoryPhotos;
+  beforeEach(() => void (cache = new MemoryPhotos()));
+
+  it("downloads missing photos once, keyed by the stable photo id", async () => {
+    const urls: string[] = [];
+    const f = (async (url: string) => (urls.push(url), image())) as unknown as typeof fetch;
+    const photos = [photo("a"), photo("b")];
+    expect(await syncPhotos(cache, photos, f)).toEqual({ total: 2, cached: 2, failed: 0 });
+    // second run (the signed URLs changed, the ids did not): nothing is downloaded again
+    const again = [photo("a"), photo("b")].map((p) => ({ ...p, url: `${p.url}&new=1` }));
+    expect(await syncPhotos(cache, again, f)).toEqual({ total: 2, cached: 2, failed: 0 });
+    expect(urls).toHaveLength(2);
+    expect(photoCacheUrl("a")).toBe("/api/driver/photo-cache/a");
+  });
+
+  it("deletes photos that left the tour", async () => {
+    const f = (async () => image()) as unknown as typeof fetch;
+    await syncPhotos(cache, [photo("a"), photo("b")], f);
+    await syncPhotos(cache, [photo("b")], f);
+    expect([...cache.map.keys()]).toEqual(["b"]);
+  });
+
+  it("counts failed downloads instead of pretending", async () => {
+    const f = (async (url: string) =>
+      url.includes("/b?")
+        ? new Response("no", { status: 403 })
+        : image()) as unknown as typeof fetch;
+    expect(await syncPhotos(cache, [photo("a"), photo("b")], f)).toEqual({
+      total: 2,
+      cached: 1,
+      failed: 1,
+    });
+    const throwing = (async () => {
+      throw new TypeError("cors");
+    }) as unknown as typeof fetch;
+    const c2 = new MemoryPhotos();
+    expect((await syncPhotos(c2, [photo("a")], throwing)).failed).toBe(1);
+  });
+
+  it("refuses non-image answers", async () => {
+    const f = (async () =>
+      new Response("<html>", {
+        headers: { "content-type": "text/html" },
+      })) as unknown as typeof fetch;
+    expect((await syncPhotos(cache, [photo("a")], f)).failed).toBe(1);
+  });
+});
+
+describe("syncDriverTour", () => {
+  const now = () => new Date("2099-07-02T05:30:00Z");
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+  function deps(
+    fetchImpl: typeof fetch,
+    store = createMemoryStore(),
+    photoCache = new MemoryPhotos(),
+  ) {
+    return { store, photoCache, fetchImpl, now };
+  }
+  const routed = (body: unknown, status = 200) =>
+    (async (url: string) =>
+      url.startsWith("/api/") ? json(body, status) : image()) as unknown as typeof fetch;
+
+  it("stores the tour and its photos", async () => {
+    const d = deps(routed(response("2099-07-02")));
+    const out = await syncDriverTour("u1", d);
+    expect(out).toMatchObject({ kind: "saved", photos: { total: 2, cached: 2, failed: 0 } });
+    expect([...d.store.rows.keys()]).toEqual(["u1"]);
+    expect((d.photoCache as MemoryPhotos).map.size).toBe(2);
+    if (out.kind === "saved") expect(out.record.savedAt).toBe("2099-07-02T05:30:00.000Z");
+  });
+
+  it("removes a stored tour when nothing is released today", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-02"));
+    const d = deps(routed({ ...response("2099-07-02"), tour: null }), store);
+    expect(await syncDriverTour("u1", d)).toEqual({ kind: "no-tour", date: "2099-07-02" });
+    expect(store.rows.size).toBe(0);
+  });
+
+  it("keeps the old copy when the network, the server or the answer is bad", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-02"));
+    const down = (async () => {
+      throw new TypeError("offline");
+    }) as unknown as typeof fetch;
+    expect(await syncDriverTour("u1", deps(down, store))).toEqual({
+      kind: "error",
+      reason: "network",
+    });
+    expect(await syncDriverTour("u1", deps(routed({}, 500), store))).toEqual({
+      kind: "error",
+      reason: "server",
+    });
+    expect(await syncDriverTour("u1", deps(routed({ nonsense: true }), store))).toEqual({
+      kind: "error",
+      reason: "invalid",
+    });
+    expect(store.rows.size).toBe(1);
+  });
+
+  it("reports an ended session without touching the stored data", async () => {
+    const store = createMemoryStore();
+    await store.put(record("u1", "2099-07-02"));
+    expect(await syncDriverTour("u1", deps(routed({ error: "x" }, 401), store))).toEqual({
+      kind: "unauthorized",
+      status: 401,
+    });
+    expect(store.rows.size).toBe(1);
+  });
+
+  it("a different user on the phone replaces the previous driver's data", async () => {
+    const d = deps(routed(response("2099-07-02")));
+    await d.store.put(record("old", "2099-07-02"));
+    await syncDriverTour("new", d);
+    expect([...d.store.rows.keys()]).toEqual(["new"]);
+  });
+});

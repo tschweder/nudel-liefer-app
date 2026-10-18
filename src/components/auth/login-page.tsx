@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { PurgeOfflineData } from "@/components/driver/purge-offline-data";
+
 import { LoginForm } from "./login-form";
 
 async function Body({
@@ -21,8 +23,12 @@ async function Body({
 /** Login page body; reads `?callbackUrl` inside Suspense (dynamic data under cacheComponents). */
 export function LoginPageContent(props: Parameters<typeof Body>[0]) {
   return (
-    <Suspense>
-      <Body {...props} />
-    </Suspense>
+    <>
+      {/* A login page means no session: no personal offline copy may stay on the device (NUD-081). */}
+      <PurgeOfflineData />
+      <Suspense>
+        <Body {...props} />
+      </Suspense>
+    </>
   );
 }

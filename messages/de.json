@@ -865,7 +865,8 @@
         "mutation_conflict": "Das hat nicht geklappt. Bitte erneut versuchen.",
         "invalid": "Das hat nicht geklappt. Bitte erneut versuchen.",
         "forbidden": "Dazu fehlt die Berechtigung."
-      }
+      },
+      "offlineNotice": "Offline: Der Status kann erst mit Internetverbindung gespeichert werden."
     },
     "install": {
       "title": "App installieren",
@@ -880,6 +881,20 @@
       "step3": "Tippen Sie oben rechts auf „Hinzufügen“.",
       "done": "Verstanden",
       "illustrationLabel": "Abbildung: Teilen-Symbol in der Safari-Leiste"
+    },
+    "offline": {
+      "bar": "Offline – zuletzt aktualisiert {time}",
+      "barNoData": "Offline – keine gespeicherte Tour",
+      "ready": "Offline bereit ✓",
+      "partial": "Offline teilweise bereit: {cached} von {total} Fotos",
+      "syncing": "Tour wird für offline gespeichert …",
+      "error": "Offline nicht verfügbar",
+      "noDataTitle": "Keine gespeicherte Tour",
+      "noDataDescription": "Ohne Verbindung ist keine Tour für heute gespeichert. Bitte mit dem Internet verbinden und die App neu öffnen.",
+      "retry": "Erneut versuchen",
+      "stopMissingTitle": "Stopp nicht gespeichert",
+      "stopMissingDescription": "Dieser Stopp gehört nicht zur gespeicherten Tour.",
+      "backToTour": "Zur Tour"
     }
   },
   "pwa": {

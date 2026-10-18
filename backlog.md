@@ -230,7 +230,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-072 | Driver problem text → German for office | M2 | 053, 070 | done |
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | blocked |
 | NUD-080 | PWA installability | M2 | 051 | done |
-| NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | todo |
+| NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | done |
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | todo |
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | todo |
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | todo |
@@ -245,6 +245,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
 | NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
+| NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
+| NUD-108 | Map view offline (tiles) | M2 | 081 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1215,7 +1217,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-081 · Offline cache of today's tour + photos
-**Status:** todo · **depends_on:** 080, 052
+**Status:** done · **depends_on:** 080, 052
 
 **Goal:** the driver can work through dead spots.
 
@@ -1226,7 +1228,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Cache purge of previous days.
 
 **Acceptance criteria**
-- [ ] Playwright with `context.setOffline(true)` after load: tour list, stop details and photos still render.
+- [x] Playwright with `context.setOffline(true)` after load: tour list, stop details and photos still render. (`tests/e2e/driver-offline.spec.ts`, 375 px, production build, real signed URLs against the fake S3: list, two stops with / without photos, a stop not in the cache, 4 locales; list and detail text identical to the online render; "offline - last updated HH:MM" bar; logout, other user and previous day purge the copy.)
+
+**Implementation notes**
+- Shared data model `src/lib/driver-tour-model.ts` (zod `driverTourResponseSchema`, `schemaVersion` 1): the API JSON, the IndexedDB record and the input of the pure view functions `toDriverToday(response, locale)` / `toDriverStopDetail(response, stopId, locale, photoUrl)`. `getDriverToday` / `getDriverStopDetail` (server pages) are now built on `getDriverTourResponse` (`server/driver-tour-payload.ts`) + these functions, and the offline shell uses the same functions and the same components (`TodayTour`, `StopDetail`, new prop `offline`), so online and offline render identically (e2e compares texts). Product names and customer notes travel as `LocalizedText` (all locales) and are picked on the device, so the language of an offline page follows its URL. Customer name / address untranslated as before. Changed-tour data of NUD-043 (`revision`, `updated`, `removedCustomers`, `change`, `changedInRevision`, `previousQuantityCents`) is part of the payload (integration + unit tested); the "seen revision" stays in localStorage.
+- Endpoint `GET /api/driver/tour/today` (`server/driver-tour-api.ts`): `requireRole("DRIVER")` first, no parameters (driver = session), 401 / 403 JSON otherwise (admin support view gets 403, no tour), `Cache-Control: private, no-store`. Photo URLs: `DRIVER_PHOTO_URL_TTL_SECONDS` = 12 h. Tests: `driver-tour-api.integration.test.ts` (9).
+- Browser side `src/lib/offline/`: `store.ts` (IndexedDB, one record per user, rules: other users and other days removed, damaged / old-schema records dropped; memory store for unit tests), `photos.ts` (Cache Storage; photos keyed by the stable same-origin URL `/api/driver/photo-cache/<photoId>`, only missing ones downloaded, obsolete ones deleted, failures counted), `sync.ts` (fetch -> zod -> store -> photos), `browser.ts` (singletons, status store, serialized sync, `purgeOfflineData`). `OfflineSync` (in `DriverShell` for DRIVER users only) syncs at start, on `online`, when visible again, every 5 min, after each status change (`requestOfflineSync` in `StopStatusActions`); after a reconnect also `router.refresh()`. `OfflineStatusBar`: online + tour + ALL photos stored = "Offline bereit ✓"; some photos missing = "teilweise bereit n von m"; offline = amber "Offline - zuletzt aktualisiert 07:12" (factory time zone).
+- Offline navigation: the public prerendered page `/<locale>/driver/offline-shell` (no personal data, allowed in `decideAccess`) is precached per locale (`additionalPrecacheEntries`, build id as revision). The worker answers failed loads (also after 8 s) of `/<locale>/driver` and `/<locale>/driver/stops/<id>` with it (Serwist fallbacks, other driver URLs keep the generic `offline.html`). `OfflineDriverApp` reads the URL + IndexedDB and renders list / stop; links trigger a normal page load (Next falls back from the failed RSC fetch), which the worker answers with the shell again; when the `online` event fires the shell reloads into the live page. Photos offline: `<img src="/api/driver/photo-cache/<id>">` answered by a `CacheOnly` route of the worker from the bucket the page filled.
+- Purge: `PurgeOfflineData` on the login pages (a login page = no session: covers logout, ended sessions and another driver signing in), IndexedDB + Cache Storage; previous days on every load / sync.
+- Offline the status buttons are disabled with a notice (queue = NUD-082); undo is hidden.
+- Docs: `docs/offline.md`. Tests: unit `driver-tour-model`, `offline/*`, `sw/rules`, `offline-status` (4 locales); e2e `driver-offline.spec.ts` (11), `pwa.spec.ts` adapted (shell pages in precache, generic offline page now for login URLs).
+- Verified: lint, typecheck, `i18n:check`, `pnpm test` (918 incl. DB), `pnpm build` (fake S3), e2e mobile: `driver-offline`, `pwa`, `driver-today`, `driver-stop`, `driver-status`, `shells`, `auth`, `driver-language-picker`; screenshots at 375 px (offline list de, stop de, stop zh-Hant-TW) inspected.
+- NOT verified: real phones / Safari (IndexedDB / Cache Storage eviction under storage pressure, iOS PWA, real Wi-Fi drop -> NUD-107); real R2 CORS for the photo download (only the fake S3 with a GET rule); the desktop Playwright project; map tiles offline (NUD-108: the map view shows no tiles offline); a worker update across deployments. In this sandbox Chromium `navigator.onLine` is permanently false and ignores `setOffline`, so the e2e drive it with a test helper (`tests/e2e/helpers/network.ts`); the app does not gate syncing on `onLine`.
+- Known limits: the cached statuses are only as fresh as the last sync (before NUD-082 an offline "delivered" cannot be recorded); anyone holding the unlocked phone can open the cached tour offline (as with any logged-in session); the shell does not offer the language switcher offline.
 
 ---
 
@@ -1444,6 +1458,30 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 ---
 
+#### NUD-107 · 👤 Real-device offline check (dead spot, photos, logout)
+**Status:** todo · **depends_on:** 081
+
+**Goal:** confirm on real phones what the sandbox could only simulate.
+
+**Scope**: on Android (Chrome, installed PWA) and iPhone (Safari, home-screen app): load the tour online, check "Offline bereit ✓", switch to airplane mode, open list, stops and photos, cold-start the app offline, come back online, log out and check that no tour is shown offline afterwards. Check the R2 CORS rule allows `GET` (photos count "n von m" otherwise).
+
+**Acceptance criteria**
+- [ ] All steps pass on one Android and one iOS device; findings written under the ticket.
+
+---
+
+#### NUD-108 · Map view offline (tiles)
+**Status:** todo · **depends_on:** 081
+
+**Goal:** the list / map toggle must not show an empty map in a dead spot.
+
+**Scope**: decide between hiding the map offline with a hint, or caching the tiles of the tour's bounding box at low zoom levels (respect the tile provider's terms).
+
+**Acceptance criteria**
+- [ ] Offline the map view shows either tiles or a clear localized hint, never a blank map.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -1650,6 +1688,16 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-080 | Worker registered in production builds only, from the `/driver` layout (login included) | Avoids stale workers in `next dev`; admin pages are not handled by driver logic |
 | 2026-10-18 | NUD-080 | Install hint dismissal is permanent (`localStorage`, in-memory fallback); iOS detected by user agent | Simplest "dismissible and remembered"; iOS has no install event |
 | 2026-10-18 | NUD-080 | Real Lighthouse replaced by CDP `Page.getInstallabilityErrors` + assertions | Lighthouse not runnable in the sandbox; stated in the ticket (NUD-105) |
+| 2026-10-18 | NUD-081 | Offline data model = the API JSON itself (`DriverTourResponse`, zod, schemaVersion 1); the server pages and the offline shell derive their screen models from it with the same pure functions | Online and offline must render identically; one schema validates API answers and stored records |
+| 2026-10-18 | NUD-081 | Names and notes travel as `LocalizedText` in all four locales and are picked on the device (not resolved for the driver's locale on the server) | Offline pages follow the URL locale; language switch needs no new download; payload stays small |
+| 2026-10-18 | NUD-081 | Photos are cached in Cache Storage under the stable URL `/api/driver/photo-cache/<photoId>` (not the signed URL); the worker serves that path from the cache only | Signed URLs change on every load; ids are immutable so only new photos are downloaded; same-origin path avoids opaque responses |
+| 2026-10-18 | NUD-081 | Signed photo URLs in the tour payload are valid 12 h (`DRIVER_PHOTO_URL_TTL_SECONDS`); photos are fetched with CORS `GET` (bucket CORS rule must allow GET, already in docs/env.md) | Ticket requires >= 12 h; opaque `no-cors` responses cannot be checked and cost quota; failures show 'partly ready' instead of claiming readiness |
+| 2026-10-18 | NUD-081 | Offline navigation: public prerendered shell page `/<locale>/driver/offline-shell` precached by the worker and served (Serwist fallbacks, 8 s network timeout) for `/<locale>/driver` and `/driver/stops/<id>`; it reads IndexedDB client side. Authenticated HTML is still never stored | Keeps the NUD-080 privacy rule; the shell contains no personal data; hard page loads between screens are acceptable and robust |
+| 2026-10-18 | NUD-081 | Cached data is per user (one IndexedDB record keyed by user id, other users' records removed on every save) and per day (records not from today in the factory time zone are never shown and are deleted) | Shared phones and stale quantities (priority 2) |
+| 2026-10-18 | NUD-081 | The login pages purge IndexedDB and the photo cache on mount (instead of purging on the logout click) | A login page means no session: also covers expired / ended sessions and a different driver; an offline logout that fails must not delete data of a still logged-in driver |
+| 2026-10-18 | NUD-081 | The sync is not gated on `navigator.onLine`; it runs at start, on `online`, when visible, every 5 min and after status changes; only DRIVER users sync (admin support view would get 403) | `onLine` can be wrong (false in this sandbox); a failed fetch is cheap |
+| 2026-10-18 | NUD-081 | Offline the status buttons are disabled with a notice and undo is hidden | Mutation queue is NUD-082; a server action cannot succeed offline |
+
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -180,7 +180,10 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
   expect(urls.length).toBeGreaterThan(10);
   expect(urls).toContain("/offline.html");
   for (const u of urls) {
-    expect(u, u).toMatch(/^(\/_next\/static\/|\/icons\/|\/offline\.html$)/);
+    // NUD-081 adds the public offline shell pages (no personal data) to the precache.
+    expect(u, u).toMatch(
+      /^(\/_next\/static\/|\/icons\/|\/offline\.html$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
+    );
     expect(u).not.toContain("_rsc");
   }
   // Responses of cached entries are never HTML pages other than the generic offline page.
@@ -196,10 +199,15 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
     }
     return out;
   });
-  expect(htmlEntries).toEqual(["/offline.html"]);
+  expect(htmlEntries.sort()).toEqual(
+    [
+      "/offline.html",
+      ...["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"].map((l) => `/${l}/driver/offline-shell`),
+    ].sort(),
+  );
 });
 
-test("offline: a driver page shows the generic offline page in the URL's language", async ({
+test("offline: pages without cached data show the generic offline page in the URL's language", async ({
   page,
   context,
 }) => {
@@ -209,12 +217,18 @@ test("offline: a driver page shows the generic offline page in the URL's languag
   await swControlled(page);
   await context.setOffline(true);
   try {
-    await page.goto("/de/driver").catch(() => {});
+    // Pages that cannot be shown from the offline copy (NUD-081 handles /driver and stops).
+    await page.goto("/de/driver/login").catch(() => {});
     await expect(page.locator("h1:visible")).toHaveText("Keine Verbindung");
     await expect(page.locator("body")).not.toContainText("PWA Driver");
-    await page.goto("/zh-Hans/driver").catch(() => {});
+    await page.goto("/zh-Hans/driver/login").catch(() => {});
     await expect(page.locator("h1:visible")).toHaveText("没有网络连接");
     await page.screenshot({ path: "test-results/nud080-offline-zh-Hans.png" });
+    // The tour list itself is rendered by the offline shell; this driver has no tour today, so it
+    // says so and contains no personal data.
+    await page.goto("/de/driver").catch(() => {});
+    await expect(page.getByTestId("offline-empty")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("PWA Driver");
   } finally {
     await context.setOffline(false);
   }

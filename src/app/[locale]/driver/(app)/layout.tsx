@@ -9,12 +9,20 @@ import { getFactoryTimezone } from "@/server/settings";
 
 async function Gate({ locale, children }: { locale: string; children: ReactNode }) {
   // Everything in this route group (not the login page) needs a driver or an admin (support view).
-  await requirePageActor("driver", locale);
+  const actor = await requirePageActor("driver", locale);
   const formatters = createAppFormatters(
     await getFormatter({ locale }),
     await getFactoryTimezone(),
   );
-  return <DriverShell dateLabel={formatters.dateLong(new Date())}>{children}</DriverShell>;
+  return (
+    <DriverShell
+      dateLabel={formatters.dateLong(new Date())}
+      // The offline copy (NUD-081) belongs to a driver; an admin in the support view has no tour.
+      syncUserId={actor.role === "DRIVER" ? actor.id : undefined}
+    >
+      {children}
+    </DriverShell>
+  );
 }
 
 export default async function DriverLayout({ children, params }: LayoutProps<"/[locale]/driver">) {

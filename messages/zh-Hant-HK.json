@@ -866,7 +866,8 @@
         "mutation_conflict": "操作沒有成功，請再試一次。",
         "invalid": "操作沒有成功，請再試一次。",
         "forbidden": "沒有權限。"
-      }
+      },
+      "offlineNotice": "離線：聯網後才能保存送達狀態。"
     },
     "install": {
       "title": "安裝應用",
@@ -881,6 +882,20 @@
       "step3": "點按右上角的“添加”。",
       "done": "知道了",
       "illustrationLabel": "示意圖：Safari 工具欄中的分享圖標"
+    },
+    "offline": {
+      "bar": "離線 – 最後更新於 {time}",
+      "barNoData": "離線 – 沒有已保存的行程",
+      "ready": "已可離線使用 ✓",
+      "partial": "離線部分可用：{cached}/{total} 張照片",
+      "syncing": "正在保存行程以供離線使用……",
+      "error": "無法離線使用",
+      "noDataTitle": "沒有已保存的行程",
+      "noDataDescription": "離線時沒有保存今天的行程。請連接網絡並重新打開應用。",
+      "retry": "重試",
+      "stopMissingTitle": "未保存此站點",
+      "stopMissingDescription": "此站點不在已保存的行程中。",
+      "backToTour": "返回行程"
     }
   },
   "pwa": {

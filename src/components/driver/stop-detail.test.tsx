@@ -45,7 +45,7 @@ function renderIn(locale: string, detail: DriverStopDetail) {
   );
 }
 
-const photo = { url: "https://s3.test/a.jpg?sig=1", width: 800, height: 600 };
+const photo = { id: "p1", url: "https://s3.test/a.jpg?sig=1", width: 800, height: 600 };
 const detail = (extra: Partial<DriverStopDetail> = {}): DriverStopDetail => ({
   tourId: "t1",
   tourStatus: "RELEASED",

@@ -23,10 +23,10 @@ import { formatAddress } from "@/domain/driver-stop";
 import type { PhotoKind } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
 import { isIosDevice } from "@/lib/device";
+import type { DriverStopDetail, StopPhoto } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import type { DriverStopDetail, StopPhoto } from "@/server/driver-stop";
 
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { StopStatusActions } from "./stop-status-actions";
@@ -121,7 +121,14 @@ function PhotoSlot({
   );
 }
 
-export function StopDetail({ detail }: { detail: DriverStopDetail }) {
+export function StopDetail({
+  detail,
+  offline = false,
+}: {
+  detail: DriverStopDetail;
+  /** Rendered from the offline copy (NUD-081): status changes need the server (NUD-082). */
+  offline?: boolean;
+}) {
   const t = useTranslations("driver");
   const fmt = createAppFormatters(useFormatter(), detail.timezone);
   const ios = useIsIos();
@@ -131,7 +138,7 @@ export function StopDetail({ detail }: { detail: DriverStopDetail }) {
 
   return (
     <div className="space-y-5" data-testid="stop-detail" data-stop-id={stop.id}>
-      <RefreshOnFocus />
+      {offline ? null : <RefreshOnFocus />}
       <Button asChild variant="outline" size="lg">
         <Link href="/driver" data-testid="back">
           <ArrowLeftIcon className="size-5" aria-hidden />
@@ -289,6 +296,7 @@ export function StopDetail({ detail }: { detail: DriverStopDetail }) {
           stop={stop}
           tourStatus={detail.tourStatus}
           timezone={detail.timezone}
+          offline={offline}
         />
       </div>
 

@@ -865,7 +865,8 @@
         "mutation_conflict": "操作没有成功，请再试一次。",
         "invalid": "操作没有成功，请再试一次。",
         "forbidden": "没有权限。"
-      }
+      },
+      "offlineNotice": "离线：联网后才能保存送达状态。"
     },
     "install": {
       "title": "安装应用",
@@ -880,6 +881,20 @@
       "step3": "点按右上角的“添加”。",
       "done": "知道了",
       "illustrationLabel": "示意图：Safari 工具栏中的分享图标"
+    },
+    "offline": {
+      "bar": "离线 – 最后更新于 {time}",
+      "barNoData": "离线 – 没有已保存的行程",
+      "ready": "已可离线使用 ✓",
+      "partial": "离线部分可用：{cached}/{total} 张照片",
+      "syncing": "正在保存行程以供离线使用……",
+      "error": "无法离线使用",
+      "noDataTitle": "没有已保存的行程",
+      "noDataDescription": "离线时没有保存今天的行程。请连接网络并重新打开应用。",
+      "retry": "重试",
+      "stopMissingTitle": "未保存此站点",
+      "stopMissingDescription": "此站点不在已保存的行程中。",
+      "backToTour": "返回行程"
     }
   },
   "pwa": {
