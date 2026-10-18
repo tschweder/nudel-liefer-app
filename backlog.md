@@ -237,7 +237,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | done |
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | done |
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | done |
-| NUD-093 | Security hardening | M2 | 060 | todo |
+| NUD-093 | Security hardening | M2 | 060 | done |
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | todo |
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | todo |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
@@ -249,6 +249,10 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
 | NUD-108 | Map view offline (tiles) | M2 | 081 | todo |
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
+| NUD-110 | Nonce-based script CSP | M2 | 093 | todo |
+| NUD-111 | Audit log retention job | M2 | 093 | todo |
+| NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
+| NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1384,7 +1388,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-093 · Security hardening
-**Status:** todo · **depends_on:** 060
+**Status:** done · **depends_on:** 060
 
 **Scope**
 - Automated authz test matrix: every server action / route handler × {anonymous, driver, admin} → expected result.
@@ -1395,7 +1399,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Personal data overview in `docs/privacy.md` (what is stored, where, EU hosting, retention: screenshots deleted after 180 days via cron – configurable); the audit log (NUD-092: ids, quantities and driver problem notes truncated to 200 characters, no names) is append-only, so state a retention period and how it is enforced, e.g. a cron that deletes entries older than N months as the only delete path, which must also lift the append-only trigger deliberately).
 
 **Acceptance criteria**
-- [ ] Authz matrix test passes and covers 100 % of server actions/route handlers (enforced by a test that enumerates them).
+- [x] Authz matrix test passes and covers 100 % of server actions/route handlers (enforced by a test that enumerates them).
+
+
+**Implementation notes**
+- **Authorization matrix** (`src/server/authz-matrix.test.ts`, plain `pnpm test`, no database): 41 server actions and 13 route handler methods x {anonymous, driver, admin} (+ a deactivated admin, a driver whose DB role changed, the real Auth.js session endpoint, the cron bearer secret). `getDb()` is a stub whose only working call is `user.findUnique`, so "allowed" means "passed `requireRole`". A second test enumerates every export of a `"use server"` module and every `route.ts` method under `src/app` from the source tree and fails for a missing row, a stale row, an inline `"use server"` or an export form it cannot read. Mutation-checked: removing a `requireRole` from one action turns three tests red. `vitest.config.ts` inlines `next-auth` (it imports `next/server` without extension, which Node's ESM loader rejects) so the real Auth.js handlers run in the test.
+- **Security headers** (`src/lib/security-headers.ts`, applied to `/:path*` in `next.config.ts`, `poweredByHeader: false`): CSP, HSTS (2 years, `includeSubDomains`, no `preload`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (`camera=(self)`, rest off), COOP `same-origin`. CSP is built from `MAP_TILE_URL` (`{s}` becomes a wildcard) and `S3_ENDPOINT` / AWS host; `CSP_REPORT_ONLY=true` switches to report-only; violations go to the new public `POST /api/csp-report` (size-limited, always 204, one sanitized log line, query strings removed). Scripts keep `'unsafe-inline'` (see decision log); everything else is locked down. Under the enforcing policy the whole desktop e2e suite passes and the server log has no `[csp-violation]`; the only violation found was zod 4's `new Function("")` JIT probe in the client bundle, fixed with `z.config({ jitless: true })` in `src/instrumentation-client.ts`. New e2e `security-headers.spec.ts` (headers on pages, API, static files and the worker; zero CSP violations on login, admin pages, Leaflet maps, driver pages and offline shell; session cookie HttpOnly + SameSite=Lax; foreign Origin refused; open-redirect `callbackUrl`).
+- **CSRF / route handlers:** `src/server/csrf.ts` (`rejectCrossOrigin`, after the role check) on `/api/uploads`, `/api/admin/customers/import/parse`, `/api/driver/sync`, `/api/driver/photos`: foreign `Origin` or `Sec-Fetch-Site: cross-site/same-site` -> `403 bad_origin`; requests with neither header (not a browser) pass. Server actions rely on Next.js' own Origin/Host check; Auth.js has its CSRF token (tested without it); `/api/session-ended` (GET, deletes only the caller's cookie) and the cron routes (bearer secret) are not state-changing for a forged browser request.
+- **Input limits:** `readTextLimited` (`src/server/http-body.ts`) reads JSON bodies by bytes while streaming (uploads 2 KiB, sync 256 KiB, photos 8 KiB; `/api/uploads` had no limit at all). `uploadRequestSchema` is strict with `contentType` <= 100. `src/server/input-limits.test.ts` scans every `z.string()` / `z.array()` under `src/server`, `src/domain`, `src/lib` and fails for an unbounded one; schemas of server-written data (stored JSON, API responses, ORS / DeepL answers) are exempt through allow-list entries or `// unbounded-ok-start|end` markers with a reason. All other inputs already had `.max()` / regexes; unknown keys are stripped (not rejected) on form schemas, strict on the id-only and API schemas.
+- **Signed URLs:** reviewed, unchanged: upload PUT 5 min, admin / stop-page reads 1 h, driver tour copy 12 h; pinned by `url-lifetimes.test.ts`, documented in `docs/deploy.md` section 11.2. Bucket privacy: documented (section 3 step 3 + 11.3) and `scripts/check-storage-private.ts` (anonymous listing / object GET must be 401/403); **not run against the real R2 bucket** (no production), only written and reasoned.
+- **Dependencies:** `pnpm audit` reached the registry: 1 high (`braces` <= 3.0.3 via `eslint-config-next`, no patched release, dev tooling only, `pnpm audit --prod` clean). Accepted with `auditConfig.ignoreGhsas` + reason in `pnpm-workspace.yaml`; CI runs `pnpm audit --audit-level=high` after install.
+- **Retention:** `GET /api/cron/retention` (daily 03:17 UTC, `CRON_SECRET`, fail closed) deletes screenshots older than `SCREENSHOT_RETENTION_DAYS` (default 180, 1..3650, invalid -> 180): storage object first, then row (`Order.screenshotId` becomes NULL by FK), 100 per run, a failed item stays for the next run; also deletes `LoginAttempt` rows older than 24 h (IP addresses). Unit tests (boundary at exactly 180 days, order of operations, failure paths, auth) and a DB integration test. `docs/privacy.md` (new): hosting, data inventory, retention, recipients (DeepL, ORS, tile provider), what is not collected (GPS, D19), audit-log retention design (append-only trigger, intended deletion job not implemented), open decision for orders / tours. `docs/env.md`, `.env.example`, `docs/deploy.md` section 11 and `AGENTS.md` updated.
+- **Reviewed, no change needed:** login rate limiting (5 per user / 20 per IP per 15 min, DB backed, constant-time bcrypt for unknown users; client IP = first `x-forwarded-for` entry, trustworthy on Vercel only - documented); Auth.js session cookie (HttpOnly, SameSite=Lax, Secure on https, asserted in e2e); open redirects (`postLoginPath` fuzz test with 15 hostile values + e2e); SSRF (the app never fetches a URL taken from user data or from an imported file; ORS / DeepL hosts are fixed); CSV injection (there is no CSV export in the app; imports reject formula-like cells, NUD-090); error messages (health returns statuses only, server actions return codes, Next hides action error text in production, `error.tsx` is generic).
+- **Fixed on the way:** `tests/e2e/customer-import.spec.ts` "review queue" test had a check-then-click race (clicked a skip button that was replaced by the summary and then hung for 180 s); it now waits for either state.
+- Not verified: real browsers (only Chromium via Playwright, desktop project; the mobile project and iOS Safari were not run), Vercel serving the config headers, HSTS / CSP on the real domain, Neon, R2 bucket privacy and lifecycle rule, DeepL / tile-provider contracts (marked "to confirm" in `docs/privacy.md`).
+- Follow-ups: NUD-110 .. NUD-113.
 
 ---
 
@@ -1546,6 +1564,43 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - [ ] Android Chrome: tap "Delivered" in flight mode, close the app, leave flight mode: the stop shows up in the admin view without opening the app.
 - [ ] iOS Safari / installed PWA: taps queued offline are sent when the app is opened again.
 - [ ] Logging out with a badge > 0 and back in sends the taps.
+
+
+#### NUD-110 · Nonce-based script CSP (drop `'unsafe-inline'` for scripts)
+**Status:** todo · **depends_on:** 093
+
+**Goal:** `script-src` without `'unsafe-inline'`. NUD-093 keeps it because Next.js streams inline hydration scripts and cache components / PPR prebuilt shells cannot carry a per-request nonce. Options to evaluate: nonce via `src/proxy.ts` for dynamic routes only (login, admin, driver are behind login anyway) with the public shells served nonce-less from a stricter route group, or waiting for Next.js support. Report-only first (`CSP_REPORT_ONLY`), then enforcing.
+
+**Acceptance criteria**
+- [ ] Decision recorded (ADR or decision log) on how nonces fit `cacheComponents` / PPR.
+- [ ] Production policy has no `'unsafe-inline'` in `script-src`; the e2e suites and `security-headers.spec.ts` pass without CSP violations.
+
+#### NUD-111 · Audit log retention job
+**Status:** todo · **depends_on:** 093
+
+**Goal:** implement the design in `docs/privacy.md` section 7: a cron route (`CRON_SECRET`) that deletes `AuditLog` rows older than the agreed period (proposal 24 months) as the only delete path, lifting the append-only trigger deliberately (`SET LOCAL app.audit_retention = 'on'` honoured by the trigger function, new migration), with tests that ordinary deletes still fail. Needs the client's decision on the period.
+
+**Acceptance criteria**
+- [ ] Rows older than the period are deleted by the job and by nothing else; `UPDATE` / `DELETE` from the app or a hand-written statement still fail.
+- [ ] `docs/privacy.md` states the final period; the coverage scan in `audit-coverage.test.ts` still passes.
+
+#### NUD-112 · Retention for orders, tours, stops and driver problem texts
+**Status:** todo · **depends_on:** 093
+
+**Goal:** decide with the client (data protection advisor) how long delivered orders / tours / driver problem texts are kept (proposal: 3 years) and implement the deletion or anonymisation (driver free text first), plus a short runbook for access / erasure requests (find and remove a person's name in notes, photos, screenshots).
+
+**Acceptance criteria**
+- [ ] Period decided and written into `docs/privacy.md` section 6.
+- [ ] Cron job (or documented manual procedure) with test; history views cope with removed texts.
+
+#### NUD-113 · 👤 Verify security configuration on the real deployment
+**Status:** todo · **depends_on:** 007, 093
+
+**Goal:** things NUD-093 could not check without production: (1) `curl -sI https://<prod>/de/login` shows the headers of `docs/deploy.md` section 11.1 and the page works in a real Android Chrome and iOS Safari (map tiles, photos, upload, PWA install) with no `csp-violation` lines in the Vercel logs; (2) `scripts/check-storage-private.ts` against the production R2 bucket exits 0; (3) lifecycle rule for `screenshots/` (190 days) created; (4) `CRON_SECRET` set and `GET /api/cron/retention` run once by hand (counts in the answer); (5) data processing agreements and the "to confirm" items in `docs/privacy.md` section 1 and 4 (Vercel, Neon, Cloudflare, DeepL Pro, ORS, tile provider) settled.
+
+**Acceptance criteria**
+- [ ] Items 1-4 verified and the result noted under the ticket.
+- [ ] Item 5 confirmed by the operator.
 
 ---
 
@@ -1799,6 +1854,18 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-092 | Diffs store ids and values (quantities in hundredths), names are resolved when read; problem notes and internal notes truncated to 200 characters; keys like password/hash/token/signature/url are dropped | No PII copies or secrets in a log that cannot be edited |
 | 2026-10-18 | NUD-092 | An order save that changes nothing writes no entry; a locked-tour rebuild is logged as `tour.reoptimize`, first build as `tour.generate`; photo audit sits in the shared `attachCustomerPhoto` | Less noise; one place covers office and driver photos |
 | 2026-10-18 | NUD-092 | Tour history = entries of the tour plus every entry whose diff has `tourId` (stop changes, driver photos); shown below the planner because v1 has no separate tour detail page | Simplest query, no extra column |
+| 2026-10-18 | NUD-093 | CSP keeps `'unsafe-inline'` for `script-src` and `style-src`; everything else is locked down (`object-src`, `base-uri`, `form-action`, `frame-ancestors`, per-type host lists) | Next.js hydration scripts are inline and PPR / cache-components shells cannot carry a per-request nonce; Leaflet sets inline styles. Strict scripts are NUD-110 |
+| 2026-10-18 | NUD-093 | Headers and CSP are set in `next.config.ts` (build / start time env), not in the proxy | The proxy skips `/api` and files with extensions, so it would miss API routes, `offline.html` and `sw.js`; the cost is a redeploy after changing `MAP_TILE_URL` / `S3_*` (documented) |
+| 2026-10-18 | NUD-093 | Added a public `POST /api/csp-report` (`report-uri`) that only logs one sanitized line and answers 204 | Makes report-only rollout and production monitoring possible and gave the e2e run a way to detect violations server-side across all specs |
+| 2026-10-18 | NUD-093 | Zod runs `jitless` in the browser (`src/instrumentation-client.ts`) | Its `new Function` probe is blocked by the CSP and reported as a violation although zod copes; adding `'unsafe-eval'` would weaken the policy |
+| 2026-10-18 | NUD-093 | `Permissions-Policy: camera=(self)` although driver photos use `<input capture>` | The attribute needs no permission; the entry only keeps a future `getUserMedia` working on our own origin and denies embedded frames |
+| 2026-10-18 | NUD-093 | Origin check: reject a foreign `Origin` or cross-site `Sec-Fetch-Site`, let requests with neither header pass | Browsers always send one of them on cross-site POSTs; header-less clients are not browsers (cookies would be needed anyway) and the existing tests / Playwright API calls stay valid |
+| 2026-10-18 | NUD-093 | One daily route `GET /api/cron/retention` for screenshots and old `LoginAttempt` rows instead of a screenshot-only route | `recordFailure` only cleans up on the next failure, leaving IP addresses in the table after quiet periods; one cron entry, one secret |
+| 2026-10-18 | NUD-093 | Screenshot purge deletes the storage object first, then the row; a failed item is kept for the next run; not written to the audit log | A row without object is harmless and self-healing, an object without row would be orphaned forever; audit entries would copy what retention removes (exempt in `audit-coverage.test.ts`) |
+| 2026-10-18 | NUD-093 | Invalid / zero `SCREENSHOT_RETENTION_DAYS` falls back to 180 instead of disabling or deleting everything | A typo must not be able to switch retention off or purge all screenshots |
+| 2026-10-18 | NUD-093 | Audit-log retention only documented (design in `docs/privacy.md`), not implemented (NUD-111) | Instruction from the ticket owner: the append-only trigger would need a deliberate bypass; the period is a client decision |
+| 2026-10-18 | NUD-093 | `braces` advisory accepted via `auditConfig.ignoreGhsas` | No patched release exists, dev-only path, production audit clean; CI still fails on any new high / critical |
+| 2026-10-18 | NUD-093 | Authz matrix tests behaviour with a stubbed database instead of the embedded Postgres | Runs in every `pnpm test` without DATABASE_URL, so the 100 % coverage gate can never be skipped; role / active re-check against the DB is simulated by the stub |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

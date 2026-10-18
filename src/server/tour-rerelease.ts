@@ -34,9 +34,11 @@ import type { PlanResult } from "./tour-planning";
  * only clears the outdated flag.
  */
 
+// unbounded-ok-start: Stop.items snapshot JSON written by the server
 const itemsSchema = z.array(
   z.object({ productId: z.string(), quantityCents: z.number().int().nonnegative() }),
 );
+// unbounded-ok-end
 
 /** `Stop.items` JSON as typed list; anything malformed counts as "no items". */
 export function readStopItems(value: unknown): StopItem[] {

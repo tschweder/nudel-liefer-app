@@ -11,3 +11,10 @@ allowBuilds:
   "@swc/core": false
 overrides:
   uuid: ">=11.1.1"
+# NUD-093: `braces` <= 3.0.3 (ReDoS on deeply nested patterns, GHSA-vfj7-8cjw-p6xm) has no patched
+# release. It is only reachable through dev tooling (eslint-config-next -> fast-glob), which globs
+# the repository's own files and never untrusted patterns. Not part of the production bundle
+# (`pnpm audit --prod` is clean). Remove this entry when a fixed `braces` is published.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm

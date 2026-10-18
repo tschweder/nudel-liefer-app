@@ -13,9 +13,11 @@ import { dayInTimezone } from "@/lib/driver-tour-model";
 import { isCustomerPhotoKey } from "@/lib/uploads";
 
 import { type Actor, authErrorStatus, requireRole } from "./auth/guards";
+import { rejectCrossOrigin } from "./csrf";
 import { attachCustomerPhoto } from "./customer-photos";
 import { getDb } from "./db";
 import { DRIVER_PHOTO_URL_TTL_SECONDS } from "./driver-tour-payload";
+import { readTextLimited } from "./http-body";
 import { getFactoryTimezone } from "./settings";
 import { getStorage } from "./storage";
 import type { Storage } from "./storage/types";
@@ -148,11 +150,14 @@ export async function driverPhotoResponse(request: Request, now: Date = new Date
   const bad = (status: number, error: string) =>
     Response.json({ error }, { status, headers: NO_STORE });
 
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return bad(415, "unsupported_media_type");
   }
-  const text = await request.text();
-  if (text.length > PHOTO_REGISTER_MAX_BODY_BYTES) return bad(413, "too_large");
+  const text = await readTextLimited(request, PHOTO_REGISTER_MAX_BODY_BYTES);
+  if (text === null) return bad(413, "too_large");
   let json: unknown;
   try {
     json = JSON.parse(text);

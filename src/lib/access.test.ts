@@ -81,4 +81,32 @@ describe("postLoginPath", () => {
       "/de/admin",
     );
   });
+
+  it("never produces anything but a same-site absolute path (open redirect fuzz)", () => {
+    const nasty = [
+      "javascript:alert(1)",
+      "data:text/html,<script>1</script>",
+      "/\\/evil.example",
+      "/\t/evil.example",
+      "/de/admin\r\nSet-Cookie: a=b",
+      "/de/admin/\u0000",
+      "///evil.example",
+      "/de/admin//evil.example",
+      "/de/admin@evil.example",
+      "/de/admin/..%2F..%2Fevil",
+      " //evil.example",
+      "http:evil.example",
+      "/%2F%2Fevil.example",
+      "/de/admin#//evil.example",
+      "/de/admin?next=https://evil.example",
+    ];
+    for (const callbackUrl of nasty) {
+      for (const role of ["ADMIN", "DRIVER"] as const) {
+        const result = postLoginPath({ role, locale: "de", callbackUrl });
+        expect(result, callbackUrl).toMatch(/^\/de\/[^/\\]/);
+        expect(result, callbackUrl).not.toMatch(/[\\\u0000-\u001f]/);
+        expect(result.startsWith("//"), callbackUrl).toBe(false);
+      }
+    }
+  });
 });

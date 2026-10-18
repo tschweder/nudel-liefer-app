@@ -300,8 +300,13 @@ test("customer import: review queue to the end, skipped ones again, edited custo
 
     // End of the queue (other specs' unconfirmed customers sort after ours).
     for (let i = 0; i < 50; i += 1) {
-      if (await visible(page, "review-done").count()) break;
-      await visible(page, "review-skip").click();
+      // The last confirm may still be in flight (skip disabled, then replaced by the summary):
+      // wait for either state instead of clicking a button that is about to disappear.
+      const skip = visible(page, "review-skip");
+      const done = visible(page, "review-done");
+      await expect(skip.or(done)).toBeVisible();
+      if (await done.count()) break;
+      await skip.click({ timeout: 3000 }).catch(() => undefined);
     }
     await expect(visible(page, "review-done")).toBeVisible();
     await expect(visible(page, "review-summary")).toContainText("2 bestätigt");

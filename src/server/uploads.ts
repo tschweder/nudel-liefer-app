@@ -10,6 +10,8 @@ import {
 } from "@/lib/uploads";
 
 import { type Actor, authErrorStatus, type Role } from "./auth/actor";
+import { rejectCrossOrigin } from "./csrf";
+import { readTextLimited } from "./http-body";
 import type { Storage } from "./storage/types";
 
 /** Who may upload what. Drivers photograph shops/parking (NUD-083); screenshots are office-only. */
@@ -27,6 +29,9 @@ export type UploadDeps = {
   requireRole: (...roles: Role[]) => Promise<Actor>;
   storage: () => Storage;
 };
+
+/** The request names a purpose, a type and a size: a few dozen bytes. */
+const UPLOAD_REQUEST_MAX_BODY_BYTES = 2 * 1024;
 
 function json(body: unknown, status: number) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -47,9 +52,14 @@ export async function handleCreateUpload(request: Request, deps: UploadDeps): Pr
     throw error;
   }
 
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+
+  const body = await readTextLimited(request, UPLOAD_REQUEST_MAX_BODY_BYTES);
+  if (body === null) return json({ error: "TOO_LARGE_REQUEST" }, 413);
   let raw: unknown;
   try {
-    raw = await request.json();
+    raw = JSON.parse(body);
   } catch {
     return json({ error: "INVALID_JSON" }, 400);
   }

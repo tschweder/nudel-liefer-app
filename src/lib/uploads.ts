@@ -14,10 +14,10 @@ export const JPEG_QUALITY = 0.8;
 export const UPLOAD_PURPOSES = ["customer-photo", "screenshot"] as const;
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 
-export const uploadRequestSchema = z.object({
+export const uploadRequestSchema = z.strictObject({
   purpose: z.enum(UPLOAD_PURPOSES),
-  contentType: z.string(),
-  size: z.number().int().positive(),
+  contentType: z.string().max(100),
+  size: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 });
 export type UploadRequest = z.infer<typeof uploadRequestSchema>;
 

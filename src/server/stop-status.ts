@@ -97,6 +97,7 @@ class Rejected extends Error {
   }
 }
 
+// unbounded-ok-start: result row the server stored itself (StopMutation.result)
 const storedResultSchema = z.object({
   ok: z.literal(true),
   kind: z.enum(["COMPLETE", "UNDO"]),
@@ -110,6 +111,7 @@ const storedResultSchema = z.object({
   completedAt: z.string().nullable(),
   undoUntil: z.string().nullable(),
 });
+// unbounded-ok-end
 
 type ActingDriver = Pick<Actor, "id" | "role" | "locale">;
 

@@ -13,7 +13,9 @@ import { PROBLEM_NOTE_MAX, PROBLEM_REASONS } from "@/domain/stop-status";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 import { type Actor, authErrorStatus, requireRole } from "./auth/guards";
+import { rejectCrossOrigin } from "./csrf";
 import { getDb } from "./db";
+import { readTextLimited } from "./http-body";
 import { scheduleProblemNoteTranslation } from "./problem-note-translation";
 import { applyStopMutation, type StopStatusResult } from "./stop-status";
 
@@ -179,11 +181,14 @@ export async function driverSyncResponse(request: Request, now: Date = new Date(
   const bad = (status: number, error: string) =>
     Response.json({ error }, { status, headers: NO_STORE });
 
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
+
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return bad(415, "unsupported_media_type");
   }
-  const text = await request.text();
-  if (text.length > SYNC_MAX_BODY_BYTES) return bad(413, "too_large");
+  const text = await readTextLimited(request, SYNC_MAX_BODY_BYTES);
+  if (text === null) return bad(413, "too_large");
   let json: unknown;
   try {
     json = JSON.parse(text);

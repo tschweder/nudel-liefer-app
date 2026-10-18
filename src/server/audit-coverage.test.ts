@@ -32,6 +32,8 @@ const EXEMPT: Record<string, string> = {
     "outdated flag and automatic tour progress: always part of an audited order / stop change (stop entries carry the tourStatus change)",
   "server/translation-pending.ts":
     "background fill of the German problem-note translation, no user action",
+  "server/screenshot-retention.ts":
+    "retention job (NUD-093): deletes screenshots older than the retention period together with their files; no user action, the run reports its counts in the cron response and the log (docs/privacy.md)",
   "server/demo-seed.ts": "demo data seeding script, not an application flow",
   "server/testing/seed-customers.ts": "test helper",
 };

@@ -114,7 +114,9 @@ Notes:
 - Vercel lets you add the same variable name twice with different environments ticked (one entry for Production, one for Preview).
 - Do **not** set `SEED_ADMIN_PASSWORD` in Vercel. It is only needed for the one-time seed on your computer (section 7).
 - Translation (NUD-070): set `DEEPL_API_KEY` (and optionally `DEEPL_API_PLAN`) and `CRON_SECRET` (`openssl rand -base64 32`) for Production; the cron job in `vercel.json` retries failed translations every 10 minutes and needs the Vercel Pro plan (see `docs/env.md`). The build only warns when they are missing.
-- Variables for later tickets (`ORS_API_KEY`, `MAP_TILE_*`, `SENTRY_DSN`) are added by those tickets.
+- Retention (NUD-093): `CRON_SECRET` is also required for `GET /api/cron/retention` (daily, deletes order screenshots after `SCREENSHOT_RETENTION_DAYS`, default 180, and old failed-login rows). Details in `docs/privacy.md`; add the bucket lifecycle rule of section 11.3.
+- `MAP_TILE_URL` and `S3_*` also decide the Content-Security-Policy (section 11.1): they are read when the app is **built**, so redeploy after changing them.
+- Variables for later tickets (`ORS_API_KEY`, `SENTRY_DSN`) are added by those tickets.
 - Changing a variable only affects new deployments: after a change click **Deployments > ... > Redeploy**.
 
 ## 6. First deploy
@@ -175,7 +177,7 @@ Every pull request already gets its own Vercel preview URL. Which database do pr
 
 2. Sign in on `/de/login` with the seeded admin. You reach the admin dashboard.
 3. Neon console > Branches > `main` > **Tables** shows the app's tables, and `_prisma_migrations` lists the applied migrations.
-4. Upload check: once a page with the image uploader exists (NUD-015), upload a photo and check that it appears in the R2 bucket (Objects) and that opening the object's plain URL without a signature is denied.
+4. Upload check: upload a customer photo and check that it appears in the R2 bucket (Objects) and that opening the object's plain URL without a signature is denied (section 11.3 automates this).
 5. Tell the agent: production URL and the result of `/api/health`. The ticket NUD-007 can then be closed.
 
 ## 10. Troubleshooting
@@ -189,3 +191,94 @@ Every pull request already gets its own Vercel preview URL. Which database do pr
 | Photo upload fails in the browser with a CORS error              | The app's origin is missing in the bucket's CORS policy (section 3 step 7), or has a trailing slash.                                          |
 | Login works locally but not on Vercel                            | `AUTH_SECRET` missing in that environment, or you changed it (all sessions become invalid, which is fine). Redeploy after changing variables. |
 | `Seed finished` never appears / `SEED_ADMIN_PASSWORD is not set` | The variable was not exported in the same terminal session; repeat the block of section 7.                                                    |
+
+## 11. Security configuration (NUD-093)
+
+### 11.1 Security headers and Content-Security-Policy
+
+Every response (pages, API routes, static files, the service worker) carries these headers, set in
+`next.config.ts` from `src/lib/security-headers.ts`:
+
+| Header                                      | Value / purpose                                                                                                                                                                                                                         |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`                   | see below                                                                                                                                                                                                                               |
+| `Strict-Transport-Security`                 | `max-age=63072000; includeSubDomains` (two years, no `preload`: submit to the preload list only deliberately)                                                                                                                           |
+| `X-Frame-Options` and CSP `frame-ancestors` | `DENY` / `'none'`: the app can never be framed                                                                                                                                                                                          |
+| `X-Content-Type-Options`                    | `nosniff`                                                                                                                                                                                                                               |
+| `Referrer-Policy`                           | `strict-origin-when-cross-origin`: other sites (the tile server) see only our host name                                                                                                                                                 |
+| `Permissions-Policy`                        | `camera=(self)`, everything else off (`geolocation`, `microphone`, `payment`, `usb`, ...). Driver photos use `<input capture>` which needs no permission; the camera entry only keeps a future `getUserMedia` working on our own origin |
+| `Cross-Origin-Opener-Policy`                | `same-origin`                                                                                                                                                                                                                           |
+
+The policy: `default-src 'self'`; `script-src 'self' 'unsafe-inline'`; `style-src 'self' 'unsafe-inline'`;
+`img-src 'self' data: blob:` + the **storage origin** (from `S3_ENDPOINT`, or the AWS S3 host from
+`S3_BUCKET` + `S3_REGION`) + the **tile origin** (from `MAP_TILE_URL`; `{s}` subdomains become a
+wildcard); `connect-src 'self'` + the storage origin (browser uploads `PUT` and downloads photos for the
+offline copy); `worker-src 'self'`; `manifest-src 'self'`; `object-src 'none'`; `frame-src 'none'`;
+`frame-ancestors 'none'`; `base-uri 'self'`; `form-action 'self'`; `report-uri /api/csp-report`.
+
+Why `'unsafe-inline'` for scripts: Next.js writes its hydration data into inline `<script>` tags, and
+the app uses cache components / partial prerendering whose prebuilt page shells cannot carry a
+per-request nonce (Next.js documents nonce-based CSP as incompatible with PPR). Hash-based CSP is not
+possible for the streamed inline scripts either. The remaining directives (`object-src`, `base-uri`,
+`form-action`, `frame-ancestors`, host allow-lists for images, connections and workers) still limit
+what injected markup could do. `'unsafe-inline'` for styles is needed by Leaflet (inline positioning).
+Making scripts nonce-based is NUD-110 in the backlog.
+
+- Configuration is read when the app is built or started: after changing `MAP_TILE_URL` or `S3_*`
+  redeploy. A wrong value shows up as blocked tiles or photos and as `[csp-violation]` lines in the log.
+- **Violation reports:** browsers post violations to `POST /api/csp-report`, which writes one log
+  line each (`[csp-violation] directive=... blocked=... document=...`, query strings removed). Search
+  the Vercel logs for `csp-violation` after every deploy that touches the map, storage or scripts.
+- **Report-only rollout:** set `CSP_REPORT_ONLY=true` and redeploy to send the policy as
+  `Content-Security-Policy-Report-Only` (nothing is blocked, violations are only reported). Remove the
+  variable to enforce. The shipped default is **enforcing**.
+- Zod's JIT probe (`new Function`) would be reported as a script violation; `src/instrumentation-client.ts`
+  switches it off in the browser. Do not add `'unsafe-eval'` to production.
+- Not verified from here: how a real Vercel deployment serves these headers (config headers are
+  supported by Vercel for all routes, but check once with `curl -sI https://<production-url>/de/login`
+  after the first deploy), HSTS on a custom domain, behaviour in real mobile browsers.
+
+### 11.2 Signed URL lifetimes (reviewed)
+
+| URL                                                                                   | Lifetime  | Where                                                                                                                                            |
+| ------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Upload (`PUT`, one object, type and size signed)                                      | 5 minutes | `POST /api/uploads`; `UPLOAD_URL_TTL_SECONDS`                                                                                                    |
+| Read URLs on admin pages (photos, screenshots) and the driver stop page               | 1 hour    | `Storage.getReadUrl` default; `READ_URL_TTL_SECONDS`                                                                                             |
+| Photo URLs in the driver's tour copy (`/api/driver/tour/today`, `/api/driver/photos`) | 12 hours  | `DRIVER_PHOTO_URL_TTL_SECONDS`: one working day, so a phone that loaded the tour in the morning can still download or show photos in the evening |
+
+Every URL is generated per request for an object key the server validated; keys are random UUIDs and
+never guessable. The 12 hour URLs exist only inside the response to an authenticated driver and in the
+phone's offline copy, which is deleted at the login page. `src/server/storage/url-lifetimes.test.ts`
+pins the three values; change them only together with this table.
+
+### 11.3 The bucket is not public
+
+- Create the bucket private and keep **Public access** disabled (section 3 step 3): no `r2.dev`
+  subdomain, no custom domain on the bucket. The API token is scoped to this one bucket with
+  Object Read & Write.
+- Verify from any computer with the production values: `S3_ENDPOINT=... S3_BUCKET=nudel-photos pnpm exec tsx scripts/check-storage-private.ts`
+  sends anonymous requests to the bucket listing and to an object path and expects `401`/`403` for both
+  (exit code 0). Run it after the first deploy and whenever bucket settings change. (It was run only
+  against a local fake S3 during development; the real R2 bucket must be checked once by a human.)
+- Lifecycle rule (R2 dashboard > bucket > **Settings** > **Object lifecycle rules** > add rule): prefix
+  `screenshots/`, delete objects 190 days after upload. This is the backstop for screenshots that were
+  uploaded but never attached to an order and so have no row for the retention job (`docs/privacy.md`
+  section 3). Do not add a rule for `customers/`.
+
+### 11.4 Dependencies
+
+CI runs `pnpm audit --audit-level=high` and fails on high or critical advisories. Findings that cannot
+be fixed are listed in `pnpm-workspace.yaml` under `auditConfig.ignoreGhsas` with the reason (currently
+one: `braces` in the ESLint toolchain, development only, no patched release exists). Review that list
+whenever the audit step fails or a dependency is updated.
+
+### 11.5 Other protections worth knowing
+
+- Server actions are protected by Next.js' own Origin/Host comparison; the route handlers that change
+  state (`/api/uploads`, `/api/admin/customers/import/parse`, `/api/driver/sync`, `/api/driver/photos`)
+  additionally reject a foreign `Origin` or a cross-site `Sec-Fetch-Site` with `403 bad_origin`.
+- Every server action and route handler is listed in the authorization matrix test with the expected
+  answer for anonymous, driver and admin; the test fails when a new one is missing.
+- Login: 5 failures per user name and 20 per IP address per 15 minutes (database backed); the client
+  IP is the first entry of `x-forwarded-for`, which Vercel sets itself. Behind another proxy make sure
+  it overwrites the header, otherwise only the per-user limit protects.

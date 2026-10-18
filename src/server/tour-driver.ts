@@ -62,12 +62,14 @@ export type DriverTour = {
   stops: DriverStop[];
 };
 
+// unbounded-ok-start: Tour.lastChange JSON written by the server
 const removedSchema = z.object({
   revision: z.number(),
   removed: z.array(
     z.object({ customerId: z.string(), customerNumber: z.string(), name: z.string() }),
   ),
 });
+// unbounded-ok-end
 
 /**
  * The released tour of `driverId` on `date` (`YYYY-MM-DD`), or `null`. The caller (NUD-051) has

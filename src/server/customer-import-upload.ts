@@ -9,6 +9,7 @@ import {
 } from "@/domain/import-file";
 
 import { type Actor, authErrorStatus, type Role } from "./auth/actor";
+import { rejectCrossOrigin } from "./csrf";
 import { readXlsx } from "./import-xlsx";
 
 export type ParsedUpload = {
@@ -106,6 +107,8 @@ export async function handleParseUpload(
     if (status) return json({ error: status === 401 ? "UNAUTHENTICATED" : "FORBIDDEN" }, status);
     throw error;
   }
+  const crossOrigin = rejectCrossOrigin(request);
+  if (crossOrigin) return crossOrigin;
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
     return json({ error: "unsupported_type" }, 415);

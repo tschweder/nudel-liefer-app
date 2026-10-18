@@ -108,6 +108,7 @@ export type TourPlan = {
   drivers: PlanDriver[];
 };
 
+// unbounded-ok-start: stored Tour.geometry / Tour.depotSnapshot JSON
 function readGeometry(value: unknown): Array<[number, number]> | null {
   const parsed = z
     .object({ coordinates: z.array(z.tuple([z.number(), z.number()])) })
@@ -144,6 +145,7 @@ function readDepot(value: unknown): PlanTour["depot"] {
     .safeParse(value);
   return parsed.success ? parsed.data : null;
 }
+// unbounded-ok-end
 
 /** The latest tour of the day (v1 has one) with everything the planning screen shows. */
 export async function getTourPlan(

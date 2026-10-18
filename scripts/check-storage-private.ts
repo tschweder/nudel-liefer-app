@@ -1,0 +1,45 @@
+/**
+ * NUD-093: verifies that the object-storage bucket is NOT publicly readable. Sends anonymous
+ * (unsigned) requests to the bucket and to an object key; a private bucket answers 401/403 to both
+ * (S3, R2 and MinIO answer 403 even for keys that do not exist, so a 200/404 means anonymous access
+ * is allowed). Needs S3_ENDPOINT (+ S3_BUCKET) or, for AWS S3, S3_BUCKET + S3_REGION.
+ *
+ *   pnpm exec tsx scripts/check-storage-private.ts
+ *
+ * Exit code 0 = private, 1 = public or unexpected answer, 2 = not configured.
+ */
+import { storageSources } from "../src/lib/security-headers";
+
+const bucket = process.env.S3_BUCKET?.trim();
+const base = storageSources(process.env)[0];
+if (!bucket || !base) {
+  console.error("S3_BUCKET and S3_ENDPOINT (or S3_REGION for AWS) must be set.");
+  process.exit(2);
+}
+const pathStyle = Boolean(process.env.S3_ENDPOINT?.trim());
+const root = pathStyle ? `${base}/${bucket}` : base;
+const targets = [
+  { label: "bucket listing", url: `${root}${pathStyle ? "/" : "/?list-type=2"}` },
+  { label: "object read", url: `${root}/customers/00000000-0000-4000-8000-000000000000.jpg` },
+];
+
+let failed = false;
+for (const { label, url } of targets) {
+  try {
+    const response = await fetch(url, { redirect: "manual" });
+    const private_ = response.status === 401 || response.status === 403;
+    console.log(`${private_ ? "ok  " : "FAIL"} ${label}: anonymous GET -> HTTP ${response.status}`);
+    if (!private_) failed = true;
+  } catch (error) {
+    console.error(
+      `FAIL ${label}: request failed (${error instanceof Error ? error.message : error})`,
+    );
+    failed = true;
+  }
+}
+console.log(
+  failed
+    ? "The bucket may be publicly readable or unreachable: check the provider settings (docs/deploy.md)."
+    : "Anonymous access is refused: the bucket is private.",
+);
+process.exit(failed ? 1 : 0);

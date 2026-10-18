@@ -54,6 +54,7 @@ export type TourPrint = {
 
 const idSchema = z.string().trim().min(1).max(64);
 
+// unbounded-ok: Tour.depotSnapshot JSON written by the server
 const depotSchema = z.object({ name: z.string(), address: z.string() });
 
 /**

@@ -46,3 +46,18 @@ export async function clearFailures(db: Db, keys: RateLimitKey[]) {
     where: { key: { in: keys.filter((k) => k.key.startsWith("user:")).map((k) => k.key) } },
   });
 }
+
+/** Failed-login rows (user name + IP address) are useless after the 15 minute window; kept 24 h at most. */
+export const LOGIN_ATTEMPT_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Housekeeping for the daily retention cron (NUD-093): `recordFailure` only cleans up when another
+ * failure happens, so without this the last failed attempts of a quiet period (with the IP address)
+ * would stay in the table indefinitely.
+ */
+export async function purgeLoginAttempts(db: Db, now = new Date()): Promise<number> {
+  const { count } = await db.loginAttempt.deleteMany({
+    where: { createdAt: { lt: new Date(now.getTime() - LOGIN_ATTEMPT_RETENTION_MS) } },
+  });
+  return count;
+}
