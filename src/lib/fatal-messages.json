@@ -1,0 +1,22 @@
+{
+  "de": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Die Daten sind sicher. Bitte die Seite neu laden.",
+    "retry": "Neu laden"
+  },
+  "zh-Hans": {
+    "title": "出错了",
+    "description": "数据是安全的，请重新加载页面。",
+    "retry": "重新加载"
+  },
+  "zh-Hant-HK": {
+    "title": "出錯了",
+    "description": "數據是安全的，請重新加載頁面。",
+    "retry": "重新加載"
+  },
+  "zh-Hant-TW": {
+    "title": "出錯了",
+    "description": "資料是安全的，請重新載入頁面。",
+    "retry": "重新載入"
+  }
+}

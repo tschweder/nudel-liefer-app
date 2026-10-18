@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { checkMessages, type MessageTree } from "./lib/i18n";
+import { buildFatalMessages, FATAL_MESSAGES_FILE } from "./lib/i18n-files";
 
 const dir = path.join(process.cwd(), "messages");
 
@@ -19,6 +20,15 @@ const errors = checkMessages({
     "zh-Hant-TW": read(path.join(dir, "overrides", "zh-Hant-TW.json")),
   },
 });
+
+// NUD-094: src/lib/fatal-messages.json is derived from the message files (global-error.tsx).
+const fatalFile = path.join(dir, FATAL_MESSAGES_FILE);
+if (
+  JSON.stringify(read(fatalFile)) !== JSON.stringify(buildFatalMessages(dir)) ||
+  Object.keys(read(fatalFile)).length === 0
+) {
+  errors.push("src/lib/fatal-messages.json is stale or missing, run `pnpm i18n:build`");
+}
 
 if (errors.length > 0) {
   console.error(errors.map((e) => `  - ${e}`).join("\n"));

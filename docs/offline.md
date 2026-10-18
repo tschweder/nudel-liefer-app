@@ -36,3 +36,7 @@ What is stored on the driver's phone, where, for whom and for how long.
 - Final rejections (`not_found`, `tour_not_active`, `invalid`, `key_in_use`, `mutation_conflict`, or three times `object_missing`) remove the photo and leave a notice card ("Das Foto wurde nicht übernommen"); network errors, 5xx and 401 / 403 keep it queued.
 - On screen the newest queued photo is shown from the local blob (object URL, works offline) with the badge "Wartet auf Versand"; after the server took it "Gesendet" is shown for 20 s on top of the not yet refreshed page data. The top-bar badge counts queued taps and photos together.
 - Storage cost: one JPEG of roughly 150 - 500 KB per queued photo (normally gone within seconds of having a connection).
+
+## Error pages when offline (NUD-094)
+
+The driver error page (`src/components/driver/driver-error.tsx`) checks `navigator.onLine`. Offline it shows a calm "no connection" page instead of "something went wrong"; its button reloads the page so the service worker serves the cached shell, and it reloads by itself when the connection returns. The error pages inside `driver/(app)` keep the shell mounted, so queued taps keep syncing. Sentry events are not queued offline; they are dropped (see `deploy.md` section 12).

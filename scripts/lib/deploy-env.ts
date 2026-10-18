@@ -2,6 +2,8 @@
  * Pure validation of the environment of a Vercel build (production or preview).
  * Returns human-readable problems; never includes the values themselves.
  */
+import { parseSentryDsn } from "../../src/lib/sentry-config";
+
 export type DeployEnvResult = { errors: string[]; warnings: string[] };
 
 const PLACEHOLDER_SECRETS = ["replace-with-openssl-rand-base64-32-output", "change-me-local-only"];
@@ -62,6 +64,27 @@ export function checkDeployEnv(env: Record<string, string | undefined>): DeployE
   if (isProduction && !env.DEEPL_API_KEY) {
     warnings.push(
       "DEEPL_API_KEY is not set: notes and driver texts are not translated (Fake translator with visible prefixes)",
+    );
+  }
+
+  // NUD-094: Sentry is optional; a half-configured one is worth a warning, never a failed build.
+  const dsn = env.SENTRY_DSN?.trim();
+  if (dsn && !parseSentryDsn(dsn)) {
+    warnings.push(
+      "SENTRY_DSN is set but is not a valid DSN (https://<key>@<host>/<project id>): errors are not reported",
+    );
+  }
+  const sentryUpload = ["SENTRY_AUTH_TOKEN", "SENTRY_ORG", "SENTRY_PROJECT"].filter((n) =>
+    env[n]?.trim(),
+  );
+  if (sentryUpload.length > 0 && sentryUpload.length < 3) {
+    warnings.push(
+      "Source maps are uploaded to Sentry only when SENTRY_DSN, SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT are all set",
+    );
+  }
+  if (isProduction && env.ENABLE_ERROR_TEST_PAGES?.trim()) {
+    errors.push(
+      "ENABLE_ERROR_TEST_PAGES must not be set in production (test pages that raise errors)",
     );
   }
   return { errors, warnings };

@@ -27,6 +27,13 @@ export const ROUTE_HINTS: ReadonlyArray<readonly [prefix: string, hint: string]>
   ["pwa.shortName", "(app name on the home screen, from the web app manifest)"],
   ["pwa.description", "(web app manifest, not visible on a screen)"],
   ["pwa.offline", "(offline fallback page /offline.html; open /driver with the network off)"],
+  // error pages (NUD-094; open the hidden test pages with ENABLE_ERROR_TEST_PAGES=true)
+  [
+    "errorPages.driver",
+    "/driver/dev-error (driver error page; offline wording: switch to airplane mode first)",
+  ],
+  ["errorPages.admin", "/admin/dev/error (admin error page)"],
+  ["errorPages.fatal", "(last-resort page when the whole app fails to render; hard to trigger)"],
   // login
   ["auth.adminLogin", "/login"],
   ["auth.driverLogin", "/driver/login"],

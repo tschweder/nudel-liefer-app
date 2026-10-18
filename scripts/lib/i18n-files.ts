@@ -29,11 +29,39 @@ export function readSources(dir: string) {
   };
 }
 
+/** Where the tiny text file for `global-error.tsx` lives (relative to the messages directory). */
+export const FATAL_MESSAGES_FILE = path.join("..", "src", "lib", "fatal-messages.json");
+
+/**
+ * Texts of the last-resort error page (NUD-094, `errorPages.fatal`) for all four locales. The
+ * root error page renders outside the locale layout, so it cannot use next-intl and must not
+ * import the 50 KB message files; it imports this small file instead.
+ */
+export function buildFatalMessages(dir: string): Record<string, MessageTree> {
+  const { de, hans, overrides } = readSources(dir);
+  const pick = (tree: MessageTree) => {
+    const errorPages = tree.errorPages as MessageTree | undefined;
+    return (errorPages?.fatal ?? {}) as MessageTree;
+  };
+  return {
+    de: pick(de),
+    "zh-Hans": pick(hans),
+    "zh-Hant-HK": pick(buildHant("zh-Hant-HK", hans, overrides["zh-Hant-HK"])),
+    "zh-Hant-TW": pick(buildHant("zh-Hant-TW", hans, overrides["zh-Hant-TW"])),
+  };
+}
+
 /** Regenerates `zh-Hant-*.json` from `zh-Hans.json` + overrides (what `pnpm i18n:build` does). */
 export function buildGenerated(dir: string, log: (line: string) => void = () => {}): void {
   const { hans, overrides } = readSources(dir);
   for (const locale of GENERATED_LOCALES) {
     writeTree(path.join(dir, `${locale}.json`), buildHant(locale, hans, overrides[locale]));
     log(`i18n:build wrote messages/${locale}.json`);
+  }
+  // Only next to a real project (tests run this on a temporary copy of the messages directory).
+  const fatalFile = path.join(dir, FATAL_MESSAGES_FILE);
+  if (existsSync(path.dirname(fatalFile))) {
+    writeTree(fatalFile, buildFatalMessages(dir));
+    log("i18n:build wrote src/lib/fatal-messages.json");
   }
 }

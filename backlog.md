@@ -238,7 +238,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | done |
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | done |
 | NUD-093 | Security hardening | M2 | 060 | done |
-| NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | todo |
+| NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | done |
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | todo |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
@@ -253,6 +253,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-111 | Audit log retention job | M2 | 093 | todo |
 | NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
+| NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1418,7 +1419,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-094 · Monitoring, backups, error pages, runbook
-**Status:** todo · **depends_on:** 007
+**Status:** done · **depends_on:** 007
 
 **Scope**
 - Sentry (optional via `SENTRY_DSN`) for server + client errors; source maps uploaded.
@@ -1427,8 +1428,23 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - `docs/runbook.md`: deploy, rollback, restore DB, rotate keys, reset admin password, what to do if ORS/DeepL is down.
 
 **Acceptance criteria**
-- [ ] A forced test error appears in Sentry (when DSN set).
-- [ ] Backup workflow produces a restorable dump (documented test restore).
+- [x] A forced test error appears in Sentry (when DSN set). *Substitution: verified against a local mock ingest speaking the Sentry envelope protocol (`scripts/mock-sentry-ingest.ts`, `tests/e2e/sentry-ingest.spec.ts`, 3/3 with a DSN build): forced error, `mode=throw` via `onRequestError`, a page error and a real browser error arrive, scrubbed, with no CSP violation. A real Sentry project was not available: NUD-114.*
+- [x] Backup workflow produces a restorable dump (documented test restore). *Substitution: the same script the workflow runs (`pnpm backup:db`, `pnpm backup:verify`) was run with real `pg_dump`/`pg_restore` 16 against embedded PostgreSQL 16 and a local S3 server (dump, upload, size check, prune, restore into an empty database, checks); documented in `docs/runbook.md` section 5. The GitHub workflow itself and real R2/Neon were not run: NUD-114.*
+
+**Implementation notes**
+- **Sentry** (`@sentry/nextjs` 11.8.0, errors only; no tracing/replay/profiling): optional and dynamic. `src/instrumentation.ts` (`register`, `onRequestError`) loads `sentry.server.config.ts` only for a valid `SENTRY_DSN`; the browser part is in `instrumentation-client.ts` behind `NEXT_PUBLIC_SENTRY_DSN` (inlined from `SENTRY_DSN` by `next.config.ts`; Turbopack removes the branch, checked: no Sentry in `.next/static` without a DSN). Server action / page errors are reported once (server via `onRequestError`; the client reports only errors without a digest, `monitoring-client.ts`). `serverExternalPackages: ["@sentry/nextjs"]`.
+- **Scrubbing** (`src/lib/sentry-scrub.ts`, `beforeSend` + `beforeBreadcrumb`, unit-tested): no user record / IP, request keeps only method, URL without query, user-agent, accept-language; no body, cookies, headers, `server_name`; sensitive keys (password, pin, token, cookie, auth, signature, session ...) redacted in extra/contexts/tags; URLs, bearer tokens and signatures inside messages redacted; console breadcrumbs dropped; offline noise (`Failed to fetch`, `Load failed`, aborted ...) not sent. The e2e checks real events for personal data.
+- **CSP:** the DSN origin is added to `connect-src` by `security-headers.ts` (tested). Service worker: does not intercept ingest; offline events are lost by design (documented). Precache grows by about 550 KiB uncompressed (76 -> 80 entries) in DSN builds.
+- **Source maps:** `withSentryConfig` (from `@sentry/nextjs/config`) is applied only when `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` are all set; maps are deleted after upload, no tunnel, telemetry off. `deploy-env` warns on an invalid DSN or a partial config.
+- **Test error:** `GET /api/monitoring/test-error` with `Authorization: Bearer $CRON_SECRET` (fail closed; `{status:"disabled"}` without DSN; `?mode=throw` exercises the automatic hook). Rows in the authz matrix (`SECRET_ONLY`) and in the "exactly the bearer secret" list; unit tests with a mock `captureException`.
+- **Error pages:** `driver/error.tsx`, `driver/(app)/error.tsx` (shell and offline sync stay mounted), `admin/error.tsx`, `admin/(shell)/error.tsx`, `global-error.tsx` (own `<html>`, texts from generated `src/lib/fatal-messages.json`, checked fresh by `i18n:check`). Driver page: "data is safe, try again" + retry (`router.refresh()` + `reset()`); **offline** it shows a calm no-connection page, reloads (service worker serves the shell) and reloads itself when the connection returns. Admin page shows the digest as a reference, never the message. de + zh-Hans by hand (`errorPages.*`), Hant generated; Chinese agent-written (see NUD-073). e2e `error-pages.spec.ts` (desktop + mobile, de/zh-Hans, offline switch) uses hidden pages enabled only by `ENABLE_ERROR_TEST_PAGES=true` (set in CI e2e; the production build check rejects it).
+- **Backups:** `.github/workflows/backup.yml` (Sundays 02:23 UTC + manual; environment `backup`; job *backup* then job *verify* which restores into a disposable `postgres:16`). `scripts/backup/*` + `scripts/lib/backup.ts`: `pg_dump --format=custom` (version must be >= server, checked), password only via `PG*` env (not argv), `LoginAttempt` data excluded, dump sanity (size, TOC must contain `_prisma_migrations`, User, Settings), sha256, upload, HEAD size check, **then** prune (keep 8 weeks, never fewer than the newest 4, only files matching the naming scheme); pooled Neon URLs rejected. `pnpm backup:verify` refuses protected or non-empty targets and restores in one transaction. Tests: 12 unit + 4 integration with real pg_dump/pg_restore. Neon point-in-time restore and the full restore procedure + quarterly drill: `docs/runbook.md` sections 4-5, `docs/deploy.md` section 13 (one-time setup with the scoped secrets: separate R2 bucket and token, read-only `backup_reader` role).
+- **Admin password reset:** `pnpm admin:reset-password --email ...` (`scripts/admin-reset-password.ts`, `src/server/admin-password.ts`): password from `ADMIN_NEW_PASSWORD`, hidden prompt (twice) or first stdin line, never an argument; admin role only; clears that account's lockout; prints host/db only; non-TTY needs `--yes`. Integration-tested including that the CLI output never contains the password.
+- **Orphaned objects (follow-up of NUD-015/083):** implemented. `GET /api/cron/orphan-cleanup` (Sundays 04:07 UTC, bearer secret). Default `ORPHAN_CLEANUP_MODE=dry-run`; delete mode only after the operator switches it. Safeguards: grace period (default 14 days, minimum 7), only keys of the app's two key shapes, referenced objects kept (re-checked right before each delete), caps (50 deletes, 10,000 listed), abort when >= 20 candidates and more than half are orphans. `Storage.list` added (fake + S3). Unit and DB integration tests.
+- **Runbook** `docs/runbook.md`: deploy, rollback, DB restore (Neon PITR and weekly backup), key rotation (`AUTH_SECRET` logs everyone out, S3, ORS, DeepL, `CRON_SECRET`, Sentry, backup), admin reset, ORS / DeepL (NUD-070 pending-translation retry) / Neon / R2 outages, `/api/health`, logs, orphan cleanup, Sentry checks, open human steps. `docs/privacy.md`, `deploy.md` (sections 12-13), `offline.md`, `AGENTS.md`, `.env.example`, `docs/env.md` updated.
+- Checks: lint, typecheck, i18n:check, 1079 unit tests + 33 server integration files + 8 script test files (incl. backup integration) all green; e2e `error-pages` + `security-headers` 20/20 (desktop and 375 px mobile project) on a no-DSN build; `sentry-ingest` 3/3 on a DSN build. CI gets `postgresql-client-16` so the backup integration tests run there.
+- Not verified: a real Sentry project (ingestion, grouping, the source-map upload path of `withSentryConfig` - never ran, no token), the GitHub workflow on a runner (incl. `postgresql-client-16` install), real R2 and Neon (point-in-time restore window of the plan, read-only role, `pg_dump` 16 against the real server version), GitHub failure e-mails, the hidden-prompt (TTY) path of the reset CLI (only env and stdin paths run), the real `global-error` page in a browser (component test only), real devices.
+- Follow-ups: NUD-114 (human setup / verification). Pre-existing, not mine: Auth.js "crypto.getRandomValues while prerendering" log during build (NUD-097); `docs/i18n.md` fails prettier.
 
 ---
 
@@ -1601,6 +1617,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] Items 1-4 verified and the result noted under the ticket.
 - [ ] Item 5 confirmed by the operator.
+
+---
+
+#### NUD-114 · 👤 Set up and verify monitoring and backups on the real accounts
+**Status:** todo · **depends_on:** 007, 094
+
+**Goal:** the parts of NUD-094 that need real accounts, in the order of `docs/runbook.md` section 13: (1) Sentry EU project, `SENTRY_DSN` (+ token variables), redeploy, run the test error (runbook section 7) and add an e-mail alert; (2) uptime monitor for `/api/health`; (3) backup bucket, token, `backup_reader` role, GitHub environment `backup` (`docs/deploy.md` section 13.1), run the workflow once and confirm both jobs are green and the failure e-mail arrives; (4) one real restore drill (runbook section 5.4); (5) write the real Neon restore window into runbook section 4; (6) read the first orphan-cleanup dry-run reports and decide on `ORPHAN_CLEANUP_MODE=delete`; (7) confirm `postgresql-client-16` installs in CI.
+
+**Acceptance criteria**
+- [ ] Items 1-5 and 7 verified and the result noted under the ticket.
+- [ ] Item 6 decided by the operator.
 
 ---
 
@@ -1866,6 +1893,16 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-093 | Audit-log retention only documented (design in `docs/privacy.md`), not implemented (NUD-111) | Instruction from the ticket owner: the append-only trigger would need a deliberate bypass; the period is a client decision |
 | 2026-10-18 | NUD-093 | `braces` advisory accepted via `auditConfig.ignoreGhsas` | No patched release exists, dev-only path, production audit clean; CI still fails on any new high / critical |
 | 2026-10-18 | NUD-093 | Authz matrix tests behaviour with a stubbed database instead of the embedded Postgres | Runs in every `pnpm test` without DATABASE_URL, so the 100 % coverage gate can never be skipped; role / active re-check against the DB is simulated by the stub |
+| 2026-10-18 | NUD-094 | Sentry is optional: no `SENTRY_DSN` = SDK never loaded (dynamic imports, Turbopack drops the client branch); browser DSN is build-time (`NEXT_PUBLIC_SENTRY_DSN` from `SENTRY_DSN`) | Zero overhead and no network without DSN; verified in the build output |
+| 2026-10-18 | NUD-094 | Sentry events are scrubbed in `beforeSend`/`beforeBreadcrumb` (no body, cookies, query strings, user, headers but UA/language, console, offline noise); errors only, no tracing/replay; no tunnel route, the DSN host goes into CSP `connect-src` | Data protection (NUD-093 rules); simplest CSP change; a tunnel would add a route and bandwidth |
+| 2026-10-18 | NUD-094 | Source maps uploaded only if DSN + `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT` are all set, then deleted from the output; not run here | Build must stay identical and offline-safe without a token |
+| 2026-10-18 | NUD-094 | Test error = `GET /api/monitoring/test-error` guarded by the existing `CRON_SECRET` bearer instead of an admin UI button (`?mode=throw` tests the automatic hook) | Smallest authz surface, curl-able, fits the SECRET_ONLY matrix; no new secret |
+| 2026-10-18 | NUD-094 | Error pages: `(app)`/`(shell)` boundaries keep the shell; driver page checks `navigator.onLine` and shows a calm offline variant that reloads via the service worker; admin page shows only the digest; `global-error.tsx` reads texts from a generated JSON (`i18n:build`) | Offline sync must stay mounted; no scary message offline; no intl provider in global-error |
+| 2026-10-18 | NUD-094 | Weekly backup uses a separate R2 bucket + token, a read-only `backup_reader` role, `pg_dump --format=custom`, excludes `LoginAttempt` data, keeps 8 weeks but never fewer than the newest 4, no R2 lifecycle rule; verify job restores into a disposable postgres:16 | Blast-radius separation; a stalled schedule must not empty the bucket; backup of throttling data adds only personal data (IPs) |
+| 2026-10-18 | NUD-094 | Photos/screenshots are not part of the backup | Objects live in R2; acceptable for v1, noted in deploy.md |
+| 2026-10-18 | NUD-094 | `pnpm admin:reset-password`: password only via env, hidden prompt or stdin (no argument), admin role only, clears the lockout, `--yes` required when not interactive | No password in shell history/process list; avoids resetting the wrong role |
+| 2026-10-18 | NUD-094 | Orphan cleanup shipped with default `dry-run`, grace 14 days (min 7), key-shape allowlist, reference re-check, caps and a plausibility abort; `Storage.list` added | Deleting objects is irreversible: the operator enables delete after reading dry-run reports |
+| 2026-10-18 | NUD-094 | Hidden error test pages exist only with `ENABLE_ERROR_TEST_PAGES=true` (CI e2e); the production env check rejects the variable | Need a real thrown error in e2e without shipping a crash route |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

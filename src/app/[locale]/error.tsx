@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { ErrorState } from "@/components/shared/states";
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/monitoring-client";
 
 /** Error boundary for every page below the locale layout. */
 export default function LocaleError({
@@ -17,6 +18,7 @@ export default function LocaleError({
   const t = useTranslations("common");
   useEffect(() => {
     console.error(error);
+    reportClientError(error);
   }, [error]);
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center p-4">

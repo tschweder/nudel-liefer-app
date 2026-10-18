@@ -6,7 +6,9 @@ This guide is written for a person without developer background. Everything an a
 
 **Rules:** never paste a key, password or connection string into git, a ticket, a chat or an email. Put secrets only into the Vercel environment variable form (section 5) and into your password manager.
 
-Contents: 0 Overview and costs, 1 GitHub, 2 Neon, 3 Cloudflare R2, 4 Vercel project, 5 Environment variables, 6 First deploy, 7 Seed production once, 8 Preview deployments, 9 Verify, 10 Troubleshooting.
+Contents: 0 Overview and costs, 1 GitHub, 2 Neon, 3 Cloudflare R2, 4 Vercel project, 5 Environment variables, 6 First deploy, 7 Seed production once, 8 Preview deployments, 9 Verify, 10 Troubleshooting, 11 Security configuration, 12 Monitoring (Sentry, uptime), 13 Backups.
+
+Day-to-day operation (rollback, restore, key rotation, outages, logs) is in [`runbook.md`](./runbook.md).
 
 ## 0. Overview and costs
 
@@ -45,7 +47,7 @@ Tip for the first push: CI runs on GitHub for the first time. NUD-001 and NUD-00
    - Both must end with `?sslmode=require`. Keep them in your password manager for now.
 5. Create the shared staging branch for preview deployments (see section 8): **Branches > Create branch**. Name: `staging`, parent: `main` (production is still empty at this point, so the branch holds no real data). Copy its two connection strings the same way (pooled and direct).
 
-Backups: Neon keeps a short history (free plan about 6 hours, paid plans longer) that you can restore from under **Backup & Restore**. Real backups and restore drills are NUD-094.
+Backups: Neon keeps a short history (free plan about 6 hours, paid plans longer) that you can restore from under **Backup & Restore** (point-in-time restore, `runbook.md` section 4). On top of that a weekly logical backup goes to R2 (section 13).
 
 ## 3. Cloudflare R2 (photos, EU jurisdiction)
 
@@ -116,7 +118,10 @@ Notes:
 - Translation (NUD-070): set `DEEPL_API_KEY` (and optionally `DEEPL_API_PLAN`) and `CRON_SECRET` (`openssl rand -base64 32`) for Production; the cron job in `vercel.json` retries failed translations every 10 minutes and needs the Vercel Pro plan (see `docs/env.md`). The build only warns when they are missing.
 - Retention (NUD-093): `CRON_SECRET` is also required for `GET /api/cron/retention` (daily, deletes order screenshots after `SCREENSHOT_RETENTION_DAYS`, default 180, and old failed-login rows). Details in `docs/privacy.md`; add the bucket lifecycle rule of section 11.3.
 - `MAP_TILE_URL` and `S3_*` also decide the Content-Security-Policy (section 11.1): they are read when the app is **built**, so redeploy after changing them.
-- Variables for later tickets (`ORS_API_KEY`, `SENTRY_DSN`) are added by those tickets.
+- Monitoring (NUD-094): `SENTRY_DSN` (and, for readable stack traces, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) - section 12. All optional.
+- Orphaned objects (NUD-094): `ORPHAN_CLEANUP_MODE` (default `dry-run`) and `ORPHAN_CLEANUP_GRACE_DAYS`, `runbook.md` section 10. Needs `CRON_SECRET`.
+- `ENABLE_ERROR_TEST_PAGES` must **not** exist in Production (the build stops if it does).
+- Variables for later tickets (`ORS_API_KEY`) are added by those tickets.
 - Changing a variable only affects new deployments: after a change click **Deployments > ... > Redeploy**.
 
 ## 6. First deploy
@@ -282,3 +287,69 @@ whenever the audit step fails or a dependency is updated.
 - Login: 5 failures per user name and 20 per IP address per 15 minutes (database backed); the client
   IP is the first entry of `x-forwarded-for`, which Vercel sets itself. Behind another proxy make sure
   it overwrites the header, otherwise only the per-user limit protects.
+
+## 12. Monitoring (NUD-094)
+
+### 12.1 Sentry (optional)
+
+Without `SENTRY_DSN` the app does not load the Sentry SDK and sends nothing anywhere. With it, errors
+of the server (pages, server actions, route handlers, via `src/instrumentation.ts`) and of the
+browsers (uncaught errors, error pages) are sent to Sentry after `src/lib/sentry-scrub.ts` has
+removed everything personal (what exactly: `docs/privacy.md` section 4). Errors only: no tracing,
+session replay or profiling.
+
+1. Create a Sentry account and an organisation. Choose the **EU data region** (the organisation's region is fixed at creation; the DSN host then ends in `de.sentry.io`).
+2. Create a project, platform **Next.js**. Skip the setup wizard: the code is already in the repository (the wizard would try to change files). Copy the **DSN** from _Settings > Projects > (project) > Client Keys (DSN)_.
+3. Vercel > **Settings > Environment Variables**: add `SENTRY_DSN` for Production and Preview (not Sensitive, it is public by design; a separate Sentry project for Preview keeps test noise out). **Redeploy**: the browser copy of the DSN is fixed at build time, and the CSP is built from it.
+4. Readable stack traces (optional, recommended): in Sentry create an **Internal Integration** (_Settings > Developer Settings > Custom Integrations_) with permission _Release: Admin_ and _Organization: Read_, copy its token, and add `SENTRY_AUTH_TOKEN` (**Sensitive**, Production and Preview), `SENTRY_ORG` and `SENTRY_PROJECT` (the slugs) to Vercel. The build then uploads the source maps for the release (= the git commit) and removes them from the build output; they are never served. **Without the token (or if any of the four variables is missing) the build is exactly the one without Sentry and nothing is uploaded**; errors still arrive, with minified stack traces. The Vercel build log says nothing about Sentry when the upload is off; with it on, an upload error fails the build.
+5. Test it: `runbook.md` section 7 ("Check that Sentry works"). In Sentry, create an alert rule _Issues > Alerts > Create alert_: "A new issue is created" -> send e-mail to the team.
+
+What to know:
+
+- **Content-Security-Policy:** the host of the DSN is added to `connect-src` automatically (section 11.1); nothing else is widened. A DSN change needs a redeploy. Reports of blocked sends would appear as `[csp-violation]` lines.
+- **Service worker / offline:** the worker does not touch Sentry requests. A phone without network cannot send; those errors are lost (they are not queued) and the typical offline error ("Failed to fetch", "Load failed", aborted requests) is filtered out on purpose. The Sentry browser code is one more precached file (about 150 KB compressed) for the driver app, downloaded once per deployment.
+- **Cost:** the free _Developer_ plan (5,000 errors a month) is enough to start. Errors that repeat endlessly are grouped into one issue, but each still counts; mute or fix a noisy issue instead of raising the quota.
+- Local check without a Sentry account: `docs/runbook.md` section 7, "Check Sentry locally".
+
+### 12.2 Uptime monitor
+
+`GET https://<production-url>/api/health` answers 200 when database and storage work and 503 otherwise (section 9). Point an external monitor at it: e.g. UptimeRobot (free plan, 5-minute interval) or Better Stack, alert by e-mail/SMS after 2 failed checks. Optionally add the keyword `"status":"ok"` as the expected content. Vercel's own status page and Neon's/Cloudflare's status pages are linked in `runbook.md` section 9.
+
+## 13. Backups (NUD-094)
+
+Two layers:
+
+| Layer                      | What                                                                   | Restore                                                   | Retention                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Neon point-in-time restore | continuous history of the database                                     | Neon console, minutes (`runbook.md` section 4)            | free plan about 6 hours; paid plans up to 7 days (Launch) or 30 days (Scale) - check the current numbers in the Neon console under _Backup & Restore_ |
+| Weekly logical backup      | `pg_dump` of the whole database to R2 (`.github/workflows/backup.yml`) | `pg_restore` into a new database (`runbook.md` section 5) | 8 weeks; the newest 4 backups are never deleted                                                                                                       |
+
+Photos and screenshots are objects in the photo bucket and are **not** part of either layer (R2 is replicated by Cloudflare, but a deleted or overwritten object is gone). Acceptable for v1: photos can be taken again; losing the database cannot be repaired that way.
+
+### 13.1 One-time setup (human)
+
+1. **Backup bucket** (Cloudflare R2): create bucket `nudel-backups` in the **EU jurisdiction**, keep it private (same as section 3 steps 2-3). No CORS rule (nothing in a browser touches it), no lifecycle rule (the script prunes; a bucket rule could delete everything if the schedule ever stalls).
+2. **Token:** R2 > Manage API tokens > Create API token: name `nudel-backups`, permission **Object Read & Write**, specify bucket `nudel-backups` only. Copy Access Key ID and Secret Access Key (shown once). Never reuse the photo token.
+3. **Read-only database role** (Neon console > project > **Roles**; or the SQL editor on branch `main`): create role `backup_reader` with a long password and run in the SQL editor:
+
+   ```sql
+   GRANT pg_read_all_data TO backup_reader;
+   ```
+
+   `pg_read_all_data` lets the role read every table and sequence and nothing more (PostgreSQL 14 and newer, Neon has it). Copy the **direct** (unpooled, no `-pooler`) connection string for this role and branch `main`, with `?sslmode=require`.
+
+4. **GitHub environment:** repository > **Settings > Environments > New environment**, name **`backup`**. (Optional: restrict it to the `main` branch under _Deployment branches_.) Under _Environment secrets_ add:
+
+   | Secret                                                    | Value                                              |
+   | --------------------------------------------------------- | -------------------------------------------------- |
+   | `BACKUP_DATABASE_URL`                                     | the `backup_reader` direct connection string       |
+   | `BACKUP_S3_ENDPOINT`                                      | `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` |
+   | `BACKUP_S3_BUCKET`                                        | `nudel-backups`                                    |
+   | `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` | the `nudel-backups` token                          |
+
+   Optional variables can be set as secrets too: `BACKUP_PREFIX` (default `db/`), `BACKUP_RETENTION_WEEKS` (default 8) - only if you also add them to the `env:` block of the workflow.
+
+5. **First run:** repository > **Actions > Database backup > Run workflow**. Both jobs (_backup_, then _verify_, the automatic test restore) must be green; the run summary shows file name, size and checksum. Check in R2 that `db/nudel-<date>.dump` exists.
+6. If the Neon project is not on PostgreSQL 16, change `PG_MAJOR` at the top of `.github/workflows/backup.yml` to the project's major version (the script stops with a clear message when `pg_dump` is older than the server).
+
+The schedule is Sundays 02:23 UTC. A failed run sends GitHub's standard e-mail to the people who watch the repository's Actions; check that your address receives them (GitHub > Settings > Notifications > Actions). Do not rely on it alone: look at the _Actions_ tab once a month (`runbook.md` section 5.4, the restore drill).

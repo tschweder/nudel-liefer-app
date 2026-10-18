@@ -1,4 +1,5 @@
 import { DEV_TILE_URL } from "./map-config";
+import { sentryIngestSource } from "./sentry-config";
 
 type Env = Record<string, string | undefined>;
 export type HeaderEntry = { key: string; value: string };
@@ -54,13 +55,19 @@ export function buildCsp(env: Env, options: { dev?: boolean } = {}): string {
   const dev = options.dev ?? env.NODE_ENV !== "production";
   const storage = storageSources(env);
   const tiles = tileSource(env.MAP_TILE_URL);
+  // NUD-094: the browser SDK posts error events straight to the DSN's ingest host. Nothing is
+  // allowed without a (valid) SENTRY_DSN.
+  const sentry = sentryIngestSource(env.SENTRY_DSN);
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
     ["script-src", ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : [])]],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     ["img-src", ["'self'", "data:", "blob:", ...storage, ...(tiles ? [tiles] : [])]],
     ["font-src", ["'self'", "data:"]],
-    ["connect-src", ["'self'", ...storage, ...(dev ? ["ws:", "wss:"] : [])]],
+    [
+      "connect-src",
+      ["'self'", ...storage, ...(sentry ? [sentry] : []), ...(dev ? ["ws:", "wss:"] : [])],
+    ],
     ["worker-src", ["'self'"]],
     ["manifest-src", ["'self'"]],
     ["media-src", ["'self'"]],

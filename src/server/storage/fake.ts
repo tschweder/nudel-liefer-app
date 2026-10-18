@@ -1,6 +1,6 @@
 import { READ_URL_TTL_SECONDS, type Storage, UPLOAD_URL_TTL_SECONDS } from "./types";
 
-type StoredObject = { body: Uint8Array; contentType: string };
+type StoredObject = { body: Uint8Array; contentType: string; modifiedAt: Date };
 
 /** In-memory storage for tests and for local runs without S3 configuration. */
 export class FakeStorage implements Storage {
@@ -35,11 +35,30 @@ export class FakeStorage implements Storage {
     this.objects.delete(key);
   }
 
+  async list(prefix: string, options?: { limit?: number; continuationToken?: string }) {
+    const limit = Math.min(options?.limit ?? 1000, 1000);
+    const keys = [...this.objects.keys()]
+      .filter(
+        (key) =>
+          key.startsWith(prefix) &&
+          (!options?.continuationToken || key > options.continuationToken),
+      )
+      .sort();
+    const page = keys.slice(0, limit);
+    return {
+      objects: page.map((key) => {
+        const object = this.objects.get(key)!;
+        return { key, bytes: object.body.byteLength, lastModified: object.modifiedAt };
+      }),
+      nextToken: keys.length > limit ? page[page.length - 1] : undefined,
+    };
+  }
+
   async checkReachable() {}
 
   /** Test helper: simulates the client's PUT to the presigned URL. */
-  put(key: string, body: Uint8Array, contentType: string) {
-    this.objects.set(key, { body, contentType });
+  put(key: string, body: Uint8Array, contentType: string, modifiedAt: Date = new Date()) {
+    this.objects.set(key, { body, contentType, modifiedAt });
   }
 
   has(key: string) {

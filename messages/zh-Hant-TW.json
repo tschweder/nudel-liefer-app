@@ -1200,5 +1200,28 @@
       "text": "暫時無法載入頁面，請檢查網路連線。",
       "retry": "重試"
     }
+  },
+  "errorPages": {
+    "driver": {
+      "title": "出錯了",
+      "description": "資料是安全的，請重試。",
+      "retry": "重試",
+      "home": "返回線路",
+      "offlineTitle": "沒有網路連線",
+      "offlineDescription": "已輸入的內容儲存在手機上，網路恢復後會自動傳送。",
+      "offlineOpen": "開啟已儲存的線路"
+    },
+    "admin": {
+      "title": "出錯了",
+      "description": "無法載入此頁面。已儲存的資料不受影響，請重試。",
+      "retry": "重試",
+      "home": "返回概覽",
+      "reference": "錯誤編號：{digest}"
+    },
+    "fatal": {
+      "title": "出錯了",
+      "description": "資料是安全的，請重新載入頁面。",
+      "retry": "重新載入"
+    }
   }
 }

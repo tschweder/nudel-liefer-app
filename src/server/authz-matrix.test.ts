@@ -371,6 +371,20 @@ const MATRIX: Record<string, Row> = {
     call: async () =>
       (await import("@/app/api/cron/retention/route")).GET(get("/api/cron/retention")),
   },
+  "src/app/api/cron/orphan-cleanup/route.ts#GET": {
+    note: "Vercel cron: Authorization Bearer CRON_SECRET",
+    expect: SECRET_ONLY,
+    call: async () =>
+      (await import("@/app/api/cron/orphan-cleanup/route")).GET(get("/api/cron/orphan-cleanup")),
+  },
+  "src/app/api/monitoring/test-error/route.ts#GET": {
+    note: "NUD-094 forced Sentry test error: Authorization Bearer CRON_SECRET",
+    expect: SECRET_ONLY,
+    call: async () =>
+      (await import("@/app/api/monitoring/test-error/route")).GET(
+        get("/api/monitoring/test-error"),
+      ),
+  },
   "src/app/api/csp-report/route.ts#POST": {
     note: "CSP violation reports sent by browsers; stores nothing, always 204",
     expect: PUBLIC,
@@ -639,7 +653,12 @@ describe("authorization matrix", { timeout: 60_000 }, () => {
     const handlers: Array<[string, (r: Request) => Promise<Response>]> = [
       ["retry-translations", (await import("@/app/api/cron/retry-translations/route")).GET],
       ["retention", (await import("@/app/api/cron/retention/route")).GET],
+      ["orphan-cleanup", (await import("@/app/api/cron/orphan-cleanup/route")).GET],
     ];
+    handlers.push([
+      "../monitoring/test-error",
+      (await import("@/app/api/monitoring/test-error/route")).GET,
+    ]);
     for (const [path, GET] of handlers) {
       const url = `${ORIGIN}/api/cron/${path}`;
       expect(

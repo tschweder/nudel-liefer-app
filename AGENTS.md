@@ -36,3 +36,10 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
+
+## Monitoring and error pages (NUD-094)
+
+- Sentry is optional and loaded only through dynamic imports behind `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` (zero overhead without). Every event goes through `src/lib/sentry-scrub.ts`; never add request bodies, cookies or query strings. The DSN host is added to the CSP `connect-src` by `src/lib/security-headers.ts`.
+- New cron/ops routes use the bearer `CRON_SECRET` and need a `SECRET_ONLY` row in `src/server/authz-matrix.test.ts`.
+- Each segment has an `error.tsx` (driver, admin, `global-error.tsx`); texts live in `errorPages.*` (global-error reads the generated `src/lib/fatal-messages.json`, rebuilt by `pnpm i18n:build`).
+- Operations: `docs/runbook.md`.

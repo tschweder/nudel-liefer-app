@@ -1,0 +1,168 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  backupFileName,
+  databaseIdentity,
+  parseBackupTime,
+  parseToolMajor,
+  pgEnvFromUrl,
+  readBackupConfig,
+  redactSecrets,
+  selectExpiredBackups,
+} from "./backup";
+
+const env = {
+  BACKUP_DATABASE_URL:
+    "postgresql://u:p%40ss@ep-x.eu-central-1.aws.neon.tech/neondb?sslmode=require",
+  BACKUP_S3_ENDPOINT: "https://abc.eu.r2.cloudflarestorage.com",
+  BACKUP_S3_BUCKET: "nudel-backups",
+  BACKUP_S3_ACCESS_KEY_ID: "AKID",
+  BACKUP_S3_SECRET_ACCESS_KEY: "SECRET",
+};
+
+describe("readBackupConfig", () => {
+  it("accepts a complete configuration and applies the defaults", () => {
+    const parsed = readBackupConfig(env);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.config.prefix).toBe("db/");
+    expect(parsed.config.retentionWeeks).toBe(8);
+    expect(parsed.config.keepNewest).toBe(4);
+    expect(parsed.config.s3.region).toBe("auto");
+  });
+  it("names missing variables but never prints a value", () => {
+    const parsed = readBackupConfig({ BACKUP_DATABASE_URL: "postgresql://u:topsecret@h/db" });
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.errors).toEqual(
+      expect.arrayContaining([
+        "BACKUP_S3_BUCKET is not set",
+        "BACKUP_S3_ACCESS_KEY_ID is not set",
+        "BACKUP_S3_SECRET_ACCESS_KEY is not set",
+      ]),
+    );
+    expect(JSON.stringify(parsed.errors)).not.toContain("topsecret");
+  });
+  it("rejects a pooled Neon URL, a wrong scheme and silly values", () => {
+    const bad = (patch: Record<string, string>) => {
+      const parsed = readBackupConfig({ ...env, ...patch });
+      return parsed.ok ? [] : parsed.errors;
+    };
+    expect(
+      bad({ BACKUP_DATABASE_URL: "postgresql://u:p@ep-x-pooler.eu.neon.tech/db" }).join(),
+    ).toMatch(/pooled/);
+    expect(bad({ BACKUP_DATABASE_URL: "mysql://u@h/db" }).join()).toMatch(/postgresql/);
+    expect(bad({ BACKUP_RETENTION_WEEKS: "0" })).toHaveLength(1);
+    expect(bad({ BACKUP_RETENTION_WEEKS: "abc" })).toHaveLength(1);
+    expect(bad({ BACKUP_PREFIX: "../x/" })).toHaveLength(1);
+    expect(bad({ BACKUP_S3_ENDPOINT: "ftp://x" })).toHaveLength(1);
+  });
+  it("normalises the prefix", () => {
+    const get = (prefix: string) => {
+      const parsed = readBackupConfig({ ...env, BACKUP_PREFIX: prefix });
+      return parsed.ok ? parsed.config.prefix : null;
+    };
+    expect(get("/weekly")).toBe("weekly/");
+    expect(get("weekly/")).toBe("weekly/");
+    expect(get("")).toBe("");
+  });
+});
+
+describe("backup names and retention", () => {
+  const now = new Date("2026-10-18T02:23:00Z");
+  it("names are UTC, sortable and parse back", () => {
+    const name = backupFileName(now);
+    expect(name).toBe("nudel-20261018T022300Z.dump");
+    expect(parseBackupTime(`db/${name}`, "db/")?.toISOString()).toBe(now.toISOString());
+    expect(parseBackupTime("db/other.dump", "db/")).toBeNull();
+    expect(parseBackupTime("x/nudel-20261018T022300Z.dump", "db/")).toBeNull();
+    expect(parseBackupTime("db/nudel-20261318T022300Z.dump", "db/")).toBeNull();
+    expect(parseBackupTime("db/sub/nudel-20261018T022300Z.dump", "db/")).toBeNull();
+  });
+
+  const weekly = (weeksAgo: number) =>
+    `db/${backupFileName(new Date(now.getTime() - weeksAgo * 7 * 24 * 3600 * 1000))}`;
+
+  it("prunes backups older than eight weeks and keeps the rest", () => {
+    const keys = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20].map(weekly);
+    const expired = selectExpiredBackups(keys, {
+      prefix: "db/",
+      now,
+      retentionWeeks: 8,
+      keepNewest: 4,
+    });
+    expect(expired.sort()).toEqual([weekly(9), weekly(10), weekly(20)].sort());
+    // Exactly eight weeks old is not older than eight weeks.
+    expect(expired).not.toContain(weekly(8));
+  });
+
+  it("never prunes the newest backups even when the whole schedule stalled for a year", () => {
+    const keys = [60, 61, 62, 63, 64, 65].map(weekly);
+    const expired = selectExpiredBackups(keys, {
+      prefix: "db/",
+      now,
+      retentionWeeks: 8,
+      keepNewest: 4,
+    });
+    expect([...expired].sort()).toEqual([weekly(64), weekly(65)].sort());
+    expect(keys.filter((k) => !expired.includes(k))).toHaveLength(4);
+  });
+
+  it("leaves unknown objects alone and never deletes future-dated names", () => {
+    const keys = [
+      weekly(30),
+      "db/notes.txt",
+      "db/nudel-latest.dump",
+      "other/nudel-20200101T000000Z.dump",
+      `db/${backupFileName(new Date(now.getTime() + 3 * 24 * 3600 * 1000))}`,
+      ...[0, 1, 2, 3].map(weekly),
+    ];
+    const expired = selectExpiredBackups(keys, {
+      prefix: "db/",
+      now,
+      retentionWeeks: 8,
+      keepNewest: 4,
+    });
+    expect(expired).toEqual([weekly(30)]);
+  });
+});
+
+describe("connection helpers", () => {
+  it("maps a URL to PG* variables, decoding the password", () => {
+    expect(
+      pgEnvFromUrl(
+        "postgresql://user:p%40ss%2Fw@host.example:6543/db?sslmode=require&channel_binding=require&options=endpoint%3Dep-1",
+      ),
+    ).toEqual({
+      PGHOST: "host.example",
+      PGPORT: "6543",
+      PGUSER: "user",
+      PGPASSWORD: "p@ss/w",
+      PGDATABASE: "db",
+      PGSSLMODE: "require",
+      PGCHANNELBINDING: "require",
+      PGOPTIONS: "endpoint=ep-1",
+    });
+  });
+  it("compares databases by host, port and name only", () => {
+    expect(databaseIdentity("postgresql://a:b@H.example/db?sslmode=require")).toBe(
+      databaseIdentity("postgresql://c:d@h.example:5432/db"),
+    );
+    expect(databaseIdentity("postgresql://a@h/db1")).not.toBe(
+      databaseIdentity("postgresql://a@h/db2"),
+    );
+  });
+  it("redacts URLs and explicit secrets from tool output", () => {
+    const out = redactSecrets(
+      "could not connect to postgresql://u:hunter2@h/db: password authentication failed for hunter2",
+      ["hunter2"],
+    );
+    expect(out).not.toContain("hunter2");
+    expect(out).toContain("[redacted]");
+  });
+  it("reads the major version of the client tools", () => {
+    expect(parseToolMajor("pg_dump (PostgreSQL) 16.2")).toBe(16);
+    expect(parseToolMajor("pg_dump (PostgreSQL) 17.1 (Ubuntu 17.1-1.pgdg24.04+1)")).toBe(17);
+    expect(parseToolMajor("garbage")).toBeNull();
+  });
+});

@@ -22,6 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # NUD-094: the backup / test restore integration test needs pg_dump and pg_restore.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-16
       # NUD-093: fails on high / critical advisories; accepted ones are listed in pnpm-workspace.yaml.
       - run: pnpm audit --audit-level=high
       - run: pnpm db:migrate && pnpm db:seed
@@ -44,6 +46,8 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nudel
       SEED_ADMIN_PASSWORD: ci-only-password
       AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      # NUD-094: the hidden pages /admin/dev/error and /driver/dev-error (error page tests).
+      ENABLE_ERROR_TEST_PAGES: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

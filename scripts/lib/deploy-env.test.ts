@@ -72,4 +72,29 @@ describe("checkDeployEnv", () => {
     });
     expect(preview.warnings).toEqual([]);
   });
+
+  it("checks the optional Sentry settings (NUD-094)", () => {
+    const ok = checkDeployEnv({ ...good, SENTRY_DSN: "https://k@o1.ingest.de.sentry.io/12" });
+    expect(ok).toEqual({ errors: [], warnings: [] });
+    const bad = checkDeployEnv({ ...good, SENTRY_DSN: "not-a-dsn" });
+    expect(bad.errors).toEqual([]);
+    expect(bad.warnings.join("\n")).toMatch(/SENTRY_DSN/);
+    expect(bad.warnings.join("\n")).not.toContain("not-a-dsn");
+    const partial = checkDeployEnv({
+      ...good,
+      SENTRY_DSN: "https://k@o1.ingest.de.sentry.io/12",
+      SENTRY_AUTH_TOKEN: "tok",
+    });
+    expect(partial.warnings.join("\n")).toMatch(/Source maps/);
+    expect(partial.warnings.join("\n")).not.toContain("tok");
+  });
+
+  it("refuses the error test pages in production only", () => {
+    expect(checkDeployEnv({ ...good, ENABLE_ERROR_TEST_PAGES: "true" }).errors.join()).toMatch(
+      /ENABLE_ERROR_TEST_PAGES/,
+    );
+    expect(
+      checkDeployEnv({ ...good, VERCEL_ENV: "preview", ENABLE_ERROR_TEST_PAGES: "true" }).errors,
+    ).toEqual([]);
+  });
 });

@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/retention",
       "schedule": "17 3 * * *"
+    },
+    {
+      "path": "/api/cron/orphan-cleanup",
+      "schedule": "7 4 * * 0"
     }
   ]
 }

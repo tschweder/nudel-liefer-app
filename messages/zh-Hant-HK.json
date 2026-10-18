@@ -1200,5 +1200,28 @@
       "text": "暫時無法加載頁面，請檢查網絡連接。",
       "retry": "重試"
     }
+  },
+  "errorPages": {
+    "driver": {
+      "title": "出錯了",
+      "description": "數據是安全的，請重試。",
+      "retry": "重試",
+      "home": "返回線路",
+      "offlineTitle": "沒有網絡連接",
+      "offlineDescription": "已輸入的內容保存在手機上，網絡恢復後會自動發送。",
+      "offlineOpen": "打開已保存的線路"
+    },
+    "admin": {
+      "title": "出錯了",
+      "description": "無法加載此頁面。已保存的數據不受影響，請重試。",
+      "retry": "重試",
+      "home": "返回概覽",
+      "reference": "錯誤編號：{digest}"
+    },
+    "fatal": {
+      "title": "出錯了",
+      "description": "數據是安全的，請重新加載頁面。",
+      "retry": "重新加載"
+    }
   }
 }

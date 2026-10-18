@@ -1,0 +1,86 @@
+# Weekly logical backup of the production database (NUD-094).
+#
+#   pg_dump (custom format) -> checked -> uploaded to a PRIVATE Cloudflare R2 bucket -> backups older
+#   than 8 weeks pruned (the newest 4 are never pruned) -> the new backup is restored into a scratch
+#   PostgreSQL and checked ("test restore"), so a backup that cannot be restored fails this run.
+#
+# Secrets live in the GitHub *environment* "backup" (Settings > Environments), not in the repository
+# secrets, and are used by nothing else. Setup, secret list, restore and drill: docs/runbook.md
+# section "Backups". A failed run e-mails the repository admins (GitHub default).
+name: Database backup
+
+on:
+  schedule:
+    # Sundays 02:23 UTC (04:23 Vienna in summer): the factory does not deliver on Sundays.
+    - cron: "23 2 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+env:
+  # Must be >= the major version of the Neon project (docs/deploy.md: PostgreSQL 16).
+  PG_MAJOR: "16"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: backup
+    outputs:
+      key: ${{ steps.dump.outputs.key }}
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Install PostgreSQL client ${{ env.PG_MAJOR }}
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-${PG_MAJOR}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Dump, check, upload, prune
+        id: dump
+        run: pnpm backup:db
+
+  verify:
+    # Restores the backup that was just uploaded into a throw-away database and checks the data.
+    needs: backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: backup
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: restore_check }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+      # Placeholder so that the shared config parser is satisfied; the verify job never connects to it.
+      BACKUP_DATABASE_URL: postgresql://unused:unused@localhost/unused
+      RESTORE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/restore_check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Install PostgreSQL client ${{ env.PG_MAJOR }}
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-${PG_MAJOR}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test restore of the new backup
+        run: pnpm backup:verify --key "${{ needs.backup.outputs.key }}"

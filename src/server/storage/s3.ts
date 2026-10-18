@@ -109,6 +109,25 @@ export class S3Storage implements Storage {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: key }));
   }
 
+  async list(prefix: string, options?: { limit?: number; continuationToken?: string }) {
+    const out = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.config.bucket,
+        Prefix: prefix,
+        MaxKeys: Math.min(options?.limit ?? 1000, 1000),
+        ContinuationToken: options?.continuationToken,
+      }),
+    );
+    return {
+      objects: (out.Contents ?? []).flatMap((o) =>
+        o.Key && o.LastModified
+          ? [{ key: o.Key, bytes: o.Size ?? 0, lastModified: o.LastModified }]
+          : [],
+      ),
+      nextToken: out.IsTruncated ? out.NextContinuationToken : undefined,
+    };
+  }
+
   /**
    * Lists at most one key: succeeds only when endpoint, bucket and credentials are all valid
    * (wrong bucket = NoSuchBucket, bad keys = 403). Needs only the object read permission of the

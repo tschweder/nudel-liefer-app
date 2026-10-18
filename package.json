@@ -23,7 +23,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:customers": "tsx scripts/seed-test-customers.ts",
     "db:embedded": "tsx scripts/embedded-postgres.ts",
-    "pwa:icons": "tsx scripts/generate-pwa-icons.ts"
+    "pwa:icons": "tsx scripts/generate-pwa-icons.ts",
+    "backup:db": "tsx scripts/backup/pg-backup.ts",
+    "backup:verify": "tsx scripts/backup/restore-verify.ts",
+    "admin:reset-password": "tsx scripts/admin-reset-password.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
@@ -31,6 +34,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "^7.10.1",
+    "@sentry/nextjs": "11.8.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

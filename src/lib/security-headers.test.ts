@@ -90,6 +90,34 @@ describe("buildCsp", () => {
     expect(csp).not.toMatch(/\*(?!\.)/);
   });
 
+  it("allows the Sentry ingest host in connect-src only when SENTRY_DSN is a valid DSN (NUD-094)", () => {
+    const withDsn = buildCsp({
+      ...prod,
+      SENTRY_DSN: "https://publickey@o123.ingest.de.sentry.io/456",
+    });
+    expect(directive(withDsn, "connect-src")).toEqual([
+      "'self'",
+      "https://abc.eu.r2.cloudflarestorage.com",
+      "https://o123.ingest.de.sentry.io",
+    ]);
+    // The key and the project id never end up in the header; nothing else is widened.
+    expect(withDsn).not.toContain("publickey");
+    expect(directive(withDsn, "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+    expect(directive(withDsn, "img-src")).toEqual(directive(buildCsp(prod), "img-src"));
+    for (const bad of [
+      "",
+      "   ",
+      "not a dsn",
+      "ftp://k@host/1",
+      "https://host/1",
+      "https://k@host/x",
+    ]) {
+      expect(directive(buildCsp({ ...prod, SENTRY_DSN: bad }), "connect-src"), bad).toEqual(
+        directive(buildCsp(prod), "connect-src"),
+      );
+    }
+  });
+
   it("allows eval and websockets only in development", () => {
     expect(directive(buildCsp(prod), "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
     expect(directive(buildCsp(prod), "connect-src")).not.toContain("ws:");
