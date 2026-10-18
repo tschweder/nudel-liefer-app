@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { LateOrdersNotice } from "@/components/admin/late-orders-notice";
 import { OrderFilters } from "@/components/admin/order-filters";
 import { OrderTotals } from "@/components/admin/order-totals";
 import { OrdersTable } from "@/components/admin/orders-table";
@@ -35,6 +36,7 @@ async function Guarded({
           {t("new")}
         </Link>
       </div>
+      <LateOrdersNotice orders={overview.rows} />
       <OrderFilters filters={overview.filters} customers={overview.customers} />
       <OrderTotals totals={overview.totals} />
       {overview.truncated ? (

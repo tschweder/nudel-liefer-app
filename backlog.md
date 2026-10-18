@@ -243,7 +243,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | blocked |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | done |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | done |
-| NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
+| NUD-099 | Late orders for an already completed tour | M2 | 043 | done |
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
 | NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
@@ -255,6 +255,9 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
+| NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | todo |
+| NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
+| NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1551,7 +1554,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-099 · Late orders for an already completed tour
-**Status:** todo · **depends_on:** 043
+**Status:** done · **depends_on:** 043
 
 **Goal:** an order confirmed after the tour of its day is COMPLETED must not vanish (found in NUD-043).
 
@@ -1560,7 +1563,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Decide with the office (simplest first): warn on the order form and in the overview ("tour of that day is already completed"), or allow a second tour for the date (D5: no unique constraint on `Tour.date`; `getTourPlan` shows only the latest tour of a day, so the page needs to list several).
 
 **Acceptance criteria**
-- [ ] A confirmed order for a date whose only tour is COMPLETED is visibly reported to the office (and, if a second tour is chosen, can be delivered).
+- [x] A confirmed order for a date whose only tour is COMPLETED is visibly reported to the office (and, if a second tour is chosen, can be delivered). (Overview notice + badge, dashboard card, banner on the planning page; "Folgetour erstellen" builds a second tour for the same date that the driver delivers. Integration `late-orders.integration.test.ts` (13), e2e `late-orders.spec.ts` (complete tour, late order, banner, follow-up, release, driver delivers; 4 locales).)
+
+**Implementation notes**
+- Design (both options of the scope, minimum viable): the office is told in three places and can deliver the order through a **follow-up tour** = a second `Tour` row for the same date. No schema change, no migration. A day's tours are all COMPLETED and a CONFIRMED order is on no stop = **late order** (`findLateOrderIds` in the new `src/domain/day-tours.ts`, which also holds `sortDayTours`, `pickDefaultTour`, `pickDriverTour`, `canCreateFollowUp`, `deliveredStopConflicts`; 20 unit tests). While an open tour (anything but COMPLETED) exists nothing is "late": the ordinary outdated flag, rebuild and re-release handle new orders as before; `markOutdatedForDate` is unchanged (completed tours stay unflagged, history).
+- Scoping (the core of "several tours per date"): `listConfirmedOrdersForDate(db, date, {tourId})` returns the day's confirmed orders that are NOT on a stop of another tour of that day (`{tourId: null}` = for a tour that does not exist yet = on no stop). The builder, the re-release plan (`loadReleasePlan` and its order signature) and the planning read model use it, so a follow-up tour only contains the late orders and its diff never lists the completed tour's customers as "added". Without a second tour the scope excludes nothing: single-tour behaviour is unchanged (all earlier tour / re-release / builder tests pass untouched).
+- Builder: `generateTourWith(deps, date, {followUp: true})` and `generateFollowUpTour(actorId, date)`; new action `createFollowUpTourAction({date})` (`requireRole("ADMIN")`, strict zod, like `generateTourAction`). Allowed only when the day has tours and all are COMPLETED (`follow_up_not_allowed` otherwise, so a second click or a stale page creates nothing), and when there is at least one late order with a confirmed pin (`no_late_orders`; customers without a confirmed pin come back as `PIN_UNCONFIRMED` warnings, as in a normal build); past days stay refused (`date_in_past`). The new tour is OPTIMIZED, built from the late orders only (one stop per customer, orders merged; a customer that was delivered earlier gets a second stop with only the new quantities), then planned, assigned and released like any tour. Plain `generateTour` is unchanged: it rebuilds the newest tour of the day (the open follow-up tour, scoped) and still answers `tour_not_editable` for a completed one. A concurrent second create loses with `conflict` (latest tour id/`updatedAt` re-checked under the per-date advisory lock).
+- Audit (NUD-092): new action `tour.followup` (vocabulary, history label, `audit-history` case with the stop count) written in the creating transaction with `followUpOfTourIds` and the late `orderIds`; `audit-coverage.test.ts` and the authorization matrix (row for `createFollowUpTourAction`) pass; an integration test reads the entry back through `tourHistoryQuery`.
+- Driver (NUD-051): `getDriverTour` now takes all released tours of the driver for the day and `pickDriverTour` chooses: the newest RELEASED / IN_PROGRESS one, else the newest COMPLETED (finished screen), so an unreleased follow-up keeps showing "tour finished" and a released one replaces it. Stop-status, photos and sync work by stop id and needed no change. Admin dashboard (`getTodayProgress`) shows `pickDefaultTour` (the open tour, else the newest) and a new `lateOrderCount` with an amber hint "N Bestellungen ... nach Abschluss der Tour ... Bitte eine Folgetour erstellen".
+- UI: planning page (`?date=&tour=<id>`; `tourPlanQuery(date, tourId?)`, `getTourPlan(..., tourId?)` returns `tours[]` (id, number, status, stop count), the selected `tour` (default = `pickDefaultTour`, an unknown id falls back to it) and `late`): `TourTabs` ("Tour 1", "Tour 2 (Folgetour)" with status and stop count, only when there are two or more), `LateOrdersBanner` (red alert with the late customers and quantities via `TourDiffList`, a note for customers whose pin is not confirmed, button "Folgetour erstellen" that opens the new tour's tab; the button is disabled without a routable late customer; a second, neutral alert lists "Bestellungen nach der Lieferung geändert" = conflict note, see below). `TourPlanner` is keyed by tour id so tab changes reset local state. Order overview: `LateOrdersNotice` (one line per day with count and link to the planning page) and an amber badge "Nachbestellung - Tour abgeschlossen" in the tour column of late rows (`lateOrderIdsForRows`, one query). Strings `admin.tours.late/tabs`, `admin.orders.late`, `admin.dashboard.today.lateOrders`, error codes, `admin.history.actions.tour_followup`: de + zh-Hans by hand, Hant generated (Chinese agent-written, NUD-073).
+- **Increased quantities on delivered stops (decision, see log):** not delivered by the follow-up tour. A confirmed order that IS on a stop of a completed tour and was edited or cancelled afterwards is reported as a **conflict note** (`deliveredStopConflicts`: delivered quantity -> now, per product; shown under the banner even when there is no late order); the office has to settle it with the customer and driver. To get the difference delivered the office creates a new order for the extra quantity, which then is a late order. Automating that is NUD-117.
+- Tests: unit `day-tours.test.ts`; integration `late-orders.integration.test.ts` (late orders reported while the completed tour stays unflagged; overview flag + dashboard count; follow-up contents, completed tour byte-identical, audit entry + history; rebuild of the follow-up tour scoped apart from the completed one; driver picks follow-up after release and the finished tour before; re-release diff only names the follow-up's own orders; conflicts for edited / cancelled delivered orders; nothing reported / no follow-up for a day without tour or with an open tour; unconfirmed pins; past day; action rejects anonymous / driver with nothing written; input validation; mutation-checked: dropping the scope fails 5 tests); authz matrix row; e2e `tests/e2e/late-orders.spec.ts` (desktop: first tour built, released and delivered by the driver on a phone; late order entered through the order form; notice, badge, dashboard hint, banner; follow-up with tabs, completed tab unchanged; release; driver sees only the late quantities (A: 3, not 2 + 3), delivers; DB: two COMPLETED tours, 2 + 2 order links, `tour.followup` audit; second test: banner / notice / dashboard hint in all four locales, follow-up creation in zh-Hant-TW, no console errors, no horizontal scroll).
+- Verified: lint, typecheck, `i18n:check`, prettier on touched files, `pnpm build` (incl. client-bundle check), vitest without DB (99 files, 1108 tests) and all 34 integration files on embedded PostgreSQL (399 tests, in three groups), e2e (desktop) `late-orders`, `tours`, `tour-rerelease`, `order-overview`, `orders`, `shells`, `admin-progress`, `mvp-happy-path` (demo seed, 5), e2e (mobile) `driver-today`, `driver-status`. Screenshots at 1280 px inspected (`test-results/nud-099-orders-1280.png`, `-banner-1280.png`, `-followup-1280.png`, `-released-1280.png`, `-banner-zh-Hans-1280.png`, driver `nud-099-driver-followup.png`), no horizontal scroll asserted.
+- Observation (not fixed): the driver screenshot right after the release showed the amber "Offline - zuletzt aktualisiert" banner although the page listed the new follow-up tour correctly (cache served first, then refreshed); this is the cache behaviour NUD-118 should look at.
+- NOT verified: the driver PWA on a real phone / with a warm offline cache when a second tour of the same day appears (NUD-118); drag-and-drop and touch on the follow-up tab (same component as before); real ORS routing for the follow-up (heuristic only); the e2e together with the other specs in one parallel CI run (like `tour-rerelease` / `tours` it flips `depotPinConfirmed` and needs "no tour for today"; run it alone or first); the order form itself gives no warning (NUD-116); the print view of a follow-up tour was not opened; Chinese strings are agent-written (NUD-073).
+- Follow-ups: NUD-116, NUD-117, NUD-118. NUD-102 (several drivers per day) can build on the tabs, `pickDefaultTour` / `pickDriverTour` (extend to "all active tours of this driver") and the order scope.
 
 ---
 
@@ -1688,6 +1705,47 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 **Acceptance criteria**
 - [ ] Findings noted under the ticket; blocking ones became tickets.
+
+---
+
+#### NUD-116 · Warn on the order form when the delivery day's tour is already completed
+**Status:** todo · **depends_on:** 099
+
+**Goal:** the office learns about a late order while typing it, not only after saving (NUD-099 reports it in the overview, on the dashboard and on the planning page).
+
+**Scope**
+- Next to the existing "combined into one stop" / "pin unconfirmed" warnings (`orderWarnings`), show "the tour of this day is already completed, this order needs a follow-up tour" for a CONFIRMED order on a day whose tours are all COMPLETED. Needs a small admin read (or an extension of `confirmedOrderCountAction`'s result) and an authz test / matrix row if it is a new action.
+
+**Acceptance criteria**
+- [ ] The warning shows while entering and editing such an order (e2e), nothing changes for other days.
+
+---
+
+#### NUD-117 · Deliver quantity changes on already delivered stops (correction stop)
+**Status:** todo · **depends_on:** 099
+
+**Goal:** an order that was already delivered and is increased afterwards (NUD-099 only reports it as a conflict note) can be delivered with one action.
+
+**Scope**
+- Decide with the office: "Create correction": a follow-up stop for the difference (new quantity minus delivered quantity) instead of asking the office to enter a second order. Keep audit entries and the "never reset delivered stops" rule (NUD-043); decrease / cancel stays a note (goods cannot be un-delivered).
+
+**Acceptance criteria**
+- [ ] An increase of a delivered order can be put on a follow-up tour with exactly the difference (integration + e2e); decreases are reported only.
+
+---
+
+#### NUD-118 · Driver app with two tours on one day (offline cache, hint, real device)
+**Status:** todo · **depends_on:** 099, 081
+
+**Goal:** check and, where needed, fix what NUD-099 only covered on the server: a driver who finished tour 1 and receives a follow-up tour the same day.
+
+**Scope**
+- Offline cache and service worker: does the cached "today" payload / photos switch from the completed to the released follow-up tour without a manual reload (also while offline-queued taps exist)?
+- Home screen: show that this is a second tour ("Tour 2") or at least the new tour's stops clearly; the "tour finished" screen must not hide a newly released follow-up.
+- Real-device check (extends NUD-107).
+
+**Acceptance criteria**
+- [ ] Driver with a warm cache sees the released follow-up tour after the next sync / focus, without logging out (e2e with the offline helpers); findings of the real-device check noted.
 
 ---
 
@@ -1973,6 +2031,15 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-096 | UAT script offers two data modes (demo seed with `--today`, or the client's real data) and keeps the sign-off block empty; wording issues are routed to `pnpm i18n:import`, not to code tickets | Drivers see only today's tour, and the demo seed must never touch production; the Chinese texts are still unreviewed (NUD-073) |
 | 2026-10-18 | NUD-097 | `await connection()` at the top of `requirePageActor` (page guards only), not in `requireRole` | Fixes the Auth.js CSRF `getRandomValues` prerender error at its cause; actions/route handlers are already request-scoped and stay unchanged |
 | 2026-10-18 | NUD-098 | OpenCC guard = file split (`localized-text.server.ts`) + ESLint `no-restricted-imports` + bundle scan in `pnpm build`, instead of the `server-only` package | `server-only` is not installed (no pnpm install here) and throws under tsx/vitest without aliasing; the ESLint rule + bundle scan catch the same mistakes without touching scripts and tests |
+| 2026-10-18 | NUD-099 | Late orders are handled with a follow-up tour (second `Tour` row for the date, D5) instead of re-opening the completed tour; no schema change | COMPLETED is final in the status machine (NUD-043) and the driver's completed stops must never change; a second tour reuses planning, release, driver and audit unchanged |
+| 2026-10-18 | NUD-099 | "Late order" = CONFIRMED order on no stop while every tour of its day is COMPLETED; with an open tour the existing outdated flag / rebuild / re-release path decides, `markOutdatedForDate` keeps skipping COMPLETED tours | One rule, no new flag; detection by the unlinked-order query as the ticket asked |
+| 2026-10-18 | NUD-099 | Tour code reads the day's orders with a scope ("not on a stop of another tour of that day"); a customer delivered in tour 1 who orders again gets a second, separate stop in the follow-up tour with only the new quantities | Keeps D5 "all confirmed orders of a customer merged into one stop" per tour; prevents double delivery and false "added" diffs |
+| 2026-10-18 | NUD-099 | Increased / changed / cancelled quantities on already delivered stops are NOT re-dispatched; shown as a conflict note, correction = new order for the difference (automation: NUD-117) | Delivered stops are frozen (NUD-043); goods cannot be un-delivered; simplest safe behaviour |
+| 2026-10-18 | NUD-099 | Only one follow-up tour may be open at a time (create refused while any tour of the day is not COMPLETED); further late orders flag that tour outdated and are added by rebuild / re-release | Avoids several half-planned tours and double clicks; matches "1 tour per date" as far as possible |
+| 2026-10-18 | NUD-099 | Planning page selects the tour by `?tour=<id>` (default: newest open tour, else newest) and shows tabs only with two or more tours; driver gets the newest RELEASED / IN_PROGRESS tour, else the newest COMPLETED one; dashboard shows the open tour | Single-tour days look exactly as before; a released follow-up must replace the finished screen |
+| 2026-10-18 | NUD-099 | New audit action `tour.followup` instead of reusing `tour.generate` | The history must say that this tour was created for late orders; vocabulary stays a closed list (NUD-092) |
+| 2026-10-18 | NUD-099 | Order form warning not built, only overview notice + badge, dashboard hint and planning banner; ticket NUD-116 | After saving, the overview opens on that day and already shows the notice; the form needs another action + matrix row |
+
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

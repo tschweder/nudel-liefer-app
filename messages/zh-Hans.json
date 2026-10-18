@@ -157,7 +157,8 @@
         "problems": "{count, plural, =0 {没有问题} other {# 个问题}}",
         "driver": "司机：{name}",
         "openTour": "查看行程",
-        "openPlanning": "规划行程"
+        "openPlanning": "规划行程",
+        "lateOrders": "{count, plural, other {今天有 # 个订单}}是在配送线路完成之后才收到的，不在任何配送线路中。请创建补充线路。"
       }
     },
     "shell": {
@@ -799,6 +800,12 @@
         "product": "产品",
         "quantity": "数量",
         "empty": "所选时间段内没有已确认订单。"
+      },
+      "late": {
+        "badge": "补单 – 线路已完成",
+        "title": "配送线路完成后的订单",
+        "body": "这些日期的配送线路已经完成，以下已确认订单不在任何配送线路中。可以在线路规划页面创建补充线路。",
+        "count": "{count, plural, other {# 个订单}}"
       }
     },
     "tours": {
@@ -884,7 +891,9 @@
         "driver_required": "请先指派司机。",
         "driver_invalid": "该司机已停用，请选择其他司机。",
         "outdated": "订单已更改，请先重新生成配送线路。",
-        "not_released": "此配送线路尚未发布。"
+        "not_released": "此配送线路尚未发布。",
+        "follow_up_not_allowed": "只有当天所有配送线路都已完成时，才能创建补充线路。",
+        "no_late_orders": "没有定位点已确认、可编入补充线路的补单。"
       },
       "change": {
         "title": "发布后订单已更改——请检查并重新发布",
@@ -954,6 +963,23 @@
         "customer": "客户",
         "items": "产品和数量",
         "noItems": "没有商品"
+      },
+      "late": {
+        "title": "配送线路结束后的补单",
+        "body": "{count, plural, other {有 # 个已确认订单}}是在当天配送线路完成之后才收到的，不在任何配送线路中。可以创建补充线路来送达；已完成的配送线路保持不变。",
+        "listHeading": "{count, plural, other {补充线路中的 # 位客户}}",
+        "unrouted": "未纳入补充线路：地图定位点未确认。请在客户页面确认定位点：",
+        "create": "创建补充线路",
+        "creating": "正在创建…",
+        "created": "已创建补充线路，共 {count, plural, other {# 个站点}}。请指派司机并发布。",
+        "conflictTitle": "送货后订单被修改",
+        "conflictBody": "这些站点的订单是在配送线路完成之后被修改或取消的。补充线路不会补送差额，请与客户和司机沟通处理。"
+      },
+      "tabs": {
+        "label": "当天的配送线路",
+        "first": "线路 1",
+        "followUp": "线路 {number}（补充线路）",
+        "stops": "{count, plural, other {# 个站点}}"
       }
     },
     "history": {
@@ -971,6 +997,7 @@
         "order_cancel": "取消订单",
         "order_duplicate": "复制为新订单",
         "tour_generate": "生成路线",
+        "tour_followup": "创建补充线路",
         "tour_reoptimize": "重新优化路线",
         "tour_reorder": "调整停靠顺序",
         "tour_lock": "锁定顺序",

@@ -1,4 +1,4 @@
-import { ImageIcon, PencilLineIcon, RouteIcon } from "lucide-react";
+import { ImageIcon, PencilLineIcon, RouteIcon, TriangleAlertIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/shared/states";
@@ -121,6 +121,21 @@ export function OrdersTable({ orders }: { orders: OrderOverviewRow[] }) {
                   >
                     <RouteIcon className="size-3.5" aria-hidden />
                     {t("inTour")}
+                  </Badge>
+                </Link>
+              ) : order.late ? (
+                <Link
+                  href={`/admin/tours?date=${formatCalendarDate(order.deliveryDate)}`}
+                  className="inline-flex"
+                  data-testid="order-late-link"
+                >
+                  <Badge
+                    variant="outline"
+                    className="gap-1 border-amber-600 text-amber-800 dark:text-amber-300"
+                    data-testid="order-late"
+                  >
+                    <TriangleAlertIcon className="size-3.5" aria-hidden />
+                    {t("late.badge")}
                   </Badge>
                 </Link>
               ) : null}

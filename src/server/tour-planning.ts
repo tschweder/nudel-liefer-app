@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { pickDefaultTour, sortDayTours } from "@/domain/day-tours";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
 import { buildStops, computeSchedule, departureInstant, partitionByPin } from "@/domain/tour";
 import {
@@ -14,6 +15,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
 import { recordAudit } from "./audit";
+import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
 import type { AppSettings } from "./settings";
@@ -97,11 +99,25 @@ export type PlanTour = {
   stops: PlanStop[];
 };
 
+/** One tab of the planning page: a tour of the day (NUD-099; normally just one). */
+export type PlanTourTab = {
+  id: string;
+  /** 1 = the first tour of the day, 2 = the follow-up tour for late orders, ... */
+  number: number;
+  status: PlanTour["status"];
+  stopCount: number;
+};
+
 export type TourPlan = {
   /** `YYYY-MM-DD` */
   date: string;
   timezone: string;
+  /** The selected tour (the one that still needs work unless the URL names another one). */
   tour: PlanTour | null;
+  /** All tours of the day in creation order; more than one only after a follow-up tour. */
+  tours: PlanTourTab[];
+  /** Orders confirmed after the tour of the day was completed, and edits after delivery. */
+  late: LateOrdersView;
   /** Customers with confirmed orders for the day that are not routable (pin not confirmed). */
   warnings: TourWarning[];
   confirmedOrderCount: number;
@@ -147,39 +163,56 @@ function readDepot(value: unknown): PlanTour["depot"] {
 }
 // unbounded-ok-end
 
-/** The latest tour of the day (v1 has one) with everything the planning screen shows. */
+/**
+ * The planning screen of a day: its tours (v1 has one; after a completed tour a follow-up tour
+ * can exist, NUD-099) and the selected one with everything the screen shows. `tourId` selects one
+ * tour of that day, otherwise `pickDefaultTour` does (the one that still needs work).
+ */
 export async function getTourPlan(
   db: PrismaClient,
   rawDate: unknown,
   timezone: string,
+  tourId?: string | null,
 ): Promise<TourPlan | null> {
   const date = typeof rawDate === "string" ? parseCalendarDate(rawDate) : null;
   if (!date) return null;
 
-  const tour = await db.tour.findFirst({
-    where: { date },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: {
-      stops: {
-        orderBy: { sequence: "asc" },
-        include: {
-          customer: {
-            select: {
-              customerNumber: true,
-              name: true,
-              street: true,
-              postalCode: true,
-              city: true,
-              lat: true,
-              lng: true,
-              photos: { where: { isCurrent: true }, select: { kind: true } },
+  const dayTours = sortDayTours(
+    await db.tour.findMany({
+      where: { date },
+      select: { id: true, status: true, createdAt: true, _count: { select: { stops: true } } },
+    }),
+  );
+  const selected = (tourId && dayTours.find((t) => t.id === tourId)) || pickDefaultTour(dayTours);
+
+  const tour =
+    selected === null
+      ? null
+      : await db.tour.findUnique({
+          where: { id: selected.id },
+          include: {
+            stops: {
+              orderBy: { sequence: "asc" },
+              include: {
+                customer: {
+                  select: {
+                    customerNumber: true,
+                    name: true,
+                    street: true,
+                    postalCode: true,
+                    city: true,
+                    lat: true,
+                    lng: true,
+                    photos: { where: { isCurrent: true }, select: { kind: true } },
+                  },
+                },
+                orders: {
+                  select: { order: { select: { items: { select: { productId: true } } } } },
+                },
+              },
             },
           },
-          orders: { select: { order: { select: { items: { select: { productId: true } } } } } },
-        },
-      },
-    },
-  });
+        });
 
   const releaseTour =
     tour && tour.isOutdated && isReReleasable(tour.status)
@@ -187,7 +220,8 @@ export async function getTourPlan(
       : null;
   const diff = releaseTour ? await getTourDiffView(db, releaseTour) : null;
 
-  const orders = await listConfirmedOrdersForDate(db, date);
+  // Only the orders this tour is responsible for (not those on a stop of another tour of the day).
+  const orders = await listConfirmedOrdersForDate(db, date, { tourId: tour?.id ?? null });
   const planned = buildStops(orders);
   const customers = await db.customer.findMany({
     where: { id: { in: planned.map((s) => s.customerId) } },
@@ -202,7 +236,8 @@ export async function getTourPlan(
   });
   const byId = new Map(customers.map((c) => [c.id, c]));
   const { unrouted } = partitionByPin(planned, byId);
-  const warnings: TourWarning[] = unrouted.map((stop) => ({
+  // A completed tour is history: pin warnings are for the tour that can still be built.
+  const warnings: TourWarning[] = (tour?.status === "COMPLETED" ? [] : unrouted).map((stop) => ({
     code: "PIN_UNCONFIRMED",
     customerId: stop.customerId,
     customerNumber: byId.get(stop.customerId)?.customerNumber ?? "",
@@ -223,6 +258,13 @@ export async function getTourPlan(
     date: formatCalendarDate(date),
     timezone,
     warnings,
+    tours: dayTours.map((t, index) => ({
+      id: t.id,
+      number: index + 1,
+      status: t.status,
+      stopCount: t._count.stops,
+    })),
+    late: await getLateOrdersView(db, date),
     confirmedOrderCount: orders.length,
     drivers: drivers.map((d) => ({
       id: d.id,

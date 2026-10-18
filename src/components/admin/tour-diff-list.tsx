@@ -15,7 +15,14 @@ function productName(name: unknown, sku: string, locale: AppLocale): string {
  * The difference between a released tour and the confirmed orders now (NUD-043): new stops,
  * removed stops, changed quantities (before -> after) and edits to stops that are already done.
  */
-export function TourDiffList({ diff }: { diff: TourDiffView }) {
+export function TourDiffList({
+  diff,
+  addedHeading,
+}: {
+  diff: TourDiffView;
+  /** Replaces the heading of the "added" section (the late orders list of NUD-099). */
+  addedHeading?: string;
+}) {
   const t = useTranslations("admin.tours.change");
   const tc = useTranslations("common");
   const locale = useLocale() as AppLocale;
@@ -35,7 +42,9 @@ export function TourDiffList({ diff }: { diff: TourDiffView }) {
         .map((section) => (
           <section key={section.key} data-testid={`diff-${section.key}`}>
             <h3 className="text-base font-semibold">
-              {t(`sections.${section.key}`, { count: section.entries.length })}
+              {section.key === "added" && addedHeading
+                ? addedHeading
+                : t(`sections.${section.key}`, { count: section.entries.length })}
             </h3>
             <ul className="mt-1 flex flex-col gap-2">
               {section.entries.map((entry, index) => (

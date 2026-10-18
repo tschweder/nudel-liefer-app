@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = [
   "order.cancel",
   "order.duplicate",
   "tour.generate",
+  "tour.followup",
   "tour.reoptimize",
   "tour.reorder",
   "tour.lock",

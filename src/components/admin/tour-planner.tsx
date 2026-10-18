@@ -51,6 +51,7 @@ import {
 } from "@/server/tour-actions";
 import type { PlanStop, TourPlan } from "@/server/tour-planning";
 
+import { LateOrdersBanner, TourTabs } from "./late-orders-banner";
 import { ProblemNote } from "./problem-note";
 import { TourDiffList } from "./tour-diff-list";
 
@@ -286,6 +287,8 @@ export function TourPlanner({
   return (
     <div className="flex flex-col gap-6" data-testid="tour-planner" data-tour-id={tour.id}>
       <LiveRefresh intervalMs={pollIntervalMs} enabled={isLiveStatus(tour.status)} />
+      <TourTabs plan={plan} />
+      <LateOrdersBanner plan={plan} />
       <Warnings plan={plan} />
       <ErrorAlert error={error} errorText={errorText} />
       {tour.isOutdated && editable ? (

@@ -185,6 +185,9 @@ const MATRIX: Record<string, Row> = {
   "src/server/tour-actions.ts#generateTourAction": adminAction("tour planning", async () =>
     (await import("./tour-actions")).generateTourAction({}),
   ),
+  "src/server/tour-actions.ts#createFollowUpTourAction": adminAction("tour planning", async () =>
+    (await import("./tour-actions")).createFollowUpTourAction({}),
+  ),
   "src/server/tour-actions.ts#reorderStopsAction": adminAction("tour planning", async () =>
     (await import("./tour-actions")).reorderStopsAction({}),
   ),

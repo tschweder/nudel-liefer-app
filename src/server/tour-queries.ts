@@ -8,9 +8,10 @@ import { getTourPrint, type TourPrint } from "./tour-print";
 
 /**
  * Admin-only read of the planning screen. `date` is `YYYY-MM-DD`; anything else (or no value)
- * falls back to the next delivery date, so the page never fails on a bad URL.
+ * falls back to the next delivery date, so the page never fails on a bad URL. `tourId` selects
+ * one of several tours of the day (NUD-099); an unknown id selects the default tour.
  */
-export async function tourPlanQuery(date: unknown) {
+export async function tourPlanQuery(date: unknown, tourId?: unknown) {
   await requireRole("ADMIN");
   const parsed = typeof date === "string" ? parseCalendarDate(date) : null;
   const day = parsed ?? (await getDefaultDeliveryDate());
@@ -18,6 +19,7 @@ export async function tourPlanQuery(date: unknown) {
     getDb(),
     day.toISOString().slice(0, 10),
     await getFactoryTimezone(),
+    typeof tourId === "string" && tourId.length <= 64 ? tourId : null,
   );
   if (!plan) throw new Error("Unreachable: the date was validated");
   return plan;

@@ -158,7 +158,8 @@
         "problems": "{count, plural, =0 {沒有問題} other {# 個問題}}",
         "driver": "司機：{name}",
         "openTour": "檢視行程",
-        "openPlanning": "規劃行程"
+        "openPlanning": "規劃行程",
+        "lateOrders": "{count, plural, other {今天有 # 個訂單}}是在配送線路完成之後才收到的，不在任何配送線路中。請建立補充線路。"
       }
     },
     "shell": {
@@ -800,6 +801,12 @@
         "product": "產品",
         "quantity": "數量",
         "empty": "所選時間段內沒有已確認訂單。"
+      },
+      "late": {
+        "badge": "補單 – 線路已完成",
+        "title": "配送線路完成後的訂單",
+        "body": "這些日期的配送線路已經完成，以下已確認訂單不在任何配送線路中。可以線上路規劃頁面建立補充線路。",
+        "count": "{count, plural, other {# 個訂單}}"
       }
     },
     "tours": {
@@ -885,7 +892,9 @@
         "driver_required": "請先指派司機。",
         "driver_invalid": "該司機已停用，請選擇其他司機。",
         "outdated": "訂單已更改，請先重新生成配送線路。",
-        "not_released": "此配送線路尚未釋出。"
+        "not_released": "此配送線路尚未釋出。",
+        "follow_up_not_allowed": "只有當天所有配送線路都已完成時，才能建立補充線路。",
+        "no_late_orders": "沒有定位點已確認、可編入補充線路的補單。"
       },
       "change": {
         "title": "釋出後訂單已更改——請檢查並重新發布",
@@ -955,6 +964,23 @@
         "customer": "客戶",
         "items": "產品和數量",
         "noItems": "沒有商品"
+      },
+      "late": {
+        "title": "配送線路結束後的補單",
+        "body": "{count, plural, other {有 # 個已確認訂單}}是在當天配送線路完成之後才收到的，不在任何配送線路中。可以建立補充線路來送達；已完成的配送線路保持不變。",
+        "listHeading": "{count, plural, other {補充線路中的 # 位客戶}}",
+        "unrouted": "未納入補充線路：地圖定位點未確認。請在客戶頁面確認定位點：",
+        "create": "建立補充線路",
+        "creating": "正在建立…",
+        "created": "已建立補充線路，共 {count, plural, other {# 個站點}}。請指派司機併發布。",
+        "conflictTitle": "送貨後訂單被修改",
+        "conflictBody": "這些站點的訂單是在配送線路完成之後被修改或取消的。補充線路不會補送差額，請與客戶和司機溝通處理。"
+      },
+      "tabs": {
+        "label": "當天的配送線路",
+        "first": "線路 1",
+        "followUp": "線路 {number}（補充線路）",
+        "stops": "{count, plural, other {# 個站點}}"
       }
     },
     "history": {
@@ -972,6 +998,7 @@
         "order_cancel": "取消訂單",
         "order_duplicate": "複製為新訂單",
         "tour_generate": "生成路線",
+        "tour_followup": "建立補充線路",
         "tour_reoptimize": "重新最佳化路線",
         "tour_reorder": "調整停靠順序",
         "tour_lock": "鎖定順序",

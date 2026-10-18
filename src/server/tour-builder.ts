@@ -1,3 +1,4 @@
+import { isOpenTour } from "@/domain/day-tours";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
 import {
@@ -38,14 +39,21 @@ export type GenerateTourError =
   | "no_stops"
   | "tour_not_editable"
   | "too_many_stops"
-  | "conflict";
+  | "conflict"
+  /** Follow-up tour: the day has no tour, or a tour that is not COMPLETED yet. */
+  | "follow_up_not_allowed"
+  /** Follow-up tour: every confirmed order is already on a stop. */
+  | "no_late_orders";
 
 export type GenerateTourResult =
   | {
       ok: true;
       tourId: string;
-      /** created = new tour, replaced = unreleased tour rebuilt, locked_extended = locked tour kept. */
-      mode: "created" | "replaced" | "locked_extended";
+      /**
+       * created = new tour, replaced = unreleased tour rebuilt, locked_extended = locked tour kept,
+       * follow_up = additional tour for the late orders of a day whose tours are all completed.
+       */
+      mode: "created" | "replaced" | "locked_extended" | "follow_up";
       stopCount: number;
       /** Customers appended to a locked tour / dropped from it because nothing is left to deliver. */
       addedCustomerIds: string[];
@@ -107,8 +115,10 @@ function orderSignature(orders: ReadonlyArray<{ id: string; updatedAt: Date }>):
 export async function generateTourWith(
   deps: TourBuilderDeps,
   rawDate: unknown,
+  options: { followUp?: boolean } = {},
 ): Promise<GenerateTourResult> {
   const { db, provider } = deps;
+  const followUp = options.followUp === true;
   const fail = (
     error: GenerateTourError,
     warnings: TourWarning[] = [],
@@ -132,16 +142,25 @@ export async function generateTourWith(
   const { y, m, d } = calendarDayIn(now, settings.timezone);
   if (isPastDeliveryDate(date, new Date(Date.UTC(y, m - 1, d)))) return fail("date_in_past");
 
-  const existing = await db.tour.findFirst({
+  const dayTours = await db.tour.findMany({
     where: { date },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: { stops: { orderBy: { sequence: "asc" }, select: { id: true, customerId: true } } },
   });
+  // The newest tour of the day is the one that is rebuilt (v1 has one; a follow-up is newer).
+  const latest = dayTours[0] ?? null;
+  // A follow-up tour (NUD-099) is a NEW tour next to completed ones; it never rebuilds one.
+  const existing = followUp ? null : latest;
+  if (followUp && (dayTours.length === 0 || dayTours.some((t) => isOpenTour(t.status)))) {
+    return fail("follow_up_not_allowed");
+  }
   if (existing && !(EDITABLE as readonly string[]).includes(existing.status)) {
     return fail("tour_not_editable");
   }
 
-  const orders = await listConfirmedOrdersForDate(db, date);
+  // Orders already on a stop of another tour of the day belong to that tour (NUD-099).
+  const orders = await listConfirmedOrdersForDate(db, date, { tourId: existing?.id ?? null });
+  if (followUp && orders.length === 0) return fail("no_late_orders");
   const signature = orderSignature(orders);
   const planned = buildStops(orders);
   const customers = await db.customer.findMany({
@@ -183,7 +202,9 @@ export async function generateTourWith(
   } else {
     ordered = routable;
   }
-  if (ordered.length === 0 && !existing) return fail("no_stops", warnings);
+  if (ordered.length === 0 && !existing) {
+    return fail(followUp ? "no_late_orders" : "no_stops", warnings);
+  }
 
   const location = (stop: PlannedStop) => {
     const c = customerById.get(stop.customerId)!;
@@ -251,15 +272,17 @@ export async function generateTourWith(
     async (tx): Promise<GenerateTourResult> => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tour:${date.toISOString().slice(0, 10)}`}))`;
       // Orders or the tour changed while we were routing: the result would be stale.
-      const latest = await tx.tour.findFirst({
+      const newest = await tx.tour.findFirst({
         where: { date },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: { id: true, updatedAt: true },
       });
-      const currentOrders = await listConfirmedOrdersForDate(tx, date);
+      const currentOrders = await listConfirmedOrdersForDate(tx, date, {
+        tourId: existing?.id ?? null,
+      });
       if (
-        latest?.id !== existing?.id ||
-        latest?.updatedAt.getTime() !== existing?.updatedAt.getTime() ||
+        newest?.id !== latest?.id ||
+        newest?.updatedAt.getTime() !== latest?.updatedAt.getTime() ||
         orderSignature(currentOrders) !== signature
       ) {
         return fail("conflict", warnings);
@@ -301,15 +324,28 @@ export async function generateTourWith(
         }
       }
 
-      const mode = !existing ? "created" : locked ? "locked_extended" : "replaced";
+      const mode = followUp
+        ? "follow_up"
+        : !existing
+          ? "created"
+          : locked
+            ? "locked_extended"
+            : "replaced";
       await recordAudit(tx, {
         actorId: deps.actorId,
         entity: "Tour",
         entityId: tourId,
-        action: existing ? "tour.reoptimize" : "tour.generate",
+        action: followUp ? "tour.followup" : existing ? "tour.reoptimize" : "tour.generate",
         diff: {
           date: date.toISOString().slice(0, 10),
           mode,
+          // Follow-up tour (NUD-099): the completed tours it comes after and the late orders in it.
+          ...(followUp
+            ? {
+                followUpOfTourIds: dayTours.map((t) => t.id),
+                orderIds: ordered.flatMap((s) => s.orderIds),
+              }
+            : {}),
           stopCountBefore: existing ? existing.stops.length : null,
           stopCount: ordered.length,
           addedCustomerIds: added,
@@ -335,16 +371,28 @@ export async function generateTourWith(
   );
 }
 
+function realDeps(actorId: string): TourBuilderDeps {
+  return {
+    db: getDb(),
+    actorId,
+    provider: getRoutingProvider(),
+    requireDepot: requireDepotConfigured,
+    loadSettings: getSettings,
+  };
+}
+
 /** Application entry (callers: `generateTourAction`): real database, settings and provider. */
 export async function generateTour(actorId: string, date: unknown): Promise<GenerateTourResult> {
-  return generateTourWith(
-    {
-      db: getDb(),
-      actorId,
-      provider: getRoutingProvider(),
-      requireDepot: requireDepotConfigured,
-      loadSettings: getSettings,
-    },
-    date,
-  );
+  return generateTourWith(realDeps(actorId), date);
+}
+
+/**
+ * Application entry of `createFollowUpTourAction` (NUD-099): a new tour for the confirmed orders
+ * of a day that no stop contains, allowed only while every tour of the day is COMPLETED.
+ */
+export async function generateFollowUpTour(
+  actorId: string,
+  date: unknown,
+): Promise<GenerateTourResult> {
+  return generateTourWith(realDeps(actorId), date, { followUp: true });
 }

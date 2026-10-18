@@ -21,8 +21,11 @@ async function Guarded({
 }) {
   await requirePageActor("admin", locale);
   const t = await getTranslations({ locale, namespace: "admin.tours" });
-  const { date } = await searchParams;
-  const plan = await tourPlanQuery(Array.isArray(date) ? date[0] : date);
+  const { date, tour } = await searchParams;
+  const plan = await tourPlanQuery(
+    Array.isArray(date) ? date[0] : date,
+    Array.isArray(tour) ? tour[0] : tour,
+  );
   const history = plan.tour ? await tourHistoryQuery(plan.tour.id) : null;
   return (
     <div className="flex flex-col gap-6">
@@ -36,6 +39,7 @@ async function Guarded({
         <TourDateField value={plan.date} />
       </div>
       <TourPlanner
+        key={plan.tour?.id ?? "none"}
         plan={plan}
         tiles={getMapTileConfig()}
         pollIntervalMs={getLivePollIntervalMs()}

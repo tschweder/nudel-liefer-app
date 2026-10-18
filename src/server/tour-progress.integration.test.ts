@@ -111,7 +111,7 @@ describe.skipIf(!process.env.DATABASE_URL)("admin live tour progress", { timeout
       now: new Date("2099-01-05T10:00:00Z"),
       timezone: TZ,
     });
-    expect(other).toEqual({ date: "2099-01-05", timezone: TZ, tour: null });
+    expect(other).toEqual({ date: "2099-01-05", timezone: TZ, tour: null, lateOrderCount: 0 });
   });
 
   it("follows the driver: nothing done, delivered, problem, finished", async () => {

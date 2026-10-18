@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { pickDriverTour } from "@/domain/day-tours";
 import { parseCalendarDate } from "@/domain/order";
 import { isReleasedStatus } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -11,7 +12,8 @@ import { readStopItems } from "./tour-rerelease";
  * correct quantities (client priority 2):
  *
  * - Only tours that were released (RELEASED / IN_PROGRESS / COMPLETED) and assigned to this driver
- *   are visible; drafts and other drivers' tours are `null`.
+ *   are visible; drafts and other drivers' tours are `null`. If he has several on the day (a
+ *   completed tour and a follow-up tour, NUD-099) the active one is shown (`pickDriverTour`).
  * - Quantities come from the snapshot stored on each stop (`Stop.items`), which only changes when
  *   the office releases again. An order edited after release is NOT visible here before that, so the
  *   driver never sees half-updated numbers without the "Tour was updated" notice.
@@ -82,11 +84,14 @@ export async function getDriverTour(
 ): Promise<DriverTour | null> {
   const date = parseCalendarDate(rawDate);
   if (!date) return null;
-  const tour = await db.tour.findFirst({
-    where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    include: { stops: { orderBy: { sequence: "asc" } } },
-  });
+  // A day can have several tours of this driver (a completed one and a follow-up tour, NUD-099):
+  // the active one wins over the completed one, whatever their creation order.
+  const tour = pickDriverTour(
+    await db.tour.findMany({
+      where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
+      include: { stops: { orderBy: { sequence: "asc" } } },
+    }),
+  );
   if (!tour || !isReleasedStatus(tour.status)) return null;
 
   const snapshots = tour.stops.map((s) => ({ stop: s, items: readStopItems(s.items) }));

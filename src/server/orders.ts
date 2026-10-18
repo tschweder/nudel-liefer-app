@@ -232,6 +232,11 @@ export type OrderOverviewRow = {
   items: Array<{ id: string; productName: unknown; unit: string; quantity: string }>;
   /** The tour this order is part of (through its stop), or `null` while no tour contains it. */
   tour: { tourId: string; stopId: string } | null;
+  /**
+   * Confirmed after the tour of that day was completed and on no stop (NUD-099). Set by
+   * `orderOverviewQuery`, not by `listOrderOverview`.
+   */
+  late?: boolean;
 };
 
 export const OVERVIEW_LIMIT = 300;
@@ -358,12 +363,40 @@ export async function getDateTotals(
 }
 
 /**
- * The CONFIRMED orders of one delivery day with their items: the only orders a tour may contain
- * (NUD-041 builds stops from this). Drafts and cancelled orders are never returned.
+ * Which tour a read of the day's orders is for (NUD-099). A day normally has one tour, but after a
+ * completed tour a follow-up tour can exist. Orders already on a stop of ANOTHER tour of that day
+ * belong to that tour, so they must not be planned, diffed or counted again.
+ * - `{ tourId: "x" }`: the orders for tour x = every order not on a stop of another tour.
+ * - `{ tourId: null }`: the orders for a tour that does not exist yet = orders on no stop at all.
  */
-export async function listConfirmedOrdersForDate(db: Pick<PrismaClient, "order">, date: Date) {
+export type TourOrderScope = { tourId: string | null };
+
+/**
+ * The CONFIRMED orders of one delivery day with their items: the only orders a tour may contain
+ * (NUD-041 builds stops from this). Drafts and cancelled orders are never returned. Without
+ * `scope` all of the day's confirmed orders are returned; tour code passes the scope of its tour.
+ */
+export async function listConfirmedOrdersForDate(
+  db: Pick<PrismaClient, "order">,
+  date: Date,
+  scope?: TourOrderScope,
+) {
   return db.order.findMany({
-    where: { deliveryDate: date, status: "CONFIRMED" },
+    where: {
+      deliveryDate: date,
+      status: "CONFIRMED",
+      ...(scope
+        ? {
+            stopOrders: {
+              none: {
+                stop: {
+                  tour: { date, ...(scope.tourId ? { id: { not: scope.tourId } } : {}) },
+                },
+              },
+            },
+          }
+        : {}),
+    },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: { items: { orderBy: { id: "asc" } } },
   });

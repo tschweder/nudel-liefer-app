@@ -2,6 +2,7 @@ import { type OrderFilters, parseOrderFilters } from "@/domain/order-overview";
 
 import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
+import { lateOrderIdsForRows } from "./late-orders";
 import {
   getDateTotals,
   getOrderDetail,
@@ -42,7 +43,14 @@ export async function orderOverviewQuery(
     getDateTotals(db, filters),
     listCustomersForFilter(db),
   ]);
-  return { filters, ...overview, totals, customers };
+  const late = await lateOrderIdsForRows(db, overview.rows);
+  return {
+    filters,
+    ...overview,
+    rows: overview.rows.map((r) => (late.has(r.id) ? { ...r, late: true } : r)),
+    totals,
+    customers,
+  };
 }
 
 /** Order detail incl. a signed screenshot URL and whether it can still be edited (admin only). */

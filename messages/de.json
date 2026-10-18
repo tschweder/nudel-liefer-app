@@ -157,7 +157,8 @@
         "problems": "{count, plural, =0 {Keine Probleme} one {# Problem} other {# Probleme}}",
         "driver": "Fahrer: {name}",
         "openTour": "Tour ansehen",
-        "openPlanning": "Tour planen"
+        "openPlanning": "Tour planen",
+        "lateOrders": "{count, plural, one {# Bestellung für heute kam nach Abschluss der Tour und ist in keiner Tour.} other {# Bestellungen für heute kamen nach Abschluss der Tour und sind in keiner Tour.}} Bitte eine Folgetour erstellen."
       }
     },
     "shell": {
@@ -799,6 +800,12 @@
         "product": "Produkt",
         "quantity": "Menge",
         "empty": "Im gewählten Zeitraum gibt es keine bestätigten Bestellungen."
+      },
+      "late": {
+        "badge": "Nachbestellung – Tour abgeschlossen",
+        "title": "Bestellungen nach Abschluss der Tour",
+        "body": "Für diese Tage ist die Tour bereits abgeschlossen. Die bestätigten Bestellungen sind in keiner Tour. In der Tourplanung kann eine Folgetour erstellt werden.",
+        "count": "{count, plural, one {# Bestellung} other {# Bestellungen}}"
       }
     },
     "tours": {
@@ -884,7 +891,9 @@
         "driver_required": "Bitte zuerst einen Fahrer zuweisen.",
         "driver_invalid": "Dieser Fahrer ist nicht aktiv. Bitte einen anderen Fahrer wählen.",
         "outdated": "Bestellungen wurden geändert. Bitte die Tour zuerst neu erstellen.",
-        "not_released": "Diese Tour ist noch nicht freigegeben."
+        "not_released": "Diese Tour ist noch nicht freigegeben.",
+        "follow_up_not_allowed": "Eine Folgetour ist nur möglich, wenn alle Touren dieses Tages abgeschlossen sind.",
+        "no_late_orders": "Es gibt keine Nachbestellung mit bestätigtem Kartenpunkt, die in eine Folgetour kann."
       },
       "change": {
         "title": "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben",
@@ -954,6 +963,23 @@
         "customer": "Kunde",
         "items": "Produkte und Mengen",
         "noItems": "Keine Positionen"
+      },
+      "late": {
+        "title": "Nachbestellung nach Abschluss der Tour",
+        "body": "{count, plural, one {# bestätigte Bestellung ist} other {# bestätigte Bestellungen sind}} erst nach Abschluss der Tour dieses Tages eingegangen und in keiner Tour. Mit einer Folgetour kann sie noch geliefert werden; die abgeschlossene Tour bleibt unverändert.",
+        "listHeading": "{count, plural, one {# Kunde für die Folgetour} other {# Kunden für die Folgetour}}",
+        "unrouted": "Nicht in der Folgetour: Kartenpunkt nicht bestätigt. Bitte den Pin beim Kunden bestätigen:",
+        "create": "Folgetour erstellen",
+        "creating": "Wird erstellt …",
+        "created": "Folgetour mit {count, plural, one {# Stopp} other {# Stopps}} erstellt. Bitte Fahrer zuweisen und freigeben.",
+        "conflictTitle": "Bestellungen nach der Lieferung geändert",
+        "conflictBody": "Bei diesen Stopps wurde die Bestellung geändert oder storniert, nachdem die Tour abgeschlossen war. Die Folgetour liefert die Differenz nicht nach. Bitte mit dem Kunden und dem Fahrer klären."
+      },
+      "tabs": {
+        "label": "Touren dieses Tages",
+        "first": "Tour 1",
+        "followUp": "Tour {number} (Folgetour)",
+        "stops": "{count, plural, one {# Stopp} other {# Stopps}}"
       }
     },
     "history": {
@@ -971,6 +997,7 @@
         "order_cancel": "Bestellung storniert",
         "order_duplicate": "Als Kopie angelegt",
         "tour_generate": "Tour erstellt",
+        "tour_followup": "Folgetour erstellt",
         "tour_reoptimize": "Tour neu optimiert",
         "tour_reorder": "Reihenfolge geändert",
         "tour_lock": "Reihenfolge gesperrt",

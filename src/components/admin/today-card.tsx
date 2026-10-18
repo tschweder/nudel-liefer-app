@@ -148,6 +148,17 @@ export function TodayCard({
         </>
       )}
 
+      {today.lateOrderCount > 0 ? (
+        <div
+          className="flex items-start gap-2 rounded-md border border-amber-600 bg-amber-50 p-3 text-base text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
+          role="status"
+          data-testid="today-late-orders"
+        >
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <p>{t("lateOrders", { count: today.lateOrderCount })}</p>
+        </div>
+      ) : null}
+
       <div>
         <Link href={tourHref} className="text-base font-medium underline" data-testid="today-link">
           {tour && showsStopResults(tour.status) ? t("openTour") : t("openPlanning")}

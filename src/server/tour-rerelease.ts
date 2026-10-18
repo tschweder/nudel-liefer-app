@@ -102,7 +102,8 @@ export async function loadReleasePlan(
   db: Pick<PrismaClient, "order" | "customer">,
   tour: ReleaseTour,
 ): Promise<LoadedReleasePlan> {
-  const orders = await listConfirmedOrdersForDate(db, tour.date);
+  // Orders on a stop of another tour of the day (a completed tour before a follow-up) are not ours.
+  const orders = await listConfirmedOrdersForDate(db, tour.date, { tourId: tour.id });
   const customerIds = [
     ...new Set([...orders.map((o) => o.customerId), ...tour.stops.map((s) => s.customerId)]),
   ];
@@ -336,7 +337,8 @@ export async function reReleaseTourWith(
       fresh.updatedAt.getTime() !== tour.updatedAt.getTime() ||
       !isReReleasable(fresh.status) ||
       stopSignature(fresh.stops) !== loaded.stopSignature ||
-      orderSignature(await listConfirmedOrdersForDate(tx, tour.date)) !== loaded.orderSignature
+      orderSignature(await listConfirmedOrdersForDate(tx, tour.date, { tourId: tour.id })) !==
+        loaded.orderSignature
     ) {
       throw new ConflictError();
     }

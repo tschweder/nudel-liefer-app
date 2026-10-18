@@ -1,0 +1,449 @@
+import { devices, expect, type Locator, type Page, test } from "@playwright/test";
+import bcrypt from "bcryptjs";
+import { Client } from "pg";
+
+// NUD-099: an order confirmed after the tour of its day is COMPLETED.
+//   complete the tour (driver on a phone) -> the office adds a late order -> the overview, the
+//   dashboard and the planning page tell it -> "Folgetour erstellen" -> second tour for the same
+//   day (tabs) -> assign + release -> the driver sees the follow-up tour with only the late
+//   quantities -> delivers -> both tours are COMPLETED.
+//
+// It needs a seeded database (products SPAG-5 / PENN-5), DATABASE_URL and SEED_ADMIN_PASSWORD.
+// The driver only sees TODAY's tour, so the spec owns "today" of the database: it refuses to run
+// when another tour exists for today and removes everything it created. Like tour-rerelease.spec
+// it confirms the depot pin for its duration (do not run it together with settings.spec.ts or
+// tours.spec.ts) and, because the settings are cached by the app, it is best run before other
+// specs on the same server or alone. Desktop project only (the driver gets its own phone context).
+const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
+const PIN = "482916";
+const PREFIX = "LATE-";
+
+const TILE = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+const stubTiles = (page: Page) =>
+  page.route(/\/\d+\/\d+\/\d+\.png/, (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: TILE }),
+  );
+const visible = (page: Page, id: string) => page.locator(`[data-testid="${id}"]:visible`);
+const noHorizontalScroll = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+
+async function pickProduct(page: Page, line: Locator, search: string) {
+  const combo = line.getByRole("combobox");
+  await combo.click();
+  await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").fill(search);
+  await page.keyboard.press("Enter");
+  await expect(combo).toContainText(search.toUpperCase());
+  await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
+}
+
+let db: Client;
+let today: string;
+let depotWasConfirmed = false;
+
+async function removeSpecData() {
+  const ids = (
+    await db.query(`SELECT "id" FROM "Customer" WHERE "customerNumber" LIKE $1`, [`${PREFIX}%`])
+  ).rows.map((r) => r.id as string);
+  if (ids.length > 0) {
+    const tourIds = (
+      await db.query(`SELECT DISTINCT "tourId" FROM "Stop" WHERE "customerId" = ANY($1)`, [ids])
+    ).rows.map((r) => r.tourId as string);
+    const stops = `(SELECT "id" FROM "Stop" WHERE "tourId" = ANY($1))`;
+    await db.query(`DELETE FROM "StopMutation" WHERE "stopId" IN ${stops}`, [tourIds]);
+    await db.query(`DELETE FROM "StopOrder" WHERE "stopId" IN ${stops}`, [tourIds]);
+    await db.query(`DELETE FROM "Stop" WHERE "tourId" = ANY($1)`, [tourIds]);
+    await db.query(`DELETE FROM "Tour" WHERE "id" = ANY($1)`, [tourIds]);
+    await db.query(
+      `DELETE FROM "OrderItem" WHERE "orderId" IN (SELECT "id" FROM "Order" WHERE "customerId" = ANY($1))`,
+      [ids],
+    );
+    await db.query(`DELETE FROM "Order" WHERE "customerId" = ANY($1)`, [ids]);
+    await db.query(`DELETE FROM "Customer" WHERE "id" = ANY($1)`, [ids]);
+  }
+  await db.query(`DELETE FROM "LoginAttempt" WHERE "key" LIKE $1`, [`%late-drv%`]).catch(() => {});
+  await db.query(`DELETE FROM "User" WHERE "username" LIKE 'late-drv%'`);
+}
+
+test.beforeAll(async () => {
+  db = new Client({ connectionString: process.env.DATABASE_URL });
+  await db.connect();
+  const settings = (await db.query(`SELECT "timezone","depotPinConfirmed" FROM "Settings"`))
+    .rows[0] as { timezone: string; depotPinConfirmed: boolean };
+  depotWasConfirmed = settings.depotPinConfirmed;
+  today = (
+    await db.query(`SELECT to_char(now() AT TIME ZONE $1,'YYYY-MM-DD') AS s`, [settings.timezone])
+  ).rows[0].s as string;
+  await removeSpecData(); // leftovers of a crashed run
+  const foreign = Number(
+    (await db.query(`SELECT count(*) FROM "Tour" WHERE "date"=$1`, [today])).rows[0].count,
+  );
+  if (foreign > 0) {
+    throw new Error(
+      `Precondition failed: ${foreign} other tour(s) already exist for today (${today}); this spec needs a database without a tour for today.`,
+    );
+  }
+  await db.query(`UPDATE "Settings" SET "depotPinConfirmed"=true`);
+});
+
+test.afterAll(async () => {
+  await removeSpecData();
+  await db.query(`UPDATE "Settings" SET "depotPinConfirmed"=$1`, [depotWasConfirmed]);
+  await db.end();
+});
+
+test.describe.configure({ mode: "serial" });
+
+test("late order after a completed tour: banner, follow-up tour, release, driver delivers", async ({
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "admin planning is a desktop flow");
+  test.setTimeout(300_000);
+  const tag = `${Date.now() % 1e8}`;
+  const username = `late-drv-${tag}`;
+  const errors: string[] = [];
+  const watch = (page: Page) => {
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(`${page.url()} ${m.text()}`);
+    });
+    page.on("pageerror", (e) => errors.push(e.message));
+  };
+
+  // ------------------------------------------------------------------ fixture
+  const depot = (await db.query(`SELECT "depotLat","depotLng" FROM "Settings"`)).rows[0] as {
+    depotLat: number;
+    depotLng: number;
+  };
+  const admin = (await db.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
+    .rows[0] as {
+    id: string;
+  };
+  const products = Object.fromEntries(
+    (
+      await db.query(`SELECT "sku","id" FROM "Product" WHERE "sku" IN ('SPAG-5','PENN-5')`)
+    ).rows.map((r) => [r.sku as string, r.id as string]),
+  );
+  const driverId = `late-user-${tag}`;
+  await db.query(
+    `INSERT INTO "User" ("id","role","username","passwordHash","locale","localeChosen","displayName","updatedAt")
+     VALUES ($1,'DRIVER',$2,$3,'de',true,'Late Driver',now())`,
+    [driverId, username, await bcrypt.hash(PIN, 10)],
+  );
+  const customers: Record<string, { id: string; number: string; name: string }> = {};
+  for (const [key, offset] of [
+    ["A", 0.01],
+    ["B", 0.02],
+    ["C", 0.03],
+  ] as const) {
+    const id = `late-cust-${key}-${tag}`;
+    customers[key] = { id, number: `${PREFIX}${key}-${tag}`, name: `Trattoria ${key} ${tag}` };
+    await db.query(
+      `INSERT INTO "Customer" ("id","customerNumber","name","street","postalCode","city","lat","lng","pinConfirmed","updatedAt")
+       VALUES ($1,$2,$3,'Hauptstraße 1','1010','Wien',$4,$5,true,now())`,
+      [id, customers[key].number, customers[key].name, depot.depotLat, depot.depotLng + offset],
+    );
+  }
+  const addOrder = async (customerId: string, sku: string, quantity: string) => {
+    const id = `late-ord-${customerId}-${Math.random().toString(36).slice(2, 8)}`;
+    await db.query(
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+      [id, customerId, today, admin.id],
+    );
+    await db.query(
+      `INSERT INTO "OrderItem" ("id","orderId","productId","quantity") VALUES ($1,$2,$3,$4)`,
+      [`${id}-i`, id, products[sku], quantity],
+    );
+    return id;
+  };
+  await addOrder(customers.A.id, "SPAG-5", "2");
+  await addOrder(customers.B.id, "PENN-5", "4");
+
+  // ------------------------------------------------------------------ admin: first tour
+  const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const adminPage = await adminCtx.newPage();
+  watch(adminPage);
+  await stubTiles(adminPage);
+  await adminPage.goto("/de/login");
+  await adminPage.getByLabel("E-Mail").fill("admin@example.com");
+  await adminPage.getByLabel("Passwort").fill(adminPassword);
+  await visible(adminPage, "login-submit").click();
+  await expect(adminPage).toHaveURL(/\/admin$/);
+
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  await visible(adminPage, "tour-generate").click();
+  await expect(adminPage.locator('[data-testid="stop-row"]:visible')).toHaveCount(2);
+  await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-release").click();
+  await visible(adminPage, "release-confirm").click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");
+
+  // ------------------------------------------------------------------ driver completes it
+  const driverCtx = await browser.newContext({ ...devices["Pixel 7"] });
+  const driver = await driverCtx.newPage();
+  watch(driver);
+  await stubTiles(driver);
+  await driver.goto("/de/driver/login");
+  const form = driver.getByTestId("driver-login-form");
+  await form.locator('input[name="username"]').fill(username);
+  await form.locator('input[name="pin"]').fill(PIN);
+  await driver.getByTestId("login-submit").click();
+  await expect(driver).toHaveURL(/\/de\/driver$/);
+  // Delivering a stop moves on to the next open one; the last one returns to the tour screen.
+  await visible(driver, "details").click();
+  for (let i = 0; i < 2; i++) {
+    await expect(driver).toHaveURL(/\/de\/driver\/stops\/[^/]+$/);
+    const here = driver.url();
+    await visible(driver, "btn-delivered").click();
+    if (i === 0) await expect(driver).not.toHaveURL(here);
+  }
+  await expect(driver).toHaveURL(/\/de\/driver$/);
+  await expect(visible(driver, "all-done")).toBeVisible();
+  const firstTour = (
+    await db.query(`SELECT "id","status"::text AS status FROM "Tour" WHERE "date"=$1`, [today])
+  ).rows as { id: string; status: string }[];
+  expect(firstTour).toHaveLength(1);
+  expect(firstTour[0].status).toBe("COMPLETED");
+
+  // No late order yet: nothing is reported.
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  await expect(visible(adminPage, "tour-status")).toHaveText("Abgeschlossen");
+  await expect(visible(adminPage, "late-orders-banner")).toHaveCount(0);
+  await expect(visible(adminPage, "tour-tab")).toHaveCount(0);
+
+  // ------------------------------------------------------------------ the late order (order form)
+  await adminPage.goto("/de/admin/orders/new");
+  await adminPage.locator("#order-customer").click();
+  await adminPage.getByPlaceholder("Nach Name oder Nummer suchen").fill(customers.A.number);
+  await adminPage.getByRole("option", { name: new RegExp(customers.A.number) }).click();
+  await adminPage.getByTestId("order-date").fill(today);
+  const lines = adminPage.getByTestId("order-line");
+  await pickProduct(adminPage, lines.nth(0), "SPAG");
+  await lines.nth(0).getByTestId("line-quantity").fill("3");
+  await adminPage.getByTestId("order-save").click();
+  await expect(adminPage).toHaveURL(/\/admin\/orders(\?.*)?$/);
+  // A second late order (a customer that was not on the tour), entered directly.
+  const lateC = await addOrder(customers.C.id, "PENN-5", "5");
+
+  // The overview tells it: notice with the day, badge on the rows.
+  await adminPage.goto(`/de/admin/orders?from=${today}&to=${today}`);
+  await expect(visible(adminPage, "late-orders-notice")).toBeVisible();
+  await expect(visible(adminPage, "late-orders-day")).toHaveAttribute("data-date", today);
+  await expect(visible(adminPage, "late-orders-day")).toContainText("2 Bestellungen");
+  const lateRows = adminPage.locator('[data-testid="order-row"]:visible', {
+    has: adminPage.locator('[data-testid="order-late"]'),
+  });
+  await expect(lateRows).toHaveCount(2);
+  await expect(lateRows.filter({ hasText: customers.A.name })).toHaveCount(1);
+  await expect(
+    adminPage.locator('[data-testid="order-row"]:visible', {
+      has: adminPage.locator('[data-testid="order-in-tour"]'),
+    }),
+  ).toHaveCount(2); // the two orders on the completed tour are not late
+  expect(await noHorizontalScroll(adminPage)).toBe(true);
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-099-orders-1280.png") });
+
+  // The dashboard card of today too.
+  await adminPage.goto("/de/admin");
+  await expect(visible(adminPage, "today-late-orders")).toContainText("2 Bestellungen für heute");
+
+  // ------------------------------------------------------------------ planning page: banner
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  const banner = visible(adminPage, "late-orders-banner");
+  await expect(banner).toBeVisible();
+  await expect(banner).toContainText("Nachbestellung nach Abschluss der Tour");
+  await expect(banner).toContainText(customers.A.name);
+  await expect(banner).toContainText(customers.C.name);
+  await expect(visible(adminPage, "tour-status")).toHaveText("Abgeschlossen");
+  expect(await noHorizontalScroll(adminPage)).toBe(true);
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-099-banner-1280.png") });
+
+  // ------------------------------------------------------------------ follow-up tour
+  await visible(adminPage, "create-follow-up").click();
+  await expect(adminPage).toHaveURL(/\/admin\/tours\?.*tour=/);
+  await expect(visible(adminPage, "tour-tab")).toHaveCount(2);
+  const tabs = adminPage.locator('[data-testid="tour-tab"]:visible');
+  await expect(tabs.nth(0)).toContainText("Tour 1");
+  await expect(tabs.nth(0)).toContainText("Abgeschlossen");
+  await expect(tabs.nth(1)).toContainText("Tour 2 (Folgetour)");
+  await expect(tabs.nth(1)).toHaveAttribute("aria-current", "page");
+  await expect(visible(adminPage, "tour-status")).toHaveText("Optimiert");
+  const rows = adminPage.locator('[data-testid="stop-row"]:visible');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: customers.A.name })).toHaveCount(1);
+  await expect(rows.filter({ hasText: customers.C.name })).toHaveCount(1);
+  await expect(rows.filter({ hasText: customers.B.name })).toHaveCount(0);
+  await expect(visible(adminPage, "late-orders-banner")).toHaveCount(0);
+  expect(await noHorizontalScroll(adminPage)).toBe(true);
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-099-followup-1280.png") });
+
+  // The completed tour is still there and unchanged on its tab.
+  await tabs.nth(0).click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Abgeschlossen");
+  await expect(adminPage.locator('[data-testid="stop-row"]:visible')).toHaveCount(2);
+  await expect(visible(adminPage, "tour-outdated")).toHaveCount(0);
+  await expect(visible(adminPage, "tour-changed-banner")).toHaveCount(0);
+
+  // Release the follow-up tour to the same driver.
+  await adminPage.locator('[data-testid="tour-tab"]:visible').nth(1).click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Optimiert");
+  await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-release").click();
+  await visible(adminPage, "release-confirm").click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-099-released-1280.png") });
+
+  // ------------------------------------------------------------------ the driver
+  await driver.goto("/de/driver");
+  await expect(visible(driver, "today-tour")).toBeVisible();
+  await expect(visible(driver, "all-done")).toHaveCount(0);
+  await expect(visible(driver, "progress-count")).toContainText("0");
+  await driver.screenshot({ path: testInfo.outputPath("nud-099-driver-followup.png") });
+  const seen: string[] = [];
+  await visible(driver, "details").click();
+  for (let i = 0; i < 2; i++) {
+    await expect(driver).toHaveURL(/\/de\/driver\/stops\/[^/]+$/);
+    const name = (await visible(driver, "stop-name").innerText()).trim();
+    seen.push(name);
+    const items = driver.locator('[data-testid="stop-item"]:visible');
+    await expect(items).toHaveCount(1);
+    const quantity = (await items.getByTestId("item-quantity").innerText()).trim();
+    // Customer A ordered 2 on the first tour and 3 later: the follow-up stop shows only the 3.
+    expect(quantity).toMatch(name === customers.A.name ? /^3(?![.,]?\d)/ : /^5(?![.,]?\d)/);
+    const here = driver.url();
+    await visible(driver, "btn-delivered").click();
+    if (i === 0) await expect(driver).not.toHaveURL(here);
+  }
+  await expect(driver).toHaveURL(/\/de\/driver$/);
+  expect(seen.map((n) => n.replace(/^\d+\s*/, "")).sort()).toEqual(
+    [customers.A.name, customers.C.name].sort(),
+  );
+  await expect(visible(driver, "all-done")).toBeVisible();
+
+  // ------------------------------------------------------------------ database truth
+  const tours = (
+    await db.query(
+      `SELECT "id","status"::text AS status FROM "Tour" WHERE "date"=$1 ORDER BY "createdAt"`,
+      [today],
+    )
+  ).rows as { id: string; status: string }[];
+  expect(tours.map((r) => r.status)).toEqual(["COMPLETED", "COMPLETED"]);
+  expect(tours[0].id).toBe(firstTour[0].id);
+  const linked = (
+    await db.query(
+      `SELECT s."tourId", count(*)::int AS n FROM "StopOrder" so JOIN "Stop" s ON s."id"=so."stopId"
+       WHERE s."tourId" = ANY($1) GROUP BY s."tourId"`,
+      [tours.map((r) => r.id)],
+    )
+  ).rows as { tourId: string; n: number }[];
+  expect(Object.fromEntries(linked.map((r) => [r.tourId, r.n]))).toEqual({
+    [tours[0].id]: 2,
+    [tours[1].id]: 2,
+  });
+  expect(lateC).toBeTruthy();
+  const audit = (
+    await db.query(`SELECT "action" FROM "AuditLog" WHERE "entityId"=$1`, [tours[1].id])
+  ).rows.map((r) => r.action as string);
+  expect(audit).toContain("tour.followup");
+
+  // Everything is finished: the dashboard shows the follow-up tour, no late order any more.
+  await adminPage.goto("/de/admin");
+  await expect(visible(adminPage, "today-late-orders")).toHaveCount(0);
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  await expect(visible(adminPage, "late-orders-banner")).toHaveCount(0);
+  await expect(adminPage.locator('[data-testid="tour-tab"]:visible')).toHaveCount(2);
+
+  expect(errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await driverCtx.close();
+  await adminCtx.close();
+  await removeSpecData();
+});
+
+test("all four languages render the late-order banner and the tabs without errors", async ({
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "admin planning is a desktop flow");
+  test.setTimeout(240_000);
+  await removeSpecData(); // the first test's tours and orders
+  const tag = `${Date.now() % 1e8}`;
+  const depot = (await db.query(`SELECT "depotLat","depotLng" FROM "Settings"`)).rows[0] as {
+    depotLat: number;
+    depotLng: number;
+  };
+  const admin = (await db.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
+    .rows[0] as {
+    id: string;
+  };
+  const spag = (await db.query(`SELECT "id" FROM "Product" WHERE "sku"='SPAG-5'`)).rows[0]
+    .id as string;
+  const id = `late-cust-L-${tag}`;
+  await db.query(
+    `INSERT INTO "Customer" ("id","customerNumber","name","street","postalCode","city","lat","lng","pinConfirmed","updatedAt")
+     VALUES ($1,$2,$3,'Hauptstraße 1','1010','Wien',$4,$5,true,now())`,
+    [id, `${PREFIX}L-${tag}`, `Trattoria L ${tag}`, depot.depotLat, depot.depotLng + 0.04],
+  );
+  // A completed tour (built through the UI, completed in the database) plus a late order.
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(`${page.url()} ${m.text()}`);
+  });
+  page.on("pageerror", (e) => errors.push(e.message));
+  await stubTiles(page);
+  await page.goto("/de/login");
+  await page.getByLabel("E-Mail").fill("admin@example.com");
+  await page.getByLabel("Passwort").fill(adminPassword);
+  await visible(page, "login-submit").click();
+  await expect(page).toHaveURL(/\/admin$/);
+  const order = async (key: string) => {
+    const oid = `late-ord-L-${key}-${tag}`;
+    await db.query(
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+      [oid, id, today, admin.id],
+    );
+    await db.query(
+      `INSERT INTO "OrderItem" ("id","orderId","productId","quantity") VALUES ($1,$2,$3,'2')`,
+      [`${oid}-i`, oid, spag],
+    );
+  };
+  await order("1");
+  await page.goto(`/de/admin/tours?date=${today}`);
+  await visible(page, "tour-generate").click();
+  await expect(page.locator('[data-testid="stop-row"]:visible')).toHaveCount(1);
+  await db.query(
+    `UPDATE "Stop" SET "status"='DELIVERED',"completedAt"=now() WHERE "customerId"=$1`,
+    [id],
+  );
+  await db.query(`UPDATE "Tour" SET "status"='COMPLETED',"completedAt"=now() WHERE "date"=$1`, [
+    today,
+  ]);
+  await order("2");
+
+  for (const locale of ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) {
+    await page.goto(`/${locale}/admin/tours?date=${today}`);
+    await expect(visible(page, "late-orders-banner")).toBeVisible();
+    await expect(visible(page, "create-follow-up")).toBeEnabled();
+    expect(await noHorizontalScroll(page)).toBe(true);
+    await page.goto(`/${locale}/admin/orders?from=${today}&to=${today}`);
+    await expect(visible(page, "late-orders-notice")).toBeVisible();
+    await expect(visible(page, "order-late")).toHaveCount(1);
+    await page.goto(`/${locale}/admin`);
+    await expect(visible(page, "today-late-orders")).toBeVisible();
+    if (locale === "zh-Hans") {
+      await page.goto(`/${locale}/admin/tours?date=${today}`);
+      await expect(visible(page, "late-orders-banner")).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath("nud-099-banner-zh-Hans-1280.png") });
+    }
+  }
+  // Create the follow-up in Chinese: the tabs render in zh-Hant-TW, too.
+  await page.goto(`/zh-Hant-TW/admin/tours?date=${today}`);
+  await visible(page, "create-follow-up").click();
+  await expect(visible(page, "tour-tab")).toHaveCount(2);
+  expect(await noHorizontalScroll(page)).toBe(true);
+  expect(errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await ctx.close();
+});

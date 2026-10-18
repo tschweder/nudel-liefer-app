@@ -6,7 +6,7 @@ import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
 import { getRoutingProvider } from "./routing";
 import { getSettings } from "./settings";
-import { generateTour, type GenerateTourResult } from "./tour-builder";
+import { generateFollowUpTour, generateTour, type GenerateTourResult } from "./tour-builder";
 import {
   assignDriverWith,
   type PlanResult,
@@ -28,6 +28,18 @@ export async function generateTourAction(input: unknown): Promise<GenerateTourRe
   const parsed = generateTourInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid_date", warnings: [] };
   return generateTour(actor.id, parsed.data.date);
+}
+
+/**
+ * Admin-only (NUD-099): creates a follow-up tour for the confirmed orders of a day (`YYYY-MM-DD`)
+ * that are on no stop, after every tour of that day is COMPLETED. The completed tours stay as they
+ * are; the new tour is unreleased (OPTIMIZED) and is planned and released like any other.
+ */
+export async function createFollowUpTourAction(input: unknown): Promise<GenerateTourResult> {
+  const actor = await requireRole("ADMIN");
+  const parsed = generateTourInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid_date", warnings: [] };
+  return generateFollowUpTour(actor.id, parsed.data.date);
 }
 
 /**

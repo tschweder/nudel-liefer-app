@@ -37,6 +37,7 @@ const progress = {
   nextStopId: "s4",
 };
 const live: TodayProgress = {
+  lateOrderCount: 0,
   date: "2099-07-02",
   timezone: "Europe/Vienna",
   tour: {
