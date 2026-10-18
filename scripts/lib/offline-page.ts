@@ -56,6 +56,20 @@ ${sections}
       (function () {
         var wanted = location.pathname.split("/")[1];
         var sections = document.querySelectorAll("section[data-locale]");
+        function known(l) {
+          for (var k = 0; k < sections.length; k++) if (sections[k].getAttribute("data-locale") === l) return true;
+          return false;
+        }
+        // Start URL of the installed app (/driver?source=pwa, NUD-106) while offline: forward to the
+        // driver's last-used language (NEXT_LOCALE cookie, set by the language switcher and the
+        // login) so the worker answers with the offline shell of that language; German if unknown.
+        if (wanted === "driver" && location.pathname.replace(/\\/+$/, "") === "/driver") {
+          var cookie = /(?:^|; )NEXT_LOCALE=([^;]*)/.exec(document.cookie);
+          var lang = "de";
+          try { if (cookie && known(decodeURIComponent(cookie[1]))) lang = decodeURIComponent(cookie[1]); } catch (e) {}
+          location.replace("/" + lang + "/driver" + location.search);
+          return;
+        }
         var shown = false;
         for (var i = 0; i < sections.length; i++) {
           if (sections[i].getAttribute("data-locale") === wanted) { sections[i].hidden = false; shown = true; }

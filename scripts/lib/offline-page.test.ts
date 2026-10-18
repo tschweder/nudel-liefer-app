@@ -19,6 +19,12 @@ describe("buildOfflineHtml", () => {
     expect(html).not.toContain("<b>");
   });
 
+  it("forwards the locale-neutral start URL to the locale of the NEXT_LOCALE cookie (NUD-106)", () => {
+    expect(html).toContain("NEXT_LOCALE");
+    expect(html).toContain('=== "/driver"');
+    expect(html).toContain("location.replace");
+  });
+
   it("is static and generic: no external resources, no session data", () => {
     expect(html).not.toMatch(/https?:\/\//);
     expect(html).not.toMatch(/<(link|img|iframe)\b/);

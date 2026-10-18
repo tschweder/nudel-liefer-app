@@ -24,9 +24,20 @@ export function isDriverPath(pathname: string): boolean {
   return DRIVER_PATH.test(pathname);
 }
 
+/**
+ * The locale-neutral start URL of the installed app (`/driver?source=pwa`, NUD-106). The server
+ * redirects it to `/<locale>/driver`; offline the generic offline page forwards to the locale kept in
+ * the `NEXT_LOCALE` cookie.
+ */
+export function isDriverLaunchPath(pathname: string): boolean {
+  return pathname === "/driver" || pathname === "/driver/";
+}
+
 /** A top-level page load of the driver area: network only; offline page when the network fails. */
 export function isDriverNavigation(request: { mode: string }, url: URL): boolean {
-  return request.mode === "navigate" && isDriverPath(url.pathname);
+  return (
+    request.mode === "navigate" && (isDriverPath(url.pathname) || isDriverLaunchPath(url.pathname))
+  );
 }
 
 /** Build assets with a content hash in the file name: safe to keep under the same URL forever. */

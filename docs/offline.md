@@ -15,6 +15,12 @@ What is stored on the driver's phone, where, for whom and for how long.
 - The shell page reads IndexedDB and renders the same components as the server pages from the same model (`src/lib/driver-tour-model.ts`).
 - Requirements: the R2 bucket's CORS rule must allow `GET` from the app origin (docs/env.md), otherwise photos are not cached and the app shows "offline partly ready" instead of "ready offline".
 
+## Start URL of the installed app (NUD-106)
+
+- All manifests (`/<locale>/manifest.webmanifest`, one per locale only for the localized `name`) use the same locale-neutral `start_url` `/driver?source=pwa`, `id` `/driver` and `scope` `/`. `proxy.ts` redirects every path without a locale prefix (so also this one, 307, `Cache-Control: no-store`) to the driver's CURRENT language: session locale (updated by the language switcher) -> `NEXT_LOCALE` cookie -> Accept-Language -> `de` (`src/lib/locale-redirect.ts`). Not logged in: the redirect leads to the driver login in the cookie / Accept-Language language.
+- Offline: the worker treats `/driver` like any driver navigation (network only, nothing stored). When it fails, the generic `offline.html` is answered under the URL `/driver`; its script reads the `NEXT_LOCALE` cookie (written by the login and the language switcher; German if missing or unknown) and replaces the location with `/<locale>/driver`, which the worker answers with the offline shell of that language.
+- An app installed before NUD-106 keeps its old `/<locale>/driver` start URL until the browser refreshes the manifest (Chrome on Android does this by itself within a day or so; if not, reinstall). iOS before 16.4 ignores the manifest and starts on the page that was open when "Add to Home Screen" was used; reinstall there too. Not testable in the sandbox (NUD-105).
+
 ## Mutation queue (NUD-082)
 
 - A tap on Delivered / Problem / Undo is first written to the IndexedDB outbox (`clientMutationId` = UUID, type, stop, reason / note, `createdAt` = time of the tap), then the screen changes at once (optimistic overlay on the page data: `src/lib/offline/outbox.ts`, `use-overlay.ts`). Online it is sent immediately, offline when the connection is back.

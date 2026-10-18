@@ -483,10 +483,9 @@ the document named.
 These are known and already in the backlog; a tester who meets one writes it down (as a comment under
 that ticket) but it does not count as a new finding.
 
-| Ticket  | What a tester may see                                                                                                                                                             |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NUD-106 | The installed app starts with the language of the address it was installed from. After a language switch the home-screen app can open in the old language (D-25 after D-05/D-06). |
-| NUD-108 | Offline the map view of the tour can be empty (D-31).                                                                                                                             |
-| NUD-099 | A confirmed order entered after the tour of its day is already `Abgeschlossen` is on no tour and nobody is warned.                                                                |
-| NUD-073 | The Chinese texts are not yet reviewed by native speakers (this UAT collects the first feedback, section 5.3).                                                                    |
-| NUD-097 | A harmless error line in the server log while opening admin pages (nothing visible).                                                                                              |
+| Ticket  | What a tester may see                                                                                              |
+| ------- | ------------------------------------------------------------------------------------------------------------------ |
+| NUD-108 | Offline the map view of the tour can be empty (D-31).                                                              |
+| NUD-099 | A confirmed order entered after the tour of its day is already `Abgeschlossen` is on no tour and nobody is warned. |
+| NUD-073 | The Chinese texts are not yet reviewed by native speakers (this UAT collects the first feedback, section 5.3).     |
+| NUD-097 | A harmless error line in the server log while opening admin pages (nothing visible).                               |

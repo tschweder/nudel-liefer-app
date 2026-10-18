@@ -10,12 +10,14 @@ test.use({ viewport: { width: 375, height: 812 } });
 const PIN = "482916";
 const tag = `pwa${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
+const zhUsername = `drz-${tag}`;
 const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
 let db: Client;
 let userId: string;
+let zhUserId: string;
 
 test.beforeAll(async () => {
   db = new Client({ connectionString: process.env.DATABASE_URL });
@@ -26,13 +28,23 @@ test.beforeAll(async () => {
      VALUES ($1,'DRIVER',$2,$3,'de',true,'PWA Driver',now())`,
     [userId, username, await bcrypt.hash(PIN, 10)],
   );
+  // Installed while in Traditional Chinese (Taiwan); used by the start URL tests (NUD-106).
+  zhUserId = `idz-${tag}`;
+  await db.query(
+    `INSERT INTO "User" ("id","role","username","passwordHash","locale","localeChosen","displayName","updatedAt")
+     VALUES ($1,'DRIVER',$2,$3,'zh-Hant-TW',true,'PWA Driver ZH',now())`,
+    [zhUserId, zhUsername, await bcrypt.hash(PIN, 10)],
+  );
 });
 
 test.afterAll(async () => {
   await db
-    .query(`DELETE FROM "LoginAttempt" WHERE "key" LIKE $1`, [`%${username}%`])
+    .query(`DELETE FROM "LoginAttempt" WHERE "key" LIKE $1 OR "key" LIKE $2`, [
+      `%${username}%`,
+      `%${zhUsername}%`,
+    ])
     .catch(() => {});
-  await db.query(`DELETE FROM "User" WHERE "id"=$1`, [userId]);
+  await db.query(`DELETE FROM "User" WHERE "id" IN ($1,$2)`, [userId, zhUserId]);
   await db.end();
 });
 
@@ -43,6 +55,17 @@ async function login(page: Page) {
   await form.locator('input[name="pin"]').fill(PIN);
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/de\/driver$/);
+}
+
+async function loginZh(page: Page) {
+  // The tests switch the language; start every test from the installed state (zh-Hant-TW).
+  await db.query(`UPDATE "User" SET "locale"='zh-Hant-TW' WHERE "id"=$1`, [zhUserId]);
+  await page.goto("/zh-Hant-TW/driver/login");
+  const form = page.getByTestId("driver-login-form");
+  await form.locator('input[name="username"]').fill(zhUsername);
+  await form.locator('input[name="pin"]').fill(PIN);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/zh-Hant-TW\/driver$/);
 }
 
 const swControlled = (page: Page) =>
@@ -63,7 +86,10 @@ test.describe("manifest, icons and worker are public", () => {
       expect(res.status()).toBe(200);
       expect(res.headers()["content-type"]).toContain("application/manifest+json");
       const m = await res.json();
-      expect(m.start_url).toBe(`/${locale}/driver`);
+      // Locale-neutral on purpose (NUD-106): the server redirects to the driver's current language.
+      expect(m.start_url).toBe("/driver?source=pwa");
+      expect(m.id).toBe("/driver");
+      expect(m.scope).toBe("/");
       expect(m.display).toBe("standalone");
       expect(m.lang).toBe(locale);
       expect(m.name).toBeTruthy();
@@ -232,6 +258,109 @@ test("offline: pages without cached data show the generic offline page in the UR
   } finally {
     await context.setOffline(false);
   }
+});
+
+test.describe("start URL of the installed app (NUD-106)", () => {
+  test("redirect rules: session locale beats the cookie, no cache, login keeps the cookie locale", async ({
+    playwright,
+    baseURL,
+    page,
+    context,
+  }) => {
+    const anon = await playwright.request.newContext({ baseURL });
+    const res = await anon.get("/driver?source=pwa", {
+      maxRedirects: 0,
+      headers: { "Accept-Language": "zh-CN,zh;q=0.9" },
+    });
+    expect(res.status()).toBe(307);
+    expect(res.headers()["location"]).toMatch(/\/zh-Hans\/driver\?source=pwa$/);
+    expect(res.headers()["cache-control"]).toContain("no-store");
+    const withCookie = await anon.get("/driver?source=pwa", {
+      maxRedirects: 0,
+      headers: { Cookie: "NEXT_LOCALE=zh-Hant-HK", "Accept-Language": "de" },
+    });
+    expect(withCookie.headers()["location"]).toMatch(/\/zh-Hant-HK\/driver\?source=pwa$/);
+    await anon.dispose();
+
+    // Not logged in: the launch lands on the driver login in the cookie language.
+    await context.addCookies([
+      { name: "NEXT_LOCALE", value: "zh-Hant-HK", url: baseURL ?? "http://localhost:3000" },
+    ]);
+    await page.goto("/driver?source=pwa");
+    await expect(page).toHaveURL(/\/zh-Hant-HK\/driver\/login/);
+    await expect(page.getByTestId("driver-login-form")).toBeVisible();
+  });
+
+  test("a driver installed in zh-Hant-TW who switched to German launches into /de/driver", async ({
+    page,
+  }) => {
+    await loginZh(page);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await swControlled(page);
+    // The switcher stores the locale on the user (session token) and in the cookie.
+    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("de");
+    await expect(page).toHaveURL(/\/de\/driver$/);
+
+    // "Launch the installed app": a fresh load of the manifest start_url.
+    const manifest = await (await page.request.get("/zh-Hant-TW/manifest.webmanifest")).json();
+    await page.goto(manifest.start_url);
+    await expect(page).toHaveURL(/\/de\/driver(\?source=pwa)?$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
+    await expect(page.getByTestId("driver-shell")).toBeVisible();
+
+    // And back: switching to Chinese changes the next launch again.
+    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("zh-Hans");
+    await expect(page).toHaveURL(/\/zh-Hans\/driver$/);
+    await page.goto(manifest.start_url);
+    await expect(page).toHaveURL(/\/zh-Hans\/driver(\?source=pwa)?$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hans");
+
+    // The worker did not store the redirect or the page.
+    const cached = await page.evaluate(async () => {
+      const out: string[] = [];
+      for (const name of await caches.keys())
+        for (const req of await (await caches.open(name)).keys())
+          out.push(new URL(req.url).pathname + new URL(req.url).search);
+      return out.filter((u) => /^\/(driver|(de|zh-[\w-]+)\/driver\/?(\?.*)?$)/.test(u));
+    });
+    expect(cached).toEqual([]);
+  });
+
+  test("offline launch shows the offline shell in the last-used language", async ({
+    page,
+    context,
+  }) => {
+    await loginZh(page);
+    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("de");
+    await expect(page).toHaveURL(/\/de\/driver$/);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await swControlled(page);
+    await context.setOffline(true);
+    try {
+      await page.goto("/driver?source=pwa").catch(() => {});
+      await expect(page).toHaveURL(/\/de\/driver(\?source=pwa)?$/);
+      await expect(page.getByTestId("offline-empty")).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("lang", "de");
+      await expect(page.locator("body")).not.toContainText("PWA Driver");
+    } finally {
+      await context.setOffline(false);
+    }
+    // Back online switch to Chinese; the next offline launch follows.
+    await page.goto("/de/driver");
+    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("zh-Hant-HK");
+    await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
+    await context.setOffline(true);
+    try {
+      await page.goto("/driver?source=pwa").catch(() => {});
+      await expect(page).toHaveURL(/\/zh-Hant-HK\/driver(\?source=pwa)?$/);
+      await expect(page.getByTestId("offline-empty")).toBeVisible();
+      await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-HK");
+    } finally {
+      await context.setOffline(false);
+    }
+  });
 });
 
 test.describe("install hint on iOS", () => {

@@ -19,6 +19,14 @@ export function manifestPath(locale: string): string {
   return `/${locale}/manifest.webmanifest`;
 }
 
+/**
+ * The locale-neutral address the installed app starts on (NUD-106). `proxy.ts` redirects it to the
+ * driver's CURRENT language (session locale -> `NEXT_LOCALE` cookie -> Accept-Language -> `de`), so a
+ * language switch after the installation is respected. `source=pwa` marks launches from the home
+ * screen (also keeps the path distinct from a plain `/driver` visit in logs).
+ */
+export const DRIVER_LAUNCH_PATH = "/driver?source=pwa";
+
 export function driverHomePath(locale: string): string {
   return `/${locale}/driver`;
 }
@@ -40,9 +48,10 @@ export type WebAppManifest = {
 };
 
 /**
- * Manifest of one locale. `start_url` is the driver home in that locale; `id` is the same for all
- * locales so the browser treats them as one app. `scope` is the whole origin so that switching
- * the language (a different `/<locale>/...` prefix) does not leave the installed app's scope.
+ * Manifest of one locale (only the localized texts and `lang` differ). `start_url` is the same
+ * locale-neutral launch path for all locales (NUD-106), `id` is the same too so the browser treats
+ * them as one app. `scope` is the whole origin so that the redirect to `/<locale>/driver` and a
+ * later language switch do not leave the installed app's scope.
  */
 export function buildManifest(input: {
   locale: string;
@@ -63,7 +72,7 @@ export function buildManifest(input: {
     description: input.description,
     lang: input.locale,
     dir: "ltr",
-    start_url: driverHomePath(input.locale),
+    start_url: DRIVER_LAUNCH_PATH,
     scope: "/",
     display: "standalone",
     orientation: "portrait",

@@ -5,7 +5,7 @@ import zhHans from "../../messages/zh-Hans.json";
 import zhHantHK from "../../messages/zh-Hant-HK.json";
 import zhHantTW from "../../messages/zh-Hant-TW.json";
 import { LOCALES } from "./localized-text";
-import { buildManifest, driverHomePath, manifestPath, PWA_ICONS } from "./pwa";
+import { buildManifest, DRIVER_LAUNCH_PATH, manifestPath, PWA_ICONS } from "./pwa";
 
 const messages = { de, "zh-Hans": zhHans, "zh-Hant-HK": zhHantHK, "zh-Hant-TW": zhHantTW };
 
@@ -19,8 +19,9 @@ describe("buildManifest", () => {
         shortName: pwa.shortName,
         description: pwa.description,
       });
-      expect(m.start_url).toBe(`/${locale}/driver`);
-      expect(m.start_url).toBe(driverHomePath(locale));
+      // Locale-neutral (NUD-106): the server picks the driver's current language at launch.
+      expect(m.start_url).toBe("/driver?source=pwa");
+      expect(m.start_url).toBe(DRIVER_LAUNCH_PATH);
       expect(m.start_url.startsWith(m.scope)).toBe(true);
       expect(m.display).toBe("standalone");
       expect(m.lang).toBe(locale);
@@ -40,6 +41,15 @@ describe("buildManifest", () => {
     expect(find("512x512", "any")?.src).toBe(PWA_ICONS.any512);
     expect(find("512x512", "maskable")?.src).toBe(PWA_ICONS.maskable512);
     expect(m.icons.every((i) => i.type === "image/png")).toBe(true);
+  });
+
+  it("keeps the app id stable and the same start URL for all locales (NUD-106)", () => {
+    const manifests = LOCALES.map((locale) =>
+      buildManifest({ locale, name: "n", shortName: "s", description: "d" }),
+    );
+    expect(new Set(manifests.map((m) => m.start_url)).size).toBe(1);
+    expect(manifests.every((m) => m.id === "/driver")).toBe(true);
+    expect(manifests.every((m) => m.scope === "/")).toBe(true);
   });
 
   it("uses one app id for all locales (one installed app)", () => {

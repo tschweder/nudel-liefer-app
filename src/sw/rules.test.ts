@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LOCALES } from "@/lib/localized-text";
 
 import {
+  isDriverLaunchPath,
   isDriverNavigation,
   isDriverPath,
   isOfflineShellRoute,
@@ -37,6 +38,17 @@ describe("service worker rules", () => {
     expect(isDriverNavigation(nav, url("/de/driver"))).toBe(true);
     expect(isDriverNavigation({ mode: "cors" }, url("/de/driver"))).toBe(false);
     expect(isDriverNavigation(nav, url("/de/admin"))).toBe(false);
+  });
+
+  it("treats the locale-neutral start URL as a driver navigation, but not as a shell route (NUD-106)", () => {
+    expect(isDriverNavigation(nav, url("/driver?source=pwa"))).toBe(true);
+    expect(isDriverNavigation(nav, url("/driver"))).toBe(true);
+    expect(isDriverNavigation({ mode: "cors" }, url("/driver"))).toBe(false);
+    expect(isDriverLaunchPath("/driver")).toBe(true);
+    expect(isDriverLaunchPath("/driverx")).toBe(false);
+    expect(isDriverLaunchPath("/driver/stops/1")).toBe(false);
+    expect(isOfflineShellRoute("/driver")).toBe(false);
+    expect(offlineShellUrl("/driver")).toBeNull();
   });
 
   it("only build assets are precached by path", () => {

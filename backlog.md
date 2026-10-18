@@ -245,7 +245,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | done |
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | done |
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
-| NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
+| NUD-106 | Installed app opens in the driver's current language | M2 | 080 | done |
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
 | NUD-108 | Map view offline (tiles) | M2 | 081 | todo |
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
@@ -1597,7 +1597,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-106 · Installed app opens in the driver's current language
-**Status:** todo · **depends_on:** 080
+**Status:** done · **depends_on:** 080
 
 **Goal:** after the driver switches language the home-screen app must not start in the old one.
 
@@ -1605,7 +1605,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - The manifest `start_url` is locale-prefixed (`/de/driver`). Options: locale-less `start_url` `/driver` that `proxy.ts` redirects using the stored user locale, or a re-install hint. Pick one, keep the localized `name`.
 
 **Acceptance criteria**
-- [ ] A driver with locale `zh-Hans` who installed the app while in German opens it in Chinese.
+- [x] A driver with locale `zh-Hans` who installed the app while in German opens it in Chinese. (Simulated, a real installation was not tried: driver installed in `zh-Hant-TW` switches to `de` / `zh-Hans`, a fresh load of the manifest `start_url` opens `/de/driver` / `/zh-Hans/driver`; offline launch shows the offline shell in the last-used language. Real devices: NUD-105.)
+
+---
+
+**Implementation notes**
+- Fix: all manifests now have the locale-neutral `start_url` `/driver?source=pwa` (`DRIVER_LAUNCH_PATH` in `src/lib/pwa.ts`); `id` `/driver` and `scope` `/` unchanged. The per-locale manifests stay (localized `name` / `short_name` / `description` / `lang`), only `start_url` is now identical.
+- Redirect: `proxy.ts` already redirected unprefixed paths; the rule moved into the pure `localeRedirectPath` (`src/lib/locale-redirect.ts`: session locale -> `NEXT_LOCALE` cookie -> Accept-Language -> `de`, path and query kept) and the redirect now carries `Cache-Control: no-store` and `Vary: Cookie, Accept-Language`. The session locale is current because the language switcher updates the JWT (`updateSession`) and the cookie. Not logged in: `/driver?source=pwa` -> `/<cookie locale>/driver?source=pwa` -> driver login in that language.
+- Service worker: `/driver` (exact) counts as a driver navigation (`isDriverLaunchPath`): network only, nothing stored (e2e: no `/driver` or `/<locale>/driver` entry in Cache Storage after launches). Offline, the generic `offline.html` is answered under the URL `/driver`; its script reads the `NEXT_LOCALE` cookie (else `de`) and replaces the location with `/<locale>/driver`, which the worker answers with that locale's offline shell. No new precache entry, no change to the shell.
+- Tests: unit `locale-redirect.test.ts` (rules), `pwa.test.ts` (same `start_url`, stable `id` / `scope`), `sw/rules.test.ts`, `offline-page.test.ts`; e2e `pwa.spec.ts` (19 tests, mobile): manifests, redirect headers (307, `no-store`, Accept-Language / cookie), unauthenticated launch lands on the login in the cookie language, driver zh-Hant-TW -> de -> zh-Hans launches into the current language, offline launch in the last-used language (de, then zh-Hant-HK), `getInstallabilityErrors` empty. Docs: `docs/offline.md` (new section), `docs/uat.md` (known-limit row for NUD-106 removed).
+- Verified: lint, typecheck, `i18n:check`, vitest without DB (all passed) and the DB tests `admin-password` / `locale`, production build, e2e mobile `pwa` (19), `driver-language-picker`, `shells`, `driver-offline` (29 passed).
+- NOT verified: real installation and launch on Android / iOS (NUD-105); the full DB integration suite was not rerun (no DB code touched); desktop Playwright project. Already installed apps keep their old `/<locale>/driver` start URL until the browser refreshes the manifest (Chrome/Android does it by itself, otherwise reinstall); iOS before 16.4 ignores the manifest `start_url` (starts on the page open at "Add to Home Screen") and needs a reinstall as well.
 
 ---
 
@@ -2039,7 +2049,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-099 | Planning page selects the tour by `?tour=<id>` (default: newest open tour, else newest) and shows tabs only with two or more tours; driver gets the newest RELEASED / IN_PROGRESS tour, else the newest COMPLETED one; dashboard shows the open tour | Single-tour days look exactly as before; a released follow-up must replace the finished screen |
 | 2026-10-18 | NUD-099 | New audit action `tour.followup` instead of reusing `tour.generate` | The history must say that this tour was created for late orders; vocabulary stays a closed list (NUD-092) |
 | 2026-10-18 | NUD-099 | Order form warning not built, only overview notice + badge, dashboard hint and planning banner; ticket NUD-116 | After saving, the overview opens on that day and already shows the notice; the form needs another action + matrix row |
-
+| 2026-10-18 | NUD-106 | Manifest `start_url` is the locale-neutral `/driver?source=pwa` for all locales; the existing unprefixed-path redirect in `proxy.ts` (session locale -> cookie -> Accept-Language -> `de`) picks the language at launch; per-locale manifests kept for the localized name | Simplest fix without a re-install hint; reuses the NUD-003 rule; `id` and `scope` unchanged |
+| 2026-10-18 | NUD-106 | The unprefixed redirect is `no-store`; the worker treats `/driver` as a network-only navigation and never stores it | The answer depends on session and cookie |
+| 2026-10-18 | NUD-106 | Offline launch: `offline.html` forwards `/driver` to `/<NEXT_LOCALE cookie>/driver` (German if missing), no extra precache entry and no locale stored in IndexedDB / localStorage | The cookie is already written by login and the switcher and is readable by script; the IndexedDB record has no locale |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
