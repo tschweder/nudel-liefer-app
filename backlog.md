@@ -241,7 +241,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | done |
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | done |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | blocked |
-| NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
+| NUD-097 | Silence Auth.js prerender error log | M2 | 004 | done |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
@@ -1509,7 +1509,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-097 · Silence Auth.js prerender error log
-**Status:** todo · **depends_on:** 004
+**Status:** done · **depends_on:** 004
 
 **Goal:** the server log is free of `Route "/[locale]/admin" ... unstable value crypto.getRandomValues() while prerendering`.
 
@@ -1517,8 +1517,14 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Find out why `auth()` (Auth.js CSRF/session handling) runs inside Next's partial-prefetch prerender of the guarded layouts/pages (present since NUD-004, reproduced on its commit) and make the dynamic access explicit (e.g. `await connection()` or reading `cookies()` before `auth()` in `requireRole`/`requirePageActor`), without weakening the guards.
 
 **Acceptance criteria**
-- [ ] Requesting `/de/admin`, `/de/admin/orders` and `/de/driver` while logged in produces no prerender errors in the server log.
-- [ ] Guards still redirect/reject exactly as before (existing auth tests and e2e pass).
+- [x] Requesting `/de/admin`, `/de/admin/orders` and `/de/driver` while logged in produces no prerender errors in the server log.
+- [x] Guards still redirect/reject exactly as before (existing auth tests and e2e pass).
+
+**Implementation notes**
+- Root cause: Next's partial-prefetch validation (`partialPrefetching` + `cacheComponents`) renders the guarded layouts/pages in a prerender pass with an empty cookie jar. `requirePageActor` called `auth()` without any explicit dynamic access, so Auth.js found no CSRF cookie and generated a fresh token with `crypto.getRandomValues()` inside the prerender, which Next reports as a blocking-prerender error (once per guarded route, e.g. `/[locale]/admin`, `/admin/orders`, `/admin/orders/[id]`). The guards themselves behaved correctly (they sit inside `Suspense`); only the log was wrong.
+- Fix: `await connection()` as the first statement of `requirePageActor` (`src/server/auth/page-guards.ts`), so the session read is declared request-time data and is skipped by the prerender. `requireRole` (server actions, route handlers) is unchanged. The unit test `driver-locale.integration.test.ts` mocks `next/server` `connection` (it only works inside a request scope).
+- Verified: `pnpm build` log has no `getRandomValues`; `next start` log stayed clean (only the expected `CredentialsSignin` lines from the negative-login tests) over the e2e runs of auth, shells, security-headers, drivers, driver-today, orders (all pass; `orders` first-test failure with `--workers=2` together with other specs is the known shared-DB flake and passes alone). Unit/integration: `src/server/auth/*`, `authz-matrix`, `driver-locale.integration` pass (204 tests); lint, typecheck, prettier pass.
+- Not verified: the complete `pnpm test` in one go (exceeds the 3-minute tool limit here; only the auth-touching files were run), and the remaining e2e specs (they do not touch the changed code path).
 
 ---
 
@@ -1957,6 +1963,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-095 | Lighthouse CI runs through `pnpm dlx @lhci/cli@0.15.1` on a warm logged-in profile, not as a project dependency; LCP < 2.5 s error budget | `@lhci/cli` adds 4 high advisories to `pnpm audit` (CI gate); the budget is "after first load" |
 | 2026-10-18 | NUD-095 | Toast region label localized and sonner hotkey removed | The default label is English and mentions a keyboard shortcut a phone does not have |
 | 2026-10-18 | NUD-096 | UAT script offers two data modes (demo seed with `--today`, or the client's real data) and keeps the sign-off block empty; wording issues are routed to `pnpm i18n:import`, not to code tickets | Drivers see only today's tour, and the demo seed must never touch production; the Chinese texts are still unreviewed (NUD-073) |
+| 2026-10-18 | NUD-097 | `await connection()` at the top of `requirePageActor` (page guards only), not in `requireRole` | Fixes the Auth.js CSRF `getRandomValues` prerender error at its cause; actions/route handlers are already request-scoped and stay unchanged |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

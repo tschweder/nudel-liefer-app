@@ -20,6 +20,8 @@ vi.mock("./db", async (importOriginal) => ({
 vi.mock("next/headers", () => ({
   cookies: async () => ({ set: (name: string, value: string) => cookieJar.set(name, value) }),
 }));
+// `connection()` (NUD-097) only works inside a Next.js request scope.
+vi.mock("next/server", () => ({ connection: async () => undefined }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw new Error(`REDIRECT:${to}`);

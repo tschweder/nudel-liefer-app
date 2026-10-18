@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 import { type Actor, AuthorizationError, requireRole } from "./guards";
 
@@ -21,6 +22,10 @@ export async function requirePageActor(
   locale: string,
   options: { allowUnchosen?: boolean } = {},
 ): Promise<Actor> {
+  // NUD-097: the session is request data. Without this explicit dynamic access Next's
+  // partial-prefetch validation renders the guard with an empty cookie jar, so Auth.js generates a
+  // fresh CSRF token (`crypto.getRandomValues()`) while prerendering and logs a blocking error.
+  await connection();
   let actor: Actor;
   try {
     actor = await requireRole(
