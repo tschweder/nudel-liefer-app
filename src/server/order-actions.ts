@@ -38,14 +38,27 @@ export async function createOrderAction(input: unknown): Promise<OrderSaveResult
 
 /** Edits an open order (date, status, note, lines); same validation as order entry. */
 export async function updateOrderAction(id: unknown, input: unknown): Promise<OrderUpdateResult> {
-  await requireRole("ADMIN");
-  return updateOrder(getDb(), id, input, todayIn(await getFactoryTimezone()), getTourService());
+  const actor = await requireRole("ADMIN");
+  return updateOrder(
+    getDb(),
+    actor.id,
+    id,
+    input,
+    todayIn(await getFactoryTimezone()),
+    getTourService(),
+  );
 }
 
 /** Cancels an open order (status CANCELLED, never deleted). */
 export async function cancelOrderAction(id: unknown): Promise<OrderCancelResult> {
-  await requireRole("ADMIN");
-  return cancelOrder(getDb(), id, todayIn(await getFactoryTimezone()), getTourService());
+  const actor = await requireRole("ADMIN");
+  return cancelOrder(
+    getDb(),
+    actor.id,
+    id,
+    todayIn(await getFactoryTimezone()),
+    getTourService(),
+  );
 }
 
 /** Copies an order to another delivery day as a new draft. */

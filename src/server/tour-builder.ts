@@ -10,6 +10,7 @@ import {
 } from "@/domain/tour";
 import type { PrismaClient } from "@/generated/prisma/client";
 
+import { recordAudit } from "./audit";
 import { getDb } from "./db";
 import { listConfirmedOrdersForDate } from "./orders";
 import {
@@ -56,6 +57,8 @@ export type GenerateTourResult =
 
 export type TourBuilderDeps = {
   db: PrismaClient;
+  /** The admin who asked for the (re)build; recorded in the audit log. */
+  actorId: string;
   provider: RoutingProvider;
   /** Throws `DepotNotSetError` while the depot pin is not confirmed (`requireDepotConfigured`). */
   requireDepot: () => Promise<Depot>;
@@ -298,10 +301,29 @@ export async function generateTourWith(
         }
       }
 
+      const mode = !existing ? "created" : locked ? "locked_extended" : "replaced";
+      await recordAudit(tx, {
+        actorId: deps.actorId,
+        entity: "Tour",
+        entityId: tourId,
+        action: existing ? "tour.reoptimize" : "tour.generate",
+        diff: {
+          date: date.toISOString().slice(0, 10),
+          mode,
+          stopCountBefore: existing ? existing.stops.length : null,
+          stopCount: ordered.length,
+          addedCustomerIds: added,
+          removedCustomerIds: removed,
+          customerIds: ordered.map((s) => s.customerId),
+          approximate: route.approximate,
+          unroutedCustomerIds: warnings.map((w) => w.customerId),
+        },
+      });
+
       return {
         ok: true,
         tourId,
-        mode: !existing ? "created" : locked ? "locked_extended" : "replaced",
+        mode,
         stopCount: ordered.length,
         addedCustomerIds: added,
         removedCustomerIds: removed,
@@ -314,10 +336,11 @@ export async function generateTourWith(
 }
 
 /** Application entry (callers: `generateTourAction`): real database, settings and provider. */
-export async function generateTour(date: unknown): Promise<GenerateTourResult> {
+export async function generateTour(actorId: string, date: unknown): Promise<GenerateTourResult> {
   return generateTourWith(
     {
       db: getDb(),
+      actorId,
       provider: getRoutingProvider(),
       requireDepot: requireDepotConfigured,
       loadSettings: getSettings,

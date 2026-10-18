@@ -4,9 +4,10 @@ import { PHOTO_KINDS, type PhotoKind } from "@/domain/photos";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isCustomerPhotoKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
+import { recordAudit } from "./audit";
 import type { Storage } from "./storage/types";
 
-type PhotoDb = Pick<PrismaClient, "$transaction" | "customer" | "photo">;
+type PhotoDb = Pick<PrismaClient, "$transaction" | "customer" | "photo" | "auditLog">;
 
 const idSchema = z.string().trim().min(1).max(64);
 
@@ -40,6 +41,8 @@ export type AttachPhotoInput = {
    * of another user is `mutation_conflict`.
    */
   clientMutationId?: string;
+  /** Set for a photo a driver took at a stop (NUD-083): shown in the tour history. */
+  driverStop?: { stopId: string; tourId: string };
 };
 
 export type AttachPhotoResult =
@@ -87,6 +90,11 @@ export async function attachCustomerPhoto(
     ) {
       return { ok: false, error: "key_in_use" };
     }
+    const previous = await tx.photo.findFirst({
+      where: { customerId: input.customerId, kind: input.kind, isCurrent: true },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
     await tx.photo.updateMany({
       where: { customerId: input.customerId, kind: input.kind, isCurrent: true },
       data: { isCurrent: false },
@@ -102,6 +110,21 @@ export async function attachCustomerPhoto(
         uploadedById: input.uploadedById,
         isCurrent: true,
         clientMutationId: input.clientMutationId ?? null,
+      },
+    });
+    await recordAudit(tx, {
+      actorId: input.uploadedById,
+      entity: "Customer",
+      entityId: input.customerId,
+      action: previous ? "photo.replace" : "photo.add",
+      diff: {
+        kind: input.kind,
+        photoId: photo.id,
+        previousPhotoId: previous?.id ?? null,
+        via: input.driverStop ? "driver" : "admin",
+        ...(input.driverStop
+          ? { stopId: input.driverStop.stopId, tourId: input.driverStop.tourId }
+          : {}),
       },
     });
     return { ok: true, photoId: photo.id, replayed: false };

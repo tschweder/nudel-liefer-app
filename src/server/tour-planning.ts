@@ -13,6 +13,7 @@ import { canTransition, isReReleasable } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
+import { recordAudit } from "./audit";
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
 import type { AppSettings } from "./settings";
@@ -314,6 +315,8 @@ function lockKey(date: Date): string {
 
 export type ReorderDeps = {
   db: PrismaClient;
+  /** The admin who reorders; recorded in the audit log. */
+  actorId: string;
   provider: RoutingProvider;
   loadSettings: () => Promise<Pick<
     AppSettings,
@@ -420,6 +423,17 @@ export async function reorderStopsWith(
           },
         });
       }
+      await recordAudit(tx, {
+        actorId: deps.actorId,
+        entity: "Tour",
+        entityId: tour.id,
+        action: "tour.reorder",
+        diff: {
+          date: tour.date.toISOString().slice(0, 10),
+          customerIdsBefore: tour.stops.map((s) => s.customerId),
+          customerIdsAfter: ordered.map((s) => s.customerId),
+        },
+      });
       return { ok: true, changed: true, approximate: route.approximate };
     },
     { timeout: 20_000, maxWait: 10_000 },
@@ -427,23 +441,44 @@ export async function reorderStopsWith(
 }
 
 /** Lock toggle of an unreleased tour (a locked tour keeps its order when it is rebuilt). */
-export async function setTourLockedWith(db: PrismaClient, rawInput: unknown): Promise<PlanResult> {
+export async function setTourLockedWith(
+  db: PrismaClient,
+  actorId: string,
+  rawInput: unknown,
+): Promise<PlanResult> {
   const input = lockSchema.safeParse(rawInput);
   if (!input.success) return fail("invalid");
-  const result = await db.tour.updateMany({
-    where: { id: input.data.tourId, status: { in: [...EDITABLE_TOUR_STATUSES] } },
-    data: { locked: input.data.locked },
+  return db.$transaction(async (tx): Promise<PlanResult> => {
+    const before = await tx.tour.findUnique({
+      where: { id: input.data.tourId },
+      select: { locked: true },
+    });
+    const result = await tx.tour.updateMany({
+      where: { id: input.data.tourId, status: { in: [...EDITABLE_TOUR_STATUSES] } },
+      data: { locked: input.data.locked },
+    });
+    if (result.count === 1) {
+      if (before && before.locked !== input.data.locked) {
+        await recordAudit(tx, {
+          actorId,
+          entity: "Tour",
+          entityId: input.data.tourId,
+          action: input.data.locked ? "tour.lock" : "tour.unlock",
+          diff: { locked: { from: before.locked, to: input.data.locked } },
+        });
+      }
+      return { ok: true };
+    }
+    return fail(before ? "tour_not_editable" : "not_found");
   });
-  if (result.count === 1) return { ok: true };
-  const exists = await db.tour.findUnique({
-    where: { id: input.data.tourId },
-    select: { id: true },
-  });
-  return fail(exists ? "tour_not_editable" : "not_found");
 }
 
 /** Assigns an active driver (or clears the assignment with `null`) on an unreleased tour. */
-export async function assignDriverWith(db: PrismaClient, rawInput: unknown): Promise<PlanResult> {
+export async function assignDriverWith(
+  db: PrismaClient,
+  actorId: string,
+  rawInput: unknown,
+): Promise<PlanResult> {
   const input = driverSchema.safeParse(rawInput);
   if (!input.success) return fail("invalid");
   if (input.data.driverId !== null) {
@@ -453,16 +488,29 @@ export async function assignDriverWith(db: PrismaClient, rawInput: unknown): Pro
     });
     if (!driver) return fail("driver_invalid");
   }
-  const result = await db.tour.updateMany({
-    where: { id: input.data.tourId, status: { in: [...EDITABLE_TOUR_STATUSES] } },
-    data: { driverId: input.data.driverId },
+  return db.$transaction(async (tx): Promise<PlanResult> => {
+    const before = await tx.tour.findUnique({
+      where: { id: input.data.tourId },
+      select: { driverId: true },
+    });
+    const result = await tx.tour.updateMany({
+      where: { id: input.data.tourId, status: { in: [...EDITABLE_TOUR_STATUSES] } },
+      data: { driverId: input.data.driverId },
+    });
+    if (result.count === 1) {
+      if (before && before.driverId !== input.data.driverId) {
+        await recordAudit(tx, {
+          actorId,
+          entity: "Tour",
+          entityId: input.data.tourId,
+          action: "tour.assign_driver",
+          diff: { driverId: { from: before.driverId, to: input.data.driverId } },
+        });
+      }
+      return { ok: true };
+    }
+    return fail(before ? "tour_not_editable" : "not_found");
   });
-  if (result.count === 1) return { ok: true };
-  const exists = await db.tour.findUnique({
-    where: { id: input.data.tourId },
-    select: { id: true },
-  });
-  return fail(exists ? "tour_not_editable" : "not_found");
 }
 
 /**
@@ -473,6 +521,7 @@ export async function assignDriverWith(db: PrismaClient, rawInput: unknown): Pro
  */
 export async function releaseTourWith(
   db: PrismaClient,
+  actorId: string,
   rawInput: unknown,
   now: Date = new Date(),
 ): Promise<PlanResult<{ releasedAt: string; stopCount: number }>> {
@@ -511,6 +560,18 @@ export async function releaseTourWith(
         data: { status: "RELEASED", releasedAt: now, releaseRevision: 1 },
       });
       if (updated.count !== 1) return fail("conflict");
+      await recordAudit(tx, {
+        actorId,
+        entity: "Tour",
+        entityId: tour.id,
+        action: "tour.release",
+        diff: {
+          date: tour.date.toISOString().slice(0, 10),
+          stopCount: tour._count.stops,
+          driverId: tour.driverId,
+          releasedAt: now.toISOString(),
+        },
+      });
       return { ok: true, releasedAt: now.toISOString(), stopCount: tour._count.stops };
     },
     { timeout: 20_000, maxWait: 10_000 },

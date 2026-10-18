@@ -955,6 +955,80 @@
         "items": "產品和數量",
         "noItems": "沒有商品"
       }
+    },
+    "history": {
+      "title": "變更記錄",
+      "description": "誰在什麼時候做了什麼修改。記錄無法修改或刪除。",
+      "empty": "暫無記錄。",
+      "by": "{name}",
+      "roles": {
+        "ADMIN": "辦公室",
+        "DRIVER": "司機"
+      },
+      "actions": {
+        "order_create": "建立訂單",
+        "order_update": "修改訂單",
+        "order_cancel": "取消訂單",
+        "order_duplicate": "複製為新訂單",
+        "tour_generate": "生成路線",
+        "tour_reoptimize": "重新最佳化路線",
+        "tour_reorder": "調整停靠順序",
+        "tour_lock": "鎖定順序",
+        "tour_unlock": "解除鎖定",
+        "tour_assign_driver": "指派司機",
+        "tour_release": "釋出路線",
+        "tour_rerelease": "再次釋出路線",
+        "stop_delivered": "標記為已送達",
+        "stop_problem": "報告問題",
+        "stop_undo": "撤銷狀態",
+        "photo_add": "新增照片",
+        "photo_replace": "更換照片"
+      },
+      "fields": {
+        "status": "狀態",
+        "deliveryDate": "送貨日期",
+        "internalNote": "內部備註",
+        "locked": "鎖定",
+        "driver": "司機",
+        "tourStatus": "路線狀態"
+      },
+      "values": {
+        "none": "–",
+        "true": "已鎖定",
+        "false": "未鎖定"
+      },
+      "change": "{before} → {after}",
+      "customer": "客戶：{name}（{number}）",
+      "facts": {
+        "stopCount": "{value} 個停靠點",
+        "stopCountBefore": "之前 {value} 個停靠點",
+        "addedCount": "新增 {value} 位客戶",
+        "removedCount": "移除 {value} 位客戶",
+        "revision": "釋出版本 {value}"
+      },
+      "stopGroup": {
+        "added": "新增停靠點",
+        "removed": "停靠點取消",
+        "changed": "數量已更改",
+        "completed_changed": "已完成的停靠點（訂單之後被修改）"
+      },
+      "line": {
+        "added": "新增",
+        "removed": "取消"
+      },
+      "sequence": "新的順序：{names}",
+      "reason": "原因：{reason}",
+      "note": "司機留言：“{text}”",
+      "tapped": "在裝置上操作的時間：{time}",
+      "photo": {
+        "STORE": "店鋪入口照片",
+        "PARKING": "停車/卸貨位置照片",
+        "via": {
+          "admin": "由辦公室上傳",
+          "driver": "由司機拍攝"
+        }
+      },
+      "unknownActor": "未知使用者"
     }
   },
   "driver": {

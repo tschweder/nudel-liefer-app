@@ -1,0 +1,101 @@
+// @vitest-environment node
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { AUDIT_ACTIONS } from "@/domain/audit";
+
+/**
+ * NUD-092 guard: every server module that writes orders, tours, stops or photos either calls
+ * `recordAudit` or is listed here with the reason it does not. A new write path in a new file
+ * fails this test until somebody decides which of the two it is.
+ */
+
+const ROOT = join(process.cwd(), "src");
+const WRITE =
+  /\b(?:order|orderItem|tour|stop|stopOrder|photo|screenshot)\.(?:create|createMany|update|updateMany|delete|deleteMany|upsert)\(/;
+
+/** Files that write these tables and are expected to record audit entries. */
+const AUDITED = [
+  "server/orders.ts",
+  "server/tour-builder.ts",
+  "server/tour-planning.ts",
+  "server/tour-rerelease.ts",
+  "server/stop-status.ts",
+  "server/customer-photos.ts",
+];
+
+/** Writes that are deliberately not audited, with the reason. */
+const EXEMPT: Record<string, string> = {
+  "server/tour-service.ts":
+    "outdated flag and automatic tour progress: always part of an audited order / stop change (stop entries carry the tourStatus change)",
+  "server/translation-pending.ts":
+    "background fill of the German problem-note translation, no user action",
+  "server/demo-seed.ts": "demo data seeding script, not an application flow",
+  "server/testing/seed-customers.ts": "test helper",
+};
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return entry.name === "generated" ? [] : sourceFiles(path);
+    return /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+  });
+}
+
+const files = sourceFiles(ROOT).map((path) => ({
+  name: relative(ROOT, path).replaceAll("\\", "/"),
+  text: readFileSync(path, "utf8"),
+}));
+
+describe("audit coverage", () => {
+  it("every module that writes orders, tours, stops or photos is audited or explicitly exempt", () => {
+    const writers = files.filter((f) => WRITE.test(f.text)).map((f) => f.name);
+    const unknown = writers.filter((name) => !AUDITED.includes(name) && !(name in EXEMPT));
+    expect(unknown).toEqual([]);
+  });
+
+  it("the audited modules really call recordAudit", () => {
+    for (const name of AUDITED) {
+      const file = files.find((f) => f.name === name);
+      expect(file, name).toBeDefined();
+      expect(file!.text, name).toMatch(/\brecordAudit\(/);
+    }
+  });
+
+  it("the exemption list has no stale entries", () => {
+    for (const name of Object.keys(EXEMPT)) {
+      expect(
+        files.some((f) => f.name === name && WRITE.test(f.text)),
+        name,
+      ).toBe(true);
+    }
+  });
+
+  it("every action in the vocabulary is written somewhere", () => {
+    const writerText = files
+      .filter((f) => AUDITED.includes(f.name))
+      .map((f) => f.text)
+      .join("\n");
+    for (const action of AUDIT_ACTIONS) {
+      expect(writerText, action).toContain(`"${action}"`);
+    }
+  });
+
+  it("the audit log has no update or delete path in the code", () => {
+    const offenders = files
+      .filter(
+        (f) =>
+          /\bauditLog\.(?:update|updateMany|delete|deleteMany|upsert)\(/.test(f.text) ||
+          /(?:UPDATE|DELETE\s+FROM|TRUNCATE)\s+"?AuditLog/i.test(f.text),
+      )
+      .map((f) => f.name);
+    expect(offenders).toEqual([]);
+  });
+
+  it("only audit.ts creates audit rows", () => {
+    const creators = files.filter((f) => /\bauditLog\.create/.test(f.text)).map((f) => f.name);
+    expect(creators).toEqual(["server/audit.ts"]);
+  });
+});

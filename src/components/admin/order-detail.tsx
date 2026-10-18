@@ -6,8 +6,10 @@ import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
+import type { AuditEntryView } from "@/server/audit-history";
 import type { OrderDetail } from "@/server/orders";
 
+import { AuditTimeline } from "./audit-timeline";
 import { OrderActions } from "./order-actions";
 
 function productName(name: unknown, locale: AppLocale): string {
@@ -22,9 +24,11 @@ function productName(name: unknown, locale: AppLocale): string {
  */
 export function OrderDetailView({
   order,
+  history,
   defaultDuplicateDate,
 }: {
   order: OrderDetail;
+  history: AuditEntryView[];
   defaultDuplicateDate: Date;
 }) {
   const t = useTranslations("admin.orders");
@@ -150,6 +154,8 @@ export function OrderDetailView({
           </p>
         )}
       </section>
+
+      <AuditTimeline entries={history} />
     </div>
   );
 }

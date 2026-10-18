@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { diffOrderUpdate, type LineChange } from "@/domain/audit";
 import {
   centsToDecimal,
   formatCalendarDate,
@@ -19,13 +20,17 @@ import { type OrderState, outdatedTourDates } from "@/domain/tour-diff";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
+import { recordAudit } from "./audit";
 import type { Storage } from "./storage/types";
 import type { TourDb, TourService } from "./tour-service";
 
 /** What the order mutations need from the tour side (see `tour-service.ts`). */
 export type TourHook = Pick<TourService, "markOutdatedForDate">;
 
-type OrderDb = Pick<PrismaClient, "order" | "customer" | "product" | "screenshot" | "$transaction">;
+type OrderDb = Pick<
+  PrismaClient,
+  "order" | "customer" | "product" | "screenshot" | "auditLog" | "$transaction"
+>;
 
 /**
  * Flags the tours of every delivery day that a change from `before` to `after` affects, through
@@ -134,6 +139,24 @@ export async function createOrder(
         },
       },
       select: { id: true },
+    });
+    await recordAudit(tx, {
+      actorId,
+      entity: "Order",
+      entityId: created.id,
+      action: "order.create",
+      diff: {
+        customerId: v.customerId,
+        status: v.status,
+        deliveryDate: formatCalendarDate(v.deliveryDate),
+        source: v.screenshotKey ? "SCREENSHOT" : "MANUAL",
+        internalNote: v.internalNote ?? null,
+        lines: v.lines.map((l): LineChange => ({
+          productId: l.productId,
+          before: null,
+          after: l.quantityCents,
+        })),
+      },
     });
     await flagAffectedTours(tours, tx, null, {
       status: v.status,
@@ -495,6 +518,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  */
 export async function updateOrder(
   db: OrderDb,
+  actorId: string,
   rawId: unknown,
   rawInput: unknown,
   today: Date,
@@ -541,6 +565,7 @@ export async function updateOrder(
         customerId: true,
         status: true,
         deliveryDate: true,
+        internalNote: true,
         items: { select: { productId: true, quantity: true } },
       },
     });
@@ -561,6 +586,33 @@ export async function updateOrder(
       },
       select: { id: true },
     });
+    // One entry per save, with exactly what differs; a save that changes nothing writes none.
+    const diff = diffOrderUpdate(
+      {
+        status: before.status,
+        deliveryDate: formatCalendarDate(before.deliveryDate),
+        internalNote: before.internalNote,
+        items: before.items,
+      },
+      {
+        status: v.status,
+        deliveryDate: formatCalendarDate(v.deliveryDate),
+        internalNote: v.internalNote ?? null,
+        items: v.lines.map((l) => ({
+          productId: l.productId,
+          quantity: centsToDecimal(l.quantityCents),
+        })),
+      },
+    );
+    if (diff) {
+      await recordAudit(tx, {
+        actorId,
+        entity: "Order",
+        entityId: id.data,
+        action: "order.update",
+        diff,
+      });
+    }
     await flagAffectedTours(tours, tx, before, {
       status: v.status,
       customerId: before.customerId,
@@ -585,7 +637,8 @@ export type OrderCancelResult =
  * past days and already cancelled orders are rejected with `not_editable`.
  */
 export async function cancelOrder(
-  db: Pick<PrismaClient, "order" | "$transaction">,
+  db: Pick<PrismaClient, "order" | "auditLog" | "$transaction">,
+  actorId: string,
   rawId: unknown,
   today: Date,
   tours: TourHook,
@@ -613,6 +666,13 @@ export async function cancelOrder(
       where: { id: id.data },
       data: { status: "CANCELLED" },
       select: { id: true },
+    });
+    await recordAudit(tx, {
+      actorId,
+      entity: "Order",
+      entityId: id.data,
+      action: "order.cancel",
+      diff: { status: { from: before.status, to: "CANCELLED" } },
     });
     await flagAffectedTours(tours, tx, before, { ...before, status: "CANCELLED" });
     return true;
@@ -672,6 +732,24 @@ export async function duplicateOrder(
         },
       },
       select: { id: true },
+    });
+    await recordAudit(tx, {
+      actorId,
+      entity: "Order",
+      entityId: created.id,
+      action: "order.duplicate",
+      diff: {
+        sourceOrderId: id.data,
+        customerId: source.customerId,
+        status: "DRAFT",
+        deliveryDate: formatCalendarDate(date),
+        internalNote: source.internalNote ?? null,
+        lines: source.items.map((i): LineChange => ({
+          productId: i.productId,
+          before: null,
+          after: parseQuantityCents(i.quantity.toString()) ?? 0,
+        })),
+      },
     });
     // A copy is a draft, so this flags nothing; it stays here so the rule lives in one place.
     await flagAffectedTours(tours, tx, null, {

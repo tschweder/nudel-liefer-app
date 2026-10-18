@@ -24,10 +24,10 @@ const generateTourInputSchema = z.object({ date: z.string().trim().min(1).max(10
  * `admin.settings.errors.depotNotSet`).
  */
 export async function generateTourAction(input: unknown): Promise<GenerateTourResult> {
-  await requireRole("ADMIN");
+  const actor = await requireRole("ADMIN");
   const parsed = generateTourInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid_date", warnings: [] };
-  return generateTour(parsed.data.date);
+  return generateTour(actor.id, parsed.data.date);
 }
 
 /**
@@ -37,31 +37,31 @@ export async function generateTourAction(input: unknown): Promise<GenerateTourRe
 export async function reorderStopsAction(
   input: unknown,
 ): Promise<PlanResult<{ changed: boolean; approximate: boolean }>> {
-  await requireRole("ADMIN");
+  const actor = await requireRole("ADMIN");
   return reorderStopsWith(
-    { db: getDb(), provider: getRoutingProvider(), loadSettings: getSettings },
+    { db: getDb(), actorId: actor.id, provider: getRoutingProvider(), loadSettings: getSettings },
     input,
   );
 }
 
 /** Admin-only: lock / unlock an unreleased tour. `{tourId, locked}`. */
 export async function setTourLockedAction(input: unknown): Promise<PlanResult> {
-  await requireRole("ADMIN");
-  return setTourLockedWith(getDb(), input);
+  const actor = await requireRole("ADMIN");
+  return setTourLockedWith(getDb(), actor.id, input);
 }
 
 /** Admin-only: assign an active driver (`driverId: null` clears it). `{tourId, driverId}`. */
 export async function assignDriverAction(input: unknown): Promise<PlanResult> {
-  await requireRole("ADMIN");
-  return assignDriverWith(getDb(), input);
+  const actor = await requireRole("ADMIN");
+  return assignDriverWith(getDb(), actor.id, input);
 }
 
 /** Admin-only: release the tour to its driver. `{tourId, version}` (version from the page). */
 export async function releaseTourAction(
   input: unknown,
 ): Promise<PlanResult<{ releasedAt: string; stopCount: number }>> {
-  await requireRole("ADMIN");
-  return releaseTourWith(getDb(), input);
+  const actor = await requireRole("ADMIN");
+  return releaseTourWith(getDb(), actor.id, input);
 }
 
 /**
@@ -70,9 +70,9 @@ export async function releaseTourAction(
  * sees the update. `{tourId, version}` (version from the page, as for the first release).
  */
 export async function reReleaseTourAction(input: unknown): Promise<PlanResult<ReReleaseOk>> {
-  await requireRole("ADMIN");
+  const actor = await requireRole("ADMIN");
   return reReleaseTourWith(
-    { db: getDb(), provider: getRoutingProvider(), loadSettings: getSettings },
+    { db: getDb(), actorId: actor.id, provider: getRoutingProvider(), loadSettings: getSettings },
     input,
   );
 }

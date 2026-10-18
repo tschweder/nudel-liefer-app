@@ -272,6 +272,26 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/de/admin/tours\\?date=${f.day}`));
     await expect(tid(page, "tour-status")).toHaveText("Freigegeben");
+
+    // NUD-092: the history lists generate, lock, driver assignment and release (newest first).
+    const actionsShown = await tid(page, "audit-entry").evaluateAll((els) =>
+      els.map((el) => el.getAttribute("data-action")),
+    );
+    expect(actionsShown[0]).toBe("tour.release");
+    for (const action of ["tour.generate", "tour.lock", "tour.assign_driver", "tour.reorder"]) {
+      expect(actionsShown).toContain(action);
+    }
+    await expect(
+      tid(page, "audit-entry").filter({ hasText: f.driver.displayName }).first(),
+    ).toBeVisible();
+    await expect(
+      page.locator(
+        '[data-testid="audit-entry"][data-action="tour.release"]:visible [data-testid="audit-meta"]',
+      ),
+    ).toContainText("(Büro)");
+    await tid(page, "audit-timeline").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/nud-092-tour-history-1280.png", fullPage: true });
+    expect(await noHorizontalScroll(page)).toBe(true);
   } finally {
     await f.cleanup();
   }

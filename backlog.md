@@ -127,6 +127,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 - Driver UI: touch targets ≥ 48 px, body text ≥ 16 px, quantities ≥ 28 px bold, icons alongside text so the screen is understandable even with an unexpected language.
 - Accessibility: WCAG AA contrast, keyboard-navigable admin.
 - Use soft delete (`active=false` / archive) for customers, products and users. Never hard-delete business data.
+- Every service-layer write to orders, tours, stops or customer photos records an audit entry in the same transaction (`recordAudit`, NUD-092); the audit log is append-only.
 
 ### 4.4 Environment variables (grow `.env.example` as tickets add them)
 
@@ -235,7 +236,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | done |
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | done |
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | done |
-| NUD-092 | Audit log for orders and tours | M2 | 032, 043 | todo |
+| NUD-092 | Audit log for orders and tours | M2 | 032, 043 | done |
 | NUD-093 | Security hardening | M2 | 060 | todo |
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | todo |
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | todo |
@@ -1360,7 +1361,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-092 · Audit log for orders and tours
-**Status:** todo · **depends_on:** 032, 043
+**Status:** done · **depends_on:** 032, 043
 
 **Goal:** answer "who changed this quantity and when?".
 
@@ -1369,7 +1370,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Order detail and tour detail show a compact history timeline.
 
 **Acceptance criteria**
-- [ ] Changing an order quantity creates one audit entry with before/after diff.
+- [x] Changing an order quantity creates one audit entry with before/after diff.
+
+**Implementation notes**
+- `AuditLog { id, actorId, entity, action, entityId, diff Json, createdAt }` (migration `20261018120000_audit_log`). `entity` / `action` are plain strings validated in code (`src/domain/audit.ts`: vocabulary, `sanitizeAuditDiff`, `diffOrderUpdate`, pure + unit-tested); a Postgres trigger refuses UPDATE and DELETE, and there is no update/delete path in the code (`src/server/audit-coverage.test.ts` scans for it). `actorId` is deliberately not a foreign key (users are archived, never deleted; history must outlive the row, and e2e fixtures delete their users).
+- Writing: `recordAudit(tx, {actorId, entity, entityId, action, diff})` in `src/server/audit.ts`, always called with the transaction client of the change, so entry and change commit or roll back together. Diffs hold ids and values only (quantities in hundredths, enum values, ISO dates); names are resolved when the history is read. `sanitizeAuditDiff` drops keys like password/hash/secret/token/signature/url, truncates text to 200 characters and lists to 200 items. Driver problem notes are stored truncated; no storage keys or URLs for photos (only photo ids).
+- Covered: `order.create|update|cancel|duplicate` (an update that changes nothing writes no entry; one entry per save with status / date / note changes and per-product before/after), `tour.generate|reoptimize` (rebuild of an existing tour, incl. locked extension), `tour.reorder|lock|unlock|assign_driver|release|rerelease` (re-release incl. the "only clears the outdated flag" variant, with per-customer quantity before/after), `stop.delivered|problem|undo` (written inside `applyStopMutation`; offline-synced entries carry `via: "sync"` and `clientCreatedAt` = the tap's effective time, tour status changes ride along as `tourStatus`; replays and rejected mutations write nothing), `photo.add|replace` (written inside the shared `attachCustomerPhoto`, so office upload and driver capture are both covered; driver photos carry `stopId` / `tourId`). Signature changes: the `*With` tour functions and `updateOrder` / `cancelOrder` now take the acting admin id (`actorId` in the deps objects of the builder, reorder and re-release).
+- Not audited on purpose (listed with reasons in the coverage test): `markOutdatedForDate` and automatic tour progress (always part of an audited order / stop change), the background German translation of problem notes, demo-seed and test helpers. Demo seed photos go through `addCustomerPhoto` and therefore create `photo.add` entries by the seed admin.
+- Reading: `src/server/audit-history.ts` builds the timeline entries (names resolved, newest first, max 200), `src/server/audit-queries.ts` exposes `orderHistoryQuery` / `tourHistoryQuery` behind `requireRole("ADMIN")`. UI: `AuditTimeline` (`src/components/admin/audit-timeline.tsx`, strings in `admin.history`, de + zh-Hans, Hant generated) at the bottom of the order detail page and below the planner on `/admin/tours` (the tour's own entries plus every entry whose diff names the tour: stop status changes and driver photos). Each entry: localized action, time, actor name with "Büro / Fahrer", details (quantities as `2,5 → 3,75 Packung` with the product name in the viewer's language). There is no separate tour detail page in v1; the planning page is the tour detail.
+- Tests: unit (`audit.test.ts`), integration (`audit.integration.test.ts`: every action above, atomicity with a failing hook, admin-only reads, append-only trigger, scrubbing), coverage scan, e2e (order edit shows exactly one entry `Spaghetti 5 kg: 2,5 → 3,75 Packung`; tour planning page lists generate / lock / reorder / driver / release); both at 1280 px, order spec also at the mobile project. Screenshots: `test-results/nud-092-order-history-1280.png`, `test-results/nud-092-tour-history-1280.png`.
+- Follow-ups: customer detail has no history view (photo entries are only visible in the tour timeline of the driver's tour); retention of the audit log is for NUD-093's `docs/privacy.md` (see the note added there). Audit entries of PIN resets / user management (mentioned in NUD-008 notes) are not part of this ticket's scope and are not written.
 
 ---
 
@@ -1382,7 +1392,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Signed URL lifetimes reviewed; bucket not public.
 - `pnpm audit` in CI (fail on high/critical).
 - Input size limits on all text fields; zod everywhere.
-- Personal data overview in `docs/privacy.md` (what is stored, where, EU hosting, retention: screenshots deleted after 180 days via cron – configurable).
+- Personal data overview in `docs/privacy.md` (what is stored, where, EU hosting, retention: screenshots deleted after 180 days via cron – configurable); the audit log (NUD-092: ids, quantities and driver problem notes truncated to 200 characters, no names) is append-only, so state a retention period and how it is enforced, e.g. a cron that deletes entries older than N months as the only delete path, which must also lift the append-only trigger deliberately).
 
 **Acceptance criteria**
 - [ ] Authz matrix test passes and covers 100 % of server actions/route handlers (enforced by a test that enumerates them).
@@ -1784,6 +1794,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-091 | Totals come from one shared `sumQuantities` (per product AND unit) in `order-overview.ts`, which `aggregateTotalsByDate` now uses too | Ticket demands one shared aggregation function; units are never mixed |
 | 2026-10-18 | NUD-091 | Section 2 shows both the load position (1 = loaded first) and the original stop number; German product name in small type under the Chinese one | The loader needs the load order, the driver the stop number; Chinese-reading loaders may still talk to German staff |
 | 2026-10-18 | NUD-091 | NUD-008's global `@media print { body * { visibility: hidden } }` is scoped with `body:has(.pin-sheet)` | The unscoped rule blanked every printed page of the app; the PIN print still works (e2e assertion added) |
+| 2026-10-18 | NUD-092 | `AuditLog.entity` / `action` are plain strings validated in code, not Prisma enums; `actorId` is not a foreign key | New actions need no migration; users are archived but the history must survive any user row and e2e fixtures delete their users |
+| 2026-10-18 | NUD-092 | Append-only is enforced twice: no update/delete path in code (scanned by a test) and a Postgres trigger refusing UPDATE/DELETE | Cheap defence in depth; a later retention job must deliberately bypass the trigger |
+| 2026-10-18 | NUD-092 | Diffs store ids and values (quantities in hundredths), names are resolved when read; problem notes and internal notes truncated to 200 characters; keys like password/hash/token/signature/url are dropped | No PII copies or secrets in a log that cannot be edited |
+| 2026-10-18 | NUD-092 | An order save that changes nothing writes no entry; a locked-tour rebuild is logged as `tour.reoptimize`, first build as `tour.generate`; photo audit sits in the shared `attachCustomerPhoto` | Less noise; one place covers office and driver photos |
+| 2026-10-18 | NUD-092 | Tour history = entries of the tour plus every entry whose diff has `tourId` (stop changes, driver photos); shown below the planner because v1 has no separate tour detail page | Simplest query, no extra column |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -82,6 +82,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
     const result = await generateTourWith(
       {
         db: t.prisma,
+        actorId: adminId,
         provider: new LocalHeuristicProvider(),
         requireDepot: async () => requireDepot({ ...SETTINGS, depotPinConfirmed: true }),
         loadSettings: async () => SETTINGS,

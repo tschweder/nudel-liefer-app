@@ -59,6 +59,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const provider = new LocalHeuristicProvider();
     const deps = (routing: RoutingProvider = provider) => ({
       db: t.prisma,
+      actorId: adminId,
       provider: routing,
       loadSettings: async () => SETTINGS,
     });
@@ -66,6 +67,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       generateTourWith(
         {
           db: t.prisma,
+          actorId: adminId,
           provider,
           requireDepot: async () => requireDepot({ ...SETTINGS, depotPinConfirmed: true }),
           loadSettings: async () => SETTINGS,
@@ -127,7 +129,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await t.prisma.tour.update({ where: { id: built.tourId }, data: { driverId } });
       const version = (await t.prisma.tour.findUniqueOrThrow({ where: { id: built.tourId } }))
         .updatedAt;
-      const released = await releaseTourWith(t.prisma, {
+      const released = await releaseTourWith(t.prisma, adminId, {
         tourId: built.tourId,
         version: version.toISOString(),
       });

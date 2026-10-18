@@ -1,10 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { AuditTimeline } from "@/components/admin/audit-timeline";
 import { TourDateField } from "@/components/admin/tour-date-field";
 import { TourPlanner } from "@/components/admin/tour-planner";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { getMapTileConfig } from "@/lib/map-config";
+import { tourHistoryQuery } from "@/server/audit-queries";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { getLivePollIntervalMs } from "@/server/tour-progress";
 import { tourPlanQuery } from "@/server/tour-queries";
@@ -21,6 +23,7 @@ async function Guarded({
   const t = await getTranslations({ locale, namespace: "admin.tours" });
   const { date } = await searchParams;
   const plan = await tourPlanQuery(Array.isArray(date) ? date[0] : date);
+  const history = plan.tour ? await tourHistoryQuery(plan.tour.id) : null;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -37,6 +40,7 @@ async function Guarded({
         tiles={getMapTileConfig()}
         pollIntervalMs={getLivePollIntervalMs()}
       />
+      {history ? <AuditTimeline entries={history} /> : null}
     </div>
   );
 }

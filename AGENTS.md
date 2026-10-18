@@ -17,6 +17,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 - Layout: `src/domain` (pure logic, no framework imports), `src/server` (db, services, providers), `src/components`, `src/lib`, `tests/e2e`, `docs`.
 - Server mutations: zod validation + server-side role check. Providers (geocoder, routing, translator, storage) behind interfaces with a Fake implementation.
 - Auth: every server action / route handler starts with `requireRole(...)` from `src/server/auth/guards.ts` (the proxy is not enough); driver mutations use `requireRole("DRIVER")`.
+- Audit log (NUD-092): every service-layer write to orders, tours, stops or customer photos calls `recordAudit(tx, ...)` (`src/server/audit.ts`) with the transaction client of the change; `AuditLog` is append-only, never updated or deleted (`src/server/audit-coverage.test.ts` fails for an unaudited write path).
 - Soft delete only (`active=false`). Driver UI: touch targets >= 48 px, body >= 16 px.
 - Use the glossary in backlog §3 (Tour vs. route, Stop, Release, ...).
 - UI kit: shadcn-style components in `src/components/ui` (use `cn` from `src/lib/utils`); shared states `EmptyState`/`ErrorState`/`LoadingSkeleton` in `src/components/shared/states.tsx`; format dates/quantities with `createAppFormatters` (`src/lib/format.ts`). Driver screens use `size="lg"` / `icon-lg` buttons (48 px). New admin pages go under `src/app/[locale]/admin/` (layout guard + `requirePageActor` in the page), driver pages under `src/app/[locale]/driver/(app)/` (the login page stays outside the group).

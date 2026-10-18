@@ -48,6 +48,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
   let depotConfirmed = true;
   const deps = () => ({
     db: t.prisma,
+    actorId: adminId,
     provider,
     requireDepot: async () => requireDepot({ ...SETTINGS, depotPinConfirmed: depotConfirmed }),
     loadSettings: async () => SETTINGS,

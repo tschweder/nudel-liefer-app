@@ -45,6 +45,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
   const provider = new LocalHeuristicProvider();
   const deps = () => ({
     db: t.prisma,
+    actorId: adminId,
     provider,
     loadSettings: async () => SETTINGS,
   });
@@ -52,6 +53,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
     generateTourWith(
       {
         db: t.prisma,
+        actorId: adminId,
         provider,
         requireDepot: async () => requireDepot({ ...SETTINGS, depotPinConfirmed: true }),
         loadSettings: async () => SETTINGS,
@@ -291,7 +293,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
     it("requires a driver, then releases with releasedAt", async () => {
       const { tour } = await buildTour();
       expect(
-        await releaseTourWith(t.prisma, { tourId: tour.id, version: await version(tour.id) }),
+        await releaseTourWith(t.prisma, adminId, {
+          tourId: tour.id,
+          version: await version(tour.id),
+        }),
       ).toEqual({
         ok: false,
         error: "driver_required",
@@ -300,6 +305,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
       const now = new Date("2099-06-20T12:00:00Z");
       const result = await releaseTourWith(
         t.prisma,
+        adminId,
         { tourId: tour.id, version: await version(tour.id) },
         now,
       );
@@ -309,7 +315,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
       expect(after.releasedAt?.toISOString()).toBe(now.toISOString());
       // Releasing twice is refused.
       expect(
-        await releaseTourWith(t.prisma, { tourId: tour.id, version: await version(tour.id) }),
+        await releaseTourWith(t.prisma, adminId, {
+          tourId: tour.id,
+          version: await version(tour.id),
+        }),
       ).toEqual({ ok: false, error: "tour_not_editable" });
     });
 
@@ -317,25 +326,35 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
       const { tour } = await buildTour();
       await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId: driver2Id } });
       expect(
-        await releaseTourWith(t.prisma, { tourId: tour.id, version: await version(tour.id) }),
+        await releaseTourWith(t.prisma, adminId, {
+          tourId: tour.id,
+          version: await version(tour.id),
+        }),
       ).toEqual({
         ok: false,
         error: "driver_invalid",
       });
       await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId, isOutdated: true } });
       expect(
-        await releaseTourWith(t.prisma, { tourId: tour.id, version: await version(tour.id) }),
+        await releaseTourWith(t.prisma, adminId, {
+          tourId: tour.id,
+          version: await version(tour.id),
+        }),
       ).toEqual({
         ok: false,
         error: "outdated",
       });
       const stale = await version(tour.id);
       await t.prisma.tour.update({ where: { id: tour.id }, data: { isOutdated: false } });
-      expect(await releaseTourWith(t.prisma, { tourId: tour.id, version: stale })).toEqual({
-        ok: false,
-        error: "conflict",
-      });
-      expect(await releaseTourWith(t.prisma, { tourId: tour.id, version: "garbage" })).toEqual({
+      expect(await releaseTourWith(t.prisma, adminId, { tourId: tour.id, version: stale })).toEqual(
+        {
+          ok: false,
+          error: "conflict",
+        },
+      );
+      expect(
+        await releaseTourWith(t.prisma, adminId, { tourId: tour.id, version: "garbage" }),
+      ).toEqual({
         ok: false,
         error: "invalid",
       });
@@ -345,7 +364,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
 
       await t.prisma.stop.deleteMany({ where: { tourId: tour.id } });
       expect(
-        await releaseTourWith(t.prisma, { tourId: tour.id, version: await version(tour.id) }),
+        await releaseTourWith(t.prisma, adminId, {
+          tourId: tour.id,
+          version: await version(tour.id),
+        }),
       ).toEqual({
         ok: false,
         error: "no_stops",

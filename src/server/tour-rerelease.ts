@@ -16,6 +16,7 @@ import {
 } from "@/domain/tour-status";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
+import { recordAudit } from "./audit";
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
 import type { AppSettings } from "./settings";
@@ -221,6 +222,8 @@ export async function getTourDiffView(db: ReleaseDb, tour: ReleaseTour): Promise
 
 export type ReReleaseDeps = {
   db: PrismaClient;
+  /** The admin who re-releases; recorded in the audit log. */
+  actorId: string;
   provider: RoutingProvider;
   loadSettings: () => Promise<Pick<
     AppSettings,
@@ -251,6 +254,38 @@ const fail = (error: Extract<PlanResult, { ok: false }>["error"]) => ({
 });
 
 const depotSchema = z.object({ lat: z.number(), lng: z.number() });
+
+/** The audit view of a diff: per customer the quantities before / after (ids only, hundredths). */
+function auditStops(diff: TourDiff) {
+  const asAdded = (items: StopItem[]) =>
+    items.map((i) => ({ productId: i.productId, before: null, after: i.quantityCents }));
+  const asRemoved = (items: StopItem[]) =>
+    items.map((i) => ({ productId: i.productId, before: i.quantityCents, after: null }));
+  const asChanged = (items: ItemChange[]) =>
+    items.map((i) => ({ productId: i.productId, before: i.beforeCents, after: i.afterCents }));
+  return [
+    ...diff.added.map((e) => ({
+      kind: "added",
+      customerId: e.customerId,
+      items: asAdded(e.items),
+    })),
+    ...diff.removed.map((e) => ({
+      kind: "removed",
+      customerId: e.customerId,
+      items: asRemoved(e.items),
+    })),
+    ...diff.changed.map((e) => ({
+      kind: "changed",
+      customerId: e.customerId,
+      items: asChanged(e.items),
+    })),
+    ...diff.completedChanged.map((e) => ({
+      kind: "completed_changed",
+      customerId: e.customerId,
+      items: asChanged(e.items),
+    })),
+  ];
+}
 
 /**
  * Updates a RELEASED / IN_PROGRESS tour to the current confirmed orders and releases it again.
@@ -332,6 +367,19 @@ export async function reReleaseTourWith(
             }
           }
           await tx.tour.update({ where: { id: tour.id }, data: { isOutdated: false } });
+          await recordAudit(tx, {
+            actorId: deps.actorId,
+            entity: "Tour",
+            entityId: tour.id,
+            action: "tour.rerelease",
+            diff: {
+              date: tour.date.toISOString().slice(0, 10),
+              changed: false,
+              revision: tour.releaseRevision,
+              ...counts,
+              stops: auditStops(plan.diff),
+            },
+          });
         },
         { timeout: 20_000, maxWait: 10_000 },
       );
@@ -476,6 +524,19 @@ export async function reReleaseTourWith(
             lastChange,
             status: nextStatus,
             ...(nextStatus === "COMPLETED" ? { completedAt: now } : {}),
+          },
+        });
+        await recordAudit(tx, {
+          actorId: deps.actorId,
+          entity: "Tour",
+          entityId: tour.id,
+          action: "tour.rerelease",
+          diff: {
+            date: tour.date.toISOString().slice(0, 10),
+            changed: true,
+            revision,
+            ...counts,
+            stops: auditStops(plan.diff),
           },
         });
       },

@@ -954,6 +954,80 @@
         "items": "Produkte und Mengen",
         "noItems": "Keine Positionen"
       }
+    },
+    "history": {
+      "title": "Verlauf",
+      "description": "Wer hat wann was geändert. Einträge können nicht geändert oder gelöscht werden.",
+      "empty": "Noch keine Einträge.",
+      "by": "{name}",
+      "roles": {
+        "ADMIN": "Büro",
+        "DRIVER": "Fahrer"
+      },
+      "actions": {
+        "order_create": "Bestellung angelegt",
+        "order_update": "Bestellung geändert",
+        "order_cancel": "Bestellung storniert",
+        "order_duplicate": "Als Kopie angelegt",
+        "tour_generate": "Tour erstellt",
+        "tour_reoptimize": "Tour neu optimiert",
+        "tour_reorder": "Reihenfolge geändert",
+        "tour_lock": "Reihenfolge gesperrt",
+        "tour_unlock": "Sperre aufgehoben",
+        "tour_assign_driver": "Fahrer zugewiesen",
+        "tour_release": "Tour freigegeben",
+        "tour_rerelease": "Tour erneut freigegeben",
+        "stop_delivered": "Als geliefert markiert",
+        "stop_problem": "Problem gemeldet",
+        "stop_undo": "Status zurückgenommen",
+        "photo_add": "Foto hinzugefügt",
+        "photo_replace": "Foto ersetzt"
+      },
+      "fields": {
+        "status": "Status",
+        "deliveryDate": "Lieferdatum",
+        "internalNote": "Interne Notiz",
+        "locked": "Sperre",
+        "driver": "Fahrer",
+        "tourStatus": "Tourstatus"
+      },
+      "values": {
+        "none": "–",
+        "true": "gesperrt",
+        "false": "nicht gesperrt"
+      },
+      "change": "{before} → {after}",
+      "customer": "Kunde: {name} ({number})",
+      "facts": {
+        "stopCount": "{value, plural, one {# Stopp} other {# Stopps}}",
+        "stopCountBefore": "vorher {value, plural, one {# Stopp} other {# Stopps}}",
+        "addedCount": "{value, plural, one {# Kunde ergänzt} other {# Kunden ergänzt}}",
+        "removedCount": "{value, plural, one {# Kunde entfernt} other {# Kunden entfernt}}",
+        "revision": "Freigabe-Version {value}"
+      },
+      "stopGroup": {
+        "added": "Neuer Stopp",
+        "removed": "Stopp entfällt",
+        "changed": "Mengen geändert",
+        "completed_changed": "Bereits erledigter Stopp (Bestellung danach geändert)"
+      },
+      "line": {
+        "added": "neu",
+        "removed": "entfällt"
+      },
+      "sequence": "Neue Reihenfolge: {names}",
+      "reason": "Grund: {reason}",
+      "note": "Hinweis des Fahrers: „{text}“",
+      "tapped": "Am Gerät erfasst: {time}",
+      "photo": {
+        "STORE": "Foto des Geschäftseingangs",
+        "PARKING": "Foto des Park-/Abladeplatzes",
+        "via": {
+          "admin": "vom Büro hochgeladen",
+          "driver": "vom Fahrer aufgenommen"
+        }
+      },
+      "unknownActor": "Unbekannter Benutzer"
     }
   },
   "driver": {

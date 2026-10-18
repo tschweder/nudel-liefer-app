@@ -254,6 +254,17 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
       [f.ids.a1],
     );
     expect(stored.rows.map((r) => r.quantity)).toEqual(["1.00", "3.75"]);
+    // NUD-092: the history timeline shows exactly one entry for the save, with before -> after.
+    const entries = tid(page, "audit-entry");
+    await expect(entries).toHaveCount(1);
+    await expect(entries.first()).toHaveAttribute("data-action", "order.update");
+    await expect(entries.first().getByTestId("audit-action")).toHaveText("Bestellung geändert");
+    await expect(entries.first().getByTestId("audit-meta")).toContainText("Admin (Büro)");
+    await expect(entries.first().getByTestId("audit-line")).toHaveText(
+      "Spaghetti 5 kg: 2,5 → 3,75 Packung",
+    );
+    await expect(noHorizontalScroll(page)).resolves.toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("order-history.png"), fullPage: true });
     // The tour of that day is flagged outdated.
     expect(await outdated()).toBe(true);
 

@@ -37,7 +37,7 @@ export const registerDriverPhotoSchema = z.strictObject({
 });
 export type RegisterDriverPhotoInput = z.input<typeof registerDriverPhotoSchema>;
 
-type PhotoDb = Pick<PrismaClient, "$transaction" | "customer" | "photo" | "stop">;
+type PhotoDb = Pick<PrismaClient, "$transaction" | "customer" | "photo" | "stop" | "auditLog">;
 type ActingDriver = Pick<Actor, "id" | "role">;
 
 export type RegisterDriverPhotoDeps = {
@@ -79,7 +79,7 @@ export async function registerDriverPhoto(
 
   const stop = await db.stop.findFirst({
     where: { id: input.stopId, tour: { driverId: actor.id } },
-    select: { customerId: true, tour: { select: { status: true, date: true } } },
+    select: { customerId: true, tourId: true, tour: { select: { status: true, date: true } } },
   });
   if (!stop) return reject("not_found");
 
@@ -106,6 +106,7 @@ export async function registerDriverPhoto(
     height: input.height,
     uploadedById: actor.id,
     clientMutationId: input.clientMutationId,
+    driverStop: { stopId: input.stopId, tourId: stop.tourId },
   });
   if (!result.ok) return reject(result.error);
 

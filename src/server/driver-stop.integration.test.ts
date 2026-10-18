@@ -134,6 +134,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     const built = await generateTourWith(
       {
         db: t.prisma,
+        actorId: adminId,
         provider: new LocalHeuristicProvider(),
         requireDepot: async () => requireDepot({ ...SETTINGS, depotPinConfirmed: true }),
         loadSettings: async () => SETTINGS,
@@ -145,7 +146,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     tourId = built.tourId;
     await t.prisma.tour.update({ where: { id: tourId }, data: { driverId } });
     const version = (await t.prisma.tour.findUniqueOrThrow({ where: { id: tourId } })).updatedAt;
-    const released = await releaseTourWith(t.prisma, {
+    const released = await releaseTourWith(t.prisma, adminId, {
       tourId,
       version: version.toISOString(),
     });

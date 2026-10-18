@@ -507,6 +507,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       await expect(
         updateOrder(
           t.prisma,
+          adminId,
           id,
           {
             deliveryDate: D1,
@@ -519,7 +520,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       ).rejects.toThrow("hook failed");
       expect(await quantities(id)).toEqual(["p1=2.5"]);
 
-      await expect(cancelOrder(t.prisma, id, today, boom)).rejects.toThrow("hook failed");
+      await expect(cancelOrder(t.prisma, adminId, id, today, boom)).rejects.toThrow("hook failed");
       expect((await load(id)).status).toBe("CONFIRMED");
     });
 

@@ -10,6 +10,7 @@ import {
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, createLocalizedText, localeSchema } from "@/lib/localized-text";
 
+import { recordAudit } from "./audit";
 import type { Actor } from "./auth/guards";
 import { syncTourProgress } from "./tour-service";
 
@@ -176,6 +177,8 @@ export async function applyStopMutation(
             status: true,
             completedAt: true,
             adminChangedAt: true,
+            customerId: true,
+            problemReason: true,
             tour: { select: { id: true, status: true, driverId: true } },
           },
         });
@@ -257,6 +260,35 @@ export async function applyStopMutation(
               ? undoDeadline(now).toISOString()
               : null,
         };
+        // The history entry belongs to the same transaction as the status change. `clientCreatedAt`
+        // is the moment of the tap for entries that came through the offline queue (NUD-082).
+        await recordAudit(tx, {
+          actorId: actor.id,
+          entity: "Stop",
+          entityId: stop.id,
+          action:
+            input.type === "undo"
+              ? "stop.undo"
+              : input.type === "delivered"
+                ? "stop.delivered"
+                : "stop.problem",
+          diff: {
+            tourId: stop.tour.id,
+            customerId: stop.customerId,
+            status: { from: stop.status, to: mine.status },
+            ...(input.type === "problem"
+              ? { reason: input.reason, note: input.note?.trim() || null }
+              : {}),
+            ...(input.type === "undo" ? { previousReason: stop.problemReason } : {}),
+            ...(newTourStatus !== tourStatus
+              ? { tourStatus: { from: tourStatus, to: newTourStatus } }
+              : {}),
+            via: options.clientCreatedAt ? "sync" : "online",
+            ...(options.clientCreatedAt
+              ? { clientCreatedAt: options.clientCreatedAt.toISOString() }
+              : {}),
+          },
+        });
         await tx.stopMutation.create({
           data: {
             id: input.clientMutationId,

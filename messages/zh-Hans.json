@@ -954,6 +954,80 @@
         "items": "产品和数量",
         "noItems": "没有商品"
       }
+    },
+    "history": {
+      "title": "变更记录",
+      "description": "谁在什么时候做了什么修改。记录无法修改或删除。",
+      "empty": "暂无记录。",
+      "by": "{name}",
+      "roles": {
+        "ADMIN": "办公室",
+        "DRIVER": "司机"
+      },
+      "actions": {
+        "order_create": "创建订单",
+        "order_update": "修改订单",
+        "order_cancel": "取消订单",
+        "order_duplicate": "复制为新订单",
+        "tour_generate": "生成路线",
+        "tour_reoptimize": "重新优化路线",
+        "tour_reorder": "调整停靠顺序",
+        "tour_lock": "锁定顺序",
+        "tour_unlock": "解除锁定",
+        "tour_assign_driver": "指派司机",
+        "tour_release": "发布路线",
+        "tour_rerelease": "再次发布路线",
+        "stop_delivered": "标记为已送达",
+        "stop_problem": "报告问题",
+        "stop_undo": "撤销状态",
+        "photo_add": "添加照片",
+        "photo_replace": "更换照片"
+      },
+      "fields": {
+        "status": "状态",
+        "deliveryDate": "送货日期",
+        "internalNote": "内部备注",
+        "locked": "锁定",
+        "driver": "司机",
+        "tourStatus": "路线状态"
+      },
+      "values": {
+        "none": "–",
+        "true": "已锁定",
+        "false": "未锁定"
+      },
+      "change": "{before} → {after}",
+      "customer": "客户：{name}（{number}）",
+      "facts": {
+        "stopCount": "{value} 个停靠点",
+        "stopCountBefore": "之前 {value} 个停靠点",
+        "addedCount": "新增 {value} 位客户",
+        "removedCount": "移除 {value} 位客户",
+        "revision": "发布版本 {value}"
+      },
+      "stopGroup": {
+        "added": "新增停靠点",
+        "removed": "停靠点取消",
+        "changed": "数量已更改",
+        "completed_changed": "已完成的停靠点（订单之后被修改）"
+      },
+      "line": {
+        "added": "新增",
+        "removed": "取消"
+      },
+      "sequence": "新的顺序：{names}",
+      "reason": "原因：{reason}",
+      "note": "司机留言：“{text}”",
+      "tapped": "在设备上操作的时间：{time}",
+      "photo": {
+        "STORE": "店铺入口照片",
+        "PARKING": "停车/卸货位置照片",
+        "via": {
+          "admin": "由办公室上传",
+          "driver": "由司机拍摄"
+        }
+      },
+      "unknownActor": "未知用户"
     }
   },
   "driver": {

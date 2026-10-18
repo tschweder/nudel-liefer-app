@@ -327,3 +327,24 @@ model LoginAttempt {
 
   @@index([key, createdAt])
 }
+
+/// Append-only history of changes to orders, tours, stops and customer photos (NUD-092). Rows are
+/// written by `recordAudit` in the service layer, inside the transaction of the change itself,
+/// and are never updated or deleted (the database refuses it, see the migration).
+/// `entity` is "Order" | "Tour" | "Stop" | "Customer", `action` a dotted name such as
+/// "order.update"; both are plain strings so a new action never needs a migration.
+/// `diff` holds ids and values only (no names, no secrets); readers resolve names.
+/// `actorId` is deliberately not a foreign key: users are archived, never deleted (backlog 4.3), and the
+/// history must outlive whatever happens to the user row.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  entity    String
+  entityId  String
+  action    String
+  diff      Json
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([createdAt])
+}
