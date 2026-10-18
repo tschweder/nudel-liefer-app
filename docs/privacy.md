@@ -37,7 +37,7 @@ the tile provider are processors of the operator.
 | Order screenshots (WhatsApp / WeChat) | `Screenshot` + bucket `screenshots/<uuid>.jpg` | Chat content: names, phone numbers, messages. Uploader (user id). `extraction` stays empty until NUD-100                                            | **180 days** (configurable), then deleted automatically (section 3)                        |
 | Orders and order lines                | `Order`, `OrderItem`                           | Customer reference, quantities, delivery date, internal note (free text)                                                                            | No automatic deletion in v1 (section 6)                                                    |
 | Tours, stops, delivery status         | `Tour`, `Stop`, `StopOrder`, `StopMutation`    | Assigned driver, completion times, problem reason, **driver problem text** (free text, in the driver's language and machine-translated into German) | No automatic deletion in v1 (section 6)                                                    |
-| Audit log                             | `AuditLog`                                     | Actor id, entity ids, quantities, dates, order / problem notes **cut to 200 characters**; no names                                                  | See section 7                                                                              |
+| Audit log                             | `AuditLog`                                     | Actor id, entity ids, quantities, dates, order / problem notes **cut to 200 characters**; no names                                                  | **730 days** (configurable), then deleted by the daily job (section 7)                     |
 | Failed-login counters                 | `LoginAttempt`                                 | User name or e-mail that was typed and the **IP address** of the failed attempt                                                                     | 15 minute rolling window; rows older than 24 h are deleted daily (section 3)               |
 | Offline copy on the driver's phone    | Browser IndexedDB and Cache Storage            | Today's tour: customer names, addresses, notes, photos, queued status taps and photos                                                               | Replaced on every sync; removed at the login page; other days are never shown              |
 | Cookies                               | Browser                                        | `authjs.session-token` (signed session, HttpOnly, SameSite=Lax, Secure on https; 12 h admin, 90 days driver), `NEXT_LOCALE` (language, 1 year)      | Strictly necessary; no analytics, advertising or tracking cookies                          |
@@ -102,7 +102,7 @@ what it would delete. Details and safeguards: `docs/runbook.md`, "Orphaned stora
 ### What the operator must configure
 
 `CRON_SECRET` (required, otherwise the retention job, the orphan job and the translation job never
-run), optionally `SCREENSHOT_RETENTION_DAYS`, `ORPHAN_CLEANUP_MODE`. See `docs/env.md`.
+run), optionally `SCREENSHOT_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`, `ORPHAN_CLEANUP_MODE`. See `docs/env.md`.
 
 ## 4. Who else receives data
 
@@ -156,28 +156,34 @@ by hand today: customer notes and internal notes can be edited in the admin area
 be deactivated; erasing a person from photos or screenshots means deleting the object and row (for
 screenshots the retention job does it by itself after 180 days).
 
-## 7. Audit log retention (NUD-092)
+## 7. Audit log retention (NUD-092, NUD-111)
 
-The audit log is **append-only**: the application has no update or delete path (a test scans the
-code) and a PostgreSQL trigger (`AuditLog_append_only`, migration `20261018120000_audit_log`)
-rejects `UPDATE` and `DELETE`. Entries contain ids, enum values, dates and quantities; the only free
-text is order / problem notes cut to 200 characters, so a note can still contain a name someone typed.
+The audit log is **append-only**: the application has no update path and exactly one delete path
+(a test scans the code), and a PostgreSQL trigger (`AuditLog_append_only`, function
+`audit_log_append_only`) rejects `UPDATE` and `DELETE`. Entries contain ids, enum values, dates and
+quantities; the only free text is order / problem notes cut to 200 characters, so a note can still
+contain a name someone typed.
 
-Proposed retention: **24 months**, then deletion of older entries. This is **not implemented**:
-a retention job is the one legitimate delete path and would have to lift the trigger deliberately
-for its own transaction. The intended design, kept out of v1 on purpose so that nobody can delete
-history by accident:
+**Retention: 730 days (24 months)**, configurable with `AUDIT_RETENTION_DAYS` (whole days, 90 to
+36500; empty, invalid or below the floor falls back to 730 so a typo can never delete history). The
+period is a proposal until the client confirms it; change the variable, no code change needed.
 
-1. a separate cron route (`/api/cron/audit-retention`, `CRON_SECRET`) that runs
-   `DELETE FROM "AuditLog" WHERE "createdAt" < now() - interval '24 months'` in a transaction that
-   first disables the trigger only for that transaction (`ALTER TABLE ... DISABLE TRIGGER` needs
-   table ownership; alternatively replace the trigger function by one that allows the delete when
-   `current_setting('app.audit_retention', true) = 'on'` and set it with `SET LOCAL`);
-2. a test that proves ordinary `DELETE` still fails and the job still works;
-3. an entry in the job's response (count) and the function log.
+How it is enforced (implemented in NUD-111, migration `20261018130000_audit_log_retention`):
 
-Until then audit entries stay indefinitely. The operator decides the period; NUD-111 in `backlog.md`
-carries the design above.
+- `GET /api/cron/audit-retention` runs daily at 03:37 UTC (`vercel.json`), bearer `CRON_SECRET`
+  (without a configured secret every call is answered with 401).
+- The job is the **only delete path**. It deletes in batches of 1000 rows (at most 20 batches =
+  20 000 rows per run; a larger backlog is worked off over the following days), each batch in its
+  own transaction that first sets the transaction-local switch `nudel.audit_retention = 'on'`.
+- The trigger function honours the switch for `DELETE` only, and only for rows **older than 90
+  days by the database clock**. Even code that lifts the switch cannot delete recent entries; the
+  floor of 90 days is part of the function, not of the application. `UPDATE` is refused always.
+  A plain `DELETE` without the switch fails as before.
+- The response carries `retentionDays`, `cutoff`, `deleted`, `batches`, `more`, and one sanitized
+  line `[audit-retention] {...}` goes to the function log (no entry content). The run is not written
+  to the audit log: that entry would be one more row to delete later.
+- Deleted entries cannot be recovered except from a database backup (`docs/runbook.md` sections 4
+  and 5).
 
 ## 8. Technical protection (summary)
 

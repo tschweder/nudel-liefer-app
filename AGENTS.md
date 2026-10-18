@@ -51,5 +51,6 @@ This version has breaking changes - APIs, conventions, and file structure may al
 
 - Sentry is optional and loaded only through dynamic imports behind `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` (zero overhead without). Every event goes through `src/lib/sentry-scrub.ts`; never add request bodies, cookies or query strings. The DSN host is added to the CSP `connect-src` by `src/lib/security-headers.ts`.
 - New cron/ops routes use the bearer `CRON_SECRET` and need a `SECRET_ONLY` row in `src/server/authz-matrix.test.ts`.
+- Audit log (NUD-092/111): append-only. The only delete path is `src/server/audit-retention.ts` (cron `GET /api/cron/audit-retention`), which sets the transaction-local `nudel.audit_retention = 'on'`; the trigger function honours it for `DELETE` of rows older than 90 days only (floor in SQL and `MIN_AUDIT_RETENTION_DAYS`). Never write another `DELETE`/`UPDATE` on `"AuditLog"` (`audit-coverage.test.ts` fails); a new migration touching the trigger function must keep both rules.
 - Each segment has an `error.tsx` (driver, admin, `global-error.tsx`); texts live in `errorPages.*` (global-error reads the generated `src/lib/fatal-messages.json`, rebuilt by `pnpm i18n:build`).
 - Operations: `docs/runbook.md`.

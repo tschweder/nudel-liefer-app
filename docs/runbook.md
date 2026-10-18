@@ -163,6 +163,15 @@ Uploads that never became a database row (cancelled or failed action) remain in 
 - Run by hand: `curl -s -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/orphan-cleanup`. A result `aborted: "suspicious_ratio"` means look at it, do not force it.
 - Deleted objects cannot be recovered (the bucket has no versioning). That is why delete mode is a conscious switch.
 
+### Audit log retention (NUD-111)
+
+`/api/cron/audit-retention` (daily 03:37 UTC, bearer `CRON_SECRET`) deletes `AuditLog` entries older than `AUDIT_RETENTION_DAYS` (default 730, minimum 90) in batches of 1000, at most 20 000 per run. It is the only way entries are ever removed; the database trigger refuses everything else and refuses even the job for entries younger than 90 days.
+
+- Look at the result: Vercel Logs, search `audit-retention` (`deleted`, `batches`, `more: true` = backlog continues tomorrow). A `503` / `status: error` means the database refused or was unreachable; nothing partial is harmful, the next run continues.
+- Run by hand: `curl -s -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/audit-retention`.
+- A change of period is only the variable and a redeploy. Lowering it deletes the surplus at the next run, and deleted entries come back only from a backup (sections 4 and 5), so lower it deliberately.
+- Do not disable the trigger by hand to clean up; use the route.
+
 ## 11. Reading /api/health
 
 `GET /api/health` needs no login and returns no secrets.

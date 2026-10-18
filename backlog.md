@@ -250,7 +250,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-108 | Map view offline (tiles) | M2 | 081 | done |
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
 | NUD-110 | Nonce-based script CSP | M2 | 093 | done |
-| NUD-111 | Audit log retention job | M2 | 093 | todo |
+| NUD-111 | Audit log retention job | M2 | 093 | done |
 | NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
@@ -1685,13 +1685,22 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Follow-ups: NUD-120. `style-src 'unsafe-inline'` (Leaflet) is untouched; not ticketed (low value: style injection cannot run code, and the same nonce / hash approach would be needed).
 
 #### NUD-111 · Audit log retention job
-**Status:** todo · **depends_on:** 093
+**Status:** done · **depends_on:** 093
 
 **Goal:** implement the design in `docs/privacy.md` section 7: a cron route (`CRON_SECRET`) that deletes `AuditLog` rows older than the agreed period (proposal 24 months) as the only delete path, lifting the append-only trigger deliberately (`SET LOCAL app.audit_retention = 'on'` honoured by the trigger function, new migration), with tests that ordinary deletes still fail. Needs the client's decision on the period.
 
 **Acceptance criteria**
-- [ ] Rows older than the period are deleted by the job and by nothing else; `UPDATE` / `DELETE` from the app or a hand-written statement still fail.
-- [ ] `docs/privacy.md` states the final period; the coverage scan in `audit-coverage.test.ts` still passes.
+- [x] Rows older than the period are deleted by the job and by nothing else; `UPDATE` / `DELETE` from the app or a hand-written statement still fail.
+- [x] `docs/privacy.md` states the final period; the coverage scan in `audit-coverage.test.ts` still passes.
+
+**Implementation notes**
+- Migration `20261018130000_audit_log_retention` replaces the function `audit_log_append_only()` with `CREATE OR REPLACE` (the existing trigger keeps pointing at it, so it applies to a fresh and an existing database alike). `DELETE` is allowed only when `current_setting('nudel.audit_retention', true) = 'on'` AND `OLD."createdAt"` is older than 90 days by the database clock (`timezone('UTC', now())`); otherwise it raises. `UPDATE` is refused always. So the application cannot delete recent rows even with the switch on.
+- `src/server/audit-retention.ts`: `auditRetentionDays()` (`AUDIT_RETENTION_DAYS`, default 730, 90..36500, anything else falls back to 730) and `purgeExpiredAuditEntries({db})`: batches of 1000 rows (`DELETE ... WHERE id IN (SELECT ... ORDER BY createdAt LIMIT n)`), each in its own transaction that first runs `set_config('nudel.audit_retention','on', true)` (transaction-local), at most 20 batches per run (`more: true` if the limit was hit). A period below 90 is refused with an error (not clamped). Returns `{retentionDays, cutoff, deleted, batches, more}`.
+- Route `GET /api/cron/audit-retention` (`audit-retention-cron.ts`, bearer `CRON_SECRET`, 401 without a configured secret, 503 `{status:"error"}` on failure without leaking the message), daily 03:37 UTC in `vercel.json`; one log line `[audit-retention] {counts}`; the run is not written to the audit log. Added to the authz matrix (`SECRET_ONLY` row and the cron-secret test), `docs/privacy.md` (section 7 rewritten: 730 days, enforcement, table row, operator list), `docs/runbook.md` (new subsection under section 10), `docs/env.md`, `docs/deploy.md`, `.env.example`, `AGENTS.md`.
+- `audit-coverage.test.ts`: the scan now allows `DELETE FROM "AuditLog"` in exactly one file (`server/audit-retention.ts`, which must contain the `set_config(... 'on', true)` switch); `UPDATE`/`TRUNCATE`/`auditLog.update*|delete*` stay forbidden everywhere.
+- Tests: unit `audit-retention.test.ts` (days parsing and fallbacks, floor refusal, batching, `more`, route 401/200/503, log line), integration `audit-retention.integration.test.ts` on embedded Postgres (old rows deleted, younger kept, shorter period down to the floor, batching across runs, recent rows survive a forced `DELETE` with the switch on incl. 89-day-old rows, plain `DELETE`/`UPDATE` fail with and without the switch, floor refusal); `audit.integration.test.ts` append-only test unchanged and green. Full unit suite, all 36 integration files, lint, typecheck, `i18n:check`, `pnpm build` and `db:seed --demo` (fresh DB, twice) pass.
+- Not verified: the cron on Vercel/Neon (no production), `prisma migrate deploy` itself (engine download blocked; migrations were applied by the test helper, which executes the SQL files in order), timing of a very large backlog. The 730-day period is a proposal until the client confirms it (`AUDIT_RETENTION_DAYS`, no code change).
+- `src/server/admin-password.integration.test.ts` fails when `DATABASE_URL` is unset (no `skipIf`), unrelated to this ticket; it passes in the integration runs.
 
 #### NUD-112 · Retention for orders, tours, stops and driver problem texts
 **Status:** todo · **depends_on:** 093
@@ -2107,6 +2116,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-110 | Development keeps `'unsafe-inline' 'unsafe-eval'` and no nonce | HMR needs them and a nonce would disable `'unsafe-inline'`; strictness is asserted by the e2e on production builds (skipped on `pnpm dev`) |
 | 2026-10-18 | NUD-110 | `style-src 'unsafe-inline'` left as is | Out of scope (ticket is about scripts); Leaflet sets inline styles |
 | 2026-10-18 | NUD-110 | Rate-limit integration test uses days in the future instead of fixed dates | Fixed dates became "past" on 2026-10-18 and collided with attempts logged with the real clock (test-only fix) |
+| 2026-10-18 | NUD-111 | The trigger's bypass switch is the transaction-local setting `nudel.audit_retention = 'on'` (not `app.audit_retention` as in the older design text) | Task/ticket owner's instruction for the final name; namespaced to this app, only visible inside the transaction that sets it |
+| 2026-10-18 | NUD-111 | The 90-day floor lives inside the trigger function (database clock) in addition to `MIN_AUDIT_RETENTION_DAYS` in the app; a shorter period in code is refused, not clamped | The app cannot delete recent history even with the switch on or after a bug; a refused run is visible, a silently clamped one is not |
+| 2026-10-18 | NUD-111 | `AUDIT_RETENTION_DAYS` default 730, accepted 90..36500, invalid / out-of-range falls back to 730 (not to the floor) | Same principle as `SCREENSHOT_RETENTION_DAYS`: a typo keeps more history instead of deleting more; 24 months as proposed in `docs/privacy.md`, pending client confirmation |
+| 2026-10-18 | NUD-111 | Daily run, batches of 1000 rows in separate transactions, at most 20 batches (20 000 rows) per run, `more` flag | Bounded lock time and function duration (60 s); a large backlog is worked off over several days |
+| 2026-10-18 | NUD-111 | The retention run writes no audit entry; it reports counts in the response and one sanitized log line | An entry about deleting entries would be one more row to delete later; same as the screenshot retention |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -85,15 +85,19 @@ describe("audit coverage", () => {
     }
   });
 
-  it("the audit log has no update or delete path in the code", () => {
+  it("the audit log has no update path and exactly one delete path (the retention job)", () => {
     const offenders = files
       .filter(
         (f) =>
           /\bauditLog\.(?:update|updateMany|delete|deleteMany|upsert)\(/.test(f.text) ||
-          /(?:UPDATE|DELETE\s+FROM|TRUNCATE)\s+"?AuditLog/i.test(f.text),
+          /(?:UPDATE|TRUNCATE)\s+"?AuditLog/i.test(f.text),
       )
       .map((f) => f.name);
     expect(offenders).toEqual([]);
+    const deleters = files.filter((f) => /DELETE\s+FROM\s+"?AuditLog/i.test(f.text));
+    expect(deleters.map((f) => f.name)).toEqual(["server/audit-retention.ts"]);
+    // The statement runs only after the transaction-local switch that the trigger honours.
+    expect(deleters[0]!.text).toMatch(/set_config\('nudel\.audit_retention', 'on', true\)/);
   });
 
   it("only audit.ts creates audit rows", () => {
