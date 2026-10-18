@@ -29,18 +29,19 @@ the tile provider are processors of the operator.
 
 ## 2. What is stored
 
-| Data                                  | Where (table / bucket)                         | Personal data in it                                                                                                                                 | Retention                                                                                  |
-| ------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Staff and driver accounts             | `User`                                         | Display name, e-mail (admins) or user name (drivers), language, last login time, **bcrypt hash** of password / PIN (never the PIN itself)           | Until the operator removes the account; accounts are deactivated (soft delete), not erased |
-| Customers (businesses)                | `Customer`                                     | Business name, delivery address, map pin, delivery hours, a driver note that may name a contact person                                              | Until archived; archived customers are kept (soft delete)                                  |
-| Photos of shop entrance and parking   | `Photo` + bucket `customers/<uuid>.jpg`        | Images taken on the street; may show passers-by, vehicle registration plates or staff. Uploader (user id)                                           | Kept while the customer is served; replaced photos stay as history                         |
-| Order screenshots (WhatsApp / WeChat) | `Screenshot` + bucket `screenshots/<uuid>.jpg` | Chat content: names, phone numbers, messages. Uploader (user id). `extraction` stays empty until NUD-100                                            | **180 days** (configurable), then deleted automatically (section 3)                        |
-| Orders and order lines                | `Order`, `OrderItem`                           | Customer reference, quantities, delivery date, internal note (free text)                                                                            | No automatic deletion in v1 (section 6)                                                    |
-| Tours, stops, delivery status         | `Tour`, `Stop`, `StopOrder`, `StopMutation`    | Assigned driver, completion times, problem reason, **driver problem text** (free text, in the driver's language and machine-translated into German) | No automatic deletion in v1 (section 6)                                                    |
-| Audit log                             | `AuditLog`                                     | Actor id, entity ids, quantities, dates, order / problem notes **cut to 200 characters**; no names                                                  | **730 days** (configurable), then deleted by the daily job (section 7)                     |
-| Failed-login counters                 | `LoginAttempt`                                 | User name or e-mail that was typed and the **IP address** of the failed attempt                                                                     | 15 minute rolling window; rows older than 24 h are deleted daily (section 3)               |
-| Offline copy on the driver's phone    | Browser IndexedDB and Cache Storage            | Today's tour: customer names, addresses, notes, photos, queued status taps and photos                                                               | Replaced on every sync; removed at the login page; other days are never shown              |
-| Cookies                               | Browser                                        | `authjs.session-token` (signed session, HttpOnly, SameSite=Lax, Secure on https; 12 h admin, 90 days driver), `NEXT_LOCALE` (language, 1 year)      | Strictly necessary; no analytics, advertising or tracking cookies                          |
+| Data                                  | Where (table / bucket)                              | Personal data in it                                                                                                                                                   | Retention                                                                                           |
+| ------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Staff and driver accounts             | `User`                                              | Display name, e-mail (admins) or user name (drivers), language, last login time, **bcrypt hash** of password / PIN (never the PIN itself)                             | Until the operator removes the account; accounts are deactivated (soft delete), not erased          |
+| Customers (businesses)                | `Customer`                                          | Business name, delivery address, map pin, delivery hours, a driver note that may name a contact person                                                                | Until archived; archived customers are kept (soft delete)                                           |
+| Photos of shop entrance and parking   | `Photo` + bucket `customers/<uuid>.jpg`             | Images taken on the street; may show passers-by, vehicle registration plates or staff. Uploader (user id)                                                             | Kept while the customer is served; replaced photos stay as history                                  |
+| Order screenshots (WhatsApp / WeChat) | `Screenshot` + bucket `screenshots/<uuid>.jpg`      | Chat content: names, phone numbers, messages. Uploader (user id). `extraction` stays empty until NUD-100                                                              | **180 days** (configurable), then deleted automatically (section 3)                                 |
+| Orders and order lines                | `Order`, `OrderItem`                                | Customer reference (a business), quantities, delivery date, creator (user id), internal note (free text, may name a contact person)                                   | Kept (transactional history, section 6); the internal note is editable in the admin area            |
+| Tours, stops, delivery status         | `Tour`, `Stop`, `StopOrder`, `StopMutation`         | Assigned driver (user id), completion times, problem reason (enum). Not personal data on their own: quantities, statuses, ids                                         | Kept (transactional history, section 6)                                                             |
+| Driver problem text                   | `Stop.problemNote` (JSON, driver language + German) | **Free text typed by the driver**, plus its machine translation; may contain names or phone numbers                                                                   | **365 days** after the stop was completed (configurable), then removed by the daily job (section 6) |
+| Audit log                             | `AuditLog`                                          | Actor id, entity ids, quantities, dates, order / problem notes **cut to 200 characters** (this includes a copy of the driver's problem text, see section 6); no names | **730 days** (configurable), then deleted by the daily job (section 7)                              |
+| Failed-login counters                 | `LoginAttempt`                                      | User name or e-mail that was typed and the **IP address** of the failed attempt                                                                                       | 15 minute rolling window; rows older than 24 h are deleted daily (section 3)                        |
+| Offline copy on the driver's phone    | Browser IndexedDB and Cache Storage                 | Today's tour: customer names, addresses, notes, photos, queued status taps and photos                                                                                 | Replaced on every sync; removed at the login page; other days are never shown                       |
+| Cookies                               | Browser                                             | `authjs.session-token` (signed session, HttpOnly, SameSite=Lax, Secure on https; 12 h admin, 90 days driver), `NEXT_LOCALE` (language, 1 year)                        | Strictly necessary; no analytics, advertising or tracking cookies                                   |
 
 **Not collected:** driver GPS positions or tracking (decision D19), prices, payment data, delivery
 signatures or proof photos (D11), analytics or advertising identifiers.
@@ -101,8 +102,9 @@ what it would delete. Details and safeguards: `docs/runbook.md`, "Orphaned stora
 
 ### What the operator must configure
 
-`CRON_SECRET` (required, otherwise the retention job, the orphan job and the translation job never
-run), optionally `SCREENSHOT_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`, `ORPHAN_CLEANUP_MODE`. See `docs/env.md`.
+`CRON_SECRET` (required, otherwise the retention jobs, the orphan job and the translation job never
+run), optionally `SCREENSHOT_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`, `DRIVER_TEXT_RETENTION_DAYS`,
+`DATA_RETENTION_MODE` (**set to `delete` to activate the driver text job**), `ORPHAN_CLEANUP_MODE`. See `docs/env.md`.
 
 ## 4. Who else receives data
 
@@ -143,18 +145,67 @@ operational messages only (no passwords or PINs; no signed URLs; CSP reports kee
 without query strings; the orphan cleanup logs random object keys and counts). IP addresses appear in
 Vercel's request logs and in `LoginAttempt` (above). Where to read them: `docs/runbook.md`.
 
-## 6. Orders, tours and stops: open decision
+## 6. Orders, tours, stops and driver texts (NUD-112)
 
-v1 has **no automatic deletion** of orders, tours, stops and driver problem texts. Business reasons
-to keep them (disputes about quantities, history for the office) have to be weighed against data
-minimisation. Proposal for the operator to confirm: keep delivered tours and orders for 3 years, or
-as long as retention duties of the operator require, then delete or anonymise driver problem texts.
-Tracked as NUD-112 in `backlog.md`.
+### What is personal data here
 
-Requests of people about their data (access, rectification, erasure) are handled by the operator
-by hand today: customer notes and internal notes can be edited in the admin area; a user account can
-be deactivated; erasing a person from photos or screenshots means deleting the object and row (for
-screenshots the retention job does it by itself after 180 days).
+| Field                                                                                 | Personal data?                                                                                                                                                                                                                                  | Decision                                                                 |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `Order` (customer, date, status, source), `OrderItem`                                 | No. Customers are businesses; quantities and dates describe goods. (A sole trader's business name can identify a person, but that is master data of the `Customer`, which is kept while the customer is served, not part of the order history.) | Keep                                                                     |
+| `Order.createdById`, `Tour.driverId`, `StopMutation.driverId`                         | Indirectly: a user id that points to a staff or driver account. The name sits in `User`, which is deactivated, not erased (soft delete).                                                                                                        | Keep (accountability for quantities); erasing needs the account decision |
+| `Order.internalNote`                                                                  | **Possibly**: free text written by the office; may name a contact person.                                                                                                                                                                       | Keep; editable in the order form. Open question for the client below     |
+| `Tour`, `Stop` (sequence, times, quantities, `problemReason`, status, route geometry) | No. Enum values, ids, times, distances. No driver positions are stored (D19); the route is the planned road path.                                                                                                                               | Keep                                                                     |
+| `Stop.problemNote`                                                                    | **Yes, possibly**: free text typed by the driver, in his language and as German machine translation (DeepL); can contain a person's name or phone number.                                                                                       | **Scrub after 365 days** (implemented)                                   |
+| `AuditLog.diff` of `stop.problem` / order entries                                     | **Possibly**: a copy of the driver problem text and order notes, cut to 200 characters.                                                                                                                                                         | Deleted with the entry after 730 days (section 7); see the gap below     |
+
+**Conclusion.** Orders, tours and stops carry no personal data of their own beyond user ids and
+the two free-text fields. Deleting them is **neither needed for data protection nor safe without a
+client decision**: the office may need them for disputes about quantities and for accounting
+questions, `backlog.md` section 4.3 forbids hard-deleting business data, and a stop that is missing
+from a completed tour would falsify its history (counts, "13 of 13 delivered"). The app therefore
+**never deletes orders, tours, stops or their statuses**, and there is no setting that does. The
+deletion or anonymisation of whole old orders and tours (proposal in the earlier version of this
+section: 3 years) stays an open question for the client (`backlog.md` section 10).
+
+### Driver problem texts: 365 days (implemented)
+
+`GET /api/cron/data-retention` runs daily at 03:47 UTC (`vercel.json`), bearer `CRON_SECRET`
+(without a configured secret every call is answered with 401).
+
+- It sets `Stop.problemNote` to empty for every stop **completed more than
+  `DRIVER_TEXT_RETENTION_DAYS` days ago** (default **365**, whole days 30 to 3650; empty, invalid
+  or out-of-range values fall back to 365, a value below 30 is refused by the code). Nothing else
+  on the stop changes: `problemReason`, `status`, `completedAt`, quantities, the tour and the
+  orders stay. The office sees such a stop with its reason and without a note, exactly like a
+  stop where the driver wrote none.
+- The whole text is removed at once: the driver's original, the German translation and the marker
+  "translation pending". A text whose translation is still pending is removed too; the translation
+  retry job then finds nothing to do, and a late save of a translation does not bring the text back
+  (it only writes to a note that is still pending).
+- **Default is `DATA_RETENTION_MODE=dry-run`**: the job only counts what it would remove and logs
+  `[data-retention] {...}`. Set `DATA_RETENTION_MODE=delete` to remove (`off` does nothing at all).
+  Anything else counts as `dry-run`. Removed texts cannot be recovered except from a database backup.
+- At most 20 batches of 500 per run (10 000 texts); `more: true` in the answer means the backlog
+  continues the next day. The job is idempotent.
+- The response and the log line carry counts only (`expired`, `scrubbed`, `batches`, `more`), never
+  a text. The run is not written to the audit log (it is a system job without a user, like the
+  screenshot job; the exemption is explained in `src/server/audit-coverage.test.ts`).
+- **The period is a proposal until the client confirms it**: 365 days because disputes about a
+  delivery are raised within months, the structured reason remains afterwards, and a free text
+  has no further use for the office. A different value is only the variable.
+
+**Known gap (audit copy).** The audit entry of a problem report (`stop.problem`) contains the note
+cut to 200 characters. It is not touched by this job and disappears with the audit retention
+(730 days, section 7), i.e. up to a year after the stop's own text. If the client wants the text
+gone at 365 days everywhere, the audit entry should stop storing the text (tracked as
+NUD-121 in `backlog.md`); until then the audit period is the real upper limit for the text.
+
+### Requests of people (access, rectification, erasure)
+
+Handled by the operator by hand; steps in `docs/runbook.md` ("Access and erasure requests"):
+customer and order notes are edited in the admin area, driver texts are scrubbed by the job or
+earlier by hand, a user account is deactivated, photos and screenshots are removed in the bucket
+and the database. Data in backups expires with the backups (section 3).
 
 ## 7. Audit log retention (NUD-092, NUD-111)
 

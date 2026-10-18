@@ -251,7 +251,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
 | NUD-110 | Nonce-based script CSP | M2 | 093 | done |
 | NUD-111 | Audit log retention job | M2 | 093 | done |
-| NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
+| NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | done |
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
@@ -260,6 +260,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
+| NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1703,13 +1704,24 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - `src/server/admin-password.integration.test.ts` fails when `DATABASE_URL` is unset (no `skipIf`), unrelated to this ticket; it passes in the integration runs.
 
 #### NUD-112 · Retention for orders, tours, stops and driver problem texts
-**Status:** todo · **depends_on:** 093
+**Status:** done (implemented scope; the periods and whole-order retention need the client, see the open questions in section 10) · **depends_on:** 093
 
 **Goal:** decide with the client (data protection advisor) how long delivered orders / tours / driver problem texts are kept (proposal: 3 years) and implement the deletion or anonymisation (driver free text first), plus a short runbook for access / erasure requests (find and remove a person's name in notes, photos, screenshots).
 
 **Acceptance criteria**
-- [ ] Period decided and written into `docs/privacy.md` section 6.
-- [ ] Cron job (or documented manual procedure) with test; history views cope with removed texts.
+- [x] Analysis of what is personal data in orders, tours, stops and driver texts, and the period for driver texts (365 days, a proposal until the client confirms) written into `docs/privacy.md` section 6 and the retention table in section 2.
+- [x] Cron job with test; history views cope with removed texts (planning view tested; the notes are optional in every view).
+- [ ] Client confirms the driver text period and decides on whole-order / tour retention (not a code task; section 10).
+
+**Implementation notes**
+- Analysis (`docs/privacy.md` section 6): orders, tours and stops hold no personal data of their own beyond user ids (creator, driver) and two free-text fields (`Order.internalNote`, `Stop.problemNote`); customers are businesses. Deleting or anonymising whole orders / tours is neither needed for data protection nor safe without the client (disputes, accounting, backlog 4.3 "never hard-delete business data", a missing stop would falsify a completed tour). So **nothing in orders, tours or stops is deleted**, and no `ORDER_RETENTION_DAYS` exists; that is the open question in section 10.
+- `src/server/data-retention.ts`: `scrubExpiredDriverTexts({db, mode, retentionDays})` sets only `Stop.problemNote` to NULL (`Prisma.DbNull`) on stops with `completedAt` older than `DRIVER_TEXT_RETENTION_DAYS` (default 365; 30..3650; invalid / out-of-range falls back to 365; below 30 refused in code, not clamped). `DATA_RETENTION_MODE`: `dry-run` (default, also for unknown values; counts only), `delete`, `off`. Batches of 500 (findMany then `updateMany` repeating the condition, so a stop changed in between is not touched), at most 20 batches per run, `more` flag, idempotent. Report `{mode, retentionDays, cutoff, expired, scrubbed, batches, more}`, counts only.
+- Reason, status, `completedAt`, items, tour, orders and customers stay. The whole `LocalizedText` goes (original, German translation, pending marker). A note still pending translation is scrubbed too; `stopProblemNoteSource.find` no longer returns it and a late `save` is a no-op (tested), so the text cannot come back. The planning view and the problem-note component already treat a missing note as none (`getTourPlan` tested before / after).
+- Route `GET /api/cron/data-retention` (`data-retention-cron.ts`, bearer `CRON_SECRET`, 401 without configured secret, 503 `{status:"error"}` without the message), daily 03:47 UTC in `vercel.json`, one log line `[data-retention] {counts}`. Authz matrix (`SECRET_ONLY` row + cron-secret test), `docs/privacy.md` (sections 2, 3, 6), `docs/runbook.md` (section 10: job, switching it on, "Access and erasure requests" with find / edit / SQL steps for notes, driver texts, screenshots, photos, accounts), `docs/env.md`, `docs/deploy.md`, `.env.example`, `AGENTS.md`.
+- Audit: the job is exempt in `audit-coverage.test.ts` with a reason (system job without actor; `AuditLog` needs a user id and a per-record entity from a closed vocabulary; precedent screenshot / audit retention) instead of an aggregate audit entry. The integration test proves that nothing but `problemNote` changes.
+- Tests: unit `data-retention.test.ts` (env parsing, floor, dry-run / off / delete, batching, `more`, route 401 / 200 / 503, counts-only response); integration `data-retention.integration.test.ts` on embedded Postgres (dry-run changes nothing, old scrubbed / recent kept / DELIVERED and PENDING stops untouched, all other stop columns identical, pending notes and the retry job, idempotent, batch limit and continuation, longer period, planning view). Lint, typecheck, `i18n:check`, 106 unit files (1182 tests), all 37 integration files (422 tests, backup test skipped without its env), `pnpm build` (via `~/b110.sh`) pass.
+- Known gap, ticket NUD-121: the `stop.problem` audit entry carries the note cut to 200 characters until the audit retention (730 days) deletes it, i.e. up to a year longer than the stop's own text.
+- Not verified: the cron on Vercel / Neon (no production), `prisma migrate deploy` (no migration in this ticket), behaviour with a very large backlog. No UI change, so no e2e run.
 
 #### NUD-113 · 👤 Verify security configuration on the real deployment
 **Status:** todo · **depends_on:** 007, 093
@@ -1809,6 +1821,14 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - [ ] Enforcing policy deployed, results noted under the ticket.
 
 ---
+
+#### NUD-121 · Driver problem text is also copied into the audit log
+**Status:** todo · **depends_on:** 112
+
+**Goal:** `stop.problem` audit entries store the driver's note (cut to 200 characters) in `diff.note`, so the text outlives the stop's own text (NUD-112, 365 days) by up to a year (audit retention 730 days) and cannot be edited because the log is append-only. Decide with the client: store only `hasNote: true` (and the length) in new entries, or align `AUDIT_RETENTION_DAYS` with `DRIVER_TEXT_RETENTION_DAYS`. Check the history views and tests that read `diff.note`; older entries are not changed (the trigger forbids it) and expire with the retention.
+
+**Acceptance criteria**
+- [ ] New `stop.problem` entries contain no driver free text (or the client chose the alignment of periods); history view still shows reason and status; `docs/privacy.md` section 6 "Known gap" updated.
 
 ### M3 — Later (refine before starting)
 
@@ -2121,6 +2141,13 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-111 | `AUDIT_RETENTION_DAYS` default 730, accepted 90..36500, invalid / out-of-range falls back to 730 (not to the floor) | Same principle as `SCREENSHOT_RETENTION_DAYS`: a typo keeps more history instead of deleting more; 24 months as proposed in `docs/privacy.md`, pending client confirmation |
 | 2026-10-18 | NUD-111 | Daily run, batches of 1000 rows in separate transactions, at most 20 batches (20 000 rows) per run, `more` flag | Bounded lock time and function duration (60 s); a large backlog is worked off over several days |
 | 2026-10-18 | NUD-111 | The retention run writes no audit entry; it reports counts in the response and one sanitized log line | An entry about deleting entries would be one more row to delete later; same as the screenshot retention |
+| 2026-10-18 | NUD-112 | Orders, tours and stops are never deleted or anonymised by a job; no `ORDER_RETENTION_DAYS`. Only `Stop.problemNote` is scrubbed | The analysis finds no personal data in them beyond user ids and free text; business history must stay (backlog 4.3, disputes, accounting, completed tours stay complete); whole-order retention is a client question (section 10) |
+| 2026-10-18 | NUD-112 | Driver text period 365 days from `Stop.completedAt`, `DRIVER_TEXT_RETENTION_DAYS` 30..3650, invalid values fall back to 365, below 30 refused in code | Disputes about a delivery arise within months; the structured reason stays; proposal until the client confirms. Same typo principle as the other retention variables |
+| 2026-10-18 | NUD-112 | `DATA_RETENTION_MODE` `dry-run` (default) / `delete` / `off`; unknown values mean `dry-run` | Irreversible removal defaults to report-only (backlog 0 rule 5), same convention as `ORPHAN_CLEANUP_MODE`. So after deployment nothing is removed until the operator sets `delete` |
+| 2026-10-18 | NUD-112 | The whole `problemNote` JSON is set to NULL (original, translation, pending marker); the structured `problemReason` stays | The translation is a copy of the same personal text; a NULL note is already a valid state in every view and for the translation retry job |
+| 2026-10-18 | NUD-112 | The scrub job is exempt from the audit rule with a reason instead of writing an aggregate audit entry | `AuditLog` needs a user id as actor and a per-record entity from a closed vocabulary (NUD-092); a system job has neither; counts go to the response and the log, as for the screenshot and audit retention |
+| 2026-10-18 | NUD-112 | Copy of the note in the `stop.problem` audit entry left as is; ticket NUD-121 | Changing what audit entries store is a separate decision (history views, client period); documented as known gap in `docs/privacy.md` |
+| 2026-10-18 | NUD-112 | Erasure runbook uses manual SQL for driver texts, screenshots and photos before their period | No admin UI to delete these exists and building one is out of scope; steps are explicit and touch one column / row |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
@@ -2130,3 +2157,4 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - Which Chinese variant(s) the drivers actually read → collected in UAT (NUD-096); all four locales ship regardless.
 - Vehicle type (car vs. van/truck profile for routing) → ORS profile setting (NUD-040).
 - Map tile provider account for production (NUD-011) and DeepL API account (NUD-070).
+- Retention of orders, tours and stops (NUD-112): keep forever (current behaviour, nothing is deleted), or delete / anonymise completed orders and tours after N years (proposal 3 years, or as long as accounting and dispute obligations require)? What may be anonymised: `Order.internalNote`, the driver link of tours? Also confirm the driver text period (365 days proposed) and the audit period (730 days proposed). Until decided nothing is deleted; the periods are variables (`docs/privacy.md` section 6).

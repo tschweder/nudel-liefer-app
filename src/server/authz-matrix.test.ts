@@ -380,6 +380,12 @@ const MATRIX: Record<string, Row> = {
     call: async () =>
       (await import("@/app/api/cron/audit-retention/route")).GET(get("/api/cron/audit-retention")),
   },
+  "src/app/api/cron/data-retention/route.ts#GET": {
+    note: "Vercel cron (NUD-112): Authorization Bearer CRON_SECRET",
+    expect: SECRET_ONLY,
+    call: async () =>
+      (await import("@/app/api/cron/data-retention/route")).GET(get("/api/cron/data-retention")),
+  },
   "src/app/api/cron/orphan-cleanup/route.ts#GET": {
     note: "Vercel cron: Authorization Bearer CRON_SECRET",
     expect: SECRET_ONLY,
@@ -663,6 +669,7 @@ describe("authorization matrix", { timeout: 60_000 }, () => {
       ["retry-translations", (await import("@/app/api/cron/retry-translations/route")).GET],
       ["retention", (await import("@/app/api/cron/retention/route")).GET],
       ["audit-retention", (await import("@/app/api/cron/audit-retention/route")).GET],
+      ["data-retention", (await import("@/app/api/cron/data-retention/route")).GET],
       ["orphan-cleanup", (await import("@/app/api/cron/orphan-cleanup/route")).GET],
     ];
     handlers.push([

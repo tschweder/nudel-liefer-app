@@ -18,6 +18,10 @@
       "schedule": "37 3 * * *"
     },
     {
+      "path": "/api/cron/data-retention",
+      "schedule": "47 3 * * *"
+    },
+    {
       "path": "/api/cron/orphan-cleanup",
       "schedule": "7 4 * * 0"
     }

@@ -34,6 +34,8 @@ const EXEMPT: Record<string, string> = {
     "background fill of the German problem-note translation, no user action",
   "server/screenshot-retention.ts":
     "retention job (NUD-093): deletes screenshots older than the retention period together with their files; no user action, the run reports its counts in the cron response and the log (docs/privacy.md)",
+  "server/data-retention.ts":
+    "retention job (NUD-112): sets only Stop.problemNote to NULL on stops completed more than DRIVER_TEXT_RETENTION_DAYS ago (default dry-run); no user action and no actor (an audit entry needs a user id and a per-record entity, neither exists for a system job; precedent: screenshot-retention). Counts only go to the cron response and the log; the test data-retention.integration.test.ts proves that nothing else on the stop changes",
   "server/demo-seed.ts": "demo data seeding script, not an application flow",
   "server/testing/seed-customers.ts": "test helper",
 };

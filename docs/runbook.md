@@ -172,6 +172,27 @@ Uploads that never became a database row (cancelled or failed action) remain in 
 - A change of period is only the variable and a redeploy. Lowering it deletes the surplus at the next run, and deleted entries come back only from a backup (sections 4 and 5), so lower it deliberately.
 - Do not disable the trigger by hand to clean up; use the route.
 
+### Driver text retention (NUD-112)
+
+`/api/cron/data-retention` (daily 03:47 UTC, bearer `CRON_SECRET`) removes the free text of driver problem reports (`Stop.problemNote`: original, German translation, pending marker) of stops completed more than `DRIVER_TEXT_RETENTION_DAYS` ago (default 365, minimum 30). Reason, status, quantities, tours and orders are never touched; orders, tours and stops are never deleted.
+
+- Default is **dry-run**: the log line `[data-retention] {...}` shows `expired` (texts that would go) and `scrubbed: 0`. Read two or three reports (Vercel Logs, search `data-retention`); if the numbers are plausible, set `DATA_RETENTION_MODE=delete` and redeploy. Set it back to `dry-run` (or `off`) to stop.
+- Run by hand: `curl -s -H "Authorization: Bearer $CRON_SECRET" https://<host>/api/cron/data-retention`. `more: true` = backlog continues tomorrow (10 000 texts per run). `503` / `status: error`: database unreachable, nothing partial is harmful.
+- Removed texts come back only from a backup (sections 4 and 5); after a restore the next run removes them again.
+- The audit entry of the report keeps the note cut to 200 characters until the audit retention deletes it (`docs/privacy.md` section 6).
+
+### Access and erasure requests (NUD-112)
+
+A person asks what the app holds about them, or asks for their name to be removed. Find it, then remove or correct it. The operator decides; this list is the app's side. Backups expire on their own (8 weeks).
+
+1. **Find** (Neon SQL editor, read only, replace `%Name%`): `SELECT id, "customerNumber" FROM "Customer" WHERE notes::text ILIKE '%Name%' OR name ILIKE '%Name%';` then the same for `"Order"."internalNote"` and `"Stop"."problemNote"::text`; users: `SELECT id, "displayName", username, email FROM "User" WHERE "displayName" ILIKE '%Name%';`. Photos and chat screenshots have no text: look at the customer's photos in the admin area and the order screenshot of the affected orders.
+2. **Customer notes and order internal notes:** edit the text in the admin area (customer page, order form). The audit log keeps the old order note cut to 200 characters until its retention (730 days) deletes it; it cannot be edited (append-only).
+3. **Driver problem text:** the daily job removes it after 365 days. Earlier: `UPDATE "Stop" SET "problemNote" = NULL WHERE id = '<stop id>';` (only this column; nothing else on the stop). The audit copy stays as in 2.
+4. **Screenshot of a chat:** removed automatically after 180 days. Earlier: delete the object `screenshots/<key>` in the R2 bucket (key from `SELECT "storageKey" FROM "Screenshot" WHERE id = '...'`), then `DELETE FROM "Screenshot" WHERE id = '...';` (the order stays, its screenshot link becomes empty).
+5. **Photo of a person (customer photos):** replace it in the admin area (customer page > photos); the old photo stays as history. To erase it: delete the object `customers/<key>` in R2 and then `DELETE FROM "Photo" WHERE id = '...' AND "isCurrent" = false;` (a current photo must be replaced first so the customer is not left without one).
+6. **User account (staff, driver):** deactivate it in the admin area (soft delete). The name stays in the account row because history refers to it; erasing the name itself is a decision for the operator and its advisor (a pseudonymised display name such as "Former driver" via `UPDATE "User" SET "displayName" = 'Former driver' WHERE id = '...';`, e-mail / user name must stay unique).
+7. Write down date, request and what was done outside the app.
+
 ## 11. Reading /api/health
 
 `GET /api/health` needs no login and returns no secrets.
@@ -188,7 +209,7 @@ Uploads that never became a database row (cancelled or failed action) remain in 
 ## 12. Logs
 
 - Vercel > project > **Logs** (retention depends on plan, short on free: copy what you need). Filter by _Error_ / by text.
-- Useful search words: `[csp-violation]` (blocked resources, no query strings), `[orphan-cleanup]`, `[retention]` (deleted old screenshots, counts), `translate` (DeepL retries), `migrate` (build log).
+- Useful search words: `[csp-violation]` (blocked resources, no query strings), `[orphan-cleanup]`, `[retention]` (deleted old screenshots, counts), `[data-retention]` (driver texts, counts), `[audit-retention]`, `translate` (DeepL retries), `migrate` (build log).
 - Build and migration output: Vercel > **Deployments** > the deployment > **Build Logs**.
 - Cron runs: Vercel > **Settings > Cron Jobs** (and the Logs, source _Cron_).
 - Application errors with stack traces and release: Sentry (section 7), if configured.
