@@ -172,7 +172,7 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
       for (const req of await cache.keys())
         out.push(
           new URL(req.url).pathname +
-            new URL(req.url).search.replace(/[?&]__WB_REVISION__=\w+/, ""),
+            new URL(req.url).search.replace(/[?&]__WB_REVISION__=[\w-]+/, ""),
         );
     }
     return out;

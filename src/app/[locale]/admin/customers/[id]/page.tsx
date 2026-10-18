@@ -17,16 +17,23 @@ const toSlot = ({
   url,
   width,
   height,
+  createdAt,
+  uploadedBy,
 }: {
   id: string;
   url: string;
   width: number;
   height: number;
+  createdAt: Date;
+  uploadedBy: { name: string; role: "ADMIN" | "DRIVER" };
 }) => ({
   id,
   url,
   width,
   height,
+  createdAt: createdAt.toISOString(),
+  // Only drivers are named: the office knows its own uploads (NUD-083 "updated by driver X").
+  driverName: uploadedBy.role === "DRIVER" ? uploadedBy.name : null,
 });
 
 async function Guarded({ locale, id }: { locale: string; id: string }) {

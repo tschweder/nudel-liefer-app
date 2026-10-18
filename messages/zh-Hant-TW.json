@@ -350,7 +350,8 @@
           "object_missing": "找不到已上傳的圖片，請重新上傳。",
           "key_in_use": "該圖片已被使用，請重新上傳。"
         },
-        "archiveUpcoming": "{count, plural, other {注意：該客戶還有 # 個待處理訂單}}。這些訂單會保留，但不會自動取消，請先檢查。"
+        "archiveUpcoming": "{count, plural, other {注意：該客戶還有 # 個待處理訂單}}。這些訂單會保留，但不會自動取消，請先檢查。",
+        "photoByDriver": "由司機 {name} 於 {date} 更新"
       },
       "translations": {
         "tabDetails": "詳情",
@@ -835,7 +836,16 @@
       "appleMaps": "Apple 地圖",
       "stopNavigation": "切換站點",
       "previous": "上一站",
-      "next": "下一站"
+      "next": "下一站",
+      "takePhoto": "拍照",
+      "replacePhoto": "重新拍照",
+      "photoPreparing": "正在處理照片…",
+      "usePhoto": "使用此照片",
+      "retakePhoto": "重拍",
+      "cancelPhoto": "取消",
+      "photoPending": "等待發送",
+      "photoSent": "已傳送",
+      "photoNotSaved": "照片無法儲存在本裝置上，請重試。"
     },
     "status": {
       "delivered": "已送達",
@@ -913,6 +923,11 @@
         "tour_completed": "{name}：路線已經結束，以已儲存的狀態為準。",
         "tour_not_active": "{name}：這條路線已不再有效，您的操作未被採用。",
         "generic": "{name}：您的操作未能被採用，以已儲存的狀態為準。"
+      },
+      "photoNotices": {
+        "not_found": "{name}：此站點已從路線中移除，照片未被採用。",
+        "tour_not_active": "{name}：此路線已不再有效，照片未被採用。",
+        "generic": "{name}：照片未被採用。"
       }
     }
   },

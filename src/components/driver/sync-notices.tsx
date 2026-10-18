@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { getOutbox, useOutbox } from "@/lib/offline/outbox-browser";
 
+const KNOWN_PHOTO = new Set(["not_found", "tour_not_active"]);
+
 const KNOWN = new Set([
   "changed_by_office",
   "not_found",
@@ -17,7 +19,7 @@ const KNOWN = new Set([
 ]);
 
 /**
- * Taps the server did not apply because its state won (NUD-082): the office changed the stop,
+ * Taps (NUD-082) and photos (NUD-083) the server did not take because its state won: the office changed the stop,
  * removed it, the tour is no longer active ... Each notice stays until the driver acknowledges it,
  * also across reloads (it is kept in IndexedDB).
  */
@@ -39,9 +41,13 @@ export function SyncNotices() {
           <p className="flex items-start gap-2 text-base font-semibold">
             <InfoIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
             <span>
-              {t(`notices.${KNOWN.has(notice.error) ? notice.error : "generic"}`, {
-                name: notice.customerName,
-              })}
+              {notice.type === "photo"
+                ? t(`photoNotices.${KNOWN_PHOTO.has(notice.error) ? notice.error : "generic"}`, {
+                    name: notice.customerName,
+                  })
+                : t(`notices.${KNOWN.has(notice.error) ? notice.error : "generic"}`, {
+                    name: notice.customerName,
+                  })}
             </span>
           </p>
           <Button

@@ -139,16 +139,19 @@ model Customer {
 }
 
 model Photo {
-  id           String    @id @default(cuid())
-  customerId   String
-  kind         PhotoKind
-  storageKey   String
-  width        Int
-  height       Int
-  bytes        Int
-  uploadedById String
-  isCurrent    Boolean   @default(true)
-  createdAt    DateTime  @default(now())
+  id               String    @id @default(cuid())
+  customerId       String
+  kind             PhotoKind
+  storageKey       String
+  width            Int
+  height           Int
+  bytes            Int
+  uploadedById     String
+  isCurrent        Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  /// Client-generated id of a driver capture (NUD-083): a retry of the same capture finds this row
+  /// instead of creating a second photo. `null` for photos added by the office.
+  clientMutationId String?   @unique
 
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
   uploadedBy User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
@@ -219,29 +222,29 @@ model OrderItem {
 
 /// No unique constraint on date: several tours per date are allowed later (D5).
 model Tour {
-  id             String     @id @default(cuid())
-  date           DateTime   @db.Date
-  driverId       String?
-  status         TourStatus @default(DRAFT)
-  isOutdated     Boolean    @default(false)
-  locked         Boolean    @default(false)
-  depotSnapshot  Json
-  geometry       Json?
-  totalDistanceM Int?
-  totalDurationS Int?
+  id              String     @id @default(cuid())
+  date            DateTime   @db.Date
+  driverId        String?
+  status          TourStatus @default(DRAFT)
+  isOutdated      Boolean    @default(false)
+  locked          Boolean    @default(false)
+  depotSnapshot   Json
+  geometry        Json?
+  totalDistanceM  Int?
+  totalDurationS  Int?
   /// True when the route came from the local heuristic (estimated distances, straight-line geometry).
-  approximate    Boolean    @default(false)
+  approximate     Boolean    @default(false)
   /// 0 = never released, 1 = first release, +1 for every re-release that changed something (NUD-043).
-  releaseRevision Int       @default(0)
+  releaseRevision Int        @default(0)
   /// When the last re-release happened (null = never re-released); the driver app shows "Tour was updated".
-  reReleasedAt   DateTime?
+  reReleasedAt    DateTime?
   /// What the last re-release changed (`TourDiff` plus `revision`, `at`, names for removed stops); null before.
-  lastChange     Json?
-  optimizedAt    DateTime?
-  releasedAt     DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  lastChange      Json?
+  optimizedAt     DateTime?
+  releasedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   driver User?  @relation(fields: [driverId], references: [id], onDelete: Restrict)
   stops  Stop[]
@@ -250,30 +253,30 @@ model Tour {
 }
 
 model Stop {
-  id               String         @id @default(cuid())
-  tourId           String
-  customerId       String
-  sequence         Int
-  status           StopStatus     @default(PENDING)
-  etaAt            DateTime?
-  legDistanceM     Int?
-  legDurationS     Int?
-  problemReason    ProblemReason?
+  id                String         @id @default(cuid())
+  tourId            String
+  customerId        String
+  sequence          Int
+  status            StopStatus     @default(PENDING)
+  etaAt             DateTime?
+  legDistanceM      Int?
+  legDurationS      Int?
+  problemReason     ProblemReason?
   /// LocalizedText (source = driver locale)
-  problemNote      Json?
-  completedAt      DateTime?
-  clientMutationId String?        @unique
+  problemNote       Json?
+  completedAt       DateTime?
+  clientMutationId  String?        @unique
   /// Quantities the office released for this stop, `[{productId, quantityCents}]` (NUD-043). The driver
   /// sees this snapshot, never the live order lines, so an order edited after release shows up only via re-release.
-  items            Json           @default("[]")
+  items             Json           @default("[]")
   /// Quantities before the last re-release that changed this stop (null otherwise).
-  previousItems    Json?
-  changeKind       StopChange?
+  previousItems     Json?
+  changeKind        StopChange?
   /// `Tour.releaseRevision` in which `changeKind` was set; the driver highlights revisions it has not seen yet.
   changedInRevision Int?
   /// When the office last changed this stop's content (a re-release that changed or added it, NUD-082).
   /// The offline sync lets this win over a driver mutation that was made earlier on the phone.
-  adminChangedAt DateTime?
+  adminChangedAt    DateTime?
 
   tour      Tour           @relation(fields: [tourId], references: [id], onDelete: Cascade)
   customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)

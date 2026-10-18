@@ -6,6 +6,7 @@ import { useRouter } from "@/i18n/navigation";
 import { loadOfflineStatus, requestOfflineSync, syncOfflineNow } from "@/lib/offline/browser";
 import { OUTBOX_FLUSHED_MESSAGE } from "@/lib/offline/constants";
 import { getOutbox } from "@/lib/offline/outbox-browser";
+import { getPhotoOutbox } from "@/lib/offline/photo-outbox-browser";
 
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 /** The outbox is looked at this often (a flush with nothing queued costs one IndexedDB read). */
@@ -47,11 +48,15 @@ export function OfflineSync({ userId }: { userId: string }) {
     }
 
     const outbox = getOutbox();
+    const photoOutbox = getPhotoOutbox();
     void loadOfflineStatus(userId);
     // Send what an earlier visit left in the queue first: the tour copy then already shows it.
     void outbox
       .start(userId)
       .then(() => outbox.flush({ force: true }))
+      // Photos queued earlier (NUD-083) go out after the taps, with the same triggers.
+      .then(() => photoOutbox.start(userId))
+      .then(() => photoOutbox.flush({ force: true }))
       .finally(() => void sync());
 
     // The server settled queued taps: the pages and the offline copy must show its state.
@@ -61,19 +66,26 @@ export function OfflineSync({ userId }: { userId: string }) {
       router.refresh();
     });
 
+    // A photo was registered or dropped: the tour copy and the pages must show the server's state.
+    const offPhotosFlushed = photoOutbox.onFlushed(() => {
+      if (cancelled) return;
+      requestOfflineSync();
+      router.refresh();
+    });
+
     const onOnline = () =>
-      void outbox
-        .flush({ force: true })
+      void Promise.all([outbox.flush({ force: true }), photoOutbox.flush({ force: true })])
         .then(() => sync())
         .then((ok) => ok && !cancelled && router.refresh());
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void outbox.flush({ force: true });
+      void photoOutbox.flush({ force: true });
       void sync();
     };
     const onWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type !== OUTBOX_FLUSHED_MESSAGE || cancelled) return;
-      void outbox.reload().then(() => {
+      void Promise.all([outbox.reload(), photoOutbox.reload()]).then(() => {
         requestOfflineSync();
         router.refresh();
       });
@@ -81,7 +93,10 @@ export function OfflineSync({ userId }: { userId: string }) {
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") void sync();
     }, REFRESH_INTERVAL_MS);
-    const outboxInterval = setInterval(() => void outbox.flush(), OUTBOX_INTERVAL_MS);
+    const outboxInterval = setInterval(() => {
+      void outbox.flush();
+      void photoOutbox.flush();
+    }, OUTBOX_INTERVAL_MS);
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisible);
     navigator.serviceWorker?.addEventListener("message", onWorkerMessage);
@@ -91,6 +106,7 @@ export function OfflineSync({ userId }: { userId: string }) {
       clearInterval(outboxInterval);
       timers.forEach(clearTimeout);
       offFlushed();
+      offPhotosFlushed();
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
       navigator.serviceWorker?.removeEventListener("message", onWorkerMessage);

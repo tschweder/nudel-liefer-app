@@ -5,10 +5,12 @@
 
 /** IndexedDB database holding the driver's tour of today (one record per user). */
 export const OFFLINE_DB_NAME = "nudel-driver-offline";
-export const OFFLINE_DB_VERSION = 2;
+export const OFFLINE_DB_VERSION = 3;
 export const OFFLINE_TOURS_STORE = "tours";
 /** Mutation outbox (NUD-082): queued stop-status taps, keyed by `clientMutationId`. */
 export const OFFLINE_OUTBOX_STORE = "outbox";
+/** Photos the driver took (NUD-083): resized blob + upload state, keyed by `clientMutationId`. */
+export const OFFLINE_PHOTOS_STORE = "photos";
 /** Rejected queued taps the driver has not acknowledged yet, keyed by `clientMutationId`. */
 export const OFFLINE_NOTICES_STORE = "notices";
 
@@ -34,6 +36,9 @@ export const TOUR_API_PATH = "/api/driver/tour/today";
 
 /** Batch sync endpoint (NUD-082). */
 export const SYNC_API_PATH = "/api/driver/sync";
+
+/** Registers an uploaded photo as the customer's current one (NUD-083). */
+export const PHOTO_REGISTER_API_PATH = "/api/driver/photos";
 
 /** Background Sync API tag: the service worker flushes the outbox when the browser says "online". */
 export const OUTBOX_SYNC_TAG = "nudel-outbox";

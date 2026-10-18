@@ -349,7 +349,8 @@
           "object_missing": "找不到已上传的图片，请重新上传。",
           "key_in_use": "该图片已被使用，请重新上传。"
         },
-        "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。"
+        "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。",
+        "photoByDriver": "由司机 {name} 于 {date} 更新"
       },
       "translations": {
         "tabDetails": "详情",
@@ -834,7 +835,16 @@
       "appleMaps": "Apple 地图",
       "stopNavigation": "切换站点",
       "previous": "上一站",
-      "next": "下一站"
+      "next": "下一站",
+      "takePhoto": "拍照",
+      "replacePhoto": "重新拍照",
+      "photoPreparing": "正在处理照片…",
+      "usePhoto": "使用此照片",
+      "retakePhoto": "重拍",
+      "cancelPhoto": "取消",
+      "photoPending": "等待发送",
+      "photoSent": "已发送",
+      "photoNotSaved": "照片无法保存在本设备上，请重试。"
     },
     "status": {
       "delivered": "已送达",
@@ -912,6 +922,11 @@
         "tour_completed": "{name}：路线已经结束，以已保存的状态为准。",
         "tour_not_active": "{name}：这条路线已不再有效，您的操作未被采用。",
         "generic": "{name}：您的操作未能被采用，以已保存的状态为准。"
+      },
+      "photoNotices": {
+        "not_found": "{name}：此站点已从路线中移除，照片未被采用。",
+        "tour_not_active": "{name}：此路线已不再有效，照片未被采用。",
+        "generic": "{name}：照片未被采用。"
       }
     }
   },

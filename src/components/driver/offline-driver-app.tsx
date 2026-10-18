@@ -17,6 +17,7 @@ import type { MapTileConfig } from "@/lib/map-config";
 import { getOfflineStore, loadOfflineStatus } from "@/lib/offline/browser";
 import { photoCacheUrl } from "@/lib/offline/constants";
 import { getOutbox } from "@/lib/offline/outbox-browser";
+import { getPhotoOutbox } from "@/lib/offline/photo-outbox-browser";
 import { parseOfflineView } from "@/lib/offline/routes";
 import { loadCurrentRecord, type OfflineRecord } from "@/lib/offline/store";
 
@@ -41,9 +42,12 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
   useEffect(() => {
     let cancelled = false;
     loadCurrentRecord(getOfflineStore(), new Date())
-      // The queued taps of this driver are part of what the screens show (NUD-082).
+      // The queued taps and photos of this driver are part of what the screens show (NUD-082/083).
       .then(async (record) => {
-        if (record) await getOutbox().start(record.userId);
+        if (record) {
+          await getOutbox().start(record.userId);
+          await getPhotoOutbox().start(record.userId);
+        }
         return record;
       })
       .then((record) => {

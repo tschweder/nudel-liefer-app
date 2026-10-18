@@ -349,7 +349,8 @@
           "object_missing": "Das hochgeladene Bild wurde nicht gefunden. Bitte erneut hochladen.",
           "key_in_use": "Dieses Bild wurde bereits verwendet. Bitte erneut hochladen."
         },
-        "archiveUpcoming": "{count, plural, one {Achtung: Dieser Kunde hat noch # anstehende Bestellung} other {Achtung: Dieser Kunde hat noch # anstehende Bestellungen}}. Sie bleiben bestehen, werden aber nicht automatisch storniert. Bitte vorher prüfen."
+        "archiveUpcoming": "{count, plural, one {Achtung: Dieser Kunde hat noch # anstehende Bestellung} other {Achtung: Dieser Kunde hat noch # anstehende Bestellungen}}. Sie bleiben bestehen, werden aber nicht automatisch storniert. Bitte vorher prüfen.",
+        "photoByDriver": "Aktualisiert von Fahrer {name} am {date}"
       },
       "translations": {
         "tabDetails": "Details",
@@ -834,7 +835,16 @@
       "appleMaps": "Apple Karten",
       "stopNavigation": "Zwischen Stopps wechseln",
       "previous": "Zurück",
-      "next": "Weiter"
+      "next": "Weiter",
+      "takePhoto": "Foto aufnehmen",
+      "replacePhoto": "Foto ersetzen",
+      "photoPreparing": "Foto wird vorbereitet …",
+      "usePhoto": "Foto verwenden",
+      "retakePhoto": "Neu aufnehmen",
+      "cancelPhoto": "Abbrechen",
+      "photoPending": "Wartet auf Versand",
+      "photoSent": "Gesendet",
+      "photoNotSaved": "Das Foto konnte auf dem Gerät nicht gespeichert werden. Bitte erneut versuchen."
     },
     "status": {
       "delivered": "Geliefert",
@@ -912,6 +922,11 @@
         "tour_completed": "{name}: Die Tour ist schon abgeschlossen. Es gilt der gespeicherte Stand.",
         "tour_not_active": "{name}: Diese Tour ist nicht mehr aktiv. Ihre Eingabe wurde nicht übernommen.",
         "generic": "{name}: Die Eingabe konnte nicht übernommen werden. Es gilt der gespeicherte Stand."
+      },
+      "photoNotices": {
+        "not_found": "{name}: Dieser Stopp wurde aus der Tour entfernt. Das Foto wurde nicht übernommen.",
+        "tour_not_active": "{name}: Diese Tour ist nicht mehr aktiv. Das Foto wurde nicht übernommen.",
+        "generic": "{name}: Das Foto konnte nicht übernommen werden."
       }
     }
   },

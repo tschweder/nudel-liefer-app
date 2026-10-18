@@ -39,7 +39,8 @@ export type OutboxNotice = {
   userId: string;
   stopId: string;
   customerName: string;
-  type: SyncMutationType;
+  /** `photo`: a photo the server did not take (NUD-083). */
+  type: SyncMutationType | "photo";
   /** Reason code (`changed_by_office`, `not_found`, `already_completed`, ...). */
   error: string;
   /** ISO time the notice arose. */

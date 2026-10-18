@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2Icon, ImageOffIcon, RefreshCwIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { CheckCircle2Icon, ImageOffIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { PhotoKind } from "@/domain/photos";
 import { useRouter } from "@/i18n/navigation";
+import { createAppFormatters } from "@/lib/format";
 import type { UploadedImage } from "@/lib/upload-image";
 import { addCustomerPhotoAction } from "@/server/customer-actions";
 
@@ -20,6 +21,10 @@ export type PhotoSlotValue = {
   url: string;
   width: number;
   height: number;
+  /** When this photo was added (ISO). */
+  createdAt?: string;
+  /** Display name of the driver who took it; `null` when the office uploaded it. */
+  driverName?: string | null;
 };
 
 type Props = {
@@ -61,6 +66,7 @@ function PhotoSlot({
   const t = useTranslations("admin.customers.detail");
   const tc = useTranslations("common");
   const router = useRouter();
+  const fmt = createAppFormatters(useFormatter());
   const [replacing, setReplacing] = useState(false);
   const [pending, startTransition] = useTransition();
   const label = t(kind === "STORE" ? "storePhoto" : "parkingPhoto");
@@ -110,6 +116,19 @@ function PhotoSlot({
           alt={`${label}: ${customerName}`}
           className="aspect-[4/3] w-full bg-muted"
         />
+      ) : null}
+
+      {photo?.driverName && photo.createdAt ? (
+        <p
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          data-testid="photo-by-driver"
+        >
+          <TruckIcon className="size-4 shrink-0" aria-hidden />
+          {t("photoByDriver", {
+            name: photo.driverName,
+            date: fmt.dateTime(new Date(photo.createdAt)),
+          })}
+        </p>
       ) : null}
 
       {photo && !replacing ? (

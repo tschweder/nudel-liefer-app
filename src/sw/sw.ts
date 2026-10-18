@@ -8,6 +8,9 @@ import {
 } from "../lib/offline/constants";
 import { flushOutbox } from "../lib/offline/outbox-flush";
 import { createIndexedDbOutboxStore } from "../lib/offline/outbox-store";
+import { flushPhotos } from "../lib/offline/photo-outbox-flush";
+import { createIndexedDbPhotoStore } from "../lib/offline/photo-outbox-store";
+import { createBrowserPhotoCache } from "../lib/offline/photos";
 import { isDriverNavigation, isPhotoCachePath, offlineShellUrl, offlineShellUrls } from "./rules";
 
 declare global {
@@ -76,18 +79,38 @@ async function flushOutboxInBackground(): Promise<void> {
   const store = createIndexedDbOutboxStore();
   const userIds = await store.tourUserIds();
   if (userIds.length !== 1) return;
-  const outcome = await flushOutbox(userIds[0]!, {
+  const userId = userIds[0]!;
+  const outcome = await flushOutbox(userId, {
     store,
     fetchImpl: (input, init) => fetch(input, init),
     now: () => new Date(),
   });
-  if (outcome.kind !== "ran") return;
-  if (outcome.applied + outcome.rejected > 0) {
+  // Photos the driver took (NUD-083) go out after the taps: upload, register, cache the blob.
+  const photoCache = createBrowserPhotoCache();
+  const photos = await flushPhotos(userId, {
+    store: createIndexedDbPhotoStore(),
+    putNotice: (notice) => store.putNotice(notice),
+    cachePhoto: (photoId, blob) =>
+      photoCache.put(
+        photoId,
+        new Response(blob, { headers: { "Content-Type": blob.type || "image/jpeg" } }),
+      ),
+    fetchImpl: (input, init) => fetch(input, init),
+    now: () => new Date(),
+  });
+  const changed =
+    (outcome.kind === "ran" && outcome.applied + outcome.rejected > 0) ||
+    (photos.kind === "ran" && photos.registered.length + photos.rejected > 0);
+  if (changed) {
     const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of clients) client.postMessage({ type: OUTBOX_FLUSHED_MESSAGE });
   }
-  if (outcome.failure === "network" || outcome.failure === "server") {
-    throw new Error(`outbox flush failed (${outcome.failure})`);
+  const failures = [
+    outcome.kind === "ran" ? outcome.failure : null,
+    photos.kind === "ran" ? photos.failure : null,
+  ];
+  if (failures.some((f) => f === "network" || f === "server")) {
+    throw new Error("outbox flush failed");
   }
 }
 

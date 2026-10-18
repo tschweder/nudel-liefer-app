@@ -127,8 +127,12 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
       "https://www.google.com/maps/dir/?api=1&destination=48.21,16.38&travelmode=driving",
     );
     expect(screen.queryByTestId("navigate-apple")).toBeNull();
-    expect(within(screen.getByTestId("photo-store")).getByRole("button")).toBeInTheDocument();
+    // A present photo: the zoom button plus "Replace photo" (NUD-083)
+    expect(within(screen.getByTestId("photo-store")).getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByTestId("photo-replace-store")).toBeVisible();
+    // A missing photo: the placeholder offers "Take photo" right there (NUD-083)
     expect(within(screen.getByTestId("photo-parking")).getByTestId("photo-missing")).toBeVisible();
+    expect(screen.getByTestId("photo-take-parking")).toBeVisible();
     const rows = screen.getAllByTestId("stop-item");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("item-name")).toHaveTextContent("Spaghetti");

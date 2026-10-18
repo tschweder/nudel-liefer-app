@@ -293,7 +293,10 @@ for (const locale of LOCALES) {
     ).toBeGreaterThanOrEqual(16);
     expect(await noHorizontalScroll(page)).toBe(true);
     await expect(page.getByTestId("prev-stop")).toBeDisabled();
-    const withPhotos = await box(page, "photo-store");
+    // The 4:3 frame (a present photo also has a "Replace photo" button below it, NUD-083).
+    const frame = (id: string) =>
+      box(page, id).then(() => page.getByTestId(id).getByTestId("photo-frame").boundingBox());
+    const withPhotos = (await frame("photo-store"))!;
     await page.screenshot({
       path: testInfo.outputPath(`stop-photos-${locale}.png`),
       fullPage: true,
@@ -308,7 +311,7 @@ for (const locale of LOCALES) {
     await expect(page.getByTestId("stop-info")).toHaveCount(0);
     await expect(page.getByTestId("next-stop")).toBeDisabled();
     await expect(page.getByTestId("prev-stop")).toHaveAttribute("href", /\/stops\//);
-    const without = await box(page, "photo-store");
+    const without = (await frame("photo-store"))!;
     expect(Math.round(without.height)).toBe(Math.round(withPhotos.height));
     expect(Math.round(without.width)).toBe(Math.round(withPhotos.width));
     expect(await noHorizontalScroll(page)).toBe(true);
@@ -329,12 +332,15 @@ test("one photo missing, fullscreen pinch-zoom viewer, copy address, prev / next
   await page.goto(`/de/driver/stops/${stopIds[1]}`);
   await expect(page.getByTestId("photo-store").locator("img")).toBeVisible();
   await expect(page.getByTestId("photo-parking").getByTestId("photo-missing")).toBeVisible();
-  const store = await box(page, "photo-store");
-  const parking = await box(page, "photo-parking");
+  // Compare the 4:3 frames (a present photo also has a "Replace photo" button, NUD-083).
+  const frame = async (id: string) =>
+    (await page.getByTestId(id).getByTestId("photo-frame").boundingBox())!;
+  const store = await frame("photo-store");
+  const parking = await frame("photo-parking");
   expect(Math.round(parking.height)).toBe(Math.round(store.height));
 
   // Tap -> fullscreen viewer with zoom controls.
-  await page.getByTestId("photo-store").getByRole("button").click();
+  await page.getByTestId("photo-frame").first().getByRole("button").click();
   const image = page.getByTestId("zoom-image");
   await expect(image).toBeVisible();
   await expect(image).toHaveAttribute("data-scale", "1");

@@ -232,7 +232,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-080 | PWA installability | M2 | 051 | done |
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | done |
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | done |
-| NUD-083 | Driver photo capture / replace | M2 | 052, 082 | todo |
+| NUD-083 | Driver photo capture / replace | M2 | 052, 082 | done |
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | todo |
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | todo |
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | todo |
@@ -1275,7 +1275,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-083 · Driver photo capture / replace
-**Status:** todo · **depends_on:** 052, 082
+**Status:** done · **depends_on:** 052, 082
 
 **Goal:** drivers keep photos up to date on site (D12).
 
@@ -1285,8 +1285,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - New photo becomes current; admin sees "updated by driver X on date" on the customer page.
 
 **Acceptance criteria**
-- [ ] Photo taken offline appears on the customer profile after reconnect.
-- [ ] Missing-photo placeholder on stop detail offers "Take photo" directly.
+- [x] Photo taken offline appears on the customer profile after reconnect. (`tests/e2e/driver-photo.spec.ts`, 375 px, production build, real PUT to the s3rver emulator: taken offline via `setInputFiles`, shown at once from the local blob, kept in IndexedDB, nothing on the server; after reconnect exactly one `Photo` with the capture's `clientMutationId`, current, `uploadedById` = driver; the admin customer page shows the decoded image and "Aktualisiert von Fahrer X am ...".)
+- [x] Missing-photo placeholder on stop detail offers "Take photo" directly. (Button inside the placeholder, 48+ px, opens the file input with `capture="environment"`; e2e + component test in 4 locales.)
+
+**Implementation notes**
+- Server: `Photo.clientMutationId` (unique, migration `20261018110000_photo_client_mutation_id`). `server/customer-photos.ts` now has the shared `attachCustomerPhoto` (storage `head`, key shape, one transaction under the customer row lock, history with `isCurrent=false`, idempotency check under the lock); the admin `addCustomerPhoto` is a thin wrapper. New `server/driver-photos.ts`: `registerDriverPhoto` (DRIVER only, strict zod, customer derived from the stop, stop must be in the driver's own tour with status RELEASED / IN_PROGRESS / COMPLETED and day = today or yesterday in the factory time zone, replay answered even when the tour has been closed since) and `POST /api/driver/photos` (`requireRole("DRIVER")` first: 401 / 403, JSON only 415, <= 8 KiB 413, invalid 400, business rejections are HTTP 200 `{outcome:"rejected", error}`; `private, no-store`). Contract + pure rules in `domain/driver-photo.ts`. `getCustomerPhotos` now returns `uploadedBy` + `createdAt`; the admin slot shows "Aktualisiert von Fahrer X am <date>" for driver photos.
+- Client `src/lib/offline/`: `photo-outbox.ts` (pure: entry, supersede rule, what a slot shows, tour copy patch), `photo-outbox-store.ts` (IndexedDB store `photos`, DB v3, blob inside the row), `photo-outbox-flush.ts` (presign -> PUT -> save `storageKey` -> register -> cache blob under the real photo id + patch the stored tour copy -> remove; every step repeatable), `photo-outbox-controller.ts` / `photo-outbox-browser.ts` (same backoff / triggers as the tap outbox, wired into `OfflineSync`, `OfflineDriverApp` and the worker's Background Sync handler), `use-photo-overlay.ts` (object URL from the local blob, "confirmed" overlay for 20 s). UI: `components/driver/driver-photo-slot.tsx` (placeholder with "Take photo", "Replace photo", preview with Use / Retake / Cancel, badges "Wartet auf Versand" / "Gesendet"); top-bar badge counts taps + photos; notices for dropped photos reuse the notice cards (`driver.sync.photoNotices.*`). `docs/offline.md` updated.
+- Tests: unit `domain/driver-photo`, `offline/photo-outbox`, `photo-outbox-controller` (13: offline then reconnect, lost answer = same id and no second upload, refused PUT, 5xx backoff, 401 keeps, rejection notice, object_missing, supersede, order, foreign entries, tour copy patch); component `driver-photo-slot` (4 locales); integration `driver-photos.integration.test.ts` (37: anonymous / admin / deactivated, foreign and unknown stops, non-released / old / future tours, time zone, forged keys, invalid input, missing object, key reuse, replay, concurrent retries, other driver's id, history, `uploadedBy`); e2e `driver-photo.spec.ts` (6, mobile 375 px). Existing `driver-stop` and `pwa` e2e adapted (photo frame compared instead of the whole section; the cache-key regex now accepts a build id with a hyphen, which made `pwa` fail for some builds independent of this ticket).
+- Verified: lint, typecheck (incl. worker), `i18n:check`, prettier on changed files, unit + DB tests (~1070 passed), `pnpm build` (fake S3), e2e mobile: `driver-photo`, `driver-offline`, `driver-outbox`, `driver-stop`, `driver-status`, `driver-today`, `pwa`, `customer-photos`; screenshots at 375 px (placeholder, preview, offline pending, sent, zh-Hant-TW preview) and the admin profile at 1280 / 375 px inspected, no horizontal scroll.
+- NOT verified: a real phone camera (HEIC / large originals, iOS Safari `capture` behaviour, memory use of a 12 MP decode); real R2 CORS for the browser `PUT` (only s3rver); Background Sync path of photos in a browser (bundled and type-checked only); the desktop Playwright project; Chinese strings are agent-written (NUD-073). `driver-outbox` "undo while offline" failed once when run in the same session as `driver-offline` (waiting for "offline ready" after reconnect) and passed alone and on a repeat; not investigated.
+- Known limits / follow-ups: an object uploaded but never registered (photo dropped by a final rejection) stays orphaned in storage (cleanup belongs with NUD-094, as for NUD-015); a photo for a stop the office removed from the tour in the meantime is rejected with a notice (the picture is lost); the preview shows the re-encoded JPEG, there is no crop / rotate; no limit on queued photos besides the device's storage.
 
 ---
 
@@ -1726,6 +1734,13 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-082 | Backoff 2 s doubling to 5 min; `online` / focus / start skip it, the 60 s timer and new taps respect it; chunks of 50; a 400 chunk is retried entry by entry | Spec asks for exponential backoff; a changed situation deserves one immediate attempt; one bad entry must not block the queue |
 | 2026-10-18 | NUD-082 | Unsent taps and notices survive logout / the login purge (kept per user, other drivers' after 3 days); the worker's Background Sync only sends for the user of the stored tour copy | "Taps are never lost"; avoids sending one driver's taps in another's session |
 | 2026-10-18 | NUD-082 | Settled stop states are shown on top of the not yet refreshed page for 20 s ("confirmed" overlay) | Prevents a flicker back to "pending" between removing the queue entry and the server data refresh |
+| 2026-10-18 | NUD-083 | Photos have their own IndexedDB store (`photos`, DB v3) and controller next to the tap outbox, with the same triggers, backoff and notice cards; the top-bar badge counts both | Taps are tiny JSON batches, photos are blobs with a three-step upload; one queue per kind keeps both simple and the "outbox" semantics (queued on the device, retried, idempotent) |
+| 2026-10-18 | NUD-083 | Registration is `POST /api/driver/photos` (idempotent by the new unique `Photo.clientMutationId`), not a server action; the customer is derived from the stop, never sent by the client | Must work from the offline queue and the worker; client-chosen customers would let a driver change any customer's photo |
+| 2026-10-18 | NUD-083 | Allowed tours: the driver's own, status RELEASED / IN_PROGRESS / COMPLETED, day = today or yesterday in the factory time zone (instead of only today / RELEASED / IN_PROGRESS) | A photo taken offline in the evening is registered after midnight, and drivers often notice a missing photo while closing the last stop (COMPLETED); older tours stay closed |
+| 2026-10-18 | NUD-083 | The `storageKey` is saved in the queue row right after the PUT; the presigned PUT (5 min) is always requested in the same attempt as the upload; `object_missing` re-uploads up to 3 times, then the photo is dropped with a notice | A lost registration answer must not upload twice; a stale grant is never reused |
+| 2026-10-18 | NUD-083 | A new photo of the same customer and kind replaces older unsent queue entries (not those in flight) | They would be current for a moment and then replaced; saves bandwidth and history rows |
+| 2026-10-18 | NUD-083 | The slot shows the queued photo from an object URL of the local blob; after registration the blob is also stored in the photo cache under the real photo id and the tour copy is patched, "Gesendet" overlay for 20 s | Immediate feedback offline, no flicker before the page data refreshes, no download of what the phone already has |
+| 2026-10-18 | NUD-083 | The office sees "Aktualisiert von Fahrer X am <date>" only for photos uploaded by a driver | Spec asks for the driver attribution; office uploads need none |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

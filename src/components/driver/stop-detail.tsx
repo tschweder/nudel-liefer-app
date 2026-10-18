@@ -8,7 +8,6 @@ import {
   ChevronRightIcon,
   ClockIcon,
   CopyIcon,
-  ImageOffIcon,
   MapPinIcon,
   NavigationIcon,
   PackageIcon,
@@ -17,18 +16,18 @@ import {
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { ImagePreview } from "@/components/shared/image-preview";
 import { Button } from "@/components/ui/button";
 import { formatAddress } from "@/domain/driver-stop";
-import type { PhotoKind } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
 import { isIosDevice } from "@/lib/device";
-import type { DriverStopDetail, StopPhoto } from "@/lib/driver-tour-model";
+import type { DriverStopDetail } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
 import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
+import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
 import { cn } from "@/lib/utils";
 
+import { DriverPhotoSlot } from "./driver-photo-slot";
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { StopStatusActions } from "./stop-status-actions";
 
@@ -84,44 +83,6 @@ function CopyAddress({ address }: { address: string }) {
   );
 }
 
-/** Large photo with fullscreen pinch-zoom, or a placeholder of the same size when missing. */
-function PhotoSlot({
-  kind,
-  photo,
-  alt,
-}: {
-  kind: PhotoKind;
-  photo: StopPhoto | null;
-  alt: string;
-}) {
-  const t = useTranslations("driver.stop");
-  const label = kind === "STORE" ? t("photoStore") : t("photoParking");
-  return (
-    <section className="space-y-2" data-testid={`photo-${kind.toLowerCase()}`}>
-      <h2 className="text-lg font-semibold">{label}</h2>
-      {/* Fixed 4:3 box: a missing, slow or broken photo never changes the layout. */}
-      <div className="aspect-[4/3] w-full overflow-hidden rounded-lg border bg-muted">
-        {photo ? (
-          <ImagePreview
-            src={photo.url}
-            alt={alt}
-            fit="contain"
-            className="size-full rounded-none"
-          />
-        ) : (
-          <div
-            className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-muted-foreground"
-            data-testid="photo-missing"
-          >
-            <ImageOffIcon className="size-12" aria-hidden />
-            <span className="text-base font-medium">{t("noPhoto")}</span>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
 export function StopDetail({
   detail,
   offline = false,
@@ -136,6 +97,8 @@ export function StopDetail({
   // Queued taps the server has not confirmed yet count as done on this screen (NUD-082).
   const stop = useOverlaidStop(detail.stop);
   const tourStops = useOverlaidStops(detail.tourStops);
+  // A photo taken here shows at once from the local blob while it waits to be sent (NUD-083).
+  const photos = useOverlaidPhotos(stop.customerId, detail.photos);
   const hasPin = stop.lat !== null && stop.lng !== null;
   const address = formatAddress(stop);
 
@@ -210,16 +173,21 @@ export function StopDetail({
         )}
       </div>
 
-      <PhotoSlot
-        kind="STORE"
-        photo={detail.photos.STORE}
-        alt={`${t("stop.photoStore")}: ${stop.customerName}`}
-      />
-      <PhotoSlot
-        kind="PARKING"
-        photo={detail.photos.PARKING}
-        alt={`${t("stop.photoParking")}: ${stop.customerName}`}
-      />
+      {(["STORE", "PARKING"] as const).map((kind) => {
+        const label = t(kind === "STORE" ? "stop.photoStore" : "stop.photoParking");
+        return (
+          <DriverPhotoSlot
+            key={kind}
+            kind={kind}
+            label={label}
+            alt={`${label}: ${stop.customerName}`}
+            photo={photos[kind]}
+            stopId={stop.id}
+            customerId={stop.customerId}
+            customerName={stop.customerName}
+          />
+        );
+      })}
 
       <section className="space-y-3" data-testid="stop-items">
         <h2 className="flex items-center gap-2 text-lg font-semibold">

@@ -3,13 +3,14 @@ import {
   OFFLINE_DB_VERSION,
   OFFLINE_NOTICES_STORE,
   OFFLINE_OUTBOX_STORE,
+  OFFLINE_PHOTOS_STORE,
   OFFLINE_TOURS_STORE,
 } from "./constants";
 
 /**
- * The one IndexedDB database of the driver app (NUD-081 tour copy, NUD-082 outbox and notices) and
+ * The one IndexedDB database of the driver app (NUD-081 tour copy, NUD-082 outbox and notices, NUD-083 photos) and
  * the small promise helpers around it. No zod and no React: the service worker bundles this file.
- * Stores: `tours` (key `userId`), `outbox` (key `clientMutationId`), `notices` (key `id`).
+ * Stores: `tours` (key `userId`), `outbox` (key `clientMutationId`), `notices` (key `id`), `photos` (key `clientMutationId`).
  */
 
 export function idbRequest<T>(req: IDBRequest<T>): Promise<T> {
@@ -39,6 +40,9 @@ export function createIdbConnection(): () => Promise<IDBDatabase> {
         }
         if (!db.objectStoreNames.contains(OFFLINE_NOTICES_STORE)) {
           db.createObjectStore(OFFLINE_NOTICES_STORE, { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains(OFFLINE_PHOTOS_STORE)) {
+          db.createObjectStore(OFFLINE_PHOTOS_STORE, { keyPath: "clientMutationId" });
         }
       };
       req.onsuccess = () => {
