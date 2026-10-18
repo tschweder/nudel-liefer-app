@@ -136,13 +136,17 @@ body {
     sans-serif;
 }
 
-/* Print view of a freshly generated PIN (NUD-008): only the dialog content is printed. */
+/*
+ * Print view of a freshly generated PIN (NUD-008): only the dialog content is printed. Scoped with
+ * :has() (NUD-091) so it applies only while that dialog is open; before, it blanked every page
+ * that was printed (the load sheet included).
+ */
 @media print {
-  body * {
+  body:has(.pin-sheet) * {
     visibility: hidden;
   }
-  .pin-sheet,
-  .pin-sheet * {
+  body:has(.pin-sheet) .pin-sheet,
+  body:has(.pin-sheet) .pin-sheet * {
     visibility: visible;
   }
   .pin-sheet {
@@ -153,5 +157,34 @@ body {
     max-width: none !important;
     border: 0 !important;
     box-shadow: none !important;
+  }
+}
+
+/* Load sheet / packing list (NUD-091). The sheet is always black on white, like the paper. */
+.load-sheet-page {
+  color-scheme: light;
+}
+.load-sheet table {
+  border-collapse: collapse;
+}
+.load-sheet thead {
+  display: table-header-group; /* repeat the header on every printed page */
+}
+.load-sheet tr,
+.load-sheet li {
+  break-inside: avoid;
+  page-break-inside: avoid; /* no row is split across two pages */
+}
+.load-sheet h2 {
+  break-after: avoid;
+}
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .load-sheet {
+    font-size: 10.5pt;
   }
 }

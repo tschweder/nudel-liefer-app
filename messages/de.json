@@ -926,6 +926,33 @@
         "translationPending": "Übersetzung folgt",
         "showOriginal": "Original anzeigen",
         "hideOriginal": "Original ausblenden"
+      },
+      "print": {
+        "open": "Ladeliste drucken",
+        "back": "Zurück zur Tour",
+        "printButton": "Drucken",
+        "languageLabel": "Sprache des Ausdrucks",
+        "outdatedScreen": "Die Bestellungen haben sich seit dem Erstellen bzw. der Freigabe dieser Tour geändert. Die Ladeliste zeigt die Mengen der Tour, nicht die aktuellen Bestellungen. Bitte die Tour prüfen und erneut freigeben, bevor beladen wird.",
+        "title": "Ladeliste",
+        "date": "Lieferdatum",
+        "driver": "Fahrer",
+        "driverNone": "Kein Fahrer zugewiesen",
+        "depot": "Depot",
+        "stops": "Stopps",
+        "version": "Freigabe-Version {revision}",
+        "notReleased": "noch nicht freigegeben",
+        "outdated": "ACHTUNG: Bestellungen wurden nach der Freigabe dieser Tour geändert. Diese Liste zeigt die Mengen der Tour, nicht die aktuellen Bestellungen. Nicht beladen, bevor die Tour erneut freigegeben wurde.",
+        "empty": "Diese Tour hat keine Stopps.",
+        "totalsHeading": "1. Gesamtmenge pro Produkt",
+        "product": "Produkt",
+        "quantity": "Menge",
+        "stopsHeading": "2. Beladereihenfolge",
+        "stopsHint": "Der letzte Stopp wird zuerst eingeladen, der erste Stopp zuletzt (liegt dann oben).",
+        "loadPosition": "Laden",
+        "stop": "Stopp",
+        "customer": "Kunde",
+        "items": "Produkte und Mengen",
+        "noItems": "Keine Positionen"
       }
     }
   },

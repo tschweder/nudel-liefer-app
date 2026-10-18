@@ -927,6 +927,33 @@
         "translationPending": "翻譯中",
         "showOriginal": "顯示原文",
         "hideOriginal": "隱藏原文"
+      },
+      "print": {
+        "open": "列印裝車單",
+        "back": "返回路線",
+        "printButton": "列印",
+        "languageLabel": "列印語言",
+        "outdatedScreen": "自這條路線生成或釋出以來，訂單已發生變更。裝車單顯示的是路線中的數量，而不是當前訂單。裝車前請檢查路線並重新發布。",
+        "title": "裝車單",
+        "date": "送貨日期",
+        "driver": "司機",
+        "driverNone": "尚未指派司機",
+        "depot": "出發點",
+        "stops": "站點",
+        "version": "釋出版本 {revision}",
+        "notReleased": "尚未釋出",
+        "outdated": "注意：此路線釋出後訂單已變更。本單顯示的是路線中的數量，而不是當前訂單。路線重新發布之前請勿裝車。",
+        "empty": "這條路線沒有站點。",
+        "totalsHeading": "1. 各產品總數量",
+        "product": "產品",
+        "quantity": "數量",
+        "stopsHeading": "2. 裝車順序",
+        "stopsHint": "最後一站最先裝車，第一站最後裝車（放在最上面）。",
+        "loadPosition": "裝車",
+        "stop": "站點",
+        "customer": "客戶",
+        "items": "產品和數量",
+        "noItems": "沒有商品"
       }
     }
   },

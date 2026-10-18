@@ -234,7 +234,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | done |
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | done |
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | done |
-| NUD-091 | Packing list / load sheet print view | M2 | 041 | todo |
+| NUD-091 | Packing list / load sheet print view | M2 | 041 | done |
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | todo |
 | NUD-093 | Security hardening | M2 | 060 | todo |
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | todo |
@@ -1329,7 +1329,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-091 · Packing list / load sheet print view
-**Status:** todo · **depends_on:** 041
+**Status:** done · **depends_on:** 041
 
 **Goal:** load the van correctly before departure.
 
@@ -1340,8 +1340,22 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Product names in chosen locale + German; locale selectable so it can be printed for the driver.
 
 **Acceptance criteria**
-- [ ] Totals equal the sum of all stops (unit test on the shared aggregation function).
-- [ ] Print preview fits on A4 without cut-off columns for 30 stops (multi-page OK).
+- [x] Totals equal the sum of all stops (unit test on the shared aggregation function). (`domain/load-sheet.test.ts`: 30 stops, per-product sums, grand total, same result as `sumQuantities` of the order overview, exact hundredths, different units never merged; `server/tour-print.integration.test.ts`: totals of a real 30-stop tour equal the DB sums of the confirmed orders; e2e compares the printed totals with the seeded numbers.)
+- [x] Print preview fits on A4 without cut-off columns for 30 stops (multi-page OK). (e2e `load-sheet.spec.ts`: `page.pdf({format:"A4"})` in all four locales = 4 pages (de) / 5 pages (zh), page size A4 per `pdfinfo`, text of first and last stop present in the PDF text layer; in print media at the A4 content width (186 mm) no cell overflows and the document does not scroll horizontally; rendered PDF pages inspected as PNG for de and zh-Hans.)
+
+**Implementation notes**
+- Route `src/app/[locale]/admin/(print)/tours/[id]/print/page.tsx`. To keep the admin shell (sidebar, header, user menu) off the sheet the admin section was split into route groups: all existing admin pages and the old `admin/layout.tsx` moved UNCHANGED into `admin/(shell)/` (URLs are the same, pure `git mv`), and the new `admin/(print)/layout.tsx` has the same ADMIN gate (`requirePageActor("admin")`, page repeats it) without `AdminShell`. New admin pages made for paper belong in `(print)`.
+- Quantities: the sheet reads the TOUR's own quantities (`Stop.items`, the snapshot written by the builder and by re-release, exactly what the driver sees), never the live order lines. `server/tour-print.ts` `getTourPrint(db, id)` (stops in delivery order, customer, product rows with name `LocalizedText` / SKU / unit / sortOrder, driver name, depot snapshot, `isOutdated`, `releaseRevision`, status); `tourPrintQuery(tourId)` in `tour-queries.ts` = `requireRole("ADMIN")` first, unknown or malformed id -> `null` -> `notFound()` page.
+- Outdated warning: if `Tour.isOutdated` (orders changed since the tour was built or released) there is a red alert in the screen toolbar (UI language, tells the office to review and re-release) AND a heavy-bordered banner on the paper in the print language ("do not load before the tour is released again"). The numbers stay the tour's, they are never silently replaced by newer ones. Draft / optimized tours print too and say "not released yet".
+- Shared aggregation: `sumQuantities(lines)` added to `domain/order-overview.ts` (exact hundredths per product AND unit); `aggregateTotalsByDate` (NUD-032) now uses it, and `domain/load-sheet.ts` `loadSheetTotals(stops, products)` (section 1, sorted by unit then catalog order) and `loadOrder(stops)` (section 2: reverse sequence, `loadPosition` 1..n) are built on it. Different units are never added; a product that is no longer found keeps its quantity (no unit text) instead of being dropped.
+- Locale: `?locale=` is parsed with the zod `localeSchema` (`parsePrintLocale`): anything that is not exactly one of the four locales (missing, empty, `en`, wrong case, repeated) falls back to the locale of the page URL. The sheet renders with `getTranslations({locale})` / `getFormatter({locale})` in that language (`<article lang=…>` so CJK glyphs are right); the toolbar (back, locale links in own script, Print) stays in the admin's UI language. Product names: `productLabel(name, sku, locale)` (`lib/product-label.ts`) = name in the print locale (usual fallback chain, SKU if nothing) plus the German name in small type when the sheet is not German and differs. Customer name / address are never translated. Units from `common.units`.
+- Layout: header (title, delivery date, driver or "no driver", depot, number of stops + release version), section 1 table (product, total + unit), section 2 table (load position, original stop number, customer + number + address, one line per product with quantity). Print CSS (`globals.css`, `.load-sheet*`): `@page { size: A4; margin: 12mm }` set by the page only, `thead` repeats on every page (`display: table-header-group`), `tr` / `li` `break-inside: avoid` (no row is split), fixed column widths with word wrap, black on white regardless of dark mode; toolbar `print:hidden`. Button "Ladeliste drucken" (`data-testid="tour-print-link"`) in `TourPlanner` for every tour with stops; "Drucken" calls `window.print()`.
+- Pre-existing bug fixed: the NUD-008 print rule `@media print { body * { visibility: hidden } … }` blanked EVERY printed page of the app (the first PDF of the load sheet was empty). It is now scoped with `body:has(.pin-sheet)` so it applies only while the PIN dialog is open; `drivers.spec.ts` got a print-media assertion for it.
+- Strings: `admin.tours.print.*` (de, zh-Hans by hand, Hant generated), 25 keys.
+- Tests: `domain/load-sheet.test.ts` (8), `domain/order-overview.test.ts` (unchanged, still green), `lib/product-label.test.ts` (4), `server/tour-print.test.ts` (locale / id parsing), `server/tour-print.integration.test.ts` (5: read model, 30-stop totals vs DB, snapshot kept after an order change + `isOutdated`, unknown / malformed ids, authorization: anonymous, driver, deactivated admin rejected), e2e `tests/e2e/load-sheet.spec.ts` (anonymous -> login; link from the tour page; no shell; totals vs seeded numbers; reverse order 30..1; Print button calls `window.print()`; 4 locales incl. German name next to the Chinese one, print-media overflow check at 186 mm, A4 PDF with pdfinfo + pdftotext (not blank); invalid locales fall back; unknown tour -> not-found page; outdated warning on screen and in print media; a driver is redirected away).
+- Verified: lint, typecheck, prettier on src / messages / tests, `i18n:check`, `pnpm test` (779 unit + 30 integration files on embedded PostgreSQL, all green), `pnpm build`, e2e (desktop, with the fake S3): `load-sheet`, `drivers`, `tours`, `tour-rerelease`, `shells`, `order-overview`, `products`, `home`, `auth`. PDFs / screenshots in `test-results/nud-091/` (screen at 1280 px for all four locales, outdated state, A4 PDFs); PDF pages for de (4 pages) and zh-Hans (5 pages) rendered with `pdftoppm` and inspected: headers repeat on each page, no row is split, nothing is cut off, Chinese glyphs render (Noto CJK is installed here).
+- NOT verified: a real printer / the browser's own print dialog and its margin / scale settings (only Chromium's `page.pdf` and print-media emulation); Safari / Firefox print engines (`break-inside` on table rows and `thead` repeat are standard but untested there); Chinese strings are agent-written (NUD-073); the mobile Playwright project (the sheet is a desktop / paper page); `tour-rerelease` and `shells` failed once when run in parallel with each other (shared depot flag / missing fake S3) and passed alone with the fake S3, as in earlier tickets; `docs/i18n.md` and `pw.local.config.ts` still fail `prettier --check` (not touched here).
+- Follow-ups: none needed for the ticket. Possible later: a tick-off box per line for the loader, driver-facing print of the same sheet from the driver app (not asked).
 
 ---
 
@@ -1764,6 +1778,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-090 | Imported notes are stored German-only with `pendingTranslation`; no translator call per row | 2000 DeepL calls in one request is slow; the NUD-070 retry job translates |
 | 2026-10-18 | NUD-090 | Geocoding: 5 customers per action, server throttle 700 ms with a real key (`GEOCODE_BATCH_DELAY_MS`), stop on 429/403 or 3 failures; best candidate stored as unconfirmed pin | Stays under the ORS free tier (~100/min); the admin confirms every pin (D9) |
 | 2026-10-18 | NUD-090 | Pin review queue = all active unconfirmed customers, not just the last import; skip is client-side only | No import-batch column needed; one list for every unconfirmed pin |
+| 2026-10-18 | NUD-091 | The print page lives in a new route group `admin/(print)` with the same ADMIN gate but no `AdminShell`; all existing admin pages and the old admin layout moved unchanged into `admin/(shell)` | Route groups are the Next.js way to give some pages a different layout without changing any URL; avoids hiding the shell with CSS |
+| 2026-10-18 | NUD-091 | The sheet prints the quantities of the tour (`Stop.items` snapshot), not the live orders; an outdated tour prints with a loud warning (screen toolbar + banner on the paper) instead of being blocked | Matches what the driver sees (priority 2); the office may still need a sheet, but must know the numbers are stale |
+| 2026-10-18 | NUD-091 | Invalid / missing `?locale=` falls back to the locale in the page URL (no error page) | A bad link should still give a usable sheet; zod `localeSchema` is the only accepted shape |
+| 2026-10-18 | NUD-091 | Totals come from one shared `sumQuantities` (per product AND unit) in `order-overview.ts`, which `aggregateTotalsByDate` now uses too | Ticket demands one shared aggregation function; units are never mixed |
+| 2026-10-18 | NUD-091 | Section 2 shows both the load position (1 = loaded first) and the original stop number; German product name in small type under the Chinese one | The loader needs the load order, the driver the stop number; Chinese-reading loaders may still talk to German staff |
+| 2026-10-18 | NUD-091 | NUD-008's global `@media print { body * { visibility: hidden } }` is scoped with `body:has(.pin-sheet)` | The unscoped rule blanked every printed page of the app; the PIN print still works (e2e assertion added) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

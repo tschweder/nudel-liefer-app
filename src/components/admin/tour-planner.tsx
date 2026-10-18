@@ -9,12 +9,13 @@ import {
   ImageOffIcon,
   LockIcon,
   LockOpenIcon,
+  PrinterIcon,
   RefreshCwIcon,
   RocketIcon,
   RouteIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -75,6 +76,7 @@ export function TourPlanner({
   const ts = useTranslations("admin.settings");
   const tc = useTranslations("common");
   const format = useFormatter();
+  const locale = useLocale();
   const fmt = createAppFormatters(format, plan.timezone);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -370,6 +372,20 @@ export function TourPlanner({
             />
           ) : null}
         </dl>
+
+        {tour.stops.length > 0 ? (
+          <div>
+            <Button asChild variant="outline">
+              <a
+                href={`/${locale}/admin/tours/${encodeURIComponent(tour.id)}/print?locale=${locale}`}
+                data-testid="tour-print-link"
+              >
+                <PrinterIcon aria-hidden />
+                {t("print.open")}
+              </a>
+            </Button>
+          </div>
+        ) : null}
 
         {results ? (
           <div className="flex flex-col gap-2" data-testid="tour-progress">

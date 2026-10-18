@@ -48,6 +48,11 @@ test("admin manages a driver: create, PIN shown once, reset, deactivate -> logge
   const pin = (await pinValue.textContent())?.trim() ?? "";
   expect(pin).toMatch(/^\d{6}$/);
   await expect(admin.getByTestId("pin-username")).toHaveText(username);
+  // printing while the dialog is open prints only the PIN sheet (the print rule applies only then)
+  await admin.emulateMedia({ media: "print" });
+  await expect(pinValue).toBeVisible();
+  await expect(admin.getByTestId("section-title")).toBeHidden();
+  await admin.emulateMedia({ media: "screen" });
   await admin.getByTestId("pin-done").click();
   await expect(admin.getByTestId("pin-dialog")).toBeHidden();
   // the PIN is nowhere on the page any more

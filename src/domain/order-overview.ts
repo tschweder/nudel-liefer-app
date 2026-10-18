@@ -30,30 +30,59 @@ export type DateTotals = {
   products: Array<{ productId: string; quantityCents: number }>;
 };
 
+export type QuantityLine = { productId: string; unit?: string; quantityCents: number };
+export type QuantitySum = { productId: string; unit?: string; quantityCents: number };
+
+const compareStrings = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * THE shared aggregation (NUD-032, reused by the load sheet of NUD-091): exact sum in hundredths
+ * per product AND unit. Lines of the same product with different units are never added together
+ * (5 packs + 2 kg is not 7 of anything); lines without a unit form one group per product.
+ * Sorted by product id, then unit.
+ */
+export function sumQuantities(lines: Iterable<QuantityLine>): QuantitySum[] {
+  const sums = new Map<string, QuantitySum>();
+  for (const line of lines) {
+    const key = `${line.productId}\u0000${line.unit ?? ""}`;
+    const entry = sums.get(key);
+    if (entry) entry.quantityCents += line.quantityCents;
+    else
+      sums.set(key, {
+        productId: line.productId,
+        ...(line.unit === undefined ? {} : { unit: line.unit }),
+        quantityCents: line.quantityCents,
+      });
+  }
+  return [...sums.values()].sort(
+    (a, b) =>
+      compareStrings(a.productId, b.productId) || compareStrings(a.unit ?? "", b.unit ?? ""),
+  );
+}
+
 /**
  * Sum per product for each delivery date, from CONFIRMED orders only: drafts and cancelled orders
  * never count (they are neither produced nor delivered). Quantities are exact hundredths.
  * Dates ascending, products by id; dates without any confirmed order are omitted.
  */
 export function aggregateTotalsByDate(orders: readonly TotalsOrder[]): DateTotals[] {
-  const byDate = new Map<string, { orderCount: number; sums: Map<string, number> }>();
+  const byDate = new Map<string, { orderCount: number; lines: QuantityLine[] }>();
   for (const order of orders) {
     if (order.status !== "CONFIRMED") continue;
-    const day = byDate.get(order.deliveryDate) ?? { orderCount: 0, sums: new Map() };
+    const day = byDate.get(order.deliveryDate) ?? { orderCount: 0, lines: [] };
     day.orderCount += 1;
-    for (const item of order.items) {
-      day.sums.set(item.productId, (day.sums.get(item.productId) ?? 0) + item.quantityCents);
-    }
+    day.lines.push(...order.items);
     byDate.set(order.deliveryDate, day);
   }
   return [...byDate]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .sort(([a], [b]) => compareStrings(a, b))
     .map(([date, day]) => ({
       date,
       orderCount: day.orderCount,
-      products: [...day.sums]
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([productId, quantityCents]) => ({ productId, quantityCents })),
+      products: sumQuantities(day.lines).map(({ productId, quantityCents }) => ({
+        productId,
+        quantityCents,
+      })),
     }));
 }
 

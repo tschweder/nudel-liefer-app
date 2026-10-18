@@ -4,6 +4,7 @@ import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
 import { getDefaultDeliveryDate, getFactoryTimezone } from "./settings";
 import { getTourPlan } from "./tour-planning";
+import { getTourPrint, type TourPrint } from "./tour-print";
 
 /**
  * Admin-only read of the planning screen. `date` is `YYYY-MM-DD`; anything else (or no value)
@@ -20,4 +21,13 @@ export async function tourPlanQuery(date: unknown) {
   );
   if (!plan) throw new Error("Unreachable: the date was validated");
   return plan;
+}
+
+/**
+ * Admin-only read of the load sheet (NUD-091). An unknown or malformed tour id gives `null`
+ * (the page answers 404); the role is checked before anything is read.
+ */
+export async function tourPrintQuery(tourId: unknown): Promise<TourPrint | null> {
+  await requireRole("ADMIN");
+  return getTourPrint(getDb(), tourId);
 }
