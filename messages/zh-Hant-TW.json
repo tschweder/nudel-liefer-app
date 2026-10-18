@@ -392,6 +392,165 @@
           "translation_failed": "翻譯服務暫時無法使用。未做任何更改。"
         },
         "sourceChangeHint": "如果修改德語文本，儲存時只會重新翻譯機器翻譯的版本。手動編輯的版本會保留，並被標記為需要檢查。"
+      },
+      "import": {
+        "link": "匯入",
+        "title": "匯入客戶",
+        "description": "從 CSV 或 Excel 檔案（XLSX）讀取現有客戶名單。已有客戶編號的會更新，新客戶會新建。",
+        "steps": {
+          "upload": "檔案",
+          "mapping": "列",
+          "preview": "預覽",
+          "result": "結果"
+        },
+        "fields": {
+          "customerNumber": "客戶編號",
+          "name": "名稱",
+          "street": "街道和門牌號",
+          "postalCode": "郵編",
+          "city": "城市",
+          "country": "國家",
+          "deliveryHoursInfo": "送貨時間",
+          "notes": "司機備註"
+        },
+        "upload": {
+          "heading": "1. 選擇檔案",
+          "hint": "支援 CSV（逗號、分號或製表符分隔）和 XLSX，最大 {size} MB，最多 {rows} 行資料。第一行必須是列標題。",
+          "label": "客戶檔案",
+          "reading": "正在讀取檔案…"
+        },
+        "errors": {
+          "too_large": "檔案超過 {size} MB。",
+          "empty": "檔案中沒有資料。需要一行標題和至少一行資料。",
+          "unsupported_type": "只支援 CSV 和 XLSX 檔案（不支援舊的 .xls）。",
+          "too_many_rows": "檔案的資料行超過 {rows} 行，請拆分成多個檔案。",
+          "too_many_columns": "檔案的列數超過 {columns} 列。",
+          "cell_too_long": "有單元格超過 {length} 個字元。",
+          "bad_csv": "CSV 檔案已損壞（引號沒有閉合）。",
+          "bad_xlsx": "無法讀取這個 Excel 檔案。",
+          "zip_bomb": "這個 Excel 檔案解壓後異常大，不會被處理。",
+          "invalid": "無法處理這個檔案。",
+          "generic": "操作未成功，請再試一次。"
+        },
+        "mapping": {
+          "heading": "2. 對應各列",
+          "intro": "{file}：{rows} 行資料。請為每個欄位選擇檔案中對應的列。對應關係會儲存在此瀏覽器中，下次匯入時自動建議。",
+          "sheetNote": "檔案有 {count} 個工作表，只讀取第一個（“{name}”）。",
+          "field": "欄位",
+          "column": "檔案中的列",
+          "sample": "檔案中的示例",
+          "required": "必填",
+          "notUsed": "– 不使用 –",
+          "emptyHeader": "無標題",
+          "optionalHint": "空單元格不會改變已有內容。",
+          "problemMissing": "“{field}”沒有選擇列。",
+          "problemDuplicate": "第 {column} 列被對應到多個欄位。",
+          "next": "繼續到預覽",
+          "otherFile": "換一個檔案"
+        },
+        "preview": {
+          "heading": "3. 預覽",
+          "checking": "正在檢查各行…",
+          "summary": {
+            "create": "新建",
+            "update": "更新",
+            "unchanged": "無變化",
+            "error": "有錯誤"
+          },
+          "errorsHint": "有錯誤的行不會匯入，其他行會匯入。",
+          "pinsReset": "{count} 個客戶的地址有變化：地圖示記和確認狀態將被重置。",
+          "archived": "{count} 個已歸檔客戶將被更新，並保持歸檔狀態。",
+          "filter": "顯示",
+          "filterAll": "全部行",
+          "filterErrors": "僅有錯誤的",
+          "filterChanges": "僅新建和更改",
+          "columns": {
+            "line": "行",
+            "number": "編號",
+            "name": "名稱",
+            "status": "操作",
+            "details": "詳情"
+          },
+          "status": {
+            "create": "新建",
+            "update": "更新",
+            "unchanged": "無變化",
+            "error": "錯誤"
+          },
+          "changed": "已更改：{fields}",
+          "pinReset": "地圖示記將被重置",
+          "stayArchived": "已歸檔，保持歸檔",
+          "shown": "顯示 {shown} / {total} 行。",
+          "none": "此篩選條件下沒有行。",
+          "back": "返回列對應",
+          "commit": "匯入 {count} 行",
+          "nothingToDo": "沒有可匯入的內容：沒有新建或更改的有效行。",
+          "importing": "正在匯入…"
+        },
+        "result": {
+          "heading": "4. 結果",
+          "created": "已新建",
+          "updated": "已更新",
+          "unchanged": "無變化",
+          "failed": "未匯入",
+          "allOk": "所有行都已處理。",
+          "pinsReset": "{count} 個客戶因地址變化，地圖示記和確認狀態已被重置。",
+          "failedHeading": "未匯入的行",
+          "again": "匯入另一個檔案",
+          "toList": "前往客戶列表"
+        },
+        "geocode": {
+          "heading": "查詢地圖位置",
+          "description": "為沒有地圖示記的客戶查詢地址並建議位置。標記經檢查後才算已確認。查詢會限速，可能需要幾分鐘。",
+          "start": "為 {count} 個客戶查詢位置",
+          "none": "所有在用客戶都已有地圖示記。",
+          "progressLabel": "地址查詢進度",
+          "progress": "已處理 {done} / {total} 個客戶",
+          "cancel": "取消",
+          "cancelled": "已在 {done} / {total} 個客戶後取消。其餘的可以稍後繼續。",
+          "finished": "完成：找到 {found} 個位置，{notFound} 個地址未找到，{failed} 個出錯。",
+          "lowConfidence": "{count} 個結果不太可靠，需要特別仔細檢查。",
+          "rateLimited": "地址查詢已達到服務商的限制，請稍後繼續。",
+          "unavailable": "地址查詢暫時無法使用。也可以手動設定地圖示記。",
+          "error": "地址查詢失敗。"
+        },
+        "issues": {
+          "required": "缺少{field}。",
+          "too_long": "{field}太長（最多 {max} 個字元）。",
+          "formula": "{field}以 = + - 或 @ 開頭，可能被 Excel 當作公式執行。",
+          "bad_country": "無法識別國家。請使用 2 個字母的程式碼（如 AT、DE）或國家名稱。",
+          "duplicate_in_file": "這個客戶編號已在第 {line} 行出現，本行將被跳過。",
+          "postal_padded": "郵編已補上開頭的 0。",
+          "invalid": "內容無效。",
+          "number_taken": "客戶編號剛剛被佔用。",
+          "changed_meanwhile": "匯入期間該客戶被修改過，本行未匯入。"
+        },
+        "reviewLink": "{count, plural, =0 {檢查地圖示記} other {檢查地圖示記（{count}）}}"
+      },
+      "review": {
+        "title": "檢查地圖示記",
+        "description": "依次檢視地圖示記尚未確認的客戶：檢查地圖上的建議位置，必要時拖動，然後確認。",
+        "backToImport": "返回匯入",
+        "emptyTitle": "沒有需要檢查的",
+        "empty": "所有在用客戶的地圖示記都已確認。",
+        "position": "第 {current} / {total} 個客戶",
+        "address": "送貨地址",
+        "candidate": "建議的地圖示記，尚未確認。必要時拖到入口或送貨點。",
+        "noPin": "這個地址還沒有地圖示記。請在地圖上查詢地址，或點選地圖設定標記。",
+        "search": "在地圖上查詢地址",
+        "candidatesHeading": "找到的位置",
+        "confirm": "確認地圖示記",
+        "saving": "正在儲存…",
+        "skip": "跳過",
+        "confirmed": "地圖示記已確認。",
+        "conflict": "該客戶剛剛被修改過，請重新載入列表。",
+        "reload": "重新載入列表",
+        "failed": "無法儲存地圖示記。",
+        "doneTitle": "已全部檢視",
+        "doneSummary": "已確認 {confirmed} 個，跳過 {skipped} 個。",
+        "reviewSkipped": "再看一遍跳過的",
+        "toList": "前往客戶列表",
+        "progressLabel": "地圖示記檢查進度"
       }
     },
     "products": {

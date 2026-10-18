@@ -2,6 +2,7 @@ import { requireRole } from "./auth/guards";
 import { getCustomerDetail, listUpcomingOrders, nextCustomerNumber } from "./customer-admin";
 import { getNoteTranslations } from "./customer-notes";
 import { getCustomerPhotos } from "./customer-photos";
+import { countPinReviewQueue, listPinReviewQueue } from "./customer-pins";
 import { listCustomers } from "./customers";
 import { getDb } from "./db";
 import { getFactoryTimezone } from "./settings";
@@ -44,4 +45,16 @@ export async function customerPhotosQuery(id: unknown) {
 export async function noteTranslationsQuery(id: unknown) {
   await requireRole("ADMIN");
   return getNoteTranslations(getDb(), id);
+}
+
+/** Customers whose pin still has to be checked, for the pin review queue (admin only). */
+export async function pinReviewQueueQuery() {
+  await requireRole("ADMIN");
+  return listPinReviewQueue(getDb());
+}
+
+/** Number of customers waiting for pin review (admin only). */
+export async function pinReviewCountQuery() {
+  await requireRole("ADMIN");
+  return countPinReviewQueue(getDb());
 }

@@ -11,7 +11,7 @@ import {
   type TranslationRow,
 } from "@/domain/note-translations";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
-import { type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
+import { createLocalizedText, type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
 import { hansToHk, hansToTw } from "@/lib/opencc";
 
 import { getTranslator } from "./translator";
@@ -73,6 +73,23 @@ export async function prepareNotes(
   if (current.de === german) return localizedTextSchema.parse(stored);
   const fresh = await freshTranslations(german, options.translator);
   return mergeSourceChange(current, german, fresh, options.now);
+}
+
+/**
+ * Like `prepareNotes`, but never calls the translator (the import writes hundreds of notes): a new
+ * or changed German text is stored with `meta.pendingTranslation = true` and the retry job
+ * (NUD-070) translates it later; hand-written Chinese versions are kept and flagged stale.
+ */
+export function prepareNotesWithoutTranslation(
+  stored: unknown,
+  german: string | null,
+  now: Date = new Date(),
+): LocalizedText | null {
+  if (german === null) return null;
+  const current = parseNotes(stored);
+  if (!current) return createLocalizedText({ de: german }, "de", { now, pendingTranslation: true });
+  if (current.de === german) return current;
+  return mergeSourceChange(current, german, null, now);
 }
 
 export const notesJson = (

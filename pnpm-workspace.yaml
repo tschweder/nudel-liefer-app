@@ -9,3 +9,5 @@ allowBuilds:
   workerd: false
   "@parcel/watcher": false
   "@swc/core": false
+overrides:
+  uuid: ">=11.1.1"

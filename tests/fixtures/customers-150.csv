@@ -1,0 +1,151 @@
+﻿Kundennr.;Name;Straße;PLZ;Ort;Land;Lieferzeiten;Hinweis
+K-0001;Gasthaus Zum Löwen 1;Hauptstraße 1;1010;Wien;AT;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0002;Trattoria Bella Vista 2;Bahnhofstraße 2;1020;Wien;;;
+K-0003;Pizzeria Müller 3;Lindengasse 3;1100;Wien;AT;;
+K-0004;Restaurant Grüner Baum 4;Marktplatz 4;01067;Dresden;DE;Mo-Fr 6-10 Uhr;
+K-0005;龙门饭店 5;Schulgasse 5;3100;St. Pölten;AT;;
+K-0006;Osteria Sonnenschein 6;Ringstraße 6;2700;Wiener Neustadt;;;
+K-0007;Café Åkesson 7;Hauptstraße 7;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0008;Gasthaus Zum Löwen 8;Bahnhofstraße 8;1020;Wien;;;Hintereingang im Hof benutzen
+K-0009;Trattoria Bella Vista 9;Lindengasse 9;1100;Wien;AT;;
+K-0010;金龙酒楼 10;Marktplatz 10;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0011;Restaurant Grüner Baum 11;Schulgasse 11;3100;St. Pölten;AT;;
+K-0012;Bistro Da Marco 12;Ringstraße 12;2700;Wiener Neustadt;;;
+K-0013;Osteria Sonnenschein 13;Hauptstraße 13;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0014;Café Åkesson 14;Bahnhofstraße 14;1020;Wien;;;
+K-0015;小笼包子铺 15;Lindengasse 15;80331;München;DE;;Hintereingang im Hof benutzen
+K-0016;Trattoria Bella Vista 16;Marktplatz 16;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0017;Pizzeria Müller 17;Schulgasse 17;3100;St. Pölten;AT;;
+K-0018;Restaurant Grüner Baum 18;Ringstraße 18;2700;Wiener Neustadt;;;
+K-0019;Bistro Da Marco 19;Hauptstraße 19;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0020;福满楼 20;Bahnhofstraße 20;;Wien;;;
+K-0021;Café Åkesson 21;Lindengasse 21;1100;Wien;AT;;
+K-0022;Gasthaus Zum Löwen 22;Marktplatz 22;2340;Mödling;;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0023;Trattoria Bella Vista 23;Schulgasse 23;3100;St. Pölten;AT;;
+K-0024;Pizzeria Müller 24;Ringstraße 24;2700;Wiener Neustadt;;;
+K-0025;老北京面馆 25;Hauptstraße 25;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0026;Bistro Da Marco 26;Bahnhofstraße 26;04109;Leipzig;DE;;
+K-0027;Osteria Sonnenschein 27;Lindengasse 27;1100;Wien;AT;;
+K-0028;Café Åkesson 28;Marktplatz 28;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0029;Gasthaus Zum Löwen 29;Schulgasse 29;3100;St. Pölten;AT;;Hintereingang im Hof benutzen
+K-0030;龙门饭店 30;Ringstraße 30;2700;Wiener Neustadt;;;
+K-0031;Pizzeria Müller 31;Hauptstraße 31;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0032;Restaurant Grüner Baum 32;Bahnhofstraße 32;1020;Wien;;;
+K-0033;Bistro Da Marco 33;Lindengasse 33;1100;Wien;AT;;
+K-0034;Osteria Sonnenschein 34;Marktplatz 34;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0035;金龙酒楼 35;Schulgasse 35;3100;St. Pölten;AT;;
+K-0036;Gasthaus Zum Löwen 36;Ringstraße 36;2700;Wiener Neustadt;;;Hintereingang im Hof benutzen
+K-0037;Trattoria Bella Vista 37;Hauptstraße 37;01067;Dresden;DE;Mo-Fr 6-10 Uhr;
+K-0038;Pizzeria Müller 38;Bahnhofstraße 38;1020;Wien;;;
+K-0039;Restaurant Grüner Baum 39;Lindengasse 39;1100;Wien;AT;;
+K-0040;小笼包子铺 40;Marktplatz 40;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0041;Osteria Sonnenschein 41;Schulgasse 1;3100;St. Pölten;AT;;
+K-0042;Café Åkesson 42;Ringstraße 2;2700;Wiener Neustadt;;;
+K-0043;Gasthaus Zum Löwen 43;Hauptstraße 3;1010;Wien;AT;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0044;Trattoria Bella Vista 44;Bahnhofstraße 4;1020;Wien;;;
+K-0045;福满楼 45;Lindengasse 5;1100;Wien;AT;;
+K-0046;Restaurant Grüner Baum 46;Marktplatz 6;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0047;Bistro Da Marco 47;Schulgasse 7;3100;St. Pölten;AT;;
+K-0048;Osteria Sonnenschein 48;Ringstraße 8;80331;München;DE;;
+K-0049;Café Åkesson 49;Hauptstraße 9;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0050;老北京面馆 50;Bahnhofstraße 10;1020;Wien;;;Hintereingang im Hof benutzen
+K-0051;Trattoria Bella Vista 51;Lindengasse 11;1100;Wien;AT;;
+K-0052;Pizzeria Müller 52;Marktplatz 12;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0053;Restaurant Grüner Baum 53;Schulgasse 13;3100;St. Pölten;AT;;
+K-0054;Bistro Da Marco 54;Ringstraße 14;2700;Wiener Neustadt;;;
+K-0055;龙门饭店 55;Hauptstraße 15;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0056;Café Åkesson 56;Bahnhofstraße 16;1020;Wien;;;
+K-0057;Gasthaus Zum Löwen 57;Lindengasse 17;1100;Wien;AT;;Hintereingang im Hof benutzen
+K-0058;Trattoria Bella Vista 58;Marktplatz 18;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0059;Pizzeria Müller 59;Schulgasse 19;04109;Leipzig;DE;;
+K-0060;金龙酒楼 60;Ringstraße 20;2700;Wiener Neustadt;;;
+K-0061;Bistro Da Marco 61;Hauptstraße 21;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0062;Osteria Sonnenschein 62;Bahnhofstraße 22;1020;Wien;;;
+K-0063;Café Åkesson 63;Lindengasse 23;1100;Wien;AT;;
+K-0064;Gasthaus Zum Löwen 64;Marktplatz 24;2340;Mödling;;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0065;小笼包子铺 65;Schulgasse 25;3100;St. Pölten;AT;;
+K-0066;Pizzeria Müller 66;Ringstraße 26;2700;Wiener Neustadt;;;
+K-0067;Restaurant Grüner Baum 67;Hauptstraße 27;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0068;Bistro Da Marco 68;Bahnhofstraße 28;1020;Wien;;;
+K-0069;Osteria Sonnenschein 69;Lindengasse 29;1100;Wien;AT;;
+K-0070;福满楼 70;Marktplatz 30;01067;Dresden;DE;Mo-Fr 6-10 Uhr;
+K-0071;Gasthaus Zum Löwen 71;Schulgasse 31;3100;St. Pölten;AT;;Hintereingang im Hof benutzen
+K-0072;Trattoria Bella Vista 72;Ringstraße 32;2700;Wiener Neustadt;;;
+K-0073;Pizzeria Müller 73;Hauptstraße 33;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0074;Restaurant Grüner Baum 74;Bahnhofstraße 34;1020;Wien;;;
+K-0075;老北京面馆 75;Lindengasse 35;1100;Wien;AT;;
+K-0076;Osteria Sonnenschein 76;Marktplatz 36;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0077;"=HYPERLINK(""http://example.invalid"",""Klick"")";Schulgasse 37;3100;St. Pölten;AT;;
+K-0078;Gasthaus Zum Löwen 78;Ringstraße 38;2700;Wiener Neustadt;;;Hintereingang im Hof benutzen
+K-0079;Trattoria Bella Vista 79;Hauptstraße 39;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0080;龙门饭店 80;Bahnhofstraße 40;1020;Wien;;;
+K-0081;Restaurant Grüner Baum 81;Lindengasse 1;80331;München;DE;;
+K-0082;Bistro Da Marco 82;Marktplatz 2;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0083;Osteria Sonnenschein 83;Schulgasse 3;3100;St. Pölten;AT;;
+K-0084;Café Åkesson 84;Ringstraße 4;2700;Wiener Neustadt;;;
+K-0085;金龙酒楼 85;Hauptstraße 5;1010;Wien;AT;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0086;Trattoria Bella Vista 86;Bahnhofstraße 6;1020;Wien;;;
+K-0087;Pizzeria Müller 87;Lindengasse 7;1100;Wien;AT;;
+K-0088;Restaurant Grüner Baum 88;Marktplatz 8;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0089;Bistro Da Marco 89;Schulgasse 9;3100;St. Pölten;AT;;
+K-0090;小笼包子铺 90;Ringstraße 10;2700;Wiener Neustadt;;;
+K-0091;Café Åkesson 91;Hauptstraße 11;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0092;Gasthaus Zum Löwen 92;Bahnhofstraße 12;04109;Leipzig;DE;;Hintereingang im Hof benutzen
+K-0093;Trattoria Bella Vista 93;Lindengasse 13;1100;Wien;AT;;
+K-0094;Pizzeria Müller 94;Marktplatz 14;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0095;福满楼 95;Schulgasse 15;3100;St. Pölten;AT;;
+K-0096;Bistro Da Marco 96;Ringstraße 16;2700;Wiener Neustadt;;;
+K-0097;Osteria Sonnenschein 97;Hauptstraße 17;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0098;Café Åkesson 98;Bahnhofstraße 18;1020;Wien;;;
+K-0099;Gasthaus Zum Löwen 99;Lindengasse 19;1100;Wien;AT;;Hintereingang im Hof benutzen
+K-0100;老北京面馆 100;Marktplatz 20;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0101;Pizzeria Müller 101;Schulgasse 21;3100;St. Pölten;AT;;
+K-0102;Restaurant Grüner Baum 102;Ringstraße 22;2700;Wiener Neustadt;;;
+K-0103;Bistro Da Marco 103;Hauptstraße 23;01067;Dresden;DE;Mo-Fr 6-10 Uhr;
+K-0104;Osteria Sonnenschein 104;Bahnhofstraße 24;1020;Wien;;;
+K-0105;龙门饭店 105;Lindengasse 25;1100;Wien;AT;;
+K-0106;Gasthaus Zum Löwen 106;Marktplatz 26;2340;Mödling;;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0107;Trattoria Bella Vista 107;Schulgasse 27;3100;St. Pölten;AT;;
+K-0108;Pizzeria Müller 108;Ringstraße 28;2700;Wiener Neustadt;;;
+K-0109;Restaurant Grüner Baum 109;Hauptstraße 29;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0110;金龙酒楼 110;Bahnhofstraße 30;1020;Wien;;;
+K-0111;Osteria Sonnenschein 111;Lindengasse 31;1100;Wien;AT;;
+K-0112;Café Åkesson 112;Marktplatz 32;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0113;Gasthaus Zum Löwen 113;Schulgasse 33;3100;St. Pölten;AT;;Hintereingang im Hof benutzen
+K-0114;Trattoria Bella Vista 114;Ringstraße 34;80331;München;DE;;
+K-0115;小笼包子铺 115;Hauptstraße 35;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0116;Restaurant Grüner Baum 116;Bahnhofstraße 36;1020;Wien;;;
+K-0117;Bistro Da Marco 117;Lindengasse 37;1100;Wien;AT;;
+K-0118;Osteria Sonnenschein 118;Marktplatz 38;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0119;Café Åkesson 119;Schulgasse 39;3100;St. Pölten;AT;;
+K-0120;福满楼 120;Ringstraße 40;2700;Wiener Neustadt;Atlantis;;Hintereingang im Hof benutzen
+K-0121;Trattoria Bella Vista 121;Hauptstraße 1;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0122;Pizzeria Müller 122;Bahnhofstraße 2;1020;Wien;;;
+K-0123;Restaurant Grüner Baum 123;Lindengasse 3;1100;Wien;AT;;
+K-0124;Bistro Da Marco 124;Marktplatz 4;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0125;老北京面馆 125;Schulgasse 5;04109;Leipzig;DE;;
+K-0126;Café Åkesson 126;Ringstraße 6;2700;Wiener Neustadt;;;
+K-0127;Gasthaus Zum Löwen 127;Hauptstraße 7;1010;Wien;AT;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0128;Trattoria Bella Vista 128;Bahnhofstraße 8;1020;Wien;;;
+K-0129;Pizzeria Müller 129;Lindengasse 9;1100;Wien;AT;;
+K-0130;龙门饭店 130;Marktplatz 10;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0131;Bistro Da Marco 131;Schulgasse 11;3100;St. Pölten;AT;;
+K-0132;Osteria Sonnenschein 132;Ringstraße 12;2700;Wiener Neustadt;;;
+K-0133;Café Åkesson 133;Hauptstraße 13;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0134;Gasthaus Zum Löwen 134;Bahnhofstraße 14;1020;Wien;;;Hintereingang im Hof benutzen
+K-0135;金龙酒楼 135;Lindengasse 15;1100;Wien;AT;;
+K-0136;Pizzeria Müller 136;Marktplatz 16;01067;Dresden;DE;Mo-Fr 6-10 Uhr;
+K-0137;Restaurant Grüner Baum 137;Schulgasse 17;3100;St. Pölten;AT;;
+K-0138;Bistro Da Marco 138;Ringstraße 18;2700;Wiener Neustadt;;;
+K-0139;Osteria Sonnenschein 139;Hauptstraße 19;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0140;小笼包子铺 140;Bahnhofstraße 20;1020;Wien;;;
+K-0141;Gasthaus Zum Löwen 141;Lindengasse 21;1100;Wien;AT;;Hintereingang im Hof benutzen
+K-0142;Trattoria Bella Vista 142;Marktplatz 22;2340;Mödling;;Mo-Fr 6-10 Uhr;
+K-0143;Pizzeria Müller 143;Schulgasse 23;3100;St. Pölten;AT;;
+K-0144;Restaurant Grüner Baum 144;Ringstraße 24;2700;Wiener Neustadt;;;
+K-0145;福满楼 145;Hauptstraße 25;1010;Wien;AT;Mo-Fr 6-10 Uhr;
+K-0146;Osteria Sonnenschein 146;Bahnhofstraße 26;1020;Wien;;;
+K-0147;Café Åkesson 147;Lindengasse 27;80331;München;DE;;
+K-0148;Gasthaus Zum Löwen 148;Marktplatz 28;2340;Mödling;;Mo-Fr 6-10 Uhr;Hintereingang im Hof benutzen
+K-0149;Trattoria Bella Vista 149;Schulgasse 29;3100;St. Pölten;AT;;
+K-0150;老北京面馆 150;Ringstraße 30;2700;Wiener Neustadt;;;

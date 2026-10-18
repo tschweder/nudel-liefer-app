@@ -76,3 +76,15 @@ export function suggestNextCustomerNumber(existing: readonly string[]): string {
   const next = String(best.value + 1).padStart(best.digits.length, "0");
   return `${best.prefix}${next}`;
 }
+
+/**
+ * Free-text address for the geocoder: "street, postal code city, country" (empty parts left out),
+ * cut to `maxLength` characters. The customer form and the import use the same text.
+ */
+export function addressQuery(address: CustomerAddress, maxLength = 300): string {
+  return [address.street, `${address.postalCode} ${address.city}`, address.country]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ")
+    .slice(0, maxLength);
+}

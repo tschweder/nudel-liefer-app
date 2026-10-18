@@ -391,6 +391,165 @@
           "translation_failed": "Der Übersetzungsdienst ist gerade nicht erreichbar. Es wurde nichts geändert."
         },
         "sourceChangeHint": "Wird der deutsche Text geändert, werden beim Speichern nur maschinell übersetzte Versionen neu übersetzt. Von Hand bearbeitete bleiben erhalten und werden zur Prüfung markiert."
+      },
+      "import": {
+        "link": "Import",
+        "title": "Kunden importieren",
+        "description": "Bestehende Kundenliste aus einer CSV- oder Excel-Datei (XLSX) einlesen. Bekannte Kundennummern werden aktualisiert, neue Kunden angelegt.",
+        "steps": {
+          "upload": "Datei",
+          "mapping": "Spalten",
+          "preview": "Vorschau",
+          "result": "Ergebnis"
+        },
+        "fields": {
+          "customerNumber": "Kundennummer",
+          "name": "Name",
+          "street": "Straße und Hausnummer",
+          "postalCode": "PLZ",
+          "city": "Ort",
+          "country": "Land",
+          "deliveryHoursInfo": "Lieferzeiten",
+          "notes": "Hinweise für den Fahrer"
+        },
+        "upload": {
+          "heading": "1. Datei auswählen",
+          "hint": "Erlaubt sind CSV (Komma, Semikolon oder Tabulator) und XLSX, höchstens {size} MB und {rows} Datenzeilen. Die erste Zeile muss die Spaltenüberschriften enthalten.",
+          "label": "Datei mit Kunden",
+          "reading": "Datei wird gelesen …"
+        },
+        "errors": {
+          "too_large": "Die Datei ist größer als {size} MB.",
+          "empty": "Die Datei enthält keine Daten. Gebraucht werden eine Kopfzeile und mindestens eine Datenzeile.",
+          "unsupported_type": "Nur CSV- und XLSX-Dateien werden unterstützt (kein altes .xls).",
+          "too_many_rows": "Die Datei hat mehr als {rows} Datenzeilen. Bitte in mehrere Dateien aufteilen.",
+          "too_many_columns": "Die Datei hat mehr als {columns} Spalten.",
+          "cell_too_long": "Eine Zelle ist länger als {length} Zeichen.",
+          "bad_csv": "Die CSV-Datei ist beschädigt (ein Anführungszeichen wurde nicht geschlossen).",
+          "bad_xlsx": "Die Excel-Datei konnte nicht gelesen werden.",
+          "zip_bomb": "Die Excel-Datei ist entpackt ungewöhnlich groß und wird nicht verarbeitet.",
+          "invalid": "Die Datei konnte nicht verarbeitet werden.",
+          "generic": "Das hat nicht geklappt. Bitte noch einmal versuchen."
+        },
+        "mapping": {
+          "heading": "2. Spalten zuordnen",
+          "intro": "{file}: {rows, plural, one {# Datenzeile} other {# Datenzeilen}}. Ordnen Sie jedem Feld die passende Spalte der Datei zu. Die Zuordnung wird in diesem Browser gemerkt und beim nächsten Import vorgeschlagen.",
+          "sheetNote": "Die Datei hat {count} Tabellenblätter. Gelesen wird nur das erste („{name}“).",
+          "field": "Feld",
+          "column": "Spalte der Datei",
+          "sample": "Beispiele aus der Datei",
+          "required": "Pflicht",
+          "notUsed": "– nicht verwenden –",
+          "emptyHeader": "ohne Überschrift",
+          "optionalHint": "Eine leere Zelle ändert bestehende Angaben nicht.",
+          "problemMissing": "Für „{field}“ ist keine Spalte gewählt.",
+          "problemDuplicate": "Die Spalte {column} ist mehreren Feldern zugeordnet.",
+          "next": "Weiter zur Vorschau",
+          "otherFile": "Andere Datei"
+        },
+        "preview": {
+          "heading": "3. Vorschau",
+          "checking": "Zeilen werden geprüft …",
+          "summary": {
+            "create": "Neu",
+            "update": "Aktualisiert",
+            "unchanged": "Unverändert",
+            "error": "Fehlerhaft"
+          },
+          "errorsHint": "Fehlerhafte Zeilen werden nicht importiert, alle anderen schon.",
+          "pinsReset": "{count, plural, one {Bei # Kunden ändert sich die Adresse: Pin und Bestätigung werden zurückgesetzt.} other {Bei # Kunden ändert sich die Adresse: Pin und Bestätigung werden zurückgesetzt.}}",
+          "archived": "{count, plural, one {# archivierter Kunde wird aktualisiert und bleibt archiviert.} other {# archivierte Kunden werden aktualisiert und bleiben archiviert.}}",
+          "filter": "Anzeigen",
+          "filterAll": "Alle Zeilen",
+          "filterErrors": "Nur fehlerhafte",
+          "filterChanges": "Nur Neue und Änderungen",
+          "columns": {
+            "line": "Zeile",
+            "number": "Nr.",
+            "name": "Name",
+            "status": "Aktion",
+            "details": "Details"
+          },
+          "status": {
+            "create": "Neu anlegen",
+            "update": "Aktualisieren",
+            "unchanged": "Unverändert",
+            "error": "Fehler"
+          },
+          "changed": "Geändert: {fields}",
+          "pinReset": "Pin wird zurückgesetzt",
+          "stayArchived": "archiviert, bleibt archiviert",
+          "shown": "{shown} von {total} Zeilen angezeigt.",
+          "none": "Keine Zeilen für diesen Filter.",
+          "back": "Zurück zur Zuordnung",
+          "commit": "{count, plural, one {# Zeile importieren} other {# Zeilen importieren}}",
+          "nothingToDo": "Es gibt nichts zu importieren: Keine gültige Zeile ist neu oder geändert.",
+          "importing": "Wird importiert …"
+        },
+        "result": {
+          "heading": "4. Ergebnis",
+          "created": "Neu angelegt",
+          "updated": "Aktualisiert",
+          "unchanged": "Unverändert",
+          "failed": "Nicht importiert",
+          "allOk": "Alle Zeilen wurden verarbeitet.",
+          "pinsReset": "{count, plural, one {Bei # Kunden wurden Pin und Bestätigung zurückgesetzt, weil sich die Adresse geändert hat.} other {Bei # Kunden wurden Pin und Bestätigung zurückgesetzt, weil sich die Adresse geändert hat.}}",
+          "failedHeading": "Nicht importierte Zeilen",
+          "again": "Weitere Datei importieren",
+          "toList": "Zur Kundenliste"
+        },
+        "geocode": {
+          "heading": "Kartenpositionen suchen",
+          "description": "Für Kunden ohne Pin wird die Adresse gesucht und eine Position vorgeschlagen. Der Pin gilt erst nach der Prüfung als bestätigt. Die Suche ist gedrosselt und kann einige Minuten dauern.",
+          "start": "{count, plural, one {Position für # Kunden suchen} other {Positionen für # Kunden suchen}}",
+          "none": "Alle aktiven Kunden haben bereits einen Pin.",
+          "progressLabel": "Fortschritt der Adresssuche",
+          "progress": "{done} von {total} Kunden bearbeitet",
+          "cancel": "Abbrechen",
+          "cancelled": "Abgebrochen nach {done} von {total} Kunden. Der Rest kann später fortgesetzt werden.",
+          "finished": "Fertig: {found} Positionen gefunden, {notFound} Adressen nicht gefunden, {failed} Fehler.",
+          "lowConfidence": "{count, plural, one {# Treffer ist unsicher und besonders genau zu prüfen.} other {# Treffer sind unsicher und besonders genau zu prüfen.}}",
+          "rateLimited": "Die Adresssuche hat die Begrenzung des Anbieters erreicht. Bitte später fortsetzen.",
+          "unavailable": "Die Adresssuche ist gerade nicht erreichbar. Pins können auch von Hand gesetzt werden.",
+          "error": "Die Adresssuche ist fehlgeschlagen."
+        },
+        "issues": {
+          "required": "{field} fehlt.",
+          "too_long": "{field} ist zu lang (höchstens {max} Zeichen).",
+          "formula": "{field} beginnt mit = + - oder @ und könnte in Excel als Formel ausgeführt werden.",
+          "bad_country": "Land nicht erkannt. Bitte ein Kürzel mit 2 Buchstaben (z. B. AT, DE) oder den Ländernamen verwenden.",
+          "duplicate_in_file": "Diese Kundennummer steht schon in Zeile {line}. Diese Zeile wird übersprungen.",
+          "postal_padded": "PLZ mit führender 0 ergänzt.",
+          "invalid": "Die Angaben sind ungültig.",
+          "number_taken": "Die Kundennummer ist inzwischen vergeben.",
+          "changed_meanwhile": "Der Kunde wurde während des Imports geändert. Zeile nicht übernommen."
+        },
+        "reviewLink": "{count, plural, =0 {Pins prüfen} other {Pins prüfen ({count})}}"
+      },
+      "review": {
+        "title": "Pins prüfen",
+        "description": "Kunden, deren Kartenpunkt noch nicht bestätigt ist, nacheinander durchsehen: Vorschlag auf der Karte prüfen, bei Bedarf verschieben und bestätigen.",
+        "backToImport": "Zurück zum Import",
+        "emptyTitle": "Nichts zu prüfen",
+        "empty": "Alle aktiven Kunden haben einen bestätigten Pin.",
+        "position": "Kunde {current} von {total}",
+        "address": "Lieferadresse",
+        "candidate": "Vorgeschlagener Pin, noch nicht bestätigt. Bei Bedarf auf den Eingang bzw. die Lieferstelle ziehen.",
+        "noPin": "Für diese Adresse gibt es noch keinen Pin. Adresse auf der Karte suchen oder den Pin per Klick auf die Karte setzen.",
+        "search": "Adresse auf der Karte suchen",
+        "candidatesHeading": "Gefundene Positionen",
+        "confirm": "Pin bestätigen",
+        "saving": "Speichert …",
+        "skip": "Überspringen",
+        "confirmed": "Pin bestätigt.",
+        "conflict": "Der Kunde wurde inzwischen geändert. Bitte die Liste neu laden.",
+        "reload": "Liste neu laden",
+        "failed": "Der Pin konnte nicht gespeichert werden.",
+        "doneTitle": "Alle durchgesehen",
+        "doneSummary": "{confirmed} bestätigt, {skipped} übersprungen.",
+        "reviewSkipped": "Übersprungene noch einmal ansehen",
+        "toList": "Zur Kundenliste",
+        "progressLabel": "Fortschritt der Pin-Prüfung"
       }
     },
     "products": {

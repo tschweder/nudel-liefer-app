@@ -233,7 +233,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | done |
 | NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | done |
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | done |
-| NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | todo |
+| NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | done |
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | todo |
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | todo |
 | NUD-093 | Security hardening | M2 | 060 | todo |
@@ -1299,7 +1299,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-090 · Customer import (CSV/XLSX) with pin review
-**Status:** todo · **depends_on:** 014
+**Status:** done · **depends_on:** 014
 
 **Goal:** bring the factory's existing customer list into the system.
 
@@ -1310,8 +1310,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - **Pin review queue:** step through imported customers, see candidate pin on map, confirm/drag/skip.
 
 **Acceptance criteria**
-- [ ] Import of a 150-row file with 3 invalid rows imports 147 and reports the 3 with reasons.
-- [ ] Re-importing the same file updates instead of duplicating.
+- [x] Import of a 150-row file with 3 invalid rows imports 147 and reports the 3 with reasons. (Domain, integration and e2e tests; reasons carry the file row.)
+- [x] Re-importing the same file updates instead of duplicating. (Second import: 147 unchanged, 0 new; a changed file updates the matching rows.)
+
+**Implementation notes**
+- Page `/admin/customers/import` (button on the customer list): wizard file -> column mapping -> preview -> result + batch geocoding; `/admin/customers/import/review`: pin review queue. Code: pure rules in `src/domain/import-file.ts` (limits, BOM / UTF-16 / windows-1252 decoding, RFC 4180 parser with `,` `;` TAB detection, zip directory check) and `src/domain/customer-import.ts` (header synonyms DE/EN/ZH, mapping checks, cell cleaning, formula check, country names, DE postal code padding, `planImport` = create / update / unchanged / error per row, reusing `addressChanged` from NUD-014); server `src/server/customer-import-upload.ts` (route `POST /api/admin/customers/import/parse`), `import-xlsx.ts` (exceljs), `customer-import.ts` (preview / commit), `customer-pins.ts` (batch geocoding, review queue, confirm), `customer-import-actions.ts` (server actions), `throttle.ts`.
+- Library: SheetJS from its CDN is blocked here and the npm `xlsx` 0.18.5 is the outdated, vulnerable copy, so XLSX is read with `exceljs` 4.4.0 (CSV by own parser, no extra package). `pnpm audit --prod` flagged its transitive `uuid` (<11.1.1), so `pnpm-workspace.yaml` has an override `uuid: >=11.1.1` (audit clean). Only `.xlsx` (no legacy `.xls`); first non-empty sheet; number cells with a `00000` format keep their zeros; formula cells use their cached result, formula text is never imported.
+- Security: ADMIN only (route and every action call `requireRole("ADMIN")` first; tests for anonymous / driver / deactivated admin); upload <= 5 MB read with a cap (413), <= 2000 data rows, <= 50 columns, <= 2000 characters per cell, XLSX zip directory checked before inflating (<= 200 entries, <= 50 MB declared, no ZIP64 / encryption). CSV injection: a cell starting with `=` `@` TAB CR, or `+`/`-` followed by something other than a number / phone text / space, makes the row invalid; invisible and control characters are removed. The browser only sends the mapped cells back; the server cleans, validates and plans them again (and runs `customerInputSchema` before every create).
+- Matching and updates: by customer number, case-insensitive, stored spelling kept. Updates change only the cells that differ; empty optional cells (country, delivery hours, notes) never erase data. New customers: `pinConfirmed=false`, no pin. Changed address (NUD-014 `addressChanged`): pin and confirmation are dropped; unchanged address keeps both. Updates are guarded by `updatedAt` (an admin edit during the import makes that row fail with a message instead of being overwritten). Archived customers are updated but stay archived. Notes are stored German-only with `pendingTranslation` (the NUD-070 retry job translates), no translator call per row. `searchText` comes from the NUD-013 trigger.
+- Batch geocoding: browser loops over batches of 5 ids (progress bar, cancel); the server calls the geocoder one at a time with a process-wide throttle (700 ms with `ORS_API_KEY`, `GEOCODE_BATCH_DELAY_MS`), stops at 429 / 403 (rate or quota) or after 3 failures in a row and logs a summary line (no addresses). The best candidate becomes the stored, unconfirmed pin; never overwrites a pin that exists.
+- Pin review: queue = all active customers with `pinConfirmed=false` (not only the last import), ordered by number; confirm (optionally after dragging or typing coordinates), skip (client side, "review skipped" starts another round), search other candidates via `geocodeAddressAction`. Confirming is version-checked (`updatedAt`), so a customer edited meanwhile gives a "reload" message.
+- Mapping memory: `localStorage` (header text per field, per browser), proposals fall back to header synonyms.
+- Fixtures: `src/domain/testing/import-fixtures.ts` (generated, fictional), `scripts/generate-import-fixtures.ts` -> `tests/fixtures/customers-150.csv` / `.xlsx` (a unit test keeps the committed CSV in sync).
+- Tests: `domain/import-file.test.ts`, `domain/customer-import.test.ts` (150 rows -> 147 + 3, re-import, umlauts, Chinese, BOM, `;`, leading zeros), `server/customer-import-upload.test.ts` (route, XLSX, zip bomb), `customer-import.integration.test.ts` (authorization, commit, re-import, pin reset, race, geocoding, review), `throttle.test.ts`, `scripts/generate-import-fixtures.test.ts`, e2e `tests/e2e/customer-import.spec.ts` (150-row upload, mapping, preview, import, geocoding with the Fake, re-import, address change, pin review confirm / type / drag / skip, conflict, 401 for anonymous, mobile layout). Screenshots at 1280 px inspected (preview, review).
+- NOT verified: real ORS geocoding / rate limits (Fake only); a file exported by real Excel (XLSX written by exceljs and CSV by hand only; real German Excel `;` CSVs in cp1252 are covered by a unit test); a decompression bomb whose zip directory lies about sizes (only the row / column / cell limits stop it); the 1 MB server-action body limit for very wide 2000-row files (typical 150-2000 rows are well below); Chinese strings are agent-written (NUD-073).
+- Follow-ups: a cleanup of old pending uploads is not needed (nothing is stored); the review queue has no "previous" step and no persisted skip list.
 
 ---
 
@@ -1741,6 +1754,16 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-083 | A new photo of the same customer and kind replaces older unsent queue entries (not those in flight) | They would be current for a moment and then replaced; saves bandwidth and history rows |
 | 2026-10-18 | NUD-083 | The slot shows the queued photo from an object URL of the local blob; after registration the blob is also stored in the photo cache under the real photo id and the tour copy is patched, "Gesendet" overlay for 20 s | Immediate feedback offline, no flicker before the page data refreshes, no download of what the phone already has |
 | 2026-10-18 | NUD-083 | The office sees "Aktualisiert von Fahrer X am <date>" only for photos uploaded by a driver | Spec asks for the driver attribution; office uploads need none |
+| 2026-10-18 | NUD-090 | XLSX is read with `exceljs` (SheetJS CDN blocked, npm `xlsx` outdated); CSV with an own RFC 4180 parser; `uuid` overridden to >= 11.1.1 | Only safe option available; audit clean |
+| 2026-10-18 | NUD-090 | The file is parsed server-side (route handler, 5 MB cap while reading); the browser holds the table and sends only mapped cells, re-validated by the actions | Server actions have a 1 MB body limit; client parsing could not be trusted anyway |
+| 2026-10-18 | NUD-090 | Column mapping is remembered in `localStorage` (header text per field), not in the database | No migration; per-browser is enough for one office |
+| 2026-10-18 | NUD-090 | Unchanged address keeps pin and confirmation on re-import; a changed address drops pin (lat/lng null) and confirmation | Re-importing must not undo 150 reviews; the old pin belongs to the old address (NUD-014) |
+| 2026-10-18 | NUD-090 | Empty optional cells never erase stored data; archived customers are updated but not reactivated; a number twice in the file: first row wins | Import must not destroy data; reactivation is a decision for the office |
+| 2026-10-18 | NUD-090 | Formula-like cells (`=`, `@`, TAB, CR, `+`/`-` + non-number) make the row invalid instead of being altered | CSV injection; visible reason instead of silent change |
+| 2026-10-18 | NUD-090 | Spreadsheet-dropped leading zero of a 4-digit German postal code is restored (DE only), with a row warning | Excel turns 01067 into 1067; AT/CH codes are 4 digits |
+| 2026-10-18 | NUD-090 | Imported notes are stored German-only with `pendingTranslation`; no translator call per row | 2000 DeepL calls in one request is slow; the NUD-070 retry job translates |
+| 2026-10-18 | NUD-090 | Geocoding: 5 customers per action, server throttle 700 ms with a real key (`GEOCODE_BATCH_DELAY_MS`), stop on 429/403 or 3 failures; best candidate stored as unconfirmed pin | Stays under the ORS free tier (~100/min); the admin confirms every pin (D9) |
+| 2026-10-18 | NUD-090 | Pin review queue = all active unconfirmed customers, not just the last import; skip is client-side only | No import-batch column needed; one list for every unconfirmed pin |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

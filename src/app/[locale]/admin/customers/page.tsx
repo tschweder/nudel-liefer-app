@@ -1,4 +1,4 @@
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, UploadIcon } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -38,10 +38,20 @@ async function Guarded({
           </h1>
           <p className="max-w-prose text-muted-foreground">{t("description")}</p>
         </div>
-        <Link href="/admin/customers/new" className={buttonVariants()} data-testid="new-customer">
-          <PlusIcon aria-hidden />
-          {t("new")}
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/customers/import"
+            className={buttonVariants({ variant: "outline" })}
+            data-testid="import-customers"
+          >
+            <UploadIcon aria-hidden />
+            {t("import.link")}
+          </Link>
+          <Link href="/admin/customers/new" className={buttonVariants()} data-testid="new-customer">
+            <PlusIcon aria-hidden />
+            {t("new")}
+          </Link>
+        </div>
       </div>
       <CustomerFilters values={filters} />
       <CustomersTable result={result} filters={filters} />
