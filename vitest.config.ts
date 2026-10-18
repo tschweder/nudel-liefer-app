@@ -15,6 +15,7 @@ export default defineConfig({
     exclude: ["tests/e2e/**", "node_modules/**"],
     // next-auth imports "next/server" without the extension, which Node's ESM loader rejects; let
     // Vite resolve it so the authorization matrix (NUD-093) can run the real Auth.js handlers.
-    server: { deps: { inline: [/next-auth/, /@auth\/core/] } },
+    // The same for next-intl's middleware, which the proxy test (NUD-110) runs.
+    server: { deps: { inline: [/next-auth/, /@auth\/core/, /next-intl/] } },
   },
 });

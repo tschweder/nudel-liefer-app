@@ -249,7 +249,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
 | NUD-108 | Map view offline (tiles) | M2 | 081 | done |
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
-| NUD-110 | Nonce-based script CSP | M2 | 093 | todo |
+| NUD-110 | Nonce-based script CSP | M2 | 093 | done |
 | NUD-111 | Audit log retention job | M2 | 093 | todo |
 | NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
@@ -259,6 +259,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
+| NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1661,13 +1662,27 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 
 #### NUD-110 · Nonce-based script CSP (drop `'unsafe-inline'` for scripts)
-**Status:** todo · **depends_on:** 093
+**Status:** done · **depends_on:** 093
 
 **Goal:** `script-src` without `'unsafe-inline'`. NUD-093 keeps it because Next.js streams inline hydration scripts and cache components / PPR prebuilt shells cannot carry a per-request nonce. Options to evaluate: nonce via `src/proxy.ts` for dynamic routes only (login, admin, driver are behind login anyway) with the public shells served nonce-less from a stricter route group, or waiting for Next.js support. Report-only first (`CSP_REPORT_ONLY`), then enforcing.
 
 **Acceptance criteria**
-- [ ] Decision recorded (ADR or decision log) on how nonces fit `cacheComponents` / PPR.
-- [ ] Production policy has no `'unsafe-inline'` in `script-src`; the e2e suites and `security-headers.spec.ts` pass without CSP violations.
+- [x] Decision recorded (ADR or decision log) on how nonces fit `cacheComponents` / PPR. (`docs/deploy.md` section 11.1a + decision log below.)
+- [x] Production policy has no `'unsafe-inline'` in `script-src`; the e2e suites and `security-headers.spec.ts` pass without CSP violations. (Desktop project, production build: whole suite first with `CSP_REPORT_ONLY=true` (0 `[csp-violation]` lines), then enforcing (0 lines apart from the 2 produced on purpose by the injection test); `sentry-ingest` 3/3 with a DSN build. The mobile project was not run.)
+
+**Implementation notes**
+- **Investigation (Next 16.4.2, Turbopack, `cacheComponents` + `partialPrefetching`; measured on the production build, not only read from docs):** (a) per-request nonce: the Next docs say PPR is incompatible ("static shell scripts won't have access to the nonce"). True for the prebuilt part, but a nonce in the CSP *request* header IS applied to every inline script rendered per request, including the resume part of a PPR page (bootstrap, flight data, `$RC` Suspense scripts). The prebuilt part of a PPR shell has exactly **two** inline scripts, a fixed `requestAnimationFrame(...)` line and the Turbopack chunk list `id="_R_"` (identical on all 147 prerendered pages of a build); the fully static pages (`/<locale>` home, `/<locale>/driver/offline-shell`, `_not-found`, `_global-error`) additionally have their flight data inline (`self.__next_f.push`). A static page is served prerendered even if the request carries a nonce. (b) `experimental.sri` is **not usable**: the integrity manifest comes from the webpack plugin only (`build/webpack/plugins/subresource-integrity-plugin.js`), nothing on Turbopack, and SRI covers `<script src>`, not inline scripts. (c) `'strict-dynamic'`: unnecessary, `'self'` already covers the chunk files. => **Feasible as a hybrid**: nonce for what is rendered per request + SHA-256 hashes for the fixed inline scripts of the prebuilt documents.
+- **Policy** (`src/lib/security-headers.ts`): pages get `script-src 'self' 'nonce-<16 random bytes, base64, per response>' 'sha256-...'` (hashes of the locale-less documents + the request's locale, ~2 KB of header); API routes, `/_next`, files, `sw.js` get `script-src 'self'`. Development keeps `'unsafe-inline' 'unsafe-eval'` (HMR) and no nonce. Nonce / hash values are validated before they go into a header (throws on anything but base64 / `shaNNN-base64`). `style-src` is unchanged (`'unsafe-inline'`, Leaflet).
+- **`src/proxy.ts`** builds the policy for every page response (redirects too), sets it on the request (Next.js reads the nonce from there; `Content-Security-Policy-Report-Only` works the same, so `CSP_REPORT_ONLY` keeps working per request) and on the response. `next.config.ts` now sets the CSP only for the complement of the proxy matcher (`/:path((?:api|_next|_vercel).*|.*\\..*)`) so no page gets two policies; the other security headers stay on `/:path*`.
+- **Getting the hashes into the proxy** (the hashes exist only after `next build`, the proxy is bundled before): `pnpm build` / `build:vercel` now run `scripts/csp-script-hashes.ts reset` -> `next build` -> `write` -> `next build` -> `build-pwa` -> `check`. `write` hashes every inline script of `.next/server/app/**/*.html` into the git-ignored `.csp-script-hashes.json` (also the build ID of pass 1: it is inlined in the flight data of static pages, so pass 2 reuses it through `generateBuildId`); `next.config.ts` hands the hashes to the proxy as `process.env.CSP_SCRIPT_HASHES` (inlined at compile time, no file access at run time, nothing to trace on Vercel). `check` fails the build if the final output hashes differ from the embedded ones, if `public/*.html` has an inline script, or if no hashes were found: a deployment cannot ship a policy that does not match its pages. Cost: build time +about 15 s here (35 s total). First attempt without build-ID pinning failed `check` (build ID differs between passes), which is how that dependency was found.
+- **Offline page:** `public/offline.html` had an inline script and an `onclick` attribute; the script is now `public/offline.js` (generated by `build-pwa.ts`, precached, `no-cache` header), the reload button uses `data-reload`. `pwa.spec.ts` / `driver-offline.spec.ts` allow and require `/offline.js` in the precache.
+- **Tests:** unit `security-headers.test.ts` (no unsafe-inline / eval / strict-dynamic / wildcard for any env, nonce+hash rendering, validation against header injection, report-only, dev), `src/proxy.test.ts` (nonce differs per response incl. redirects, hashes of the request's locale only, request header = response header, report-only, dev; `vitest.config.ts` inlines `next-intl` for it), `scripts/lib/csp-hash-build.test.ts` (inline script extraction, hash, manifest per locale), `offline-page.test.ts`. e2e `security-headers.spec.ts` (production build only, skipped on `pnpm dev`): `script-src` of pages has a nonce and no `'unsafe-inline'`; a new nonce per response; **every inline script of five pages (login x2 locales, static home, offline shell, 404) is covered by the nonce or a hash**; API / files / offline page are `'self'` only; an injected inline `<script>` and an `onerror` handler are blocked (this test produces 2 `[csp-violation]` log lines on purpose); admin login works under the strict policy. Full desktop e2e run twice (report-only, then enforcing) and `sentry-ingest` with a DSN build: see criteria.
+- **Performance:** Lighthouse CI (3 runs, driver home, same setup as NUD-095/098, enforcing production build): LCP 1.1 / 1.3 / 1.5 s (NUD-098: 1.14-1.16 s; the sandbox is noisy, budget < 2.5 s), CLS 0.015-0.042, TBT 10-20 ms. The shells are still prerendered and streamed (`x-nextjs-postponed`); the proxy already ran for every page, it now also creates a nonce and a header string. The Playwright LCP test (`driver-performance`) passes.
+- **Service worker / offline shell:** the precached `/<locale>/driver/offline-shell` documents are fully static, covered by hashes, and keep the CSP header they were fetched with (a Cache Storage response keeps its headers); `driver-offline`, `driver-a11y` (offline shell + generic offline page in 4 locales x light/dark), `pwa` pass enforcing.
+- **Found on the way (test only):** `src/server/auth/auth.integration.test.ts` "applies the limit to unknown usernames too ..." failed in a full-file run and passed with `-t`: the rate limit counts attempts newer than `now - 15 min` without an upper bound, earlier tests in the file log in with the real clock, and the test used fixed dates (`2026-10-17..19`) that are in the past since 2026-10-18 08:00 UTC, so those attempts looked recent. Not a product bug (production `now` is the real clock). Fixed in the test by using days in the future (`futureDay(n)`).
+- Pre-existing, not changed: `/de/<unknown>` answers HTTP 200 for the not-found page (seen before and after this ticket); `admin-password.integration.test.ts` throws "Invalid URL" in a run without `DATABASE_URL` (the other integration files skip).
+- Not verified: real browsers other than Chromium (Playwright desktop project only; no mobile project, no Safari / iOS, no installed PWA), Vercel (do the proxy headers apply to the static `/de` page on the CDN; does `build:vercel` converge with Vercel's deployment-ID handling: `check` would fail the build, not ship a broken policy; Sentry source-map upload in both passes), a Next.js / React upgrade. Rollout and checks on the real deployment: NUD-120.
+- Follow-ups: NUD-120. `style-src 'unsafe-inline'` (Leaflet) is untouched; not ticketed (low value: style injection cannot run code, and the same nonce / hash approach would be needed).
 
 #### NUD-111 · Audit log retention job
 **Status:** todo · **depends_on:** 093
@@ -1774,6 +1789,15 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 **Acceptance criteria**
 - [ ] Tapping a marker reaches the stop detail online and offline (e2e, 375 px); axe stays clean.
+
+#### NUD-120 · 👤 Roll out the strict script CSP on the real deployment (report-only first)
+**Status:** todo · **depends_on:** 110, 113
+
+**Goal:** NUD-110 was verified with Chromium against a local production build only. On the real deployment: (1) deploy first with `CSP_REPORT_ONLY=true`, use the app in real Android Chrome and iOS Safari (login, admin pages, maps, photo upload, driver tour, install the PWA, go offline) and search the Vercel logs for `csp-violation` (expected: none); (2) `curl -sI https://<prod>/de/login` shows `script-src 'self' 'nonce-...' 'sha256-...'` without `'unsafe-inline'`, and a second request shows a different nonce; same for the static `/de`; (3) check the build log of `pnpm build:vercel` for `csp-script-hashes: OK`; (4) remove `CSP_REPORT_ONLY`, redeploy, repeat the smoke test.
+
+**Acceptance criteria**
+- [ ] No `csp-violation` lines in report-only on the real devices; the installed PWA works offline (offline shell, generic offline page).
+- [ ] Enforcing policy deployed, results noted under the ticket.
 
 ---
 
@@ -2075,6 +2099,14 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-108 | Opt-in `MAP_TILE_CACHE=1` (default OFF, explicit `MAP_TILE_URL` required, build-time for the worker): worker cache-first for tiles the page requested, LRU 300, 7 days, CORS 200 only (`crossOrigin` on the tile layer), CSP `connect-src` gets the tile host only then | Browser-cache-like, no prefetch; opaque responses would cost ~7 MB quota each; worker fetches are checked against connect-src |
 | 2026-10-18 | NUD-108 | The notice lives in `TourMap` itself (also the admin tour map), strings in new namespace `maps` | One component, one behaviour; admin planners get the same honest hint |
 | 2026-10-18 | NUD-108 | Marker tap -> stop detail not added (does not exist today); ticket NUD-119 | Out of scope of the offline ticket |
+| 2026-10-18 | NUD-110 | Hybrid script CSP in production: per-request nonce (proxy) for everything Next.js renders per request + SHA-256 hashes for the inline scripts of the prebuilt documents; `script-src 'self'` for API / files; no `'unsafe-inline'`, no `'strict-dynamic'` | Measured on the 16.4.2 build: the nonce reaches the PPR resume part, the prebuilt shells have 2 fixed inline scripts (+ flight data in 4 static page types), so hashes cover them; the Next docs' "PPR incompatible" only holds for the prebuilt part |
+| 2026-10-18 | NUD-110 | `experimental.sri` not used | Webpack-only in 16.4.2, and SRI does not cover inline scripts |
+| 2026-10-18 | NUD-110 | Two `next build` passes in `pnpm build` / `build:vercel` plus a `check` step that fails on any mismatch; hashes inlined into the proxy via `next.config` `env`; build ID pinned between the passes | The proxy bundle is built before the prerendered HTML (and its hashes) exist; run-time file reads from the proxy cannot be verified on Vercel; a mismatch must break the build, never the site |
+| 2026-10-18 | NUD-110 | The CSP of pages moved from `next.config.ts` to `src/proxy.ts`; `next.config.ts` keeps it for the complement of the proxy matcher only | One policy per response (two CSP headers would intersect); API routes, files and the worker are not seen by the proxy |
+| 2026-10-18 | NUD-110 | `offline.html` script moved to `public/offline.js` (precached), `onclick` removed | Static files get `script-src 'self'`; hashing a file generated after `next build` is not possible from `next.config.ts` |
+| 2026-10-18 | NUD-110 | Development keeps `'unsafe-inline' 'unsafe-eval'` and no nonce | HMR needs them and a nonce would disable `'unsafe-inline'`; strictness is asserted by the e2e on production builds (skipped on `pnpm dev`) |
+| 2026-10-18 | NUD-110 | `style-src 'unsafe-inline'` left as is | Out of scope (ticket is about scripts); Leaflet sets inline styles |
+| 2026-10-18 | NUD-110 | Rate-limit integration test uses days in the future instead of fixed dates | Fixed dates became "past" on 2026-10-18 and collided with attempts logged with the real clock (test-only fix) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

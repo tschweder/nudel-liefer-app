@@ -205,10 +205,11 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
   });
   expect(urls.length).toBeGreaterThan(10);
   expect(urls).toContain("/offline.html");
+  expect(urls).toContain("/offline.js"); // NUD-110: the script of the offline page is a file of its own
   for (const u of urls) {
     // NUD-081 adds the public offline shell pages (no personal data) to the precache.
     expect(u, u).toMatch(
-      /^(\/_next\/static\/|\/icons\/|\/offline\.html$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
+      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
     );
     expect(u).not.toContain("_rsc");
   }

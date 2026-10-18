@@ -41,17 +41,48 @@ export function storageSources(env: Env): string[] {
   return [];
 }
 
+/** Per-request inputs of the page policy (NUD-110). Both are absent for everything that is not a page. */
+export type CspOptions = {
+  dev?: boolean;
+  /** Base64 nonce of this request; Next.js puts it on the scripts it streams for this response. */
+  nonce?: string;
+  /** CSP hash sources (`sha256-...`) of the inline scripts in the prerendered shells. */
+  scriptHashes?: readonly string[];
+};
+
+const NONCE_PATTERN = /^[A-Za-z0-9+/_-]{16,}={0,2}$/;
+const HASH_PATTERN = /^sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}$/;
+
+/** `script-src` sources. Production never contains `'unsafe-inline'` (NUD-110). */
+export function scriptSources(options: CspOptions & { dev: boolean }): string[] {
+  // Development: Next.js HMR / React debugging need inline code and eval. A nonce would switch
+  // `'unsafe-inline'` off, so development never uses one.
+  if (options.dev) return ["'self'", "'unsafe-inline'", "'unsafe-eval'"];
+  const sources = ["'self'"];
+  if (options.nonce !== undefined) {
+    if (!NONCE_PATTERN.test(options.nonce)) throw new Error("CSP nonce is not base64");
+    sources.push(`'nonce-${options.nonce}'`);
+  }
+  for (const hash of options.scriptHashes ?? []) {
+    if (!HASH_PATTERN.test(hash)) throw new Error(`CSP script hash is malformed: ${hash}`);
+    sources.push(`'${hash}'`);
+  }
+  return sources;
+}
+
 /**
- * Content-Security-Policy (NUD-093).
+ * Content-Security-Policy (NUD-093, script part reworked in NUD-110).
  *
- * `script-src` keeps `'unsafe-inline'`: Next.js streams its hydration data in inline `<script>`
- * tags and the app uses cache components / partial prerendering, whose prebuilt shells cannot carry
- * a per-request nonce (Next.js documents nonces as incompatible with PPR). Everything else is
- * locked down (`object-src`, `base-uri`, `frame-ancestors`, `form-action`, per-type `*-src`).
+ * `script-src` has no `'unsafe-inline'` in production. HTML pages (served through `src/proxy.ts`)
+ * get a fresh per-request nonce, which Next.js copies onto every inline script it streams while
+ * rendering (hydration data, Suspense completions, the part of a partially prerendered page that is
+ * rendered per request), plus the SHA-256 hashes of the few inline scripts inside the prebuilt
+ * shells (those cannot carry a nonce; see `scripts/csp-script-hashes.ts` and docs/deploy.md
+ * section 11). Everything that is not a page gets `script-src 'self'`.
  * `style-src` keeps `'unsafe-inline'` because Leaflet positions its panes and markers with inline
- * styles. Development additionally needs `'unsafe-eval'` and websockets for HMR.
+ * styles. Development additionally needs `'unsafe-eval'`, inline scripts and websockets for HMR.
  */
-export function buildCsp(env: Env, options: { dev?: boolean } = {}): string {
+export function buildCsp(env: Env, options: CspOptions = {}): string {
   const dev = options.dev ?? env.NODE_ENV !== "production";
   const storage = storageSources(env);
   const tiles = tileSource(env.MAP_TILE_URL);
@@ -60,7 +91,7 @@ export function buildCsp(env: Env, options: { dev?: boolean } = {}): string {
   const sentry = sentryIngestSource(env.SENTRY_DSN);
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
-    ["script-src", ["'self'", "'unsafe-inline'", ...(dev ? ["'unsafe-eval'"] : [])]],
+    ["script-src", scriptSources({ ...options, dev })],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     ["img-src", ["'self'", "data:", "blob:", ...storage, ...(tiles ? [tiles] : [])]],
     ["font-src", ["'self'", "data:"]],
@@ -90,18 +121,21 @@ export function buildCsp(env: Env, options: { dev?: boolean } = {}): string {
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");
 }
 
-/**
- * Response headers for every route. `CSP_REPORT_ONLY=true` sends the policy as
- * `Content-Security-Policy-Report-Only` (violations are logged in the browser console, nothing is
- * blocked) - the switch for rolling out a changed policy.
- */
-export function securityHeaders(env: Env = process.env): HeaderEntry[] {
-  const reportOnly = env.CSP_REPORT_ONLY?.trim().toLowerCase() === "true";
+/** `CSP_REPORT_ONLY=true` sends the policy as report-only: nothing is blocked, violations are logged. */
+export function isCspReportOnly(env: Env): boolean {
+  return env.CSP_REPORT_ONLY?.trim().toLowerCase() === "true";
+}
+
+export function cspHeader(env: Env, options: CspOptions = {}): HeaderEntry {
+  return {
+    key: isCspReportOnly(env) ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy",
+    value: buildCsp(env, options),
+  };
+}
+
+/** Security headers other than the CSP; the same for every response. */
+export function commonSecurityHeaders(): HeaderEntry[] {
   return [
-    {
-      key: reportOnly ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy",
-      value: buildCsp(env),
-    },
     { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-Frame-Options", value: "DENY" },
@@ -118,4 +152,13 @@ export function securityHeaders(env: Env = process.env): HeaderEntry[] {
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "X-DNS-Prefetch-Control", value: "off" },
   ];
+}
+
+/**
+ * All security headers with the static policy (no nonce, no hashes): what API routes, static files
+ * and the worker get. HTML pages get their policy from `src/proxy.ts`. `CSP_REPORT_ONLY=true` is the
+ * switch for rolling out a changed policy.
+ */
+export function securityHeaders(env: Env = process.env): HeaderEntry[] {
+  return [cspHeader(env), ...commonSecurityHeaders()];
 }

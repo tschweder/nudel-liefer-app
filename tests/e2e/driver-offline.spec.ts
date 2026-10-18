@@ -274,7 +274,7 @@ test("loads the tour into IndexedDB, prefetches the photos and says 'ready offli
   });
   for (const u of stored) {
     expect(u, u).toMatch(
-      /^(\/_next\/static\/|\/icons\/|\/offline\.html$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
+      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
     );
   }
   expect(stored.some((u) => u.includes("/api/"))).toBe(false);

@@ -101,8 +101,19 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
 
     describe("rate limiting", () => {
+      // The limit counts attempts newer than `now - window` (no upper bound). Tests above log in
+      // with the real clock, so a fixed date in the past (these used to be "2026-10-1x") would see
+      // those attempts as recent and fail from that day on. A day in the future, a day apart per
+      // test, keeps every window clear of earlier attempts.
+      const futureDay = (offset: number) =>
+        new Date(
+          Math.floor(Date.now() / 86_400_000) * 86_400_000 +
+            (offset + 2) * 86_400_000 +
+            8 * 3_600_000,
+        );
+
       it("rejects the 6th attempt within 15 minutes, even with the right PIN", async () => {
-        const t0 = new Date("2026-10-17T08:00:00Z");
+        const t0 = futureDay(0);
         for (let i = 0; i < 5; i++) {
           const r = await run("driver", "limited", "000000", {
             now: new Date(t0.getTime() + i * 1000),
@@ -121,7 +132,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
 
       it("applies the limit to unknown usernames too and a success resets the counter", async () => {
-        const t0 = new Date("2026-10-18T08:00:00Z");
+        const t0 = futureDay(1);
         for (let i = 0; i < 5; i++) await run("driver", "ghost", "000000", { now: t0 });
         expect(await run("driver", "ghost", "000000", { now: t0 })).toEqual({
           ok: false,
@@ -139,7 +150,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
 
       it("limits an IP across usernames (20 per window)", async () => {
-        const t0 = new Date("2026-10-19T08:00:00Z");
+        const t0 = futureDay(2);
         for (let i = 0; i < 20; i++) {
           await run("driver", `u${i}`, "000000", { ip: "203.0.113.9", now: t0 });
         }

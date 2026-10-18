@@ -13,7 +13,12 @@ import { build } from "esbuild";
 import { isTileCacheEnabled } from "../src/lib/map-config";
 import { PWA_THEME_COLOR } from "../src/lib/pwa";
 import { offlineShellUrls } from "../src/sw/rules";
-import { buildOfflineHtml, OFFLINE_LOCALES, type OfflineTexts } from "./lib/offline-page";
+import {
+  buildOfflineHtml,
+  buildOfflineScript,
+  OFFLINE_LOCALES,
+  type OfflineTexts,
+} from "./lib/offline-page";
 
 const root = process.cwd();
 const publicDir = path.join(root, "public");
@@ -37,6 +42,8 @@ async function main() {
     path.join(publicDir, "offline.html"),
     buildOfflineHtml(offlineTexts(), PWA_THEME_COLOR),
   );
+  // The script of the offline page is a file of its own (the CSP of static files has no 'unsafe-inline', NUD-110).
+  writeFileSync(path.join(publicDir, "offline.js"), buildOfflineScript());
 
   const swDest = path.join(publicDir, "sw.js");
   await build({
@@ -61,7 +68,12 @@ async function main() {
     swSrc: swDest,
     swDest,
     globDirectory: root,
-    globPatterns: [".next/static/**/*.{js,css,woff2}", "public/icons/*.png", "public/offline.html"],
+    globPatterns: [
+      ".next/static/**/*.{js,css,woff2}",
+      "public/icons/*.png",
+      "public/offline.html",
+      "public/offline.js",
+    ],
     globIgnores: ["**/*.map", "**/_buildManifest.js", "**/_ssgManifest.js"],
     globFollow: false,
     modifyURLPrefix: { ".next/static/": "/_next/static/", "public/": "/" },
@@ -74,7 +86,7 @@ async function main() {
   });
   for (const warning of result.warnings) console.warn("pwa:", warning);
   console.log(
-    `pwa: public/sw.js with ${result.count} precache entries (${(result.size / 1024).toFixed(0)} KiB), public/offline.html`,
+    `pwa: public/sw.js with ${result.count} precache entries (${(result.size / 1024).toFixed(0)} KiB), public/offline.html + offline.js`,
   );
 }
 

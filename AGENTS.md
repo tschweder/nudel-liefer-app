@@ -42,6 +42,11 @@ This version has breaking changes - APIs, conventions, and file structure may al
 - `opencc-js` ships ~1.2 MB of dictionaries. It is imported only by `src/lib/opencc.ts` and `src/lib/localized-text.server.ts` (`withDerivedHant`), which belong to server code, scripts and tests. `src/lib/localized-text.ts` is the client-safe half (types, schema, `LOCALES`, `pick`); never import OpenCC into it, into `src/components/**`, `src/domain/**` or `src/sw/**` (ESLint `no-restricted-imports` enforces this).
 - Backstop: `pnpm check:client-bundle` scans `.next/static` for OpenCC dictionary entries and fails the build if one is found (it runs at the end of `pnpm build` / `pnpm build:vercel`; `--report` prints the first-load JS of `/de/driver` and `/de/admin`). If it fails, find the client component that reaches OpenCC through a shared import and move the OpenCC use behind a server action or server module.
 
+## Content-Security-Policy: no inline scripts (NUD-110)
+
+- Production `script-src` is `'self'` + a per-request nonce + the hashes of the prebuilt shells (`src/proxy.ts`, `src/lib/security-headers.ts`, `docs/deploy.md` section 11.1a). Never add `'unsafe-inline'` / `'unsafe-eval'` to make something work; fix the cause (no `onclick="..."`, no inline `<script>` in `public/*.html`, no `dangerouslySetInnerHTML` scripts; put code in a file or a client component).
+- Build with `pnpm build` (two `next build` passes + `scripts/csp-script-hashes.ts check`). `.csp-script-hashes.json` is a git-ignored build artifact. `pnpm dev` keeps the loose development policy, so check script changes against a production build (`security-headers.spec.ts` asserts the strict policy there).
+
 ## Monitoring and error pages (NUD-094)
 
 - Sentry is optional and loaded only through dynamic imports behind `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` (zero overhead without). Every event goes through `src/lib/sentry-scrub.ts`; never add request bodies, cookies or query strings. The DSN host is added to the CSP `connect-src` by `src/lib/security-headers.ts`.

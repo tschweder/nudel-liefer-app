@@ -1,4 +1,6 @@
-import { expect, type Page, test } from "@playwright/test";
+import { createHash } from "node:crypto";
+
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
 // NUD-093. Needs a seeded database (`pnpm db:seed`) and SEED_ADMIN_PASSWORD in the environment.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
@@ -30,6 +32,21 @@ async function watchCsp(page: Page) {
     route.fulfill({ status: 200, contentType: "image/png", body: PNG }),
   );
   return violations;
+}
+
+const cspOf = (headers: Record<string, string>) =>
+  headers["content-security-policy"] ?? headers["content-security-policy-report-only"] ?? "";
+const scriptSrcOf = (csp: string) =>
+  csp
+    .split(";")
+    .map((d) => d.trim())
+    .find((d) => d.startsWith("script-src "))
+    ?.split(/\s+/)
+    .slice(1) ?? [];
+/** `next dev` keeps `'unsafe-inline'` and `'unsafe-eval'` for HMR; the strict policy is a production one. */
+async function isProductionPolicy(request: APIRequestContext) {
+  const response = await request.get("/de/login");
+  return !scriptSrcOf(cspOf(response.headers())).includes("'unsafe-eval'");
 }
 
 async function loginAdmin(page: Page) {
@@ -151,4 +168,99 @@ test("an open-redirect callbackUrl lands on the own home page", async ({ page })
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/de\/admin$/);
   expect(new URL(page.url()).hostname).not.toBe("evil.example");
+});
+
+// NUD-110. Production build only (`pnpm build && pnpm start`); `pnpm dev` keeps 'unsafe-inline'.
+test.describe("script-src without 'unsafe-inline' (NUD-110)", () => {
+  test("pages: nonce per request, every inline script covered by nonce or hash", async ({
+    request,
+  }) => {
+    test.skip(!(await isProductionPolicy(request)), "development server");
+    const nonces = new Set<string>();
+    for (const path of [
+      "/de/login",
+      "/zh-Hans/login",
+      "/de",
+      "/zh-Hant-HK/driver/offline-shell",
+      "/de/does-not-exist",
+    ]) {
+      const response = await request.get(path);
+      const sources = scriptSrcOf(cspOf(response.headers()));
+      expect(sources, path).not.toContain("'unsafe-inline'");
+      expect(sources, path).not.toContain("'unsafe-eval'");
+      expect(sources, path).not.toContain("*");
+      expect(sources, path).not.toContain("'strict-dynamic'");
+      expect(sources[0], path).toBe("'self'");
+      const nonce = sources.find((x) => x.startsWith("'nonce-"));
+      expect(nonce, `${path}: nonce`).toBeTruthy();
+      nonces.add(nonce!);
+      const html = await response.text();
+      let inline = 0;
+      for (const match of html.matchAll(/<script((?:\s[^>]*)?)>([\s\S]*?)<\/script>/g)) {
+        if (/\ssrc=/.test(match[1] ?? "")) continue;
+        inline++;
+        const attributeNonce = /\snonce="([^"]+)"/.exec(match[1] ?? "")?.[1];
+        const hash = `'sha256-${createHash("sha256").update(match[2]!, "utf8").digest("base64")}'`;
+        const covered =
+          (attributeNonce !== undefined && nonce === `'nonce-${attributeNonce}'`) ||
+          sources.includes(hash);
+        expect(covered, `${path}: inline script ${match[2]!.slice(0, 60)}`).toBe(true);
+      }
+      expect(inline, `${path}: has inline scripts`).toBeGreaterThan(0);
+    }
+    expect(nonces.size, "a new nonce for every response").toBe(5);
+  });
+
+  test("API routes, static files and the offline page are script-src 'self' only", async ({
+    request,
+  }) => {
+    test.skip(!(await isProductionPolicy(request)), "development server");
+    for (const path of [
+      "/api/health",
+      "/offline.html",
+      "/offline.js",
+      "/sw.js",
+      "/de/manifest.webmanifest",
+    ]) {
+      const response = await request.get(path);
+      expect(scriptSrcOf(cspOf(response.headers())), path).toEqual(["'self'"]);
+    }
+    const html = await (await request.get("/offline.html")).text();
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
+  });
+
+  test("an injected inline script and an inline event handler are blocked", async ({
+    page,
+    request,
+  }) => {
+    test.skip(!(await isProductionPolicy(request)), "development server");
+    test.skip(
+      (process.env.CSP_REPORT_ONLY ?? "").toLowerCase() === "true",
+      "report-only mode blocks nothing",
+    );
+    const violations = await watchCsp(page);
+    await page.goto("/de/login");
+    const ran = await page.evaluate(() => {
+      const w = window as unknown as { __xss?: string };
+      const script = document.createElement("script");
+      script.textContent = "window.__xss = 'inline'";
+      document.body.appendChild(script);
+      const img = document.createElement("img");
+      img.setAttribute("onerror", "window.__xss = 'handler'");
+      img.src = "data:image/gif;base64,x";
+      document.body.appendChild(img);
+      return new Promise<string | undefined>((resolve) => setTimeout(() => resolve(w.__xss), 300));
+    });
+    expect(ran).toBeUndefined();
+    expect(violations.filter((v) => v.startsWith("script-src"))).not.toEqual([]);
+  });
+
+  test("the login page hydrates and works under the strict policy", async ({ page, request }) => {
+    test.skip(!(await isProductionPolicy(request)), "development server");
+    const violations = await watchCsp(page);
+    await loginAdmin(page);
+    await expect(page.getByTestId("admin-title").first()).toBeVisible();
+    expect(violations).toEqual([]);
+  });
 });

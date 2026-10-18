@@ -201,8 +201,9 @@ Every pull request already gets its own Vercel preview URL. Which database do pr
 
 ### 11.1 Security headers and Content-Security-Policy
 
-Every response (pages, API routes, static files, the service worker) carries these headers, set in
-`next.config.ts` from `src/lib/security-headers.ts`:
+Every response (pages, API routes, static files, the service worker) carries these headers, built in
+`src/lib/security-headers.ts`: the CSP of **pages** is set by `src/proxy.ts` (per-request nonce, see
+11.1a), everything else by `next.config.ts`:
 
 | Header                                      | Value / purpose                                                                                                                                                                                                                         |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -214,20 +215,66 @@ Every response (pages, API routes, static files, the service worker) carries the
 | `Permissions-Policy`                        | `camera=(self)`, everything else off (`geolocation`, `microphone`, `payment`, `usb`, ...). Driver photos use `<input capture>` which needs no permission; the camera entry only keeps a future `getUserMedia` working on our own origin |
 | `Cross-Origin-Opener-Policy`                | `same-origin`                                                                                                                                                                                                                           |
 
-The policy: `default-src 'self'`; `script-src 'self' 'unsafe-inline'`; `style-src 'self' 'unsafe-inline'`;
+The policy: `default-src 'self'`; `script-src 'self'` + (pages only) `'nonce-<per request>'` and the
+hashes of the prebuilt shells, never `'unsafe-inline'` (11.1a); `style-src 'self' 'unsafe-inline'`;
 `img-src 'self' data: blob:` + the **storage origin** (from `S3_ENDPOINT`, or the AWS S3 host from
 `S3_BUCKET` + `S3_REGION`) + the **tile origin** (from `MAP_TILE_URL`; `{s}` subdomains become a
 wildcard); `connect-src 'self'` + the storage origin (browser uploads `PUT` and downloads photos for the
 offline copy); `worker-src 'self'`; `manifest-src 'self'`; `object-src 'none'`; `frame-src 'none'`;
 `frame-ancestors 'none'`; `base-uri 'self'`; `form-action 'self'`; `report-uri /api/csp-report`.
 
-Why `'unsafe-inline'` for scripts: Next.js writes its hydration data into inline `<script>` tags, and
-the app uses cache components / partial prerendering whose prebuilt page shells cannot carry a
-per-request nonce (Next.js documents nonce-based CSP as incompatible with PPR). Hash-based CSP is not
-possible for the streamed inline scripts either. The remaining directives (`object-src`, `base-uri`,
-`form-action`, `frame-ancestors`, host allow-lists for images, connections and workers) still limit
-what injected markup could do. `'unsafe-inline'` for styles is needed by Leaflet (inline positioning).
-Making scripts nonce-based is NUD-110 in the backlog.
+`'unsafe-inline'` for **styles** stays: Leaflet positions panes and markers with inline styles. The
+remaining directives (`object-src`, `base-uri`, `form-action`, `frame-ancestors`, host allow-lists for
+images, connections and workers) limit what injected markup could do.
+
+### 11.1a Strict script policy: nonce + hashes (NUD-110)
+
+**Decision.** `script-src` has no `'unsafe-inline'` in production. The app uses cache components /
+partial prerendering (PPR), where Next.js 16.4.2 documents nonces as incompatible
+(`node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md`: "Partial Prerendering
+(PPR) is incompatible with nonce-based CSP since static shell scripts won't have access to the
+nonce"). Measured against the real build, the incompatibility is narrower than that sentence:
+
+- A nonce in the CSP **request** header is applied by Next.js to every inline script it renders **per
+  request**, including the resume part of a PPR page (hydration data, Suspense completions). That is
+  most of the inline scripts.
+- The **prebuilt** part cannot carry a nonce: in a PPR shell exactly two inline scripts, a fixed
+  `requestAnimationFrame(...)` line and the Turbopack chunk list (`id="_R_"`, identical on every page
+  of one build); in the four fully static pages (`/<locale>` home, `/<locale>/driver/offline-shell`)
+  and `_not-found` / `_global-error` also their flight data (`self.__next_f.push(...)`).
+- These are fixed text per build, so they are allowed by **SHA-256 hash**. `src/proxy.ts` therefore
+  sends `script-src 'self' 'nonce-<random per response>' 'sha256-...'` (about 2 KB of header: hashes
+  of the common documents plus those of the request's locale), and
+  `script-src 'self'` for everything the proxy does not see (API, `/_next`, files, `sw.js`).
+- The experimental `experimental.sri` is **not** an option: Next.js implements it in the webpack
+  plugin only (`build/webpack/plugins/subresource-integrity-plugin.js`), this app builds with Turbopack, and
+  SRI covers `<script src>` files, not the inline scripts that are the problem. `'strict-dynamic'`
+  is not used (`'self'` already covers the chunk files).
+
+**How the hashes get into the proxy.** The proxy bundle is built before the prerendered HTML exists,
+and the hashes depend on the build output, so `pnpm build` / `pnpm build:vercel` run
+`csp-script-hashes reset` -> `next build` -> `csp-script-hashes write` (hashes of every inline script
+in `.next/server/app/**/*.html` and the build ID into git-ignored `.csp-script-hashes.json`) ->
+`next build` (second pass: `next.config.ts` inlines the hashes into the proxy and reuses the first
+build ID, which is part of the flight data of static pages) -> `build-pwa` -> `csp-script-hashes check`.
+`check` **fails the build** if the final output hashes differ from the ones the proxy was built with, if
+a static file in `public/` has an inline script, or if no hashes were found. So a deployment can never
+ship a policy that does not match its pages. Consequences:
+
+- Build with `pnpm build` (never `next build` alone for production): the second pass doubles the
+  build time (about 15 s more here, 35 s in total). The Sentry source-map upload (if configured) runs in both passes.
+- A Next.js / React upgrade that adds another inline script to the shells is handled automatically
+  (hashed); one that makes the output differ between two identical builds fails the `check` step.
+- Offline page: `public/offline.html` has no inline script or handler any more; its script is
+  `public/offline.js` (precached next to it). Anything new in `public/*.html` must do the same.
+- Do not add `next/script` inline scripts, `dangerouslySetInnerHTML` scripts or inline event handlers
+  (`onclick="..."` attributes); they would be blocked. Inline `<script>` that Next.js renders per request
+  get the nonce automatically.
+- Development (`pnpm dev`) keeps `'unsafe-inline'` and `'unsafe-eval'` (HMR) and uses no nonce.
+- The nonce is 128 random bits per response (`crypto.getRandomValues`) and also sent in the request
+  header Next.js reads. The hashes only allow scripts the build itself produced; an injected script with
+  other text is blocked (e2e `security-headers.spec.ts`, "injected inline script").
+- Revisit when Next.js supports build-time hashes for PPR shells natively (then delete the two-pass build).
 
 - Configuration is read when the app is built or started: after changing `MAP_TILE_URL` or `S3_*`
   redeploy. A wrong value shows up as blocked tiles or photos and as `[csp-violation]` lines in the log.
@@ -235,8 +282,10 @@ Making scripts nonce-based is NUD-110 in the backlog.
   line each (`[csp-violation] directive=... blocked=... document=...`, query strings removed). Search
   the Vercel logs for `csp-violation` after every deploy that touches the map, storage or scripts.
 - **Report-only rollout:** set `CSP_REPORT_ONLY=true` and redeploy to send the policy as
-  `Content-Security-Policy-Report-Only` (nothing is blocked, violations are only reported). Remove the
-  variable to enforce. The shipped default is **enforcing**.
+  `Content-Security-Policy-Report-Only` (nothing is blocked, violations are only reported; pages read it
+  per request, API routes and files when the app is built). Remove the variable to enforce. The shipped
+  default is **enforcing**. The first deployment of NUD-110 should go out report-only: check the Vercel
+  logs for `csp-violation` on the login, admin and driver pages and the installed PWA before enforcing.
 - Zod's JIT probe (`new Function`) would be reported as a script violation; `src/instrumentation-client.ts`
   switches it off in the browser. Do not add `'unsafe-eval'` to production.
 - Not verified from here: how a real Vercel deployment serves these headers (config headers are

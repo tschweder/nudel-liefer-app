@@ -56,6 +56,7 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "src/generated/**",
     "public/sw.js",
+    "public/offline.js",
     ".lighthouseci/**",
   ]),
 ]);

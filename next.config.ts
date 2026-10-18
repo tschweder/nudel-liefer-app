@@ -1,15 +1,43 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-import { securityHeaders } from "./src/lib/security-headers";
+import { commonSecurityHeaders, cspHeader } from "./src/lib/security-headers";
 import { isSentryEnabled, sentryEnvironment, sentryRelease } from "./src/lib/sentry-config";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const sentryDsn = isSentryEnabled(process.env.SENTRY_DSN) ? process.env.SENTRY_DSN!.trim() : "";
 
+/**
+ * NUD-110: `scripts/csp-script-hashes.ts write` stores the hashes of the inline scripts in the
+ * prerendered shells (and the build ID of the first pass) between the two `next build` passes of
+ * `pnpm build`. The hashes are inlined into the proxy bundle (`process.env.CSP_SCRIPT_HASHES`);
+ * both are absent on the first pass and in development.
+ */
+function readCspBuildFile(): { buildId?: string; hashes: string } {
+  try {
+    const file = JSON.parse(
+      readFileSync(path.join(process.cwd(), ".csp-script-hashes.json"), "utf8"),
+    ) as { buildId?: unknown; common?: unknown; locales?: unknown };
+    return {
+      buildId: typeof file.buildId === "string" ? file.buildId : undefined,
+      hashes: JSON.stringify({ common: file.common, locales: file.locales }),
+    };
+  } catch {
+    return { hashes: "" };
+  }
+}
+const cspBuildFile = readCspBuildFile();
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The build ID is part of the flight data inlined in static pages, whose script hashes the second
+  // pass bakes into the proxy: both passes must use the same ID (a fresh random one per `pnpm
+  // build`, because `reset` removes the file first).
+  generateBuildId: async () => cspBuildFile.buildId ?? null,
   cacheComponents: true,
   partialPrefetching: true,
   // NUD-094: the Sentry SDK patches Node internals at run time and must be loaded from
@@ -21,15 +49,23 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: sentryDsn ? sentryEnvironment(process.env) : "",
     NEXT_PUBLIC_SENTRY_RELEASE: sentryDsn ? (sentryRelease(process.env) ?? "") : "",
+    CSP_SCRIPT_HASHES: cspBuildFile.hashes,
   },
   async headers() {
     return [
       {
-        // NUD-093: CSP, HSTS, framing, referrer and permissions policy for every response. The
-        // CSP is built from MAP_TILE_URL / S3_* / SENTRY_DSN when the server starts or builds
-        // (see docs/deploy.md).
+        // NUD-093: HSTS, framing, referrer and permissions policy for every response.
         source: "/:path*",
-        headers: securityHeaders(),
+        headers: commonSecurityHeaders(),
+      },
+      {
+        // NUD-093 / NUD-110: the CSP of everything the proxy does not see (its matcher skips API
+        // routes, Next.js internals and files with an extension): no nonce, no hashes, so
+        // `script-src 'self'`. Pages get their CSP, with a per-request nonce, from src/proxy.ts. The
+        // policy is built from MAP_TILE_URL / S3_* / SENTRY_DSN when the server starts or builds
+        // (see docs/deploy.md). Keep the pattern the exact complement of the proxy matcher.
+        source: "/:path((?:api|_next|_vercel).*|.*\\..*)",
+        headers: [cspHeader(process.env)],
       },
       {
         // The service worker script must never be served from the HTTP cache, or an update
@@ -41,7 +77,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/offline.html",
+        source: "/:file(offline\\.html|offline\\.js)",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
       },
     ];

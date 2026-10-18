@@ -16,6 +16,44 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+/** Name of the script the offline page loads; precached next to it. */
+export const OFFLINE_SCRIPT_PATH = "/offline.js";
+
+/**
+ * The script of the offline page. It is a file of its own, not inline, because the Content
+ * Security Policy of static files has no `'unsafe-inline'` (NUD-110); the reload button is wired
+ * here for the same reason (no `onclick` attribute).
+ */
+export function buildOfflineScript(): string {
+  return `(function () {
+  var buttons = document.querySelectorAll("button[data-reload]");
+  for (var b = 0; b < buttons.length; b++) buttons[b].addEventListener("click", function () { location.reload(); });
+  var wanted = location.pathname.split("/")[1];
+  var sections = document.querySelectorAll("section[data-locale]");
+  function known(l) {
+    for (var k = 0; k < sections.length; k++) if (sections[k].getAttribute("data-locale") === l) return true;
+    return false;
+  }
+  // Start URL of the installed app (/driver?source=pwa, NUD-106) while offline: forward to the
+  // driver's last-used language (NEXT_LOCALE cookie, set by the language switcher and the
+  // login) so the worker answers with the offline shell of that language; German if unknown.
+  if (wanted === "driver" && location.pathname.replace(/\\/+$/, "") === "/driver") {
+    var cookie = /(?:^|; )NEXT_LOCALE=([^;]*)/.exec(document.cookie);
+    var lang = "de";
+    try { if (cookie && known(decodeURIComponent(cookie[1]))) lang = decodeURIComponent(cookie[1]); } catch (e) {}
+    location.replace("/" + lang + "/driver" + location.search);
+    return;
+  }
+  var shown = false;
+  for (var i = 0; i < sections.length; i++) {
+    if (sections[i].getAttribute("data-locale") === wanted) { sections[i].hidden = false; shown = true; }
+  }
+  if (!shown) sections[0].hidden = false;
+  document.documentElement.lang = shown ? wanted : "de";
+})();
+`;
+}
+
 export function buildOfflineHtml(
   texts: Record<OfflineLocale, OfflineTexts>,
   themeColor: string,
@@ -26,7 +64,7 @@ export function buildOfflineHtml(
       <svg class="icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M10.7 5.1A15 15 0 0 1 22 8.8"/><path d="M5 12.9a10 10 0 0 1 5.2-2.7"/><path d="M13.8 10.2a10 10 0 0 1 5.2 2.7"/><path d="M12 20h.01"/></svg>
       <h1>${escapeHtml(t.title)}</h1>
       <p>${escapeHtml(t.text)}</p>
-      <button type="button" onclick="location.reload()">${escapeHtml(t.retry)}</button>
+      <button type="button" data-reload>${escapeHtml(t.retry)}</button>
     </section>`;
   }).join("\n");
   return `<!doctype html>
@@ -52,32 +90,7 @@ export function buildOfflineHtml(
     <main>
 ${sections}
     </main>
-    <script>
-      (function () {
-        var wanted = location.pathname.split("/")[1];
-        var sections = document.querySelectorAll("section[data-locale]");
-        function known(l) {
-          for (var k = 0; k < sections.length; k++) if (sections[k].getAttribute("data-locale") === l) return true;
-          return false;
-        }
-        // Start URL of the installed app (/driver?source=pwa, NUD-106) while offline: forward to the
-        // driver's last-used language (NEXT_LOCALE cookie, set by the language switcher and the
-        // login) so the worker answers with the offline shell of that language; German if unknown.
-        if (wanted === "driver" && location.pathname.replace(/\\/+$/, "") === "/driver") {
-          var cookie = /(?:^|; )NEXT_LOCALE=([^;]*)/.exec(document.cookie);
-          var lang = "de";
-          try { if (cookie && known(decodeURIComponent(cookie[1]))) lang = decodeURIComponent(cookie[1]); } catch (e) {}
-          location.replace("/" + lang + "/driver" + location.search);
-          return;
-        }
-        var shown = false;
-        for (var i = 0; i < sections.length; i++) {
-          if (sections[i].getAttribute("data-locale") === wanted) { sections[i].hidden = false; shown = true; }
-        }
-        if (!shown) sections[0].hidden = false;
-        document.documentElement.lang = shown ? wanted : "de";
-      })();
-    </script>
+    <script src="/offline.js"></script>
   </body>
 </html>
 `;
