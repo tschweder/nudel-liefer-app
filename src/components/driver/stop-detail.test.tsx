@@ -58,6 +58,13 @@ const detail = (extra: Partial<DriverStopDetail> = {}): DriverStopDetail => ({
   notes: { text: "Hintereingang", lang: "de" },
   deliveryHoursInfo: "Mo-Fr 8-11",
   photos: { STORE: photo, PARKING: null },
+  tourStops: ["s1", "s2", "s3"].map((id, i) => ({
+    id,
+    sequence: i + 1,
+    status: "PENDING" as const,
+    problemReason: null,
+    completedAt: null,
+  })),
   stop: {
     id: "s2",
     sequence: 2,

@@ -864,9 +864,12 @@
         "not_found": "找不到这一站。",
         "mutation_conflict": "操作没有成功，请再试一次。",
         "invalid": "操作没有成功，请再试一次。",
-        "forbidden": "没有权限。"
+        "forbidden": "没有权限。",
+        "storage": "无法保存在手机上，请重试。",
+        "changed_by_office": "办公室修改了这个站点。"
       },
-      "offlineNotice": "离线：联网后才能保存送达状态。"
+      "offlineNotice": "离线：您的操作已保存在手机上，联网后会自动发送。",
+      "queuedHint": "等待发送"
     },
     "install": {
       "title": "安装应用",
@@ -895,6 +898,21 @@
       "stopMissingTitle": "未保存此站点",
       "stopMissingDescription": "此站点不在已保存的行程中。",
       "backToTour": "返回行程"
+    },
+    "sync": {
+      "pending": "{count} 条操作等待发送",
+      "willRetry": "稍后会再次发送",
+      "dismiss": "知道了",
+      "notices": {
+        "changed_by_office": "{name}：办公室修改了这个站点，您的操作未被采用，以最新状态为准。",
+        "not_found": "{name}：这个站点已从路线中移除，您的操作未被采用。",
+        "already_completed": "{name}：这个站点已经完成，以已保存的状态为准。",
+        "not_completed": "{name}：这个站点尚未完成，以已保存的状态为准。",
+        "undo_expired": "{name}：撤销太迟了（仅限 5 分钟内），该站点保持已完成。",
+        "tour_completed": "{name}：路线已经结束，以已保存的状态为准。",
+        "tour_not_active": "{name}：这条路线已不再有效，您的操作未被采用。",
+        "generic": "{name}：您的操作未能被采用，以已保存的状态为准。"
+      }
     }
   },
   "pwa": {

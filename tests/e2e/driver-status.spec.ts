@@ -253,7 +253,8 @@ for (const locale of LOCALES) {
     await expect(page).toHaveURL(new RegExp(`/${locale}/driver$`));
     await expect(visible(page, "all-done")).toBeVisible();
     await expect(visible(page, "finished-summary")).toContainText("3");
-    expect(await tourStatus()).toBe("COMPLETED");
+    // The screen follows the tap at once; the server catches up a moment later (outbox, NUD-082).
+    await expect.poll(tourStatus).toBe("COMPLETED");
     expect(
       (await db.query(`SELECT "completedAt" FROM "Tour" WHERE "id"=$1`, [tourId])).rows[0]
         .completedAt,
@@ -265,6 +266,17 @@ for (const locale of LOCALES) {
     });
 
     // A completed tour cannot be reopened: no undo on the last stop.
+    await expect
+      .poll(
+        async () =>
+          (
+            await db.query(
+              `SELECT count(*) FROM "Stop" WHERE "tourId"=$1 AND "status"<>'PENDING'`,
+              [tourId],
+            )
+          ).rows[0].count,
+      )
+      .toBe("3");
     await page.goto(`/${locale}/driver/stops/${stopIds[1]}`);
     await expect(visible(page, "stop-result")).toBeVisible();
     await expect(visible(page, "undo")).toHaveCount(0);
@@ -272,7 +284,9 @@ for (const locale of LOCALES) {
   });
 }
 
-test("a stale screen shows the real state instead of booking twice", async ({ page, browser }) => {
+test("a stale screen shows the real state and a notice instead of booking twice", async ({
+  page,
+}) => {
   await resetState("de");
   await login(page);
   await page.goto(`/de/driver/stops/${stopIds[0]}`);
@@ -282,36 +296,43 @@ test("a stale screen shows the real state instead of booking twice", async ({ pa
     stopIds[0],
   ]);
   await visible(page, "btn-delivered").click();
-  await expect(visible(page, "status-error")).toBeVisible();
-  await expect(visible(page, "stop-result")).toBeVisible();
+  // The tap is queued and sent; the server refuses it (already closed) and the driver is told.
+  const notice = page.getByTestId("sync-notice").first();
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveAttribute("data-error", "already_completed");
+  await expect(notice).toContainText(names[0]);
   expect(await mutationCount()).toBe(0);
-  void browser;
+  await expect(page.getByTestId("pending-badge")).toHaveCount(0);
+  await page.getByTestId("sync-notice-dismiss").first().click();
+  await expect(page.getByTestId("sync-notice")).toHaveCount(0);
 });
 
-test("a network failure keeps the same mutation for the retry", async ({ page }) => {
+test("a failed request keeps the queued tap and retries it with the same id", async ({ page }) => {
   await resetState("de");
   await login(page);
   await page.goto(`/de/driver/stops/${stopIds[0]}`);
   await expect(visible(page, "btn-delivered")).toBeVisible();
   const ids: string[] = [];
   let failed = false;
-  await page.route(/\/de\/driver\/stops\//, async (route) => {
-    const body = route.request().postData() ?? "";
-    const match = /[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/.exec(body);
-    if (route.request().method() === "POST" && match) {
-      ids.push(match[0]);
-      if (!failed) {
-        failed = true;
-        return route.abort("connectionfailed");
-      }
+  await page.route("**/api/driver/sync", async (route) => {
+    const body = JSON.parse(route.request().postData() ?? "{}") as {
+      entries: Array<{ clientMutationId: string }>;
+    };
+    ids.push(...body.entries.map((e) => e.clientMutationId));
+    if (!failed) {
+      failed = true;
+      return route.abort("connectionfailed");
     }
     return route.continue();
   });
   await visible(page, "btn-delivered").click();
-  await expect(visible(page, "status-error")).toBeVisible();
-  expect((await stopRow(0)).status).toBe("PENDING");
-  await visible(page, "btn-delivered").click();
+  // The screen moved on, the badge says one tap is waiting, the server knows nothing yet.
   await expect(page).toHaveURL(new RegExp(`/stops/${stopIds[1]}$`));
+  await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
+  expect((await stopRow(0)).status).toBe("PENDING");
+  // The retry (exponential backoff, first wait 2 s) sends the very same tap.
+  await expect.poll(async () => (await stopRow(0)).status, { timeout: 30_000 }).toBe("DELIVERED");
+  await expect(page.getByTestId("pending-badge")).toHaveCount(0);
   expect(ids.length).toBeGreaterThanOrEqual(2);
   expect(new Set(ids).size).toBe(1);
   expect(await mutationCount()).toBe(1);

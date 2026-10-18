@@ -2,8 +2,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { StopStatusResult } from "@/server/stop-status";
-
 import de from "../../../messages/de.json";
 import zhHans from "../../../messages/zh-Hans.json";
 import zhHantHK from "../../../messages/zh-Hant-HK.json";
@@ -11,12 +9,27 @@ import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { StopStatusActions } from "./stop-status-actions";
 
 const mocks = vi.hoisted(() => ({
-  action: vi.fn(),
+  enqueue: vi.fn(),
+  undo: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+  outbox: {
+    userId: "u1",
+    entries: [] as unknown[],
+    inFlight: new Set<string>(),
+    notices: [],
+    flushing: false,
+    failure: null,
+    confirmed: {},
+  },
 }));
-vi.mock("@/server/stop-status-actions", () => ({ stopStatusAction: mocks.action }));
+vi.mock("@/lib/offline/outbox-browser", () => ({
+  enqueueMutation: mocks.enqueue,
+  undoStopStatus: mocks.undo,
+  useOutbox: () => mocks.outbox,
+}));
+vi.mock("@/lib/offline/browser", () => ({ requestOfflineSync: vi.fn() }));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
 }));
@@ -29,8 +42,6 @@ const LOCALES: Record<string, AbstractIntlMessages> = {
   "zh-Hant-TW": zhHantTW,
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
 type StopProps = Parameters<typeof StopStatusActions>[0]["stop"];
 const pendingStop: StopProps = {
   id: "s1",
@@ -39,8 +50,24 @@ const pendingStop: StopProps = {
   problemReason: null,
   completedAt: null,
 };
+const tourOf = (...statuses: string[]) =>
+  statuses.map((status, i) => ({ id: `s${i + 1}`, sequence: i + 1, status }));
+const queued = (type: string, stopId = "s1", id = "m1") => ({
+  clientMutationId: id,
+  userId: "u1",
+  type,
+  stopId,
+  createdAt: "2099-07-02T08:00:00.000Z",
+  seq: 1,
+  customerName: "Trattoria Roma",
+});
 
-function renderIn(locale: string, stop: StopProps = pendingStop, tourStatus = "RELEASED") {
+function renderIn(
+  locale: string,
+  stop: StopProps = pendingStop,
+  tourStatus = "RELEASED",
+  props: { tourStops?: ReturnType<typeof tourOf>; offline?: boolean } = {},
+) {
   return render(
     <NextIntlClientProvider
       locale={locale}
@@ -52,68 +79,55 @@ function renderIn(locale: string, stop: StopProps = pendingStop, tourStatus = "R
         throw new Error(`missing message ${namespace}.${key}`);
       }}
     >
-      <StopStatusActions stop={stop} tourStatus={tourStatus} timezone="Europe/Vienna" />
+      <StopStatusActions
+        stop={stop}
+        tourStops={props.tourStops ?? tourOf("PENDING", "PENDING", "PENDING")}
+        tourStatus={tourStatus}
+        timezone="Europe/Vienna"
+        offline={props.offline}
+      />
     </NextIntlClientProvider>,
   );
 }
 
-const ok = (extra: Partial<Extract<StopStatusResult, { ok: true }>> = {}): StopStatusResult => ({
-  ok: true,
-  replayed: false,
-  kind: "COMPLETE",
-  stopId: "s1",
-  status: "DELIVERED",
-  tourId: "t1",
-  tourStatus: "IN_PROGRESS",
-  done: 1,
-  total: 3,
-  nextStopId: "s2",
-  completedAt: "2099-07-02T08:00:00.000Z",
-  undoUntil: "2099-07-02T08:05:00.000Z",
-  ...extra,
-});
-
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.action.mockResolvedValue(ok());
+  mocks.outbox.entries = [];
+  mocks.outbox.inFlight = new Set();
+  mocks.enqueue.mockImplementation(async (m) => ({ clientMutationId: "m1", ...m }));
+  mocks.undo.mockResolvedValue("cancelled");
 });
 afterEach(cleanup);
 
 describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
-  it("shows the two big buttons and sends one delivered mutation per double tap", async () => {
-    let finish!: (value: StopStatusResult) => void;
-    mocks.action.mockReturnValue(new Promise<StopStatusResult>((resolve) => (finish = resolve)));
+  it("queues one delivered tap per double tap, opens the next stop and offers Undo", async () => {
+    let finish!: (value: unknown) => void;
+    mocks.enqueue.mockReturnValue(new Promise((resolve) => (finish = resolve)));
     renderIn(locale);
     const button = screen.getByTestId("btn-delivered");
     expect(screen.getByTestId("btn-problem")).toBeVisible();
     fireEvent.click(button);
     fireEvent.click(button);
     fireEvent.click(button);
-    expect(mocks.action).toHaveBeenCalledTimes(1);
-    expect(mocks.action).toHaveBeenCalledWith({
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    expect(mocks.enqueue).toHaveBeenCalledWith({
       type: "delivered",
       stopId: "s1",
-      clientMutationId: expect.stringMatching(UUID),
+      customerName: "Trattoria Roma",
     });
-    await act(async () => finish(ok()));
+    await act(async () => finish({ clientMutationId: "m1" }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/driver/stops/s2"));
     expect(mocks.push).toHaveBeenCalledTimes(1);
-    // Toast with an Undo action; pressing it sends an undo and goes back to the stop.
+    // Toast with an Undo action; pressing it undoes the stop and goes back to it.
     const [message, options] = mocks.toast.mock.calls[0];
     expect(message).toContain("Trattoria Roma");
     expect(options.action.label).toBeTruthy();
-    mocks.action.mockResolvedValue(ok({ kind: "UNDO", status: "PENDING", undoUntil: null }));
     await act(async () => options.action.onClick());
-    expect(mocks.action).toHaveBeenLastCalledWith({
-      type: "undo",
-      stopId: "s1",
-      clientMutationId: expect.stringMatching(UUID),
-    });
+    expect(mocks.undo).toHaveBeenCalledWith("s1", "Trattoria Roma");
     await waitFor(() => expect(mocks.push).toHaveBeenLastCalledWith("/driver/stops/s1"));
   });
 
   it("reports a problem with a reason and a free text", async () => {
-    mocks.action.mockResolvedValue(ok({ status: "PROBLEM" }));
     renderIn(locale);
     fireEvent.click(screen.getByTestId("btn-problem"));
     const submit = await screen.findByTestId("problem-submit");
@@ -124,11 +138,11 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
     expect(screen.getByTestId("reason-NO_PARKING")).toHaveAttribute("aria-pressed", "true");
     fireEvent.change(screen.getByTestId("problem-note"), { target: { value: "  Baustelle  " } });
     fireEvent.click(submit);
-    await waitFor(() => expect(mocks.action).toHaveBeenCalledTimes(1));
-    expect(mocks.action).toHaveBeenCalledWith({
+    await waitFor(() => expect(mocks.enqueue).toHaveBeenCalledTimes(1));
+    expect(mocks.enqueue).toHaveBeenCalledWith({
       type: "problem",
       stopId: "s1",
-      clientMutationId: expect.stringMatching(UUID),
+      customerName: "Trattoria Roma",
       reason: "NO_PARKING",
       note: "Baustelle",
     });
@@ -136,13 +150,28 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
   });
 
   it("goes to the tour screen after the last stop and offers no undo then", async () => {
-    mocks.action.mockResolvedValue(
-      ok({ nextStopId: null, tourStatus: "COMPLETED", undoUntil: null }),
-    );
-    renderIn(locale);
+    renderIn(locale, pendingStop, "RELEASED", { tourStops: tourOf("PENDING", "DELIVERED") });
     fireEvent.click(screen.getByTestId("btn-delivered"));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/driver"));
     expect(mocks.toast.mock.calls[0][1].action).toBeUndefined();
+  });
+
+  it("keeps the buttons usable offline and says the tap is kept on the phone", async () => {
+    renderIn(locale, pendingStop, "RELEASED", { offline: true });
+    expect(screen.getByTestId("status-offline-notice")).toBeVisible();
+    expect(screen.getByTestId("btn-delivered")).toBeEnabled();
+    expect(screen.getByTestId("btn-problem")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("btn-delivered"));
+    await waitFor(() => expect(mocks.enqueue).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not navigate and says so when the phone cannot store the tap", async () => {
+    mocks.enqueue.mockRejectedValue(new Error("no storage"));
+    renderIn(locale);
+    fireEvent.click(screen.getByTestId("btn-delivered"));
+    expect(await screen.findByTestId("status-error")).toBeVisible();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.toast).not.toHaveBeenCalled();
   });
 
   it("shows the result of a completed stop with Undo only inside the window", () => {
@@ -179,24 +208,35 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
     vi.useRealTimers();
   });
 
-  it("shows a server rejection and refreshes when the screen is stale", async () => {
-    mocks.action.mockResolvedValue({ ok: false, error: "already_completed" });
-    renderIn(locale);
-    fireEvent.click(screen.getByTestId("btn-delivered"));
-    expect(await screen.findByTestId("status-error")).toBeVisible();
-    expect(mocks.refresh).toHaveBeenCalled();
-    expect(mocks.push).not.toHaveBeenCalled();
+  it("lets a queued completion be taken back at any time, even for the last stop", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2099-07-02T09:30:00Z")); // far outside the 5-minute window
+    mocks.outbox.entries = [queued("delivered")];
+    renderIn(
+      locale,
+      { ...pendingStop, status: "DELIVERED", completedAt: "2099-07-02T08:00:00.000Z" },
+      "RELEASED",
+      { tourStops: tourOf("DELIVERED", "DELIVERED") },
+    );
+    expect(screen.getByTestId("stop-pending-sync")).toBeVisible();
+    expect(screen.getByTestId("undo")).toBeVisible();
+    vi.useRealTimers();
   });
 
-  it("keeps the mutation id when no answer came (retry = same mutation)", async () => {
-    mocks.action.mockRejectedValueOnce(new Error("offline"));
-    renderIn(locale);
-    fireEvent.click(screen.getByTestId("btn-delivered"));
-    expect(await screen.findByTestId("status-error")).toBeVisible();
-    fireEvent.click(screen.getByTestId("btn-delivered"));
-    await waitFor(() => expect(mocks.action).toHaveBeenCalledTimes(2));
-    const [first, second] = mocks.action.mock.calls.map((c) => c[0].clientMutationId);
-    expect(second).toBe(first);
-    await waitFor(() => expect(mocks.push).toHaveBeenCalled());
+  it("does not offer to cancel a completion that a request carries right now", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2099-07-02T09:30:00Z"));
+    mocks.outbox.entries = [queued("delivered")];
+    mocks.outbox.inFlight = new Set(["m1"]);
+    renderIn(
+      locale,
+      { ...pendingStop, status: "DELIVERED", completedAt: "2099-07-02T08:00:00.000Z" },
+      "RELEASED",
+      { tourStops: tourOf("DELIVERED", "PENDING") },
+    );
+    // Outside the window, and the tap is on its way: nothing to cancel, no "waiting" hint either.
+    expect(screen.queryByTestId("undo")).toBeNull();
+    expect(screen.queryByTestId("stop-pending-sync")).toBeNull();
+    vi.useRealTimers();
   });
 });

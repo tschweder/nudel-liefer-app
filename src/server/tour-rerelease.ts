@@ -444,6 +444,7 @@ export async function reReleaseTourWith(
                     previousItems: readStopItems(stopById.get(entry.stopId)!.items),
                     changeKind: "CHANGED" as const,
                     changedInRevision: revision,
+                    adminChangedAt: now,
                   }
                 : {};
             await replaceLinks(tx, entry.stopId, entry.orderIds, { ...timing, ...marker });
@@ -455,6 +456,7 @@ export async function reReleaseTourWith(
                 customerId: entry.customerId,
                 changeKind: "ADDED",
                 changedInRevision: revision,
+                adminChangedAt: now,
                 orders: { create: entry.orderIds.map((orderId) => ({ orderId })) },
               },
             });

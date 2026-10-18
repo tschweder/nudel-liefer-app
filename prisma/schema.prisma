@@ -271,6 +271,9 @@ model Stop {
   changeKind       StopChange?
   /// `Tour.releaseRevision` in which `changeKind` was set; the driver highlights revisions it has not seen yet.
   changedInRevision Int?
+  /// When the office last changed this stop's content (a re-release that changed or added it, NUD-082).
+  /// The offline sync lets this win over a driver mutation that was made earlier on the phone.
+  adminChangedAt DateTime?
 
   tour      Tour           @relation(fields: [tourId], references: [id], onDelete: Cascade)
   customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)

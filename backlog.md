@@ -231,7 +231,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-073 | 👤 UI string review workflow for native speakers | M2 | 003 | blocked |
 | NUD-080 | PWA installability | M2 | 051 | done |
 | NUD-081 | Offline cache of today's tour + photos | M2 | 080, 052 | done |
-| NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | todo |
+| NUD-082 | Offline mutation queue for stop status | M2 | 081, 053 | done |
 | NUD-083 | Driver photo capture / replace | M2 | 052, 082 | todo |
 | NUD-090 | Customer import (CSV/XLSX) with pin review | M2 | 014 | todo |
 | NUD-091 | Packing list / load sheet print view | M2 | 041 | todo |
@@ -247,6 +247,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
 | NUD-108 | Map view offline (tiles) | M2 | 081 | todo |
+| NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1245,7 +1246,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-082 · Offline mutation queue for stop status
-**Status:** todo · **depends_on:** 081, 053
+**Status:** done · **depends_on:** 081, 053
 
 **Goal:** "Delivered" taps are never lost.
 
@@ -1257,8 +1258,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Pending-count badge in the driver top bar.
 
 **Acceptance criteria**
-- [ ] Offline: mark 3 stops delivered → go online → server has 3 updates, no duplicates (e2e).
-- [ ] Undo while offline removes the queued mutation instead of sending two.
+- [x] Offline: mark 3 stops delivered → go online → server has 3 updates, no duplicates (e2e). (`tests/e2e/driver-outbox.spec.ts`, 375 px, production build: three taps offline, nothing on the server, badge 3, list shows 3/5; after reconnect exactly 3 DELIVERED stops and 3 `StopMutation` rows, `completedAt` = tap time, a reload changes nothing. Integration: `driver-sync.integration.test.ts`, replay of the same batch -> `replayed`.)
+- [x] Undo while offline removes the queued mutation instead of sending two. (e2e: outbox empty after undo, no `/api/driver/sync` request answered, no `StopMutation`; unit `planUndo` / controller. Undo of an already confirmed stop while offline queues one undo (e2e).)
+- [x] Conflict rule shows a notice (added): office change after the tap -> `changed_by_office`, stop unchanged on the server, notice with the customer name until acknowledged (e2e + integration).
+
+**Implementation notes**
+- Server: `POST /api/driver/sync` (`app/api/driver/sync/route.ts`, `server/driver-sync.ts`): `requireRole("DRIVER")` first (401 / 403), JSON only (415), <= 256 KiB (413), strict zod 1..50 entries (400). `applySyncBatch` sorts by effective tap time and calls `applyStopMutation` once per entry (own transaction, advisory lock, idempotent via `StopMutation`); a business rejection never stops the batch, an unexpected error marks that entry and later entries of the same stop `retry`. `scheduleProblemNoteTranslation` runs per applied entry (replays do nothing). Answer: per entry `applied | replayed | rejected(error) | retry`, plus the authoritative status of every stop of the touched tours (own tours only). Contract and pure rules: `src/domain/driver-sync.ts` (no zod, bundled into the worker).
+- `applyStopMutation(db, actor, input, now, { clientCreatedAt })`: `now` = effective tap time; with `clientCreatedAt` a stop whose new column `Stop.adminChangedAt` (migration `20261018100000_stop_admin_changed_at`, set by a re-release that changes / adds a stop) is later than the tap is rejected with new error `changed_by_office`. Removed stop -> `not_found`, inactive tour -> `tour_not_active`, closed stop -> `already_completed`: all final rejections, server wins.
+- Client `src/lib/offline/`: `idb.ts` (one DB v2: `tours`, `outbox`, `notices`), `outbox.ts` (pure: ordering, `planUndo`, overlay, `settle`, `patchTourStates`, backoff), `outbox-flush.ts` (chunks of 50, 400 -> entry by entry, notices, patches the stored tour copy), `outbox-controller.ts` (state, enqueue with double-tap guard, undo, flush with backoff and rerun, confirmed-state bridge for 20 s), `outbox-browser.ts` (singleton, `useOutbox`, Background Sync registration), `use-overlay.ts`. `StopStatusActions` no longer calls the server action: it enqueues, the stop counts as done at once, next stop opens; buttons work offline (NUD-081 disable removed; amber hint stays). `TodayTour` / `StopDetail` overlay queued taps (`DriverStopDetail.tourStops` added). UI: `PendingBadge` in the top bar, `SyncNotices` (de, zh-Hans by hand, Hant generated; `driver.sync.*`). `OfflineSync` triggers: start, `online`, visible (skip backoff), 60 s, new tap; worker `sync` event (tag `nudel-outbox`) flushes for the user of the stored tour copy and tells open pages.
+- The old server action `stopStatusAction` is no longer used by the UI (kept with its authorization tests).
+- Tests: unit `outbox`, `outbox-controller` (14), `driver-sync` domain, component `stop-status-actions` (4 locales); integration `driver-sync.integration.test.ts` (27: 3 stops, idempotent replay, order, undo window from tap time, clamping, conflict cases, foreign tour, translation scheduling, retry, route auth / validation) and `adminChangedAt` in `tour-rerelease`; e2e `driver-outbox.spec.ts` (5), `driver-status` / `driver-offline` adapted.
+- Verified: lint, typecheck (incl. worker), `i18n:check`, unit + DB tests (stop / driver / tour groups), `pnpm build`, e2e mobile: `driver-outbox`, `driver-status`, `driver-offline`, `driver-stop`, `driver-today`, `pwa`, `admin-progress` (alone), `problem-translation`, `driver-language-picker`, `shells`; screenshots at 375 px (offline stop, badge, list, conflict notice) inspected.
+- NOT verified: Background Sync in a browser (the worker code path is only type-checked and bundled; Chromium-only API, not triggered in e2e); real phones / Safari; desktop Playwright project; `mvp-happy-path` and `tour-rerelease` e2e (need the demo seed, not run); admin-progress fails when run in the same session with other specs (several tours today, pre-existing), passes alone.
+- Known limits: unsent taps survive logout and are sent after that driver's next login (another driver's entries are dropped after 3 days); a phone clock far off shifts the tap time (clamped to 24 h / now); two tabs may send the same entry (idempotent); a rejected tap is reported once the phone is online again, not at tap time.
 
 ---
 
@@ -1480,6 +1492,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] Offline the map view shows either tiles or a clear localized hint, never a blank map.
 
+#### NUD-109 · 👤 Real-device check of the offline mutation queue
+**Status:** todo · **depends_on:** 082
+
+**Goal:** confirm on real phones what the sandbox could not: Background Sync (Android Chrome), queued taps through a real dead spot, logout with unsent taps (they stay and are sent after the next login), Safari / iOS behaviour (page triggers only), a re-release by the office while the phone is offline (notice).
+
+**Acceptance criteria**
+- [ ] Android Chrome: tap "Delivered" in flight mode, close the app, leave flight mode: the stop shows up in the admin view without opening the app.
+- [ ] iOS Safari / installed PWA: taps queued offline are sent when the app is opened again.
+- [ ] Logging out with a badge > 0 and back in sends the taps.
+
 ---
 
 ### M3 — Later (refine before starting)
@@ -1697,7 +1719,13 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-081 | The login pages purge IndexedDB and the photo cache on mount (instead of purging on the logout click) | A login page means no session: also covers expired / ended sessions and a different driver; an offline logout that fails must not delete data of a still logged-in driver |
 | 2026-10-18 | NUD-081 | The sync is not gated on `navigator.onLine`; it runs at start, on `online`, when visible, every 5 min and after status changes; only DRIVER users sync (admin support view would get 403) | `onLine` can be wrong (false in this sandbox); a failed fetch is cheap |
 | 2026-10-18 | NUD-081 | Offline the status buttons are disabled with a notice and undo is hidden | Mutation queue is NUD-082; a server action cannot succeed offline |
-
+| 2026-10-18 | NUD-082 | Every tap goes through the outbox (outbox first, then send), also online; the UI is optimistic; the server action is no longer used by the UI | One code path, a tap is instant and never lost; the same idempotent function runs for each entry |
+| 2026-10-18 | NUD-082 | `createdAt` of a queued tap is trusted within [server now - 24 h, server now] and becomes `completedAt`, the start of the undo window and the conflict cut-off | A phone clock that is ahead or far behind cannot future-date stops or reopen old windows; undo counts from the driver's action, not from the delivery of the request |
+| 2026-10-18 | NUD-082 | Conflict = new column `Stop.adminChangedAt` (set by a re-release that changes / adds a stop) later than the tap -> `changed_by_office`; removed stop / inactive tour / closed stop are rejected as well; rejected entries are final (removed, notice) | Needs a per-stop time (tour `reReleasedAt` would flag unchanged stops); quantities are priority 2, so a tap made on old quantities must not win |
+| 2026-10-18 | NUD-082 | A queued completion that no request carries can always be cancelled by Undo (outside the 5-minute window too); otherwise an undo is queued; the last stop's toast offers no Undo | The server never saw it; the window and the COMPLETED rule only apply to confirmed state (NUD-053) |
+| 2026-10-18 | NUD-082 | Backoff 2 s doubling to 5 min; `online` / focus / start skip it, the 60 s timer and new taps respect it; chunks of 50; a 400 chunk is retried entry by entry | Spec asks for exponential backoff; a changed situation deserves one immediate attempt; one bad entry must not block the queue |
+| 2026-10-18 | NUD-082 | Unsent taps and notices survive logout / the login purge (kept per user, other drivers' after 3 days); the worker's Background Sync only sends for the user of the stored tour copy | "Taps are never lost"; avoids sending one driver's taps in another's session |
+| 2026-10-18 | NUD-082 | Settled stop states are shown on top of the not yet refreshed page for 20 s ("confirmed" overlay) | Prevents a flicker back to "pending" between removing the queue entry and the server data refresh |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

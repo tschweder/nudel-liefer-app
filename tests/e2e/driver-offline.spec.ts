@@ -342,10 +342,10 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     }
     const offlinePhotoBox = await page.getByTestId("photo-store").boundingBox();
     expect(Math.round(offlinePhotoBox!.height)).toBe(Math.round(onlinePhotoBox!.height));
-    // The status cannot be changed offline (queue is NUD-082): visible but disabled, with a notice.
+    // The status buttons work offline (NUD-082 queues the tap); the notice says where it is kept.
     await expect(page.getByTestId("status-offline-notice")).toBeVisible();
-    await expect(page.getByTestId("btn-delivered")).toBeDisabled();
-    await expect(page.getByTestId("btn-problem")).toBeDisabled();
+    await expect(page.getByTestId("btn-delivered")).toBeEnabled();
+    await expect(page.getByTestId("btn-problem")).toBeEnabled();
     expect(await noHorizontalScroll(page)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("offline-stop-de.png"), fullPage: true });
 

@@ -30,6 +30,12 @@ import { syncTourProgress } from "./tour-service";
  * - Undo is allowed for 5 minutes after the stop was completed (server clock). Once the tour is
  *   COMPLETED nothing can be undone (COMPLETED is final in the tour status machine). The tour never
  *   moves back from IN_PROGRESS, also not when the only completed stop is undone.
+ * - Offline queue (NUD-082): the batch sync `POST /api/driver/sync` calls this per queued entry with
+ *   `now` = the moment the driver made the tap (the entry's `createdAt`, clamped to sane bounds by
+ *   `effectiveMutationTime`) so `completedAt` and the 5-minute undo window follow the driver's
+ *   action, not the delivery of the request, and passes `clientCreatedAt` to switch on the conflict
+ *   rule: a stop the office changed (re-release) after that moment is NOT changed
+ *   (`changed_by_office`, server state wins).
  */
 
 const mutationFields = {
@@ -58,7 +64,9 @@ export type StopStatusError =
   | "undo_expired"
   | "tour_completed"
   | "tour_not_active"
-  | "mutation_conflict";
+  | "mutation_conflict"
+  /** Offline queue only: the office changed the stop after the driver's tap, server state wins. */
+  | "changed_by_office";
 
 export type StopStatusOk = {
   ok: true;
@@ -104,6 +112,14 @@ const storedResultSchema = z.object({
 
 type ActingDriver = Pick<Actor, "id" | "role" | "locale">;
 
+export type ApplyStopMutationOptions = {
+  /**
+   * When the mutation was made on the device (offline queue). Switches on the conflict rule: the
+   * mutation is rejected with `changed_by_office` if the office changed the stop after this moment.
+   */
+  clientCreatedAt?: Date;
+};
+
 /**
  * Applies one stop-status mutation for `actor` (a DRIVER; the caller has run `requireRole`). `now`
  * is the server clock (injectable for tests). Never throws for business rejections.
@@ -113,6 +129,7 @@ export async function applyStopMutation(
   actor: ActingDriver,
   rawInput: unknown,
   now: Date = new Date(),
+  options: ApplyStopMutationOptions = {},
 ): Promise<StopStatusResult> {
   const parsed = stopMutationSchema.safeParse(rawInput);
   if (!parsed.success) return fail("invalid");
@@ -158,10 +175,18 @@ export async function applyStopMutation(
             id: true,
             status: true,
             completedAt: true,
+            adminChangedAt: true,
             tour: { select: { id: true, status: true, driverId: true } },
           },
         });
         if (!stop || stop.tour.driverId !== actor.id) throw new Rejected("not_found");
+        if (
+          options.clientCreatedAt &&
+          stop.adminChangedAt &&
+          stop.adminChangedAt.getTime() > options.clientCreatedAt.getTime()
+        ) {
+          throw new Rejected("changed_by_office");
+        }
         const tourStatus = stop.tour.status;
         const active = tourStatus === "RELEASED" || tourStatus === "IN_PROGRESS";
 

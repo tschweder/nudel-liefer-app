@@ -4,7 +4,8 @@ import {
   driverTourResponseSchema,
 } from "@/lib/driver-tour-model";
 
-import { OFFLINE_DB_NAME, OFFLINE_DB_VERSION, OFFLINE_TOURS_STORE } from "./constants";
+import { OFFLINE_TOURS_STORE } from "./constants";
+import { createIdbConnection, idbRun } from "./idb";
 
 /**
  * What the browser keeps of the driver's work day (NUD-081): the tour JSON of ONE day for ONE user.
@@ -106,59 +107,12 @@ export function createMemoryStore(): OfflineStore & { rows: Map<string, unknown>
   };
 }
 
-function request<T>(req: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error("IndexedDB request failed"));
-  });
-}
-
 /** IndexedDB-backed store (browser only). */
-export function createIndexedDbStore(): OfflineStore {
-  let opened: Promise<IDBDatabase> | null = null;
-  const open = () => {
-    opened ??= new Promise<IDBDatabase>((resolve, reject) => {
-      if (typeof indexedDB === "undefined") {
-        reject(new Error("IndexedDB is not available"));
-        return;
-      }
-      const req = indexedDB.open(OFFLINE_DB_NAME, OFFLINE_DB_VERSION);
-      req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains(OFFLINE_TOURS_STORE)) {
-          req.result.createObjectStore(OFFLINE_TOURS_STORE, { keyPath: "userId" });
-        }
-      };
-      req.onsuccess = () => {
-        // Another tab upgrading or the browser closing the connection: reopen on next use.
-        req.result.onclose = () => (opened = null);
-        req.result.onversionchange = () => {
-          req.result.close();
-          opened = null;
-        };
-        resolve(req.result);
-      };
-      req.onerror = () => {
-        opened = null;
-        reject(req.error ?? new Error("IndexedDB open failed"));
-      };
-    });
-    return opened;
-  };
-  const tx = async <T>(
-    mode: IDBTransactionMode,
-    run: (store: IDBObjectStore) => IDBRequest<T>,
-  ): Promise<T> => {
-    const db = await open();
-    const transaction = db.transaction(OFFLINE_TOURS_STORE, mode);
-    const done = new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB failed"));
-      transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB aborted"));
-    });
-    const result = await request(run(transaction.objectStore(OFFLINE_TOURS_STORE)));
-    await done;
-    return result;
-  };
+export function createIndexedDbStore(
+  open: () => Promise<IDBDatabase> = createIdbConnection(),
+): OfflineStore {
+  const tx = <T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>) =>
+    idbRun(open, OFFLINE_TOURS_STORE, mode, run);
   return {
     all: () => tx("readonly", (s) => s.getAll()),
     put: async (record) => void (await tx("readwrite", (s) => s.put(record))),

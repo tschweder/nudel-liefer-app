@@ -1,7 +1,13 @@
 /// <reference lib="webworker" />
 import { CacheOnly, NetworkOnly, type PrecacheEntry, Serwist } from "serwist";
 
-import { PHOTO_CACHE_NAME } from "../lib/offline/constants";
+import {
+  OUTBOX_FLUSHED_MESSAGE,
+  OUTBOX_SYNC_TAG,
+  PHOTO_CACHE_NAME,
+} from "../lib/offline/constants";
+import { flushOutbox } from "../lib/offline/outbox-flush";
+import { createIndexedDbOutboxStore } from "../lib/offline/outbox-store";
 import { isDriverNavigation, isPhotoCachePath, offlineShellUrl, offlineShellUrls } from "./rules";
 
 declare global {
@@ -57,3 +63,35 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+/**
+ * Background Sync (NUD-082, progressive enhancement; Chromium only): when the browser regains a
+ * connection it fires `sync` for the tag the page registered after queueing a tap, also when the
+ * app is closed. The worker sends the queue of the driver the phone holds a tour copy for (the
+ * single user id in the `tours` store; none or several -> leave it to the page, which knows the
+ * logged-in user), then tells open pages to refresh. A network or server failure rejects the
+ * promise, so the browser schedules another attempt.
+ */
+async function flushOutboxInBackground(): Promise<void> {
+  const store = createIndexedDbOutboxStore();
+  const userIds = await store.tourUserIds();
+  if (userIds.length !== 1) return;
+  const outcome = await flushOutbox(userIds[0]!, {
+    store,
+    fetchImpl: (input, init) => fetch(input, init),
+    now: () => new Date(),
+  });
+  if (outcome.kind !== "ran") return;
+  if (outcome.applied + outcome.rejected > 0) {
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of clients) client.postMessage({ type: OUTBOX_FLUSHED_MESSAGE });
+  }
+  if (outcome.failure === "network" || outcome.failure === "server") {
+    throw new Error(`outbox flush failed (${outcome.failure})`);
+  }
+}
+
+self.addEventListener("sync", (event) => {
+  const syncEvent = event as Event & { tag?: string; waitUntil(promise: Promise<unknown>): void };
+  if (syncEvent.tag === OUTBOX_SYNC_TAG) syncEvent.waitUntil(flushOutboxInBackground());
+});

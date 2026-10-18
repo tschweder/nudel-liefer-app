@@ -16,6 +16,7 @@ import type { AppLocale } from "@/lib/localized-text";
 import type { MapTileConfig } from "@/lib/map-config";
 import { getOfflineStore, loadOfflineStatus } from "@/lib/offline/browser";
 import { photoCacheUrl } from "@/lib/offline/constants";
+import { getOutbox } from "@/lib/offline/outbox-browser";
 import { parseOfflineView } from "@/lib/offline/routes";
 import { loadCurrentRecord, type OfflineRecord } from "@/lib/offline/store";
 
@@ -40,6 +41,11 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
   useEffect(() => {
     let cancelled = false;
     loadCurrentRecord(getOfflineStore(), new Date())
+      // The queued taps of this driver are part of what the screens show (NUD-082).
+      .then(async (record) => {
+        if (record) await getOutbox().start(record.userId);
+        return record;
+      })
       .then((record) => {
         if (cancelled) return;
         setLoaded(record ? { state: "ready", record } : { state: "none" });

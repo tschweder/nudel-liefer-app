@@ -26,6 +26,7 @@ import { isIosDevice } from "@/lib/device";
 import type { DriverStopDetail, StopPhoto } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
+import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
 import { cn } from "@/lib/utils";
 
 import { RefreshOnFocus } from "./refresh-on-focus";
@@ -126,13 +127,15 @@ export function StopDetail({
   offline = false,
 }: {
   detail: DriverStopDetail;
-  /** Rendered from the offline copy (NUD-081): status changes need the server (NUD-082). */
+  /** Rendered from the offline copy (NUD-081): taps are queued on the device (NUD-082). */
   offline?: boolean;
 }) {
   const t = useTranslations("driver");
   const fmt = createAppFormatters(useFormatter(), detail.timezone);
   const ios = useIsIos();
-  const { stop } = detail;
+  // Queued taps the server has not confirmed yet count as done on this screen (NUD-082).
+  const stop = useOverlaidStop(detail.stop);
+  const tourStops = useOverlaidStops(detail.tourStops);
   const hasPin = stop.lat !== null && stop.lng !== null;
   const address = formatAddress(stop);
 
@@ -294,6 +297,7 @@ export function StopDetail({
         <StopStatusActions
           key={`${stop.id}:${stop.status}`}
           stop={stop}
+          tourStops={tourStops}
           tourStatus={detail.tourStatus}
           timezone={detail.timezone}
           offline={offline}

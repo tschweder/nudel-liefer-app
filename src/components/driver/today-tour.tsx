@@ -33,6 +33,7 @@ import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model"
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
 import { googleMapsNavigationUrl } from "@/lib/navigation";
+import { useOverlaidStops } from "@/lib/offline/use-overlay";
 import { cn } from "@/lib/utils";
 
 import { RefreshOnFocus } from "./refresh-on-focus";
@@ -313,12 +314,13 @@ export function TodayTour({
   offline?: boolean;
 }) {
   const t = useTranslations("driver.today");
+  const stops = useOverlaidStops(today.stops);
   const [view, setView] = useState<"list" | "map">("list");
   const [seen, markSeen] = useSeenRevision(today.tourId, today.revision, today.updated);
 
-  const next = nextPendingStop(today.stops);
-  const { done, total } = progressOf(today.stops);
-  const remaining = roundedMinutes(remainingSeconds(today.stops, today.serviceSecondsPerStop));
+  const next = nextPendingStop(stops);
+  const { done, total } = progressOf(stops);
+  const remaining = roundedMinutes(remainingSeconds(stops, today.serviceSecondsPerStop));
   const showBanner = today.updated && seen < today.revision;
   const unseen = (stop: TodayStop) => showBanner && isUnseenChange(stop, seen);
 
@@ -402,8 +404,8 @@ export function TodayTour({
           </div>
           <p className="text-lg font-semibold" data-testid="finished-summary">
             {t("finishedSummary", {
-              delivered: today.stops.filter((s) => s.status === "DELIVERED").length,
-              problems: today.stops.filter((s) => s.status === "PROBLEM").length,
+              delivered: stops.filter((s) => s.status === "DELIVERED").length,
+              problems: stops.filter((s) => s.status === "PROBLEM").length,
             })}
           </p>
         </div>
@@ -437,7 +439,7 @@ export function TodayTour({
             {t("listTitle")}
           </h2>
           <ol className="space-y-3" data-testid="stop-list">
-            {today.stops.map((stop) => (
+            {stops.map((stop) => (
               <StopRow
                 key={stop.id}
                 stop={stop}
@@ -451,7 +453,7 @@ export function TodayTour({
       ) : (
         <section aria-label={t("mapLabel")} data-testid="map-view">
           <TourMapLazy
-            stops={today.stops.flatMap((stop) =>
+            stops={stops.flatMap((stop) =>
               stop.lat !== null && stop.lng !== null
                 ? [
                     {

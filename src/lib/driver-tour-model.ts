@@ -175,6 +175,17 @@ export type DriverStopDetail = {
   total: number;
   prevStopId: string | null;
   nextStopId: string | null;
+  /**
+   * Every stop of the tour with its status, in tour order: after a stop is closed the screen goes
+   * to the next open one, which depends on the stops closed offline too (NUD-082).
+   */
+  tourStops: Array<{
+    id: string;
+    sequence: number;
+    status: TodayStop["status"];
+    problemReason: string | null;
+    completedAt: string | null;
+  }>;
   /** Customer note for the driver in the best available language (`lang` = language it is in). */
   notes: { text: string; lang: AppLocale } | null;
   deliveryHoursInfo: string | null;
@@ -263,6 +274,13 @@ export function toDriverStopDetail(
     total: nav.total,
     prevStopId: nav.prev?.id ?? null,
     nextStopId: nav.next?.id ?? null,
+    tourStops: tour.stops.map((s) => ({
+      id: s.id,
+      sequence: s.sequence,
+      status: s.status,
+      problemReason: s.problemReason,
+      completedAt: s.completedAt,
+    })),
     notes: notes ? { text: notes.value, lang: notes.locale } : null,
     deliveryHoursInfo: stop.deliveryHoursInfo?.trim() || null,
     photos: { STORE: photo(stop.photos.STORE), PARKING: photo(stop.photos.PARKING) },

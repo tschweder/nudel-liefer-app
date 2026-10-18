@@ -865,9 +865,12 @@
         "not_found": "找不到這一站。",
         "mutation_conflict": "操作沒有成功，請再試一次。",
         "invalid": "操作沒有成功，請再試一次。",
-        "forbidden": "沒有權限。"
+        "forbidden": "沒有權限。",
+        "storage": "無法保存在手機上，請重試。",
+        "changed_by_office": "辦公室修改了這個站點。"
       },
-      "offlineNotice": "離線：聯網後才能保存送達狀態。"
+      "offlineNotice": "離線：您的操作已保存在手機上，聯網後會自動發送。",
+      "queuedHint": "等待發送"
     },
     "install": {
       "title": "安裝應用",
@@ -896,6 +899,21 @@
       "stopMissingTitle": "未保存此站點",
       "stopMissingDescription": "此站點不在已保存的行程中。",
       "backToTour": "返回行程"
+    },
+    "sync": {
+      "pending": "{count} 條操作等待發送",
+      "willRetry": "稍後會再次發送",
+      "dismiss": "知道了",
+      "notices": {
+        "changed_by_office": "{name}：辦公室修改了這個站點，您的操作未被採用，以最新狀態為準。",
+        "not_found": "{name}：這個站點已從路線中移除，您的操作未被採用。",
+        "already_completed": "{name}：這個站點已經完成，以已保存的狀態為準。",
+        "not_completed": "{name}：這個站點尚未完成，以已保存的狀態為準。",
+        "undo_expired": "{name}：撤銷太遲了（僅限 5 分鐘內），該站點保持已完成。",
+        "tour_completed": "{name}：路線已經結束，以已保存的狀態為準。",
+        "tour_not_active": "{name}：這條路線已不再有效，您的操作未被採用。",
+        "generic": "{name}：您的操作未能被採用，以已保存的狀態為準。"
+      }
     }
   },
   "pwa": {

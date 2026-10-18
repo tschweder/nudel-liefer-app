@@ -864,9 +864,12 @@
         "not_found": "Stopp nicht gefunden.",
         "mutation_conflict": "Das hat nicht geklappt. Bitte erneut versuchen.",
         "invalid": "Das hat nicht geklappt. Bitte erneut versuchen.",
-        "forbidden": "Dazu fehlt die Berechtigung."
+        "forbidden": "Dazu fehlt die Berechtigung.",
+        "storage": "Speichern auf dem Handy nicht möglich. Bitte erneut versuchen.",
+        "changed_by_office": "Das Büro hat diesen Stopp geändert."
       },
-      "offlineNotice": "Offline: Der Status kann erst mit Internetverbindung gespeichert werden."
+      "offlineNotice": "Offline: Ihre Eingabe wird auf dem Handy gespeichert und automatisch gesendet, sobald wieder Internet da ist.",
+      "queuedHint": "Wartet auf Übertragung"
     },
     "install": {
       "title": "App installieren",
@@ -895,6 +898,21 @@
       "stopMissingTitle": "Stopp nicht gespeichert",
       "stopMissingDescription": "Dieser Stopp gehört nicht zur gespeicherten Tour.",
       "backToTour": "Zur Tour"
+    },
+    "sync": {
+      "pending": "{count} Eingaben warten auf Übertragung",
+      "willRetry": "Wird später erneut gesendet",
+      "dismiss": "Verstanden",
+      "notices": {
+        "changed_by_office": "{name}: Das Büro hat diesen Stopp geändert. Ihre Eingabe wurde nicht übernommen, es gilt der aktuelle Stand.",
+        "not_found": "{name}: Dieser Stopp wurde aus der Tour entfernt. Ihre Eingabe wurde nicht übernommen.",
+        "already_completed": "{name}: Dieser Stopp war schon erledigt. Es gilt der gespeicherte Stand.",
+        "not_completed": "{name}: Dieser Stopp war nicht erledigt. Es gilt der gespeicherte Stand.",
+        "undo_expired": "{name}: Rückgängig kam zu spät (nur 5 Minuten). Der Stopp bleibt erledigt.",
+        "tour_completed": "{name}: Die Tour ist schon abgeschlossen. Es gilt der gespeicherte Stand.",
+        "tour_not_active": "{name}: Diese Tour ist nicht mehr aktiv. Ihre Eingabe wurde nicht übernommen.",
+        "generic": "{name}: Die Eingabe konnte nicht übernommen werden. Es gilt der gespeicherte Stand."
+      }
     }
   },
   "pwa": {

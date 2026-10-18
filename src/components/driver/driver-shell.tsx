@@ -4,6 +4,8 @@ import { ConnectionIndicator } from "@/components/driver/connection-indicator";
 import { InstallHint } from "@/components/driver/install-hint";
 import { OfflineStatusBar } from "@/components/driver/offline-status";
 import { OfflineSync } from "@/components/driver/offline-sync";
+import { PendingBadge } from "@/components/driver/pending-badge";
+import { SyncNotices } from "@/components/driver/sync-notices";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 /**
@@ -28,6 +30,7 @@ export function DriverShell({
         <p className="min-w-0 flex-1 truncate text-lg font-semibold" data-testid="driver-date">
           {dateLabel}
         </p>
+        <PendingBadge />
         <ConnectionIndicator />
         {offline ? null : <LanguageSwitcher variant="icon" />}
       </header>
@@ -35,6 +38,7 @@ export function DriverShell({
         {syncUserId ? <OfflineSync userId={syncUserId} /> : null}
         {offline ? null : <InstallHint />}
         <OfflineStatusBar />
+        <SyncNotices />
         {children}
       </main>
     </div>

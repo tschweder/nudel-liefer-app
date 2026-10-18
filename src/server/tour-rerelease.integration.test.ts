@@ -268,6 +268,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
         expect(after).toMatchObject({ revision: 2, updated: true, status: "RELEASED" });
         expect(after?.stops.map((s) => s.items[0].quantityCents)).toEqual([200, 350, 200]);
         expect(after?.stops.map((s) => s.change)).toEqual([null, "CHANGED", null]);
+        // NUD-082: only the changed stop is marked as changed by the office, with the re-release time.
+        expect(tour.stops.map((s) => s.adminChangedAt !== null)).toEqual([false, true, false]);
+        expect(tour.stops[1].adminChangedAt?.getTime()).toBe(tour.reReleasedAt?.getTime());
         expect(after?.stops[1]).toMatchObject({
           changedInRevision: 2,
           items: [{ quantityCents: 350, previousQuantityCents: 200 }],
@@ -303,6 +306,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ]);
         expect(tour.stops[0].id).toBe(stopIds[1]);
         expect(tour.stops[2]).toMatchObject({ changeKind: "ADDED", changedInRevision: 2 });
+        expect(tour.stops[2].adminChangedAt).toBeInstanceOf(Date);
         expect(tour.stops[2].orders.map((o) => o.orderId)).toEqual([newOrder]);
         expect(tour.stops[2].items).toEqual([{ productId: p2, quantityCents: 400 }]);
         expect(await t.prisma.stop.findUnique({ where: { id: stopIds[0] } })).toBeNull();
