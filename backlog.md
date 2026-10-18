@@ -242,7 +242,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | done |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | blocked |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | done |
-| NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
+| NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | done |
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
 | NUD-106 | Installed app opens in the driver's current language | M2 | 080 | todo |
@@ -1529,7 +1529,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-098 · Keep OpenCC out of the client bundle
-**Status:** todo · **depends_on:** 003
+**Status:** done · **depends_on:** 003
 
 **Goal:** the browser must not download the ~1.3 MB OpenCC dictionaries (found in NUD-020: `language-switcher.tsx` and `users-manager.tsx` import `LOCALES` from `src/lib/localized-text.ts`, which imports `src/lib/opencc.ts`).
 
@@ -1538,7 +1538,15 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Check the production build: no chunk under `.next/static` contains OpenCC data (e.g. grep for a dictionary entry such as `麪`).
 
 **Acceptance criteria**
-- [ ] No client chunk contains OpenCC; all existing tests pass.
+- [x] No client chunk contains OpenCC; all existing tests pass.
+
+**Implementation notes**
+- Split: `src/lib/localized-text.ts` is now client-safe (locale constants, schema, `createLocalizedText`, `pick`, `pickWithSource`, DB-tag helpers); `withDerivedHant` moved unchanged to `src/lib/localized-text.server.ts` (the only importer of `src/lib/opencc.ts` besides server code, scripts and tests). Only `src/server/translator/localize.ts` used it; its test moved to `localized-text.server.test.ts`. Behaviour identical. No `server-only` package: it is not installed (`pnpm install` is not possible here) and tsx scripts/vitest would need aliasing, so the guard is a file naming convention plus two checks below.
+- Guards: (1) ESLint `no-restricted-imports` (opencc-js, `lib/opencc`, `localized-text.server`) for `src/components`, `src/domain`, `src/sw`, `src/lib` (server half, opencc.ts and tests excepted); verified that a violating import in `src/components` fails lint. (2) `scripts/check-client-bundle.ts` (`pnpm check:client-bundle [--report]`): scans every file in `.next/static` for real OpenCC dictionary entries (`意大利面 意大利麪`, `意大利 義大利`) and the package name, exit 1 on a hit; runs at the end of `pnpm build` and `pnpm build:vercel` (so CI's build/lighthouse job fails too) and has a unit test for the signatures. `--report` prints first-load JS from `build-manifest.json` + the route's RSC client manifest (root files + page + ancestor layouts). Documented in AGENTS.md.
+- Measured (production build, Turbopack): the offending chunk was 1166 KiB raw. First-load JS `/de/driver`: 2049 KiB raw / 773 KiB gzip -> 884 KiB / 273 KiB (-1165 KiB raw, -500 KiB gzip); `/de/admin`: 2050 / 776 -> 885 / 277 KiB. All client chunks 2931 -> 1753 KiB raw. Service worker precache: 74 entries / 3050 KiB -> 75 entries / 1872 KiB.
+- Lighthouse (`pnpm lighthouse:prepare` + `pnpm lighthouse`, 3 runs, driver home, same environment as NUD-095): LCP 1.14-1.16 s (before: median 1.9 s, range 1.2-2.0), CLS 0.042 (unchanged), TBT 2-48 ms (before 0.45-0.64 s). Assertions pass.
+- Verified: lint, typecheck, prettier on touched files, i18n:check, unit tests without DB (98 files, 1085 tests), integration tests touching OpenCC/localize (customer-actions, demo-seed, driver-today, product-actions, translation-retry: 73 pass); e2e shells + pwa (66), driver-offline (22, offline shell works), driver-today + drivers (16), products (live OpenCC pre-fill via server action) + customer-form (customer-form failed once when run together with products on the shared DB, passes alone: known shared-DB flake).
+- Not verified: the full integration suite in one go (only the five OpenCC-related files), other e2e specs (code path unchanged), real-device first-visit timing.
 
 ---
 
@@ -1964,6 +1972,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-095 | Toast region label localized and sonner hotkey removed | The default label is English and mentions a keyboard shortcut a phone does not have |
 | 2026-10-18 | NUD-096 | UAT script offers two data modes (demo seed with `--today`, or the client's real data) and keeps the sign-off block empty; wording issues are routed to `pnpm i18n:import`, not to code tickets | Drivers see only today's tour, and the demo seed must never touch production; the Chinese texts are still unreviewed (NUD-073) |
 | 2026-10-18 | NUD-097 | `await connection()` at the top of `requirePageActor` (page guards only), not in `requireRole` | Fixes the Auth.js CSRF `getRandomValues` prerender error at its cause; actions/route handlers are already request-scoped and stay unchanged |
+| 2026-10-18 | NUD-098 | OpenCC guard = file split (`localized-text.server.ts`) + ESLint `no-restricted-imports` + bundle scan in `pnpm build`, instead of the `server-only` package | `server-only` is not installed (no pnpm install here) and throws under tsx/vitest without aliasing; the ESLint rule + bundle scan catch the same mistakes without touching scripts and tests |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

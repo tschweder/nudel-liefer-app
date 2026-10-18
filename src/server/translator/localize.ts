@@ -1,9 +1,5 @@
-import {
-  type AppLocale,
-  createLocalizedText,
-  type LocalizedText,
-  withDerivedHant,
-} from "@/lib/localized-text";
+import { type AppLocale, createLocalizedText, type LocalizedText } from "@/lib/localized-text";
+import { withDerivedHant } from "@/lib/localized-text.server";
 
 import { getTranslator } from "./index";
 import { type Translator, TranslatorError } from "./types";
