@@ -240,7 +240,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-093 | Security hardening | M2 | 060 | done |
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | done |
 | NUD-095 | Driver usability & accessibility pass | M2 | 083 | done |
-| NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
+| NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | blocked |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
 | NUD-099 | Late orders for an already completed tour | M2 | 043 | todo |
@@ -1482,7 +1482,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-096 · 👤 User acceptance test with client & drivers
-**Status:** todo · **depends_on:** 093, 095
+**Status:** blocked (waiting for the client sign-off; the UAT itself is a human step) · **depends_on:** 093, 095
 
 **Scope**
 - `docs/uat.md`: test script for office (customers, products, orders, tour, release, import, print) and drivers (language choice, full tour, offline, photo, problem report).
@@ -1493,6 +1493,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 **Acceptance criteria**
 - [ ] Client sign-off recorded in `docs/uat.md`.
+
+**Human steps** (details in `docs/uat.md`)
+1. Developer: finish the pre-UAT checklist (`docs/uat.md` section 9: real ORS key, tile provider, DeepL key, R2 CORS, Sentry, backups, CSP on the real deployment, reviewed Chinese strings, real depot, real products) and prepare the data (section 2: `pnpm db:seed --demo --today` on a UAT database, or the client's real data).
+2. Run the office script (section 3) with the client's office staff and the driver script (section 4) with at least one real driver per language used, on at least one Android and one iPhone (section 6).
+3. Collect the feedback forms (section 5: findings, chosen Chinese variant per driver, wording issues, device matrix) and give them to the agent: it creates tickets (section 8 of `docs/uat.md`), runs the wording rows through `pnpm i18n:import` and logs the variant choice (also resolves the open question in section 10 of this file).
+4. The client fills in the sign-off block (`docs/uat.md` section 7). Only then tick the criterion above and set the ticket to `done`. Neither the agent nor the developer fills in the sign-off.
+
+**Implementation notes**
+- Wrote `docs/uat.md` (docs only, no code): preconditions with two data modes (demo seed with `--today`, or the client's real data), office script O-01..O-94 (login/settings, products with Chinese names, customers with photos and pins, translations tab, CSV/XLSX import with pin review, manual and screenshot orders, tour generate/reorder/lock/optimize/release, load sheet print, change after release and re-release, history, live progress, driver management), driver script D-01..D-54 and X-01..X-03 (first-start language picker, install on Android/iOS, full tour, quantity check against orders and load sheet, Google/Apple Maps hand-off, delivered/undo/problem with free text, photo capture, airplane-mode taps, cold start offline, Background Sync, logout with unsent taps, re-release notice, language switch, font size / sunlight / one hand / non-reader test), feedback form (findings, **chosen Chinese variant per driver**, wording issues with key/screen, current, suggested text for `pnpm i18n:import`), device matrix, an empty sign-off block, "how the agent converts feedback into tickets", the developer's pre-UAT checklist (references NUD-007, 073, 105, 107, 109, 113, 114, 115 instead of repeating them) and a table of known open items (NUD-073, 097, 099, 106, 108).
+- Checked against the app: every route and URL named in the document exists (`/de/login`, `/de/driver/login`, `/de/admin/customers/import`, `/de/admin/customers/import/review`, `/api/health`), `tests/fixtures/customers-150.csv` exists, and every quoted German UI term was matched by a script against the values of `messages/de.json` (and the locale names in `src/lib/locale-resolution.ts`); the only unmatched quotes are English instructions or placeholder variants. Prettier passes on `docs/uat.md` and `backlog.md`. Not run: the UAT itself (human), and nothing was clicked in a browser, so the "Expected" column describes the behaviour documented in the tickets and the labels, not an observation.
+- Seen while checking, not changed: a driver can log out only at the bottom of the home screen (`LogoutButton`); the product search by Chinese name is not promised anywhere, so O-52 records the behaviour as an observation only.
+- No new tickets were needed: the findings the script may produce map to existing tickets (NUD-099, 106, 108) or are covered by the human tickets 105, 107, 109, 113, 114, 115.
 
 ---
 
@@ -1944,6 +1956,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-095 | 130 % font size emulated through root font size; throttling through CDP on a desktop CPU | Only available emulation here; real devices are NUD-115 |
 | 2026-10-18 | NUD-095 | Lighthouse CI runs through `pnpm dlx @lhci/cli@0.15.1` on a warm logged-in profile, not as a project dependency; LCP < 2.5 s error budget | `@lhci/cli` adds 4 high advisories to `pnpm audit` (CI gate); the budget is "after first load" |
 | 2026-10-18 | NUD-095 | Toast region label localized and sonner hotkey removed | The default label is English and mentions a keyboard shortcut a phone does not have |
+| 2026-10-18 | NUD-096 | UAT script offers two data modes (demo seed with `--today`, or the client's real data) and keeps the sign-off block empty; wording issues are routed to `pnpm i18n:import`, not to code tickets | Drivers see only today's tour, and the demo seed must never touch production; the Chinese texts are still unreviewed (NUD-073) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
