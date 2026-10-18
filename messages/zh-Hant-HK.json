@@ -1252,5 +1252,10 @@
       "description": "數據是安全的，請重新加載頁面。",
       "retry": "重新加載"
     }
+  },
+  "maps": {
+    "tilesOffline": "離線時無法顯示地圖背景",
+    "tilesFailed": "地圖背景暫時無法加載",
+    "tilesHint": "站點、倉庫和線路仍會顯示。"
   }
 }

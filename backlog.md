@@ -247,7 +247,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-105 | 👤 Real-device PWA install check + Lighthouse run | M2 | 080 | todo |
 | NUD-106 | Installed app opens in the driver's current language | M2 | 080 | done |
 | NUD-107 | 👤 Real-device offline check (dead spot, photos, logout) | M2 | 081 | todo |
-| NUD-108 | Map view offline (tiles) | M2 | 081 | todo |
+| NUD-108 | Map view offline (tiles) | M2 | 081 | done |
 | NUD-109 | 👤 Real-device check of the offline mutation queue (Background Sync, logout with unsent taps) | M2 | 082 | todo |
 | NUD-110 | Nonce-based script CSP | M2 | 093 | todo |
 | NUD-111 | Audit log retention job | M2 | 093 | todo |
@@ -258,6 +258,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | todo |
 | NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
+| NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1632,14 +1633,21 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-108 · Map view offline (tiles)
-**Status:** todo · **depends_on:** 081
+**Status:** done · **depends_on:** 081
 
 **Goal:** the list / map toggle must not show an empty map in a dead spot.
 
 **Scope**: decide between hiding the map offline with a hint, or caching the tiles of the tour's bounding box at low zoom levels (respect the tile provider's terms).
 
 **Acceptance criteria**
-- [ ] Offline the map view shows either tiles or a clear localized hint, never a blank map.
+- [x] Offline the map view shows either tiles or a clear localized hint, never a blank map. (Offline: plain background + notice + markers + route, e2e de + zh-Hans in the production build incl. the offline shell; opt-in tile cache implemented but only unit-tested.)
+
+**Implementation notes (NUD-108)**
+- Decision: **no tile pre-caching** (providers' terms, OSM policy explicitly). `TourMap` (driver map and admin tour map) now degrades: `useOnline()` false, or 4 tile errors in a row without a loaded tile, removes the `TileLayer` (no broken-tile grid, no request storm), sets a plain neutral background (`.nudel-map-plain`, faint grid) and shows a `role="status"` notice above the map with WiFi-off + map-pin-off icons: "Kartenhintergrund offline nicht verfügbar" / "离线时无法显示地图背景" (Hant generated); when online but tiles fail: "Kartenhintergrund nicht verfügbar". New messages `maps.*` (de, zh-Hans, i18n:build, route hint). Stops (numbered), depot marker and route polyline stay, map still pans/zooms, tooltips work; the tile layer returns when the connection is back (`data-tiles="ok|unavailable"` on `tour-map`).
+- Opt-in `MAP_TILE_CACHE=1` (default OFF; needs explicit `MAP_TILE_URL`; read at build time by `scripts/build-pwa.ts` -> `__TILE_CACHE_URL__`, and at start time for the page / CSP): the worker cache-first caches only tiles that were requested (no prefetch), CORS 200 answers only (tile layer uses `crossOrigin` then; opaque responses are padded heavily in the storage quota), LRU 300, 7 days (`src/sw/tile-cache.ts`, `rules.ts#tileUrlPattern`). CSP `connect-src` gets the tile host only with the flag (worker fetches are checked against it). Provider-terms caveat in `docs/env.md` and `docs/offline.md`; `.env.example` updated.
+- Tests: `tour-map.test.tsx` (4 locales offline, tile-error fallback), `tile-cache.test.ts`, `rules.test.ts`, `map-config.test.ts`, `security-headers.test.ts`, e2e `driver-map-offline.spec.ts` (mobile, production build, tiles stubbed: online tiles -> offline notice + 4 markers + 1 route path + no tile images + no tile requests, reload offline = offline shell, axe serious/critical clean in de + zh-Hans, back online tiles return). 375 px screenshot viewed.
+- NOT verified: the opt-in cache against a real provider (CORS, quota) or in a built worker (only its pure logic is unit-tested; the default build has it off); real phones (-> NUD-107); admin tour map offline (same component, no e2e); 130 % font scale of the new notice (wraps, not measured). Pre-existing: `auth.integration.test.ts` "applies the limit to unknown usernames" fails in the full run and in its file, passes alone with `-t`.
+- Found: markers of the driver map only show the customer name as a tooltip; there is no tap-to-open-detail (the ticket text assumed it) -> NUD-119.
 
 #### NUD-109 · 👤 Real-device check of the offline mutation queue
 **Status:** todo · **depends_on:** 082
@@ -1756,6 +1764,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 **Acceptance criteria**
 - [ ] Driver with a warm cache sees the released follow-up tour after the next sync / focus, without logging out (e2e with the offline helpers); findings of the real-device check noted.
+
+#### NUD-119 · Driver map: tap on a marker opens the stop detail
+**Status:** todo · **depends_on:** 081
+
+**Goal:** on the driver's map view a tap on a numbered marker leads to the stop screen (also offline, via the offline shell), as the driver expects from the list.
+
+**Scope**: marker click / keyboard activation navigates to `/driver/stops/<id>` (tooltip with the customer name stays on hover / first tap or a small popup with a "Details" link, simplest that stays usable with 48 px targets); works in the offline shell.
+
+**Acceptance criteria**
+- [ ] Tapping a marker reaches the stop detail online and offline (e2e, 375 px); axe stays clean.
 
 ---
 
@@ -2052,6 +2070,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-106 | Manifest `start_url` is the locale-neutral `/driver?source=pwa` for all locales; the existing unprefixed-path redirect in `proxy.ts` (session locale -> cookie -> Accept-Language -> `de`) picks the language at launch; per-locale manifests kept for the localized name | Simplest fix without a re-install hint; reuses the NUD-003 rule; `id` and `scope` unchanged |
 | 2026-10-18 | NUD-106 | The unprefixed redirect is `no-store`; the worker treats `/driver` as a network-only navigation and never stores it | The answer depends on session and cookie |
 | 2026-10-18 | NUD-106 | Offline launch: `offline.html` forwards `/driver` to `/<NEXT_LOCALE cookie>/driver` (German if missing), no extra precache entry and no locale stored in IndexedDB / localStorage | The cookie is already written by login and the switcher and is readable by script; the IndexedDB record has no locale |
+| 2026-10-18 | NUD-108 | No tile pre-caching by default; offline / failing tiles remove the tile layer and show a plain background plus a localized notice, markers and route stay | Provider terms generally forbid bulk caching (OSM policy); simplest safe behaviour, never a blank or broken-tile map |
+| 2026-10-18 | NUD-108 | Tiles count as failed after 4 tile errors in a row (reset by any loaded tile); the tile layer returns on the `online` event | Single missing tiles at the edge must not hide the map; a dead provider must not cause endless requests |
+| 2026-10-18 | NUD-108 | Opt-in `MAP_TILE_CACHE=1` (default OFF, explicit `MAP_TILE_URL` required, build-time for the worker): worker cache-first for tiles the page requested, LRU 300, 7 days, CORS 200 only (`crossOrigin` on the tile layer), CSP `connect-src` gets the tile host only then | Browser-cache-like, no prefetch; opaque responses would cost ~7 MB quota each; worker fetches are checked against connect-src |
+| 2026-10-18 | NUD-108 | The notice lives in `TourMap` itself (also the admin tour map), strings in new namespace `maps` | One component, one behaviour; admin planners get the same honest hint |
+| 2026-10-18 | NUD-108 | Marker tap -> stop detail not added (does not exist today); ticket NUD-119 | Out of scope of the offline ticket |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -27,6 +27,10 @@ export const ROUTE_HINTS: ReadonlyArray<readonly [prefix: string, hint: string]>
   ["pwa.shortName", "(app name on the home screen, from the web app manifest)"],
   ["pwa.description", "(web app manifest, not visible on a screen)"],
   ["pwa.offline", "(offline fallback page /offline.html; open /driver with the network off)"],
+  [
+    "maps",
+    "/driver, Map view with the network off (notice above the map); /admin/tours/[id] likewise",
+  ],
   // error pages (NUD-094; open the hidden test pages with ENABLE_ERROR_TEST_PAGES=true)
   [
     "errorPages.driver",

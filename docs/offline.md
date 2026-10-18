@@ -21,6 +21,13 @@ What is stored on the driver's phone, where, for whom and for how long.
 - Offline: the worker treats `/driver` like any driver navigation (network only, nothing stored). When it fails, the generic `offline.html` is answered under the URL `/driver`; its script reads the `NEXT_LOCALE` cookie (written by the login and the language switcher; German if missing or unknown) and replaces the location with `/<locale>/driver`, which the worker answers with the offline shell of that language.
 - An app installed before NUD-106 keeps its old `/<locale>/driver` start URL until the browser refreshes the manifest (Chrome on Android does this by itself within a day or so; if not, reinstall). iOS before 16.4 ignores the manifest and starts on the page that was open when "Add to Home Screen" was used; reinstall there too. Not testable in the sandbox (NUD-105).
 
+## Map view offline (NUD-108)
+
+- Default: **no tiles are stored.** Tile providers' terms generally forbid bulk pre-fetching / offline copies (the OSM tile usage policy explicitly), so the app does not cache a bounding box.
+- The driver's map view (and the admin tour map) degrades gracefully instead: when the browser is offline, or four tile requests in a row fail while "online" (provider down, dead Wi-Fi), `TourMap` removes the tile layer (no request storm, no grey broken-tile grid), draws a plain neutral background with a faint grid and shows a notice above the map ("Kartenhintergrund offline nicht verfügbar" / "离线时无法显示地图背景", `maps.*` messages, WiFi-off and map-pin-off icons, `role="status"`). Numbered stop markers, depot marker and the route line (from the stored tour, also in the offline shell) stay, the map can still be zoomed and panned, marker tooltips (customer name) still work. The tile layer returns by itself when the connection is back.
+- Opt-in `MAP_TILE_CACHE=1` (default OFF, see `docs/env.md` for the provider-terms caveat): the worker caches only tiles the page requested (browser-cache-like), CORS responses with status 200 only, LRU 300 tiles, 7 days (`src/sw/tile-cache.ts`, cache `nudel-map-tiles-v1`, cache-first). Tiles contain no personal data. A tile that is not in the cache still falls back to the plain map above, and zoom levels / areas the driver never viewed are of course missing.
+- Not testable in the sandbox: real tile provider with CORS, storage quota on phones.
+
 ## Mutation queue (NUD-082)
 
 - A tap on Delivered / Problem / Undo is first written to the IndexedDB outbox (`clientMutationId` = UUID, type, stop, reason / note, `createdAt` = time of the tap), then the screen changes at once (optimistic overlay on the page data: `src/lib/offline/outbox.ts`, `use-overlay.ts`). Online it is sent immediately, offline when the connection is back.

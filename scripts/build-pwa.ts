@@ -10,6 +10,7 @@ import path from "node:path";
 import { injectManifest } from "@serwist/build";
 import { build } from "esbuild";
 
+import { isTileCacheEnabled } from "../src/lib/map-config";
 import { PWA_THEME_COLOR } from "../src/lib/pwa";
 import { offlineShellUrls } from "../src/sw/rules";
 import { buildOfflineHtml, OFFLINE_LOCALES, type OfflineTexts } from "./lib/offline-page";
@@ -46,7 +47,13 @@ async function main() {
     format: "iife",
     target: "es2020",
     platform: "browser",
-    define: { "process.env.NODE_ENV": '"production"' },
+    define: {
+      "process.env.NODE_ENV": '"production"',
+      // NUD-108: only an explicit MAP_TILE_CACHE=1 (with MAP_TILE_URL) makes the worker cache tiles.
+      __TILE_CACHE_URL__: JSON.stringify(
+        isTileCacheEnabled(process.env) ? process.env.MAP_TILE_URL!.trim() : "",
+      ),
+    },
     logLevel: "warning",
   });
 

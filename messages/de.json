@@ -1251,5 +1251,10 @@
       "description": "Die Daten sind sicher. Bitte die Seite neu laden.",
       "retry": "Neu laden"
     }
+  },
+  "maps": {
+    "tilesOffline": "Kartenhintergrund offline nicht verfügbar",
+    "tilesFailed": "Kartenhintergrund nicht verfügbar",
+    "tilesHint": "Stopps, Depot und Route werden weiterhin angezeigt."
   }
 }

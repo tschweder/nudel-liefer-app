@@ -11,7 +11,15 @@ import { createIndexedDbOutboxStore } from "../lib/offline/outbox-store";
 import { flushPhotos } from "../lib/offline/photo-outbox-flush";
 import { createIndexedDbPhotoStore } from "../lib/offline/photo-outbox-store";
 import { createBrowserPhotoCache } from "../lib/offline/photos";
-import { isDriverNavigation, isPhotoCachePath, offlineShellUrl, offlineShellUrls } from "./rules";
+import {
+  isDriverNavigation,
+  isPhotoCachePath,
+  isTileRequest,
+  offlineShellUrl,
+  offlineShellUrls,
+  tileUrlPattern,
+} from "./rules";
+import { handleTileRequest, TILE_CACHE_NAME } from "./tile-cache";
 
 declare global {
   interface WorkerGlobalScope {
@@ -19,6 +27,10 @@ declare global {
   }
 }
 declare const self: ServiceWorkerGlobalScope;
+/** `MAP_TILE_URL` when built with `MAP_TILE_CACHE=1` (scripts/build-pwa.ts), else "" (NUD-108). */
+declare const __TILE_CACHE_URL__: string;
+
+const tilePattern = __TILE_CACHE_URL__ ? tileUrlPattern(__TILE_CACHE_URL__) : null;
 
 // How long a driver page load may take before the offline shell is shown instead. Streaming pages
 // answer with headers quickly; a hanging connection must not leave the driver on a white screen.
@@ -33,6 +45,17 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: false,
   runtimeCaching: [
+    // Opt-in (NUD-108): tiles the driver looked at, LRU 300 / 7 days. Absent when not enabled.
+    ...(tilePattern
+      ? [
+          {
+            matcher: ({ request }: { request: Request }) =>
+              request.destination === "image" && isTileRequest(request.url, tilePattern),
+            handler: async ({ request }: { request: Request }) =>
+              handleTileRequest(request, await caches.open(TILE_CACHE_NAME), (r) => fetch(r)),
+          },
+        ]
+      : []),
     {
       // Photos of the cached tour (NUD-081): the page stores them under this stable URL, the
       // worker only reads them. A miss is an error, the network is never asked.

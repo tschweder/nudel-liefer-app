@@ -9,9 +9,11 @@ import {
   isOfflineShellRoute,
   isPhotoCachePath,
   isPrecachedStaticPath,
+  isTileRequest,
   offlineShellUrl,
   offlineShellUrls,
   SW_LOCALES,
+  tileUrlPattern,
 } from "./rules";
 
 const nav = { mode: "navigate" };
@@ -86,5 +88,27 @@ describe("service worker rules for the offline copy (NUD-081)", () => {
     expect(isPhotoCachePath("/api/driver/photo-cache/abc")).toBe(true);
     expect(isPhotoCachePath("/api/driver/photo-cache/")).toBe(false);
     expect(isPhotoCachePath("/api/driver/tour/today")).toBe(false);
+  });
+});
+
+describe("tile cache matcher (NUD-108)", () => {
+  const pattern = tileUrlPattern("https://{s}.tiles.example/v1/{z}/{x}/{y}{r}.png?key=K1");
+
+  it("matches the tiles of the configured provider only", () => {
+    expect(isTileRequest("https://a.tiles.example/v1/13/4256/2680.png?key=K1", pattern)).toBe(true);
+    expect(isTileRequest("https://b.tiles.example/v1/13/4256/2680@2x.png?key=K1", pattern)).toBe(
+      true,
+    );
+    expect(isTileRequest("https://a.tiles.example/v1/13/4256/2680.png?key=OTHER", pattern)).toBe(
+      false,
+    );
+    expect(isTileRequest("https://evil.example/v1/13/4256/2680.png?key=K1", pattern)).toBe(false);
+    expect(isTileRequest("https://a.tiles.example/api/driver/tour/today", pattern)).toBe(false);
+  });
+
+  it("does nothing without a usable http(s) URL", () => {
+    expect(tileUrlPattern("")).toBeNull();
+    expect(tileUrlPattern("/relative/{z}/{x}/{y}.png")).toBeNull();
+    expect(isTileRequest("https://a.tiles.example/1/2/3.png", null)).toBe(false);
   });
 });

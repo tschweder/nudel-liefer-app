@@ -150,3 +150,16 @@ describe("securityHeaders", () => {
     expect(find(headers, "Content-Security-Policy-Report-Only")).toContain("default-src 'self'");
   });
 });
+
+describe("connect-src and the opt-in tile cache (NUD-108)", () => {
+  const env = { NODE_ENV: "production", MAP_TILE_URL: "https://t.example/{z}/{x}/{y}.png" };
+  it("does not allow the tile host to connect by default (images only)", () => {
+    expect(directive(buildCsp(env), "connect-src")).not.toContain("https://t.example");
+    expect(directive(buildCsp(env), "img-src")).toContain("https://t.example");
+  });
+  it("allows it for the service worker only with MAP_TILE_CACHE=1", () => {
+    expect(directive(buildCsp({ ...env, MAP_TILE_CACHE: "1" }), "connect-src")).toContain(
+      "https://t.example",
+    );
+  });
+});

@@ -4,11 +4,14 @@ import "leaflet/dist/leaflet.css";
 import "./map.css";
 
 import L from "leaflet";
-import { useEffect } from "react";
+import { MapPinOff, WifiOff } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 
 import type { LatLng } from "@/lib/coords";
 import type { MapTileConfig } from "@/lib/map-config";
+import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 
 import { depotIcon, stopIcon, type StopMarkerStatus } from "./map-icons";
@@ -35,6 +38,9 @@ export type TourMapProps = {
   touch?: boolean;
 };
 
+/** Tile errors in a row (no tile loaded in between) after which the map gives up on tiles. */
+const TILE_ERROR_LIMIT = 4;
+
 const VIENNA: [number, number] = [48.2082, 16.3738];
 
 function FitBounds({ points }: { points: Array<[number, number]> }) {
@@ -54,6 +60,17 @@ function FitBounds({ points }: { points: Array<[number, number]> }) {
  * Load it through `TourMapLazy` (Leaflet needs `window`).
  */
 export function TourMap({ stops, depot, geometry, tiles, className, touch = false }: TourMapProps) {
+  const t = useTranslations("maps");
+  const online = useOnline();
+  // NUD-108: offline, or the provider does not answer -> no tile layer at all (no broken-tile grid,
+  // no request storm), a plain background and a notice. Stops, depot and route stay.
+  const [tileErrors, setTileErrors] = useState(0);
+  const [wasOnline, setWasOnline] = useState(online);
+  if (online !== wasOnline) {
+    setWasOnline(online);
+    if (online) setTileErrors(0); // connection is back: try the tiles again
+  }
+  const noTiles = !online || tileErrors >= TILE_ERROR_LIMIT;
   const line = (geometry ?? []).map(([lng, lat]) => [lat, lng] as [number, number]);
   const points: Array<[number, number]> = [
     ...stops.map((s) => [s.lat, s.lng] as [number, number]),
@@ -64,14 +81,43 @@ export function TourMap({ stops, depot, geometry, tiles, className, touch = fals
     <div
       className={cn("nudel-map-wrap", touch && "nudel-map-touch", className)}
       data-testid="tour-map"
+      data-tiles={noTiles ? "unavailable" : "ok"}
     >
+      {noTiles ? (
+        <div
+          role="status"
+          data-testid="map-tiles-notice"
+          className="mb-2 flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-base text-amber-950"
+        >
+          <span className="flex shrink-0 items-center gap-1 pt-0.5" aria-hidden>
+            {online ? null : <WifiOff className="size-5" />}
+            <MapPinOff className="size-5" />
+          </span>
+          <span>
+            <strong className="block font-semibold">
+              {online ? t("tilesFailed") : t("tilesOffline")}
+            </strong>
+            <span>{t("tilesHint")}</span>
+          </span>
+        </div>
+      ) : null}
       <MapContainer
         center={points[0] ?? VIENNA}
         zoom={13}
-        className="h-96 w-full rounded-md border"
+        className={cn("h-96 w-full rounded-md border", noTiles && "nudel-map-plain")}
         scrollWheelZoom
       >
-        <TileLayer url={tiles.url} attribution={tiles.attribution} />
+        {noTiles ? null : (
+          <TileLayer
+            url={tiles.url}
+            attribution={tiles.attribution}
+            crossOrigin={tiles.cache ? "anonymous" : undefined}
+            eventHandlers={{
+              tileload: () => setTileErrors(0),
+              tileerror: () => setTileErrors((n) => n + 1),
+            }}
+          />
+        )}
         {line.length > 1 ? (
           <Polyline positions={line} pathOptions={{ color: "#1d4ed8", weight: 4, opacity: 0.8 }} />
         ) : null}

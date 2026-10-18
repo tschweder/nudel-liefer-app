@@ -1,4 +1,4 @@
-import { DEV_TILE_URL } from "./map-config";
+import { DEV_TILE_URL, isTileCacheEnabled } from "./map-config";
 import { sentryIngestSource } from "./sentry-config";
 
 type Env = Record<string, string | undefined>;
@@ -66,7 +66,15 @@ export function buildCsp(env: Env, options: { dev?: boolean } = {}): string {
     ["font-src", ["'self'", "data:"]],
     [
       "connect-src",
-      ["'self'", ...storage, ...(sentry ? [sentry] : []), ...(dev ? ["ws:", "wss:"] : [])],
+      [
+        "'self'",
+        ...storage,
+        ...(sentry ? [sentry] : []),
+        // NUD-108: with MAP_TILE_CACHE the service worker fetches the tiles itself; that fetch is
+        // checked against connect-src (not img-src).
+        ...(tiles && isTileCacheEnabled(env) ? [tiles] : []),
+        ...(dev ? ["ws:", "wss:"] : []),
+      ],
     ],
     ["worker-src", ["'self'"]],
     ["manifest-src", ["'self'"]],

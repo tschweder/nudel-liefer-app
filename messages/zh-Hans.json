@@ -1251,5 +1251,10 @@
       "description": "数据是安全的，请重新加载页面。",
       "retry": "重新加载"
     }
+  },
+  "maps": {
+    "tilesOffline": "离线时无法显示地图背景",
+    "tilesFailed": "地图背景暂时无法加载",
+    "tilesHint": "站点、仓库和线路仍会显示。"
   }
 }

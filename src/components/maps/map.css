@@ -84,3 +84,12 @@
   font-size: 28px;
   line-height: 48px;
 }
+
+/* Offline / tiles unavailable (NUD-108): plain neutral background with a faint grid, no tiles. */
+.nudel-map-plain.leaflet-container {
+  background-color: #eef2f6;
+  background-image:
+    linear-gradient(#dde3ea 1px, transparent 1px),
+    linear-gradient(90deg, #dde3ea 1px, transparent 1px);
+  background-size: 48px 48px;
+}

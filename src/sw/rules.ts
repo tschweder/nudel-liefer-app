@@ -67,3 +67,33 @@ export function offlineShellUrls(): string[] {
 export function isPhotoCachePath(pathname: string): boolean {
   return pathname.startsWith(PHOTO_CACHE_PATH) && pathname.length > PHOTO_CACHE_PATH.length;
 }
+
+/**
+ * NUD-108 (opt-in `MAP_TILE_CACHE=1`): the pattern of the configured tile URL template
+ * (`https://{s}.tile.example/{z}/{x}/{y}{r}.png?key=K`), or `null` when it is not a usable http(s)
+ * URL. Placeholders match one path segment / host label, the rest is literal, the query string
+ * must be identical.
+ */
+export function tileUrlPattern(template: string): RegExp | null {
+  if (!/^https?:\/\//i.test(template)) return null;
+  const source = template
+    .split(/(\{[a-z]+\})/i)
+    .map((part) => {
+      if (/^\{[a-z]+\}$/i.test(part)) {
+        const name = part.toLowerCase();
+        return name === "{s}" ? "[^/.?#]+" : name === "{r}" ? "[^/?#]*" : "[^/?#]+";
+      }
+      return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("");
+  try {
+    return new RegExp(`^${source}$`, "i");
+  } catch {
+    return null;
+  }
+}
+
+/** True for a request to a tile of the configured provider (see `tileUrlPattern`). */
+export function isTileRequest(url: string, pattern: RegExp | null): boolean {
+  return pattern !== null && pattern.test(url);
+}
