@@ -160,7 +160,7 @@ export function DriverPhotoSlot({
             <Button
               type="button"
               size="lg"
-              className="h-14 text-lg"
+              className="min-h-14 text-lg"
               onClick={take}
               data-testid={`photo-take-${id}`}
             >
@@ -176,7 +176,7 @@ export function DriverPhotoSlot({
           <Button
             type="button"
             size="lg"
-            className="col-span-2 h-14 text-lg"
+            className="col-span-2 min-h-14 text-lg"
             onClick={() => void confirm()}
             data-testid="photo-confirm"
           >
@@ -187,7 +187,7 @@ export function DriverPhotoSlot({
             type="button"
             variant="outline"
             size="lg"
-            className="h-14 text-lg"
+            className="min-h-14 text-lg"
             onClick={take}
             data-testid="photo-retake"
           >
@@ -198,7 +198,7 @@ export function DriverPhotoSlot({
             type="button"
             variant="outline"
             size="lg"
-            className="h-14 text-lg"
+            className="min-h-14 text-lg"
             onClick={() => setPhase({ name: "idle" })}
             data-testid="photo-cancel"
           >
@@ -211,7 +211,7 @@ export function DriverPhotoSlot({
           type="button"
           variant="outline"
           size="lg"
-          className="h-14 w-full text-lg"
+          className="min-h-14 w-full text-lg"
           onClick={take}
           data-testid={`photo-replace-${id}`}
         >

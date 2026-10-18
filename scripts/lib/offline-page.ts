@@ -23,6 +23,7 @@ export function buildOfflineHtml(
   const sections = OFFLINE_LOCALES.map((locale) => {
     const t = texts[locale];
     return `    <section lang="${locale}" data-locale="${locale}" hidden>
+      <svg class="icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 2 20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M10.7 5.1A15 15 0 0 1 22 8.8"/><path d="M5 12.9a10 10 0 0 1 5.2-2.7"/><path d="M13.8 10.2a10 10 0 0 1 5.2 2.7"/><path d="M12 20h.01"/></svg>
       <h1>${escapeHtml(t.title)}</h1>
       <p>${escapeHtml(t.text)}</p>
       <button type="button" onclick="location.reload()">${escapeHtml(t.retry)}</button>
@@ -38,9 +39,10 @@ export function buildOfflineHtml(
     <title>${escapeHtml(texts.de.title)}</title>
     <style>
       :root { color-scheme: light dark; }
-      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: end center; padding: 16px 16px 15vh; box-sizing: border-box;
         font: 18px/1.5 system-ui, "PingFang SC", "PingFang HK", "PingFang TC", "Noto Sans SC", "Noto Sans HK", "Noto Sans TC", "Microsoft YaHei", "Microsoft JhengHei", sans-serif; }
       main { max-width: 24rem; text-align: center; }
+      .icon { display: block; margin: 0 auto 1rem; }
       h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
       p { margin: 0 0 1.5rem; }
       button { min-height: 48px; min-width: 48px; padding: 0 1.5rem; font: inherit; font-weight: 600; border: 0; border-radius: 8px; color: #fff; background: ${themeColor}; }

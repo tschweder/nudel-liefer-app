@@ -80,7 +80,7 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
         <Button
           type="button"
           size="lg"
-          className="h-14 w-full text-lg"
+          className="min-h-14 w-full text-lg"
           onClick={() => window.location.reload()}
         >
           <RefreshCwIcon className="size-5" aria-hidden />
@@ -104,7 +104,7 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
       ) : (
         <div className="space-y-4" data-testid="offline-stop-missing">
           <EmptyState title={t("stopMissingTitle")} description={t("stopMissingDescription")} />
-          <Button asChild size="lg" className="h-14 w-full text-lg">
+          <Button asChild size="lg" className="min-h-14 w-full text-lg">
             <Link href="/driver">{t("backToTour")}</Link>
           </Button>
         </div>

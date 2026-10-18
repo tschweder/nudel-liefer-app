@@ -59,15 +59,15 @@ export function DriverError({
   const Icon = online ? AlertCircleIcon : WifiOffIcon;
   return (
     <div
-      className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-8 text-center"
+      className="mx-auto flex min-h-[70dvh] w-full max-w-md flex-col items-center justify-end gap-4 py-8 text-center"
       data-testid="driver-error"
       data-connection={online ? "online" : "offline"}
     >
       <Icon className="size-12 text-muted-foreground" aria-hidden />
-      <h1 className="text-2xl font-semibold" role="alert">
-        {online ? t("title") : t("offlineTitle")}
-      </h1>
-      <p className="text-lg">{online ? t("description") : t("offlineDescription")}</p>
+      <div role="alert" className="space-y-4">
+        <h1 className="text-2xl font-semibold">{online ? t("title") : t("offlineTitle")}</h1>
+        <p className="text-lg">{online ? t("description") : t("offlineDescription")}</p>
+      </div>
       <Button size="lg" className="w-full" onClick={retry} data-testid="driver-error-retry">
         {online ? t("retry") : t("offlineOpen")}
       </Button>

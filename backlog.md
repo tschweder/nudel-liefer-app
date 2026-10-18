@@ -239,7 +239,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-092 | Audit log for orders and tours | M2 | 032, 043 | done |
 | NUD-093 | Security hardening | M2 | 060 | done |
 | NUD-094 | Monitoring, backups, error pages, runbook | M2 | 007 | done |
-| NUD-095 | Driver usability & accessibility pass | M2 | 083 | todo |
+| NUD-095 | Driver usability & accessibility pass | M2 | 083 | done |
 | NUD-096 | 👤 User acceptance test with client & drivers | M2 | 093, 095 | todo |
 | NUD-097 | Silence Auth.js prerender error log | M2 | 004 | todo |
 | NUD-098 | Keep OpenCC out of the client bundle | M2 | 003 | todo |
@@ -254,6 +254,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | todo |
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
+| NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1449,7 +1450,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-095 · Driver usability & accessibility pass
-**Status:** todo · **depends_on:** 083
+**Status:** done · **depends_on:** 083
 
 **Scope**
 - Review every driver screen against §4.3 rules; fix violations.
@@ -1459,8 +1460,24 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Performance budget: driver home LCP < 2.5 s on Slow 4G after first load.
 
 **Acceptance criteria**
-- [ ] axe-core e2e check has no serious/critical violations on driver screens.
-- [ ] Performance budget met (Lighthouse CI on driver home).
+- [x] axe-core e2e check has no serious/critical violations on driver screens. (`driver-a11y.spec.ts`: login, picker, today list + map, stop with / without photos, problem sheet, toast, result card, finished, offline list + stop, generic offline page, error page online + offline, iOS install hint + overlay; all four locales x light / dark; de + zh-Hant-TW also at 130 % font size. Moderate / minor findings that remain are listed in the notes.)
+- [x] Performance budget met (Lighthouse CI on driver home). (Lighthouse CI ran locally with the sandbox Chromium: median LCP 1.9 s, DevTools Slow 4G + 4x CPU, warm profile; the Playwright PerformanceObserver test gives 0.6-0.9 s. The CI job was NOT run on a GitHub runner. Emulation, not a real phone.)
+
+**Implementation notes**
+- Method: wrote the checks first (`tests/e2e/driver-a11y.spec.ts`, `driver-usability.spec.ts`, `driver-performance.spec.ts`, helpers `driver-fixture.ts` / `driver-audit.ts`; `@axe-core/playwright` added), ran them against the production build, fixed what they found. `docs/driver-usability.md` explains checks and decisions.
+- Fixed (axe serious/critical): progress bar without name (`aria-label`); contrast of mid-transition colours was a test artefact (the audit waits for animations); map depot marker without name (`title`).
+- Fixed (rules 4.3): `Sheet` / `Dialog` close button 40 -> 48 px; "Anmeldung Büro" / "Fahrer-Anmeldung" link 24 -> 48 px high; German product name caption 14 -> 16 px; driver map markers 32 -> 48 px touch target (36 px circle, 18 px number) and zoom buttons 30 -> 48 px (`TourMap touch`, driver map only); fixed heights on driver buttons replaced by minimum heights and `Button size=lg` may wrap, so labels survive 130 % font size / long German words; top bar date wraps instead of truncating (known note of NUD-051); progress counter and "remaining" wrap cleanly; problem reasons use an auto-fit grid (one column at 130 %).
+- Login (also admin): icons next to username / PIN / submit, input border and submit button use the theme tokens (the submit button was invisible in dark mode: `bg-zinc-900`; error text now `text-destructive`), visible focus ring.
+- Other: sr-only `h1` on the tour screen (`driver.today.pageTitle`) and on the picker (the four language names); error page `role="alert"` moved from the `h1` to a wrapper (the heading lost its role); toast region name localized (`common.notifications`, hotkey hint removed, was English "Notifications alt+T"); bottom padding of the driver content (toast no longer covers the last list entries: closes the NUD-053 note); sticky submit / cancel bar in the problem sheet; picker, error page and generic offline page anchored to the lower part of the screen; generic offline page got an icon; `color-scheme: dark` in dark mode; global `prefers-reduced-motion` rule (spinners keep turning).
+- One hand (bounding boxes, `driver-usability.spec.ts`): login submit, language choices (as a group), tour "start navigation", stop "delivered" / "problem" at the end of the page, sheet submit, error retry: centres in the bottom half at 375x667 and 412x915 (worst case: "delivered" at 363 / 667). Decision: status buttons stay in the page flow (no sticky bar).
+- Locale-independent understanding: login, picker, error, offline and install screens now have an icon next to every action; numbers (quantities, stop numbers), photos and status icons carry the meaning on stop / tour screens. Not tested with real non-readers.
+- Dark mode: exists since NUD-005 (tokens via `prefers-color-scheme`); kept, verified in all four locales (axe + screenshots), no toggle. Light-only was rejected: the tokens were already there.
+- Font size 130 %: emulated by `html { font-size: 130% }` (everything is rem based), NOT Android's per-app font scale. Passes axe and the measurements in de and zh-Hant-TW.
+- Performance: Playwright test (Slow 4G = 1.6 Mbit/s, 150 ms, 4x CPU through CDP, `next start`, 25 stops, warm after first visit): LCP 0.6-0.9 s. Lighthouse and `@lhci/cli` DO run here with the sandbox Chromium: `pnpm lighthouse:prepare` (persistent logged-in profile) + `pnpm lighthouse` (lhci via `pnpm dlx`, not a project dependency because `@lhci/cli` pulls 4 high advisories into `pnpm audit`), `lighthouserc.cjs`, CI job `lighthouse` (PRs): median LCP 1.9 s (1.2-2.0), CLS 0.04, TBT 0.45-0.64 s. First-ever visit (empty cache) is slower: 1.1-3.8 s in the Playwright runs (noisy); 502 KiB of the 870 KiB transferred is the OpenCC bundle (NUD-098), so NUD-098 would help the first visit.
+- Verified: lint, typecheck, `i18n:check`, prettier, component tests (23 files incl. new heading / progress-bar test), `pnpm build`, e2e (mobile project): a11y / usability / performance specs, `driver-today`, `driver-stop`, `driver-status`, `shells`, `driver-language-picker`, `auth`, `pwa`, `error-pages`, `driver-offline`, `driver-outbox`, `driver-photo`, `customer-photos`, `drivers` (`driver-status` zh-Hant-HK failed once under load on a 30 s timeout and passed alone; `driver-offline` expected no `h1`, adapted). Screenshots at 375 px (de 130 %, zh-Hant-TW dark, sheet, finished, picker, login) inspected.
+- NOT verified: real devices (TalkBack / VoiceOver, Android font scale, real low-end CPU, thumb reach, glare; see NUD-115), the CI job on a GitHub runner, the full vitest suite with DB tests (only component and script tests re-run; no server code changed), the desktop Playwright project, the admin screens that use `Button size=lg`, `Sheet` / `Dialog` (close button now 48 px; their e2e were not re-run), the unreviewed Chinese strings (`driver.today.pageTitle`, `common.notifications`; NUD-073).
+- Remaining (documented, not fixed): axe "page should contain a level-one heading" (moderate) no longer occurs on driver screens; map credit line below 16 px / 48 px is exempt; the "tour updated" banner and its acknowledge button sit at the top of the list (not in the bottom half); no swipe (NUD-052); map offline (NUD-108); customer names in a different language than the UI carry no `lang` attribute.
+- Follow-up: NUD-115 (real-device check).
 
 ---
 
@@ -1628,6 +1645,23 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] Items 1-5 and 7 verified and the result noted under the ticket.
 - [ ] Item 6 decided by the operator.
+
+---
+
+#### NUD-115 · 👤 Real-device usability check of the driver app
+**Status:** todo · **depends_on:** 095
+
+**Goal:** what NUD-095 could only emulate, checked on real phones.
+
+**Scope**
+- Android with system font size at the largest setting and display size large; one iPhone.
+- TalkBack / VoiceOver through login, tour, stop, problem sheet.
+- Dark mode, bright sunlight, one-hand use while walking (primary actions reachable with the thumb).
+- Slow connection or low-end Android: first load and driver home speed.
+- A person who does not read the chosen language completes a stop from icons, numbers and photos.
+
+**Acceptance criteria**
+- [ ] Findings noted under the ticket; blocking ones became tickets.
 
 ---
 
@@ -1903,6 +1937,13 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-094 | `pnpm admin:reset-password`: password only via env, hidden prompt or stdin (no argument), admin role only, clears the lockout, `--yes` required when not interactive | No password in shell history/process list; avoids resetting the wrong role |
 | 2026-10-18 | NUD-094 | Orphan cleanup shipped with default `dry-run`, grace 14 days (min 7), key-shape allowlist, reference re-check, caps and a plausibility abort; `Storage.list` added | Deleting objects is irreversible: the operator enables delete after reading dry-run reports |
 | 2026-10-18 | NUD-094 | Hidden error test pages exist only with `ENABLE_ERROR_TEST_PAGES=true` (CI e2e); the production env check rejects the variable | Need a real thrown error in e2e without shipping a crash route |
+| 2026-10-18 | NUD-095 | Driver UI keeps supporting dark mode through `prefers-color-scheme` (no toggle); verified with axe in all four locales | The tokens existed since NUD-005; light-only would be a regression for night driving |
+| 2026-10-18 | NUD-095 | Status buttons stay in the page flow, not sticky; checked to be in the bottom half at the end of the page | A sticky "Delivered" invites a tap before the quantities are read (client priority 2) |
+| 2026-10-18 | NUD-095 | Map credit line (OSM / Leaflet) exempt from the 16 px / 48 px rule; driver map markers and zoom buttons enlarged | Attribution is required text; markers and zoom are real controls |
+| 2026-10-18 | NUD-095 | `Button size=lg` is `min-h-12` and wraps; driver buttons use min-heights | Fixed heights clipped labels at 130 % font size |
+| 2026-10-18 | NUD-095 | 130 % font size emulated through root font size; throttling through CDP on a desktop CPU | Only available emulation here; real devices are NUD-115 |
+| 2026-10-18 | NUD-095 | Lighthouse CI runs through `pnpm dlx @lhci/cli@0.15.1` on a warm logged-in profile, not as a project dependency; LCP < 2.5 s error budget | `@lhci/cli` adds 4 high advisories to `pnpm audit` (CI gate); the budget is "after first load" |
+| 2026-10-18 | NUD-095 | Toast region label localized and sonner hotkey removed | The default label is English and mentions a keyboard shortcut a phone does not have |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

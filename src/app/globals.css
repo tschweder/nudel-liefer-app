@@ -31,6 +31,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark; /* native controls (select list, scrollbars, textarea) follow */
     --background: #0a0a0a;
     --foreground: #fafafa;
     --card: #18181b;
@@ -85,6 +86,22 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Reduced motion (NUD-095): no slide / fade animations; spinners keep turning (they show progress). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 /* In the base layer so utilities such as border-input / border-transparent still win. */

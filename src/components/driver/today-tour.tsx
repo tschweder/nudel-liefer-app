@@ -209,7 +209,7 @@ function NextStopCard({
       {unseen ? <ChangeHighlight stop={stop} /> : null}
       <div className="grid gap-3">
         {stop.lat !== null && stop.lng !== null ? (
-          <Button asChild size="lg" className="h-14 text-lg">
+          <Button asChild size="lg" className="min-h-14 text-lg">
             <a
               href={googleMapsNavigationUrl(stop.lat, stop.lng)}
               target="_blank"
@@ -226,7 +226,7 @@ function NextStopCard({
             {t("noPin")}
           </p>
         )}
-        <Button asChild size="lg" variant="outline" className="h-14 text-lg">
+        <Button asChild size="lg" variant="outline" className="min-h-14 text-lg">
           <Link href={`/driver/stops/${stop.id}`} data-testid="details">
             <ListIcon className="size-6" aria-hidden />
             {t("details")}
@@ -327,6 +327,7 @@ export function TodayTour({
   return (
     <div className="flex flex-col gap-4" data-testid="today-tour">
       {offline ? null : <RefreshOnFocus />}
+      <h1 className="sr-only">{t("pageTitle")}</h1>
 
       {showBanner ? (
         <div
@@ -351,7 +352,7 @@ export function TodayTour({
           ) : null}
           <Button
             size="lg"
-            className="h-12 w-full text-base"
+            className="min-h-12 w-full text-base"
             onClick={markSeen}
             data-testid="updated-ack"
           >
@@ -362,8 +363,11 @@ export function TodayTour({
       ) : null}
 
       <section aria-label={t("progressLabel")} className="space-y-2" data-testid="progress">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-3xl font-bold tabular-nums" data-testid="progress-count">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p
+            className="text-3xl font-bold whitespace-nowrap tabular-nums"
+            data-testid="progress-count"
+          >
             {t("progress", { done, total })}
           </p>
           {remaining > 0 ? (
@@ -378,6 +382,7 @@ export function TodayTour({
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={done}
+          aria-label={t("progressLabel")}
           aria-valuetext={t("progressAria", { done, total })}
           className="h-3 overflow-hidden rounded-full bg-muted"
         >
@@ -473,6 +478,7 @@ export function TodayTour({
             }
             geometry={today.geometry}
             tiles={tiles}
+            touch
           />
         </section>
       )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyRoundIcon, LogInIcon, UserIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState } from "react";
 
@@ -8,7 +9,8 @@ import { Link } from "@/i18n/navigation";
 import { type LoginState } from "@/server/auth/actions";
 import { adminLoginAction, driverLoginAction } from "@/server/auth/actions";
 
-const inputClass = "min-h-12 w-full rounded border border-zinc-400 bg-transparent px-3 text-base";
+const inputClass =
+  "min-h-12 w-full rounded border border-input bg-transparent px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function LoginForm({
   kind,
@@ -62,7 +64,10 @@ export function LoginForm({
         ) : (
           <>
             <label className="flex flex-col gap-1 text-base">
-              {t("driverLogin.username")}
+              <span className="flex items-center gap-2">
+                <UserIcon className="size-5 shrink-0" aria-hidden />
+                {t("driverLogin.username")}
+              </span>
               <input
                 className={inputClass}
                 name="username"
@@ -74,7 +79,10 @@ export function LoginForm({
               />
             </label>
             <label className="flex flex-col gap-1 text-base">
-              {t("driverLogin.pin")}
+              <span className="flex items-center gap-2">
+                <KeyRoundIcon className="size-5 shrink-0" aria-hidden />
+                {t("driverLogin.pin")}
+              </span>
               <input
                 className={`${inputClass} text-center text-2xl tracking-widest`}
                 name="pin"
@@ -89,20 +97,28 @@ export function LoginForm({
           </>
         )}
         {state.error ? (
-          <p role="alert" className="text-base text-red-700" data-testid="login-error">
+          <p
+            role="alert"
+            className="text-base font-medium text-destructive"
+            data-testid="login-error"
+          >
             {t(`errors.${state.error}`)}
           </p>
         ) : null}
         <button
           type="submit"
           disabled={pending}
-          className="min-h-12 rounded bg-zinc-900 px-4 text-base font-semibold text-white disabled:opacity-60"
+          className="flex min-h-12 items-center justify-center gap-2 rounded bg-primary px-4 text-base font-semibold text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
           data-testid="login-submit"
         >
+          <LogInIcon className="size-5 shrink-0" aria-hidden />
           {t(`${ns}.submit`)}
         </button>
       </form>
-      <Link className="text-base underline" href={kind === "admin" ? "/driver/login" : "/login"}>
+      <Link
+        className="flex min-h-12 items-center text-base underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        href={kind === "admin" ? "/driver/login" : "/login"}
+      >
         {kind === "admin" ? t("adminLogin.driverLink") : t("driverLogin.adminLink")}
       </Link>
     </main>

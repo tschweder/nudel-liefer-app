@@ -14,10 +14,18 @@ export function DriverLanguagePicker() {
 
   return (
     <main
-      className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center gap-4 p-4"
+      className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-end gap-4 p-4 pb-8"
       data-testid="language-picker"
     >
       <LanguagesIcon className="mx-auto mb-2 size-14" aria-hidden />
+      {/* The page has no text of its own (no language is known yet): the heading lists the languages. */}
+      <h1 className="sr-only">
+        {LOCALES.map((code) => (
+          <span key={code} lang={code}>
+            {LOCALE_LABELS[code]}{" "}
+          </span>
+        ))}
+      </h1>
       {LOCALES.map((code) => (
         <button
           key={code}

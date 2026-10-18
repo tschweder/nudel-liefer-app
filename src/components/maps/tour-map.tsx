@@ -31,6 +31,8 @@ export type TourMapProps = {
   geometry?: Array<[number, number]> | null;
   tiles: MapTileConfig;
   className?: string;
+  /** Driver map: 48 px markers and zoom buttons (backlog 4.3). */
+  touch?: boolean;
 };
 
 const VIENNA: [number, number] = [48.2082, 16.3738];
@@ -51,7 +53,7 @@ function FitBounds({ points }: { points: Array<[number, number]> }) {
  * Numbered stop markers, depot marker and the road geometry; fits the view to everything shown.
  * Load it through `TourMapLazy` (Leaflet needs `window`).
  */
-export function TourMap({ stops, depot, geometry, tiles, className }: TourMapProps) {
+export function TourMap({ stops, depot, geometry, tiles, className, touch = false }: TourMapProps) {
   const line = (geometry ?? []).map(([lng, lat]) => [lat, lng] as [number, number]);
   const points: Array<[number, number]> = [
     ...stops.map((s) => [s.lat, s.lng] as [number, number]),
@@ -59,7 +61,10 @@ export function TourMap({ stops, depot, geometry, tiles, className }: TourMapPro
     ...line,
   ];
   return (
-    <div className={cn("nudel-map-wrap", className)} data-testid="tour-map">
+    <div
+      className={cn("nudel-map-wrap", touch && "nudel-map-touch", className)}
+      data-testid="tour-map"
+    >
       <MapContainer
         center={points[0] ?? VIENNA}
         zoom={13}
@@ -71,12 +76,17 @@ export function TourMap({ stops, depot, geometry, tiles, className }: TourMapPro
           <Polyline positions={line} pathOptions={{ color: "#1d4ed8", weight: 4, opacity: 0.8 }} />
         ) : null}
         {depot ? (
-          <Marker position={[depot.lat, depot.lng]} icon={depotIcon()} zIndexOffset={500}>
+          <Marker
+            position={[depot.lat, depot.lng]}
+            icon={depotIcon(touch)}
+            title={depot.label}
+            zIndexOffset={500}
+          >
             {depot.label ? <Tooltip>{depot.label}</Tooltip> : null}
           </Marker>
         ) : null}
         {stops.map((s) => (
-          <Marker key={s.id} position={[s.lat, s.lng]} icon={stopIcon(s.sequence, s.status)}>
+          <Marker key={s.id} position={[s.lat, s.lng]} icon={stopIcon(s.sequence, s.status, touch)}>
             {s.label ? <Tooltip>{s.label}</Tooltip> : null}
           </Marker>
         ))}

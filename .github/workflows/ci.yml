@@ -61,3 +61,41 @@ jobs:
       - run: pnpm test:e2e --grep-invert "MVP happy path|demo data"
       - run: pnpm db:seed --demo --no-photos
       - run: pnpm test:e2e tests/e2e/mvp-happy-path.spec.ts
+  # NUD-095: performance budget of the driver home (LCP < 2.5 s after the first load on Slow 4G with a
+  # 4x slower CPU), measured with Lighthouse CI against a production build. See docs/performance.md.
+  lighthouse:
+    if: github.event_name == 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: nudel }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nudel
+      SEED_ADMIN_PASSWORD: ci-only-password
+      AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate && pnpm db:seed
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: |
+          nohup pnpm start > next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/de && break; sleep 1; done
+      # Same Chromium for the logged-in profile (prepare) and for the Lighthouse runs.
+      - run: |
+          echo "CHROME_PATH=$(node -e "console.log(require('@playwright/test').chromium.executablePath())")" >> "$GITHUB_ENV"
+      - run: pnpm lighthouse:prepare
+      - run: pnpm lighthouse
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: lighthouse-reports, path: .lighthouseci/reports }

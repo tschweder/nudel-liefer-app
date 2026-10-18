@@ -140,7 +140,7 @@ export function StopDetail({
       <div className="grid gap-3" data-testid="navigation">
         {hasPin ? (
           <>
-            <Button asChild size="lg" className="h-14 text-lg">
+            <Button asChild size="lg" className="min-h-14 text-lg">
               <a
                 href={googleMapsNavigationUrl(stop.lat!, stop.lng!)}
                 target="_blank"
@@ -152,7 +152,7 @@ export function StopDetail({
               </a>
             </Button>
             {ios ? (
-              <Button asChild size="lg" variant="outline" className="h-14 text-lg">
+              <Button asChild size="lg" variant="outline" className="min-h-14 text-lg">
                 <a
                   href={appleMapsNavigationUrl(stop.lat!, stop.lng!)}
                   target="_blank"
@@ -207,7 +207,7 @@ export function StopDetail({
                 </p>
                 {item.germanName && item.germanName !== item.name ? (
                   <p
-                    className="text-sm text-muted-foreground break-words"
+                    className="text-base text-muted-foreground break-words"
                     data-testid="item-name-de"
                   >
                     <span lang="de">{item.germanName}</span>
@@ -309,7 +309,7 @@ function StopLink({
       {direction === "next" ? <Icon className="size-6 rtl:rotate-180" aria-hidden /> : null}
     </>
   );
-  const className = cn("h-14 text-lg", direction === "next" && "col-start-2");
+  const className = cn("min-h-14 text-lg", direction === "next" && "col-start-2");
   if (!id) {
     return (
       <Button variant="outline" size="lg" className={className} disabled data-testid={testId}>

@@ -133,6 +133,14 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.queryByTestId("updated-banner")).toBeNull();
   });
 
+  it("has a page heading and a named progress bar (NUD-095)", () => {
+    renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/\S/);
+    const bar = screen.getByRole("progressbar");
+    expect(bar).toHaveAccessibleName(/\S/);
+    expect(bar).toHaveAttribute("aria-valuetext");
+  });
+
   it("shows the all-done card when nothing is pending", () => {
     renderIn(locale, <TodayTour today={today([stop(1, { status: "DELIVERED" })])} tiles={TILES} />);
     expect(screen.getByTestId("all-done")).toBeInTheDocument();

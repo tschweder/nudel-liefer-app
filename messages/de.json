@@ -2,6 +2,7 @@
   "common": {
     "appName": "Nudel Liefer App",
     "language": "Sprache",
+    "notifications": "Hinweise",
     "actions": {
       "save": "Speichern",
       "cancel": "Abbrechen",
@@ -1041,6 +1042,7 @@
       "changeLanguage": "Sprache ändern"
     },
     "today": {
+      "pageTitle": "Heutige Tour",
       "emptyTitle": "Heute keine Tour",
       "emptyDescription": "Sobald das Büro eine Tour freigibt, erscheint sie hier.",
       "progressLabel": "Fortschritt",

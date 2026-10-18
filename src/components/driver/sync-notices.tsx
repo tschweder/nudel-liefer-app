@@ -54,7 +54,7 @@ export function SyncNotices() {
             type="button"
             variant="outline"
             size="lg"
-            className="h-12 w-full text-base"
+            className="min-h-12 w-full text-base"
             onClick={() => void getOutbox().dismissNotice(notice.id)}
             data-testid="sync-notice-dismiss"
           >

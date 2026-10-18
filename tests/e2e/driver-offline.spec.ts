@@ -364,8 +364,8 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     await expect(page.getByTestId("offline-stop-missing")).toBeVisible();
     await page.getByRole("link", { name: "Zur Tour" }).click();
     await expect(page.locator('[data-testid="stop-row"]:visible')).toHaveCount(3);
-    // Nothing leaks into the generic offline page.
-    await expect(page.locator("h1:visible")).toHaveCount(0);
+    // Nothing leaks into the generic offline page: the only heading is the tour list's own (NUD-095).
+    await expect(page.locator("h1:visible")).toHaveText("Heutige Tour");
   } finally {
     await setOnline(context, page, true);
   }

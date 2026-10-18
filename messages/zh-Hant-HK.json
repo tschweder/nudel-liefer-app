@@ -3,6 +3,7 @@
   "common": {
     "appName": "麪條配送應用",
     "language": "語言",
+    "notifications": "通知",
     "actions": {
       "save": "保存",
       "cancel": "取消",
@@ -1042,6 +1043,7 @@
       "changeLanguage": "更改語言"
     },
     "today": {
+      "pageTitle": "今日行程",
       "emptyTitle": "今天沒有配送線路",
       "emptyDescription": "辦公室發佈線路後，會顯示在這裏。",
       "progressLabel": "進度",

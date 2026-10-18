@@ -237,7 +237,7 @@ export function StopStatusActions({
             type="button"
             variant="outline"
             size="lg"
-            className="h-14 w-full text-lg"
+            className="min-h-14 w-full text-lg"
             disabled={busy}
             onClick={() => void undo(stop.id, stop.customerName)}
             data-testid="undo"
@@ -269,7 +269,7 @@ export function StopStatusActions({
       <Button
         type="button"
         size="lg"
-        className="h-20 w-full gap-3 bg-green-700 text-2xl font-bold text-white hover:bg-green-800 focus-visible:ring-green-900"
+        className="min-h-20 w-full gap-3 bg-green-700 text-2xl font-bold text-white hover:bg-green-800 focus-visible:ring-green-900"
         disabled={busy}
         onClick={() => void complete("delivered")}
         data-testid="btn-delivered"
@@ -281,7 +281,7 @@ export function StopStatusActions({
         type="button"
         variant="outline"
         size="lg"
-        className="h-16 w-full gap-3 border-2 border-amber-600 bg-amber-50 text-xl font-bold text-amber-950 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-50"
+        className="min-h-16 w-full gap-3 border-2 border-amber-600 bg-amber-50 text-xl font-bold text-amber-950 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-50"
         disabled={busy}
         onClick={() => {
           setError(null);
@@ -312,11 +312,11 @@ export function StopStatusActions({
             <SheetTitle className="text-2xl">{t("problemTitle")}</SheetTitle>
             <SheetDescription>{t("problemDescription")}</SheetDescription>
           </SheetHeader>
-          <div className="space-y-4 px-4 pb-4">
+          <div className="space-y-4 px-4">
             <div
               role="group"
               aria-label={t("problemTitle")}
-              className="grid grid-cols-2 gap-2"
+              className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2"
               data-testid="problem-reasons"
             >
               {PROBLEM_REASONS.map((value) => {
@@ -330,7 +330,7 @@ export function StopStatusActions({
                     onClick={() => setReason(value)}
                     className={cn(
                       "flex min-h-16 items-center gap-3 rounded-lg border-2 p-3 text-start text-lg font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      value === "OTHER" && "col-span-2",
+                      value === "OTHER" && "col-span-full",
                       selected
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-card hover:bg-muted",
@@ -364,11 +364,12 @@ export function StopStatusActions({
                 {error}
               </p>
             ) : null}
-            <div className="grid gap-2">
+            {/* Sticky: the thumb finds "Report problem" / "Cancel" at the bottom edge without scrolling the sheet. */}
+            <div className="sticky bottom-0 -mx-4 grid gap-2 border-t bg-background px-4 pt-3 pb-4">
               <Button
                 type="button"
                 size="lg"
-                className="h-14 text-lg font-bold"
+                className="min-h-14 text-lg font-bold"
                 disabled={busy || reason === null}
                 onClick={() => {
                   if (!reason) return;
@@ -384,7 +385,7 @@ export function StopStatusActions({
                 type="button"
                 variant="outline"
                 size="lg"
-                className="h-14 text-lg"
+                className="min-h-14 text-lg"
                 disabled={busy}
                 onClick={() => setSheetOpen(false)}
                 data-testid="problem-cancel"

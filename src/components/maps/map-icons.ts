@@ -20,7 +20,16 @@ export type StopMarkerStatus = "PENDING" | "DELIVERED" | "PROBLEM";
  * circle, delivered = green circle with a check mark badge, problem = red diamond with a "!"
  * badge, so the status is readable without colour vision.
  */
-export function stopIcon(sequence: number, status?: StopMarkerStatus): L.DivIcon {
+export function stopIcon(sequence: number, status?: StopMarkerStatus, touch = false): L.DivIcon {
+  if (touch) {
+    // Driver map (NUD-095): the marker element is a 48 px touch target around the 36 px circle.
+    return L.divIcon({
+      className: "nudel-map-icon",
+      html: `<span class="nudel-stop nudel-touch" data-testid="stop-marker">${sequence}</span>`,
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }
   if (!status) {
     return L.divIcon({
       className: "nudel-map-icon",
@@ -44,7 +53,15 @@ export function stopIcon(sequence: number, status?: StopMarkerStatus): L.DivIcon
   });
 }
 
-export function depotIcon(): L.DivIcon {
+export function depotIcon(touch = false): L.DivIcon {
+  if (touch) {
+    return L.divIcon({
+      className: "nudel-map-icon",
+      html: '<span class="nudel-depot nudel-touch" data-testid="depot-marker" aria-hidden="true">&#9873;</span>',
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+  }
   return L.divIcon({
     className: "nudel-map-icon",
     html: '<span class="nudel-depot" data-testid="depot-marker" aria-hidden="true">&#9873;</span>',

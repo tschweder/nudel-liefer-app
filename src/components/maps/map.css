@@ -70,3 +70,17 @@
     700 11px/1 system-ui,
     sans-serif;
 }
+
+/* Driver map (NUD-095): 48 px touch targets, numbers >= 16 px. */
+.nudel-touch {
+  width: 36px;
+  height: 36px;
+  margin: 6px;
+  font-size: 18px;
+}
+.nudel-map-touch .leaflet-bar a {
+  width: 48px;
+  height: 48px;
+  font-size: 28px;
+  line-height: 48px;
+}
