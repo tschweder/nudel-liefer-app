@@ -5,17 +5,41 @@ export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 export const MAX_FAILURES_PER_USER = 5;
 /** Failed attempts allowed per IP within the window (higher: offices/NAT share an address). */
 export const MAX_FAILURES_PER_IP = 20;
+export const MIN_FAILURES_PER_IP = 1;
+export const MAX_FAILURES_PER_IP_CEILING = 1_000_000;
+
+/**
+ * `LOGIN_MAX_FAILURES_PER_IP` (1..1000000, default 20). The end-to-end suite runs every spec from
+ * one address and logs in wrongly on purpose (the rate-limit tests), so it raises this: otherwise
+ * the shared per-IP counter fills up and every later login in the run is rejected. Unset, empty,
+ * non-numeric or out-of-range values fall back to the default, so production is unaffected.
+ */
+export function maxFailuresPerIp(
+  raw: string | undefined = process.env.LOGIN_MAX_FAILURES_PER_IP,
+): number {
+  const value = raw?.trim();
+  if (!value || !/^\d+$/.test(value)) return MAX_FAILURES_PER_IP;
+  const limit = Number(value);
+  if (limit < MIN_FAILURES_PER_IP || limit > MAX_FAILURES_PER_IP_CEILING)
+    return MAX_FAILURES_PER_IP;
+  return limit;
+}
 
 export type RateLimitKey = { key: string; limit: number };
 
-export function loginKeys(kind: "admin" | "driver", identifier: string, ip: string | null) {
+export function loginKeys(
+  kind: "admin" | "driver",
+  identifier: string,
+  ip: string | null,
+  ipLimit: number = maxFailuresPerIp(),
+) {
   const keys: RateLimitKey[] = [
     {
       key: `user:${kind}:${identifier.trim().toLowerCase().slice(0, 100)}`,
       limit: MAX_FAILURES_PER_USER,
     },
   ];
-  if (ip) keys.push({ key: `ip:${ip.slice(0, 64)}`, limit: MAX_FAILURES_PER_IP });
+  if (ip) keys.push({ key: `ip:${ip.slice(0, 64)}`, limit: ipLimit });
   return keys;
 }
 
