@@ -1,3 +1,15 @@
+---
+covers:
+- src/server/orders.ts
+- src/server/order-*.ts
+- src/server/late-orders.ts
+- src/server/product-*.ts
+- src/server/products.ts
+- src/domain/order*.ts
+stamp: 03567253045f80f8a80d9b4d7ba496fceacd7ff821fd55212d7018f6f0221ebf
+status: fresh
+stale_since: null
+---
 # Orders (and products)
 
 ## Purpose
