@@ -1,3 +1,14 @@
+---
+covers:
+- src/server/audit*.ts
+- src/server/data-retention*.ts
+- src/server/retention-cron.ts
+- src/server/orphan-cleanup*.ts
+- src/domain/audit.ts
+stamp: a1ab25f494ba40358e45fd286c03e2be2979c4ac35064a4dc2b9c0a5a044ae4b
+status: fresh
+stale_since: null
+---
 # Audit and retention
 
 This module covers the append-only audit log (NUD-092) and the background jobs
