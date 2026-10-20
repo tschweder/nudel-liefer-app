@@ -1,3 +1,11 @@
+---
+covers:
+- prisma/**
+- src/server/db.ts
+stamp: 2e767538e56f55123ef88644411cd9133890e106643f72672603b78106039e8b
+status: fresh
+stale_since: null
+---
 # Data model, migrations and the database client
 
 This module owns the persistence layer of the app: the Prisma schema that defines the PostgreSQL
