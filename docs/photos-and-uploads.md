@@ -1,3 +1,15 @@
+---
+covers:
+- src/server/uploads.ts
+- src/server/customer-photos.ts
+- src/server/driver-photos.ts
+- src/lib/uploads.ts
+- src/lib/upload-image.ts
+- src/app/api/uploads/**
+stamp: 801db9fc4bacf16b7e515d30157f721f7a0515fa2a639439d415c729882d31b7
+status: fresh
+stale_since: null
+---
 # Photos and uploads
 
 This module covers how images (customer photos and office screenshots) get from the client into
