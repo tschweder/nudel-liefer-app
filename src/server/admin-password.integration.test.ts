@@ -13,7 +13,9 @@ import { hashSecret } from "./auth/password";
 import { createPrismaClient } from "./db";
 
 const MIGRATIONS = path.join(process.cwd(), "prisma", "migrations");
-const TSX = path.join(process.cwd(), "node_modules", ".bin", "tsx");
+// The tsx CLI is run through the current node binary: `node_modules/.bin/tsx` is a POSIX shell
+// script (no extension) that Windows cannot execute, so spawning it directly fails there.
+const TSX = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
 const OLD = "old-admin-password-1";
 const NEW = "brand-new-Passw0rd!";
 
@@ -101,7 +103,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("the CLI resets via stdin without ever printing the password, and refuses unsafe use", () => {
       const run = (args: string[], input: string | undefined, env: Record<string, string> = {}) =>
-        spawnSync(TSX, ["scripts/admin-reset-password.ts", ...args], {
+        spawnSync(process.execPath, [TSX, "scripts/admin-reset-password.ts", ...args], {
           input,
           encoding: "utf8",
           env: { ...process.env, DATABASE_URL: url, DATABASE_URL_UNPOOLED: "", ...env },

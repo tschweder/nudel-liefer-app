@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 
 import { handleTileRequest, TILE_CACHE_MAX_AGE_MS } from "./tile-cache";
