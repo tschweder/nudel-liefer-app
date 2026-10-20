@@ -1,3 +1,16 @@
+---
+covers:
+- src/server/customer*.ts
+- src/server/customers.ts
+- src/server/import-xlsx.ts
+- src/server/geocode-actions.ts
+- src/domain/customer*.ts
+- src/domain/import-file.ts
+- src/lib/customer-list-params.ts
+stamp: dd72570c4a7975a6316241e8fb731c5fcaa3c12b1baa56978be18cc61f5ea038
+status: fresh
+stale_since: null
+---
 # Customers and imports
 
 This module covers the customer master data: reading and writing customers, the
