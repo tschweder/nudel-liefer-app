@@ -1,3 +1,17 @@
+---
+covers:
+- src/server/auth/**
+- src/server/session.ts
+- src/server/csrf.ts
+- src/server/admin-password.ts
+- src/server/throttle.ts
+- src/server/cron-auth.ts
+- src/lib/access.ts
+- src/app/api/auth/**
+stamp: 135e006a9c8d8d45349a337def4cd294d28787784c7107789147ed4011813489
+status: fresh
+stale_since: null
+---
 # Server-side authentication, sessions, and access control
 
 This unit is everything that authenticates users, holds their session, and decides
