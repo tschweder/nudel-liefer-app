@@ -23,23 +23,36 @@ const targets = [
   { label: "object read", url: `${root}/customers/00000000-0000-4000-8000-000000000000.jpg` },
 ];
 
-let failed = false;
-for (const { label, url } of targets) {
-  try {
-    const response = await fetch(url, { redirect: "manual" });
-    const private_ = response.status === 401 || response.status === 403;
-    console.log(`${private_ ? "ok  " : "FAIL"} ${label}: anonymous GET -> HTTP ${response.status}`);
-    if (!private_) failed = true;
-  } catch (error) {
-    console.error(
-      `FAIL ${label}: request failed (${error instanceof Error ? error.message : error})`,
-    );
-    failed = true;
+// `package.json` has no "type": "module", so tsx compiles this file as CommonJS, where top-level
+// await is not supported. The checks live in an async main() for that reason.
+async function main() {
+  let failed = false;
+  for (const { label, url } of targets) {
+    try {
+      const response = await fetch(url, { redirect: "manual" });
+      const private_ = response.status === 401 || response.status === 403;
+      console.log(
+        `${private_ ? "ok  " : "FAIL"} ${label}: anonymous GET -> HTTP ${response.status}`,
+      );
+      if (!private_) failed = true;
+    } catch (error) {
+      console.error(
+        `FAIL ${label}: request failed (${error instanceof Error ? error.message : error})`,
+      );
+      failed = true;
+    }
   }
+  console.log(
+    failed
+      ? "The bucket may be publicly readable or unreachable: check the provider settings (docs/deploy.md)."
+      : "Anonymous access is refused: the bucket is private.",
+  );
+  // Set the exit code instead of calling process.exit(): a forced exit while fetch()'s handles are
+  // still closing trips a libuv assertion on Windows (exit code 0xC0000409) and loses the real code.
+  process.exitCode = failed ? 1 : 0;
 }
-console.log(
-  failed
-    ? "The bucket may be publicly readable or unreachable: check the provider settings (docs/deploy.md)."
-    : "Anonymous access is refused: the bucket is private.",
-);
-process.exit(failed ? 1 : 0);
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -8,7 +8,7 @@ addresses are real public addresses in Vienna.
 
 1. Start Postgres and an S3-compatible store: `docker compose up -d` (Postgres + MinIO). Copy
    `.env.example` to `.env` and set `SEED_ADMIN_PASSWORD`, `AUTH_SECRET` and the `S3_*` variables for MinIO
-   (`S3_ENDPOINT=http://localhost:9000`, `S3_BUCKET=nudel-photos`, the MinIO keys, bucket created).
+   (`S3_ENDPOINT=http://localhost:9123`, `S3_BUCKET=nudel-photos`, the MinIO keys, bucket created).
 2. `pnpm db:migrate && pnpm db:seed --demo --today` (orders for today, so the driver sees the tour right away; without `--today` the orders are for the next delivery day). The demo seed needs the S3 store: the generated photos
    ("EINGANG" blue, "PARKEN" green, with the customer number) are real image files in the bucket, and
    the seed stops with a clear message when no S3 store is configured (the in-memory Fake store would

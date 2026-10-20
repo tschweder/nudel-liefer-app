@@ -6,6 +6,9 @@ allowBuilds:
   "@prisma/engines": true
   "@prisma/client": true
   "@embedded-postgres/linux-x64": true
+  "@embedded-postgres/windows-x64": true
+  "@embedded-postgres/darwin-x64": true
+  "@embedded-postgres/darwin-arm64": true
   workerd: false
   "@parcel/watcher": false
   "@swc/core": false
