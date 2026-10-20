@@ -1,3 +1,14 @@
+---
+covers:
+- src/server/driver-*.ts
+- src/server/stop-*.ts
+- src/domain/driver-*.ts
+- src/domain/stop-status.ts
+- src/lib/driver-tour-model.ts
+stamp: a7f4a01beaec37e4499397c60a866d6d12d381851c3a67873a2f84f9d0bad85b
+status: fresh
+stale_since: null
+---
 # Driver tour
 
 The driver tour module is the driver-facing half of tour execution: it serves the driver's "today"
