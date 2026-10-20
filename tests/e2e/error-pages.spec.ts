@@ -95,8 +95,10 @@ test.describe("driver", () => {
     await expect(error).toContainText("auf dem Handy gesichert");
     expect(await noHorizontalScroll(page)).toBe(true);
 
-    // Back online: the page reloads by itself and shows the (still failing) page again.
-    const reloaded = page.waitForEvent("load");
+    // Back online: the page reloads by itself and shows the (still failing) page again. Wait for the
+    // navigation, not for `load`: the reload is answered by the service worker, and its `load` event
+    // does not surface on the page object here (the navigation itself does).
+    const reloaded = page.waitForEvent("framenavigated");
     await setOnline(context, page, true);
     await reloaded;
     await expect(page.getByTestId("driver-error")).toHaveAttribute("data-connection", "online");
