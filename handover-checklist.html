@@ -1,0 +1,213 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Nudelfabrik Handover Checklist</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,600&display=swap">
+<style>
+/* Layout: sticky progress bar on top, then phases as sections; each step is a checkable row with expandable commands. */
+:root{
+  --bg:#f6f4ef; --surface:#fffdf8; --fg:#23211c; --muted:#6b675d; --line:#e0dbcf;
+  --accent:#b4531f; --accent-fg:#fff; --ok:#2f7d4f; --ok-bg:#e3f1e8; --code-bg:#efebe0;
+  --font-display:"Fraunces",Georgia,serif; --font-body:"IBM Plex Sans",system-ui,sans-serif; --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1b1a17; --surface:#24221e; --fg:#ece8dd; --muted:#9d988a; --line:#3a372f;
+  --accent:#e0884f; --accent-fg:#1b1a17; --ok:#6cc58f; --ok-bg:#1f3427; --code-bg:#2e2b25; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1b1a17; --surface:#24221e; --fg:#ece8dd; --muted:#9d988a; --line:#3a372f;
+  --accent:#e0884f; --accent-fg:#1b1a17; --ok:#6cc58f; --ok-bg:#1f3427; --code-bg:#2e2b25; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:760px;margin:0 auto}
+header{padding-block:32px 16px}
+h1{font-family:var(--font-display);font-size:2rem;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding-block:12px;z-index:5;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.bar-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.track{flex:1 1 200px;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--ok);transition:width .25s}
+.count{font-family:var(--font-mono);font-size:13px;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+.ghost{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:13px}
+.ghost:hover{color:var(--fg);border-color:var(--muted)}
+.confirm{display:flex;gap:8px;align-items:center;font-size:13px}
+.danger{background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:4px 10px;font-size:13px}
+section{margin-top:36px}
+section h2{font-family:var(--font-display);font-size:1.35rem;margin:0 0 4px;text-wrap:balance}
+.tickets{font-family:var(--font-mono);font-size:12px;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+.intro{color:var(--muted);margin:4px 0 12px;max-width:62ch}
+.note{background:var(--code-bg);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:8px 12px;margin:0 0 12px;font-size:13.5px;color:var(--fg)}
+.step{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:8px}
+.step.done{background:var(--ok-bg);border-color:transparent}
+.step.done .t{text-decoration:line-through;text-decoration-color:var(--muted);color:var(--muted)}
+.step input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--ok)}
+.step input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.body{min-width:0;flex:1}
+.t{font-weight:600;cursor:pointer;display:block}
+.d{margin:4px 0 0;color:var(--muted)}
+.d a{color:var(--accent)}
+pre{background:var(--code-bg);border-radius:6px;padding:10px 12px;margin:8px 0 0;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;line-height:1.5}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--code-bg);padding:1px 5px;border-radius:4px}
+pre code{background:none;padding:0}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:11px;border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:0 6px;margin-left:6px;vertical-align:1px}
+footer{margin-top:40px;color:var(--muted);font-size:13px}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Nudelfabrik handover checklist</h1>
+  <p>Everything the agent could not do from its sandbox. Work top to bottom. Tick each step when done; ticks are saved in this browser. Source docs are in the <code>docs/</code> folder of <code>nudel-liefer-app</code>.</p>
+</header>
+
+<div class="bar">
+  <div class="bar-row">
+    <div class="track" aria-hidden="true"><div class="fill" id="fill"></div></div>
+    <span class="count" id="count">0 / 0</span>
+    <span id="resetArea"><button class="ghost" id="reset" type="button">Reset</button></span>
+  </div>
+</div>
+
+<main id="main"></main>
+
+<footer>Status when this list was made: 44 tickets done, 7 blocked (NUD-001, 002, 004, 006, 007, 073, 096), 17 todo. Backlog: <code>backlog.md</code>.<br>
+Corrected after a full verification pass on 2026-10-18 — see <code>HANDOVER-CHECKLIST-RESULTS.md</code> and <code>HANDOVER-NEXT-STEPS.md</code>. Steps that changed carry a “corrected” tag.</footer>
+</div>
+
+<script>
+const PHASES=[
+{id:"p1",title:"1. Verify on a machine with Docker",tickets:"NUD-001 · 002 · 004 · 006",
+ intro:"The sandbox had no Docker, no GitHub and no real browser install. These four tickets only need a normal computer.",
+ note:"Verified 2026-10-18: <code>pnpm lint</code>, <code>typecheck</code>, <code>test</code> and <code>i18n:check</code> pass, and the photo-upload pipeline works against MinIO. Four things blocked a fresh machine and are now fixed in the repo (docker-compose MinIO images, the Windows <code>allowBuilds</code> entry, the e2e login rate limit, Playwright not reading <code>.env</code>).",
+ steps:[
+ {t:"Install Docker Desktop, Node (LTS), pnpm and Git",d:"Start Docker and wait until it reports running."},
+ {t:"Create your .env file",cmd:"# Git Bash\ncp .env.example .env\n\n# PowerShell\nCopy-Item .env.example .env",d:"<b>New step.</b> The list used to skip this: without a <code>.env</code> there is no <code>DATABASE_URL</code> and every command below fails. The committed defaults match <code>docker-compose.yml</code> (Postgres on <b>5123</b>, MinIO on <b>9123</b>). Fill in <code>SEED_ADMIN_PASSWORD</code> and <code>AUTH_SECRET</code>."},
+ {t:"Start the stack and run the unit/integration tests",cmd:"docker compose up -d\npnpm install\npnpm db:migrate\npnpm db:seed\npnpm test",d:"All tests must pass. If one fails, copy the output into a new ticket."},
+ {t:"Run the end-to-end tests",cmd:"pnpm exec playwright install chromium\npnpm test:e2e",d:"<b>Corrected.</b> Run them against a production build — the dev server compiles routes on demand and is too slow under parallel load, which makes logins time out. Locally: set <code>CI=1</code> (Playwright then runs <code>pnpm build && pnpm start</code>). Always pass <code>PORT=&lt;free port&gt;</code>: if something else already listens on 3000, Playwright silently reuses it and every test fails against the wrong server. Note: always build with <code>pnpm build</code> (it runs two passes for the CSP hashes)."},
+ {t:"Check photo upload against MinIO",d:"<b>Corrected.</b> <code>minio/minio</code> and <code>minio/mc</code> no longer exist on Docker Hub; <code>docker-compose.yml</code> now uses the <code>chainguard</code> images. Open the console on <b>http://localhost:9121</b>, log in with <code>minioadmin</code>/<code>minioadmin</code>, upload a photo in the app, confirm the object appears in the <code>nudel-photos</code> bucket. The bucket is created automatically by the <code>minio-init</code> container."},
+ {t:"Push the repo to GitHub and confirm CI is green",d:"The workflow is <code>.github/workflows/ci.yml</code>. <b>Open a pull request</b> — the <code>e2e</code> and <code>lighthouse</code> jobs are gated with <code>if: github.event_name == 'pull_request'</code>, so pushing to <code>main</code> runs only lint/typecheck/test. CI had never run before this pass."},
+ {t:"Tick the open criteria and set NUD-001, 002, 004, 006 to done in backlog.md",d:"The agent left their open criteria unticked on purpose."}
+ ]},
+{id:"p2",title:"2. Create accounts and keys",tickets:"Needed by NUD-007",
+ intro:"Collect these before you deploy. Store them in a password manager, never in git. Variable names are in <code>docs/env.md</code> and <code>.env.example</code>.",
+ steps:[
+ {t:"OpenRouteService API key",d:"Used for geocoding and routing. Without it the app falls back to the simple heuristic."},
+ {t:"Map tile provider account with a usage plan",d:"Check the provider's terms allow your expected traffic."},
+ {t:"DeepL API key",d:"Pro plan is needed for the 10-minute translation retry cron."},
+ {t:"Generate AUTH_SECRET and CRON_SECRET",cmd:"# Git Bash\nopenssl rand -base64 32\n\n# PowerShell / cmd (openssl is not on the PATH there)\nnode -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",d:"<b>Corrected.</b> Run it twice, one value for each secret. On Windows <code>openssl</code> only exists inside Git Bash."},
+ {t:"Optional: Sentry project and DSN",d:"Skip if you do not want error monitoring yet (<code>docs/deploy.md</code> §12)."}
+ ]},
+{id:"p3",title:"3. Deploy to staging and production",tickets:"NUD-007",
+ intro:"Follow <code>docs/deploy.md</code> click by click. This is the short version.",
+ steps:[
+ {t:"Create a private GitHub repository",d:"§1"},
+ {t:"Neon: project in Frankfurt plus a branch called staging",d:"§2. Copy both connection strings."},
+ {t:"Cloudflare R2: EU jurisdiction, two private buckets, scoped tokens, CORS",d:"§3. Buckets must not be public."},
+ {t:"Vercel: Pro plan, region fra1, import the repo",d:"§4. Cron jobs in <code>vercel.json</code> need Pro."},
+ {t:"Enter environment variables per environment",d:"§5 has the table. Production and staging use different values."},
+ {t:"First deploy",d:"§6"},
+ {t:"Seed production once",d:"§7. Do this only one time, it creates the first admin. <b>Corrected:</b> that section is a bash block (<code>read -rs</code>), so run it in Git Bash on Windows, not PowerShell."},
+ {t:"Open /api/health and log in as admin",d:"§9. Health must show database and storage OK."},
+ {t:"Check the bucket is private",cmd:"# the script needs the values in the environment\nS3_ENDPOINT=https://<account>.eu.r2.cloudflarestorage.com \\\nS3_BUCKET=nudel-photos \\\npnpm exec tsx scripts/check-storage-private.ts",d:"§11.3. It must report that unsigned access is refused and exit 0. <b>Corrected:</b> the bare command exits 2 (“not configured”) — it reads <code>S3_ENDPOINT</code>/<code>S3_BUCKET</code> from the environment and does not load <code>.env</code>. The script itself was broken (top-level <code>await</code> under CommonJS) and never ran before this pass; that is fixed."},
+ {t:"Set up the uptime monitor and the backup workflow",d:"§12.2 and §13.1 (<code>backup.yml</code> needs its secrets added in GitHub)."},
+ {t:"Report the production URL and mark NUD-007 done",d:""}
+ ]},
+{id:"p4",title:"4. Chinese language review",tickets:"NUD-073",
+ intro:"Needs a native Simplified reviewer and a native Traditional reviewer (Hong Kong and Taiwan). Details in <code>docs/i18n.md</code>.",
+ steps:[
+ {t:"Export the strings to CSV",cmd:"pnpm i18n:export",d:"Verified working: writes 998 rows to <code>i18n-review.csv</code>."},
+ {t:"Send the CSV and the glossary to both reviewers",d:"Ask them to correct wording, not structure."},
+ {t:"Dry-run the returned files",cmd:"pnpm i18n:import <file.csv> --dry-run",d:"Fix any reported errors with the reviewer first."},
+ {t:"Import for real and run the check",cmd:"pnpm i18n:import <file.csv>\npnpm i18n:check"},
+ {t:"Commit and mark NUD-073 done",d:""}
+ ]},
+{id:"p5",title:"5. Hands-on verification",tickets:"NUD-105 · 107 · 109 · 113 · 114 · 115 · 120",
+ intro:"These tickets need a person with the deployed app or a real device. Each ticket's acceptance criteria in <code>backlog.md</code> say exactly what to look at.",
+ steps:[
+ {t:"Open each of the seven tickets in backlog.md and read its human criteria",d:"Do them in numeric order."},
+ {t:"Run the checks on the deployed staging URL",d:"Use a real Android phone and a real iPhone for anything mobile or offline."},
+ {t:"Roll out the CSP in report-only mode first",d:"Watch for violation reports for a few days, fix anything legitimate, then enforce. Set <code>CSP_REPORT_ONLY=true</code>; see <code>docs/deploy.md</code> §11.1a."},
+ {t:"Tick the criteria and set each ticket to done",d:"Anything that fails becomes a new ticket."}
+ ]},
+{id:"p6",title:"6. User acceptance test with the client",tickets:"NUD-096",
+ intro:"The script is <code>docs/uat.md</code>: <b>57</b> office tests (O-01 … O-94) and <b>39</b> driver tests (D-01 … D-54), plus X-01 to X-03. The numbering is not contiguous, so the highest number is larger than the count.",
+ steps:[
+ {t:"Work through the pre-UAT checklist (§9)",d:"Staging is deployed, demo data loaded, test accounts ready."},
+ {t:"Load demo data if needed",cmd:"pnpm db:seed --demo --today",d:"Add <code>--no-photos</code> to skip photos. <code>docs/demo.md</code> has a 5-minute walkthrough."},
+ {t:"Run the office script with the client",d:"One person drives, one writes down findings on the feedback form."},
+ {t:"Run the driver script with real drivers, one session per language",d:"On Android and on iPhone."},
+ {t:"Ask which Chinese variant the drivers prefer",d:"Use the Chinese-variant section and the wording table in the UAT doc."},
+ {t:"Collect the feedback forms and the client sign-off",d:"Sign-off block at the end of <code>uat.md</code>."},
+ {t:"Hand the forms to the agent to convert into tickets",d:"Conversion rules are in the doc."}
+ ]},
+{id:"p7",title:"7. Decisions and information from the client",tickets:"Backlog §10",
+ intro:"Ask these in one meeting. Record the answers in the backlog decision log.",
+ steps:[
+ {t:"Retention periods",d:"Proposed: driver text 365 days, audit log 730 days. Also decide whether orders are deleted whole."},
+ {t:"Keep or remove Order.internalNote",d:"Currently folded into the retention question above."},
+ {t:"Depot address",d:"Start and end point for routes."},
+ {t:"Real product list with Chinese names",d:""},
+ {t:"Existing customer list",d:"For import. Check privacy notes in <code>docs/privacy.md</code>."},
+ {t:"Vehicle type",d:"Affects routing profile."},
+ {t:"Confirm tile provider and DeepL plan are paid by the client",d:""}
+ ]},
+{id:"p8",title:"8. Decide what the agent does next",tickets:"NUD-116 · 117 · 118 · 119 · 121 · M3",
+ intro:"Follow-up tickets the agents spawned, and the next milestone. Nothing here blocks the steps above.",
+ steps:[
+ {t:"Decide whether to run follow-up tickets 116, 117, 118, 119 and 121",d:"Tell the agent to continue the orchestration if yes."},
+ {t:"Start milestone 3 only after the client signs off milestone 2",d:""}
+ ]}
+];
+
+const KEY="nudel-handover-v1";
+let state={};
+try{state=JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){state={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+
+const main=document.getElementById("main");
+let total=0;
+PHASES.forEach(p=>{
+  const s=document.createElement("section");
+  s.innerHTML='<div class="tickets">'+p.tickets+'</div><h2>'+p.title+'</h2><p class="intro">'+p.intro+'</p>'
+    +(p.note?'<p class="note">'+p.note+'</p>':'');
+  p.steps.forEach((st,i)=>{
+    total++;
+    const id=p.id+"-"+i;
+    const row=document.createElement("div");
+    row.className="step";
+    row.dataset.id=id;
+    row.innerHTML='<input type="checkbox" id="c-'+id+'"><div class="body"><label class="t" for="c-'+id+'">'+st.t+'</label>'
+      +(st.d?'<p class="d">'+st.d+'</p>':'')
+      +(st.cmd?'<pre><code></code></pre>':'')+'</div>';
+    if(st.cmd) row.querySelector("code").textContent=st.cmd;
+    s.appendChild(row);
+  });
+  main.appendChild(s);
+});
+
+function render(){
+  let n=0;
+  document.querySelectorAll(".step").forEach(r=>{
+    const on=!!state[r.dataset.id];
+    r.classList.toggle("done",on);
+    r.querySelector("input").checked=on;
+    if(on)n++;
+  });
+  document.getElementById("count").textContent=n+" / "+total;
+  document.getElementById("fill").style.width=(total?n/total*100:0)+"%";
+}
+main.addEventListener("change",e=>{
+  const r=e.target.closest(".step"); if(!r)return;
+  state[r.dataset.id]=e.target.checked; save(); render();
+});
+const area=document.getElementById("resetArea");
+function showReset(){area.innerHTML='<button class="ghost" id="reset" type="button">Reset</button>';document.getElementById("reset").onclick=askReset}
+function askReset(){
+  area.innerHTML='<span class="confirm">Clear all ticks? <button class="danger" id="yes" type="button">Clear</button><button class="ghost" id="no" type="button">Cancel</button></span>';
+  document.getElementById("yes").onclick=()=>{state={};save();render();showReset()};
+  document.getElementById("no").onclick=showReset;
+}
+document.getElementById("reset").onclick=askReset;
+render();
+</script>
+
+</body></html>
