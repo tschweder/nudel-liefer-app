@@ -57,6 +57,9 @@ export function isAllowedImageType(type: string): type is AllowedImageType {
   return (ALLOWED_IMAGE_TYPES as readonly string[]).includes(type);
 }
 
+// Re-exported here so existing callers keep importing it from the upload contract module.
+export { isUsableUploadUrl } from "./upload-url";
+
 export function extensionFor(type: AllowedImageType): string {
   return { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic" }[
     type

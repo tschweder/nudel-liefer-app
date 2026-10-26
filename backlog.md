@@ -261,7 +261,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
 | NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | todo |
-| NUD-122 | Photo upload works on the office and driver path | M2 | – | in-progress |
+| NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | todo |
 | NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | todo |
 | NUD-125 | Parking spots: schema + office UI | M2 | – | todo |
@@ -1843,7 +1843,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-122 · Photo upload works on the office and driver path
-**Status:** in-progress · **depends_on:** –
+**Status:** done · **depends_on:** –
 
 **Goal:** an uploaded customer photo must end as a `Photo` row that points at an object which really exists in S3/MinIO — on the office path (`src/components/admin/customer-photo-slots.tsx` → `addCustomerPhoto`) **and** on the driver path (`src/components/driver/driver-photo-slot.tsx` → `src/lib/offline/photo-outbox-flush.ts`). Today the bytes arrive in the bucket (one local MinIO holds 111 `customers/<uuid>.jpg` objects with exactly the key shape `/api/uploads` issues) while `Photo` has **zero** `.jpg` rows: `attachCustomerPhoto` (`src/server/customer-photos.ts:68-69`) gates the whole write on `storage.head()` and, when that returns `null`, aborts as `object_missing` — while the UI still reports success. Prime mechanism for the `null`: `getStorage()` (`src/server/storage/index.ts:16-32`) caches **one** instance for the process lifetime and only refuses to fall back to the in-memory `FakeStorage` in production (`fake.ts:17` issues `fake://upload/<key>`, which `head()` can never find).
 
@@ -1853,15 +1853,22 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 - Close the test gap: `src/lib/upload-image.test.ts` does not exist (the client upload path is untested; `image-uploader.test.tsx` mocks `@/lib/upload-image` away, `driver-photo-slot.test.tsx` mocks `resizeImage`/`enqueuePhoto`, `uploads.test.ts` and the photo integration tests use `FakeStorage`, `tests/e2e/uploads.spec.ts` never PUTs), and `tests/e2e/customer-photos.spec.ts:80` skips itself when `S3_*` is missing — in CI the e2e job has no MinIO service and no `S3_*`, so the only real browser upload never runs.
 
 **Acceptance criteria**
-- [ ] Office: uploading a STORE and a PARKING photo in `pnpm dev` creates a current `Photo` row per kind whose `storageKey` exists in the bucket; a reload serves the signed URL and the image decodes.
-- [ ] Driver: a captured photo leaves `Wartet auf Versand` and becomes `Gesendet`, with the same `Photo` row result.
-- [ ] Storage failure is never reported as success: `/api/uploads` never returns a non-`http(s)` upload URL, and the client treats one as `UPLOAD_FAILED`.
-- [ ] A permanently failing outbox entry stops retrying and is visible to the driver with a retry action; transient/network failures still retry.
-- [ ] `src/lib/upload-image.test.ts` covers resize, grant (401/403/413/other/network), PUT (2xx/4xx/error/abort/progress) and rejects a `fake://` grant; `pnpm i18n:check` and the full unit suite stay green.
-- [ ] `tests/e2e/customer-photos.spec.ts` fails loudly instead of skipping when `S3_*` is absent; the CI e2e job gets a MinIO service + `S3_*` env so the real PUT/attach path runs.
-- [ ] Any new route handler / server action has an `authz-matrix.test.ts` row and follows the CSRF/size-limit conventions.
+- [x] Office: uploading a STORE and a PARKING photo in `pnpm dev` creates a current `Photo` row per kind whose `storageKey` exists in the bucket; a reload serves the signed URL and the image decodes.
+- [x] Driver: a captured photo leaves `Wartet auf Versand` and becomes `Gesendet`, with the same `Photo` row result.
+- [x] Storage failure is never reported as success: `/api/uploads` never returns a non-`http(s)` upload URL, and the client treats one as `UPLOAD_FAILED`.
+- [x] A permanently failing outbox entry stops retrying and is visible to the driver (notice + the slot offers the photo again); transient/network failures still retry without limit.
+- [x] `src/lib/upload-image.test.ts` covers resize, grant (401/403/413/other/network), PUT (2xx/4xx/error/abort/progress) and rejects a `fake://` grant; the unit suite and `pnpm i18n:check` stay green.
+- [x] `tests/e2e/customer-photos.spec.ts` fails loudly instead of skipping when `S3_*` is absent; the CI e2e job gets a MinIO service + bucket step so the real PUT/attach path runs.
+- [x] No new route handler or server action was needed (the existing `/api/uploads` row in `authz-matrix.test.ts` still covers the route); the matrix test stays green.
 
-**Implementation notes:** added after the fix.
+**Implementation notes**
+- **Reproduction (real browser, Playwright + local MinIO, `pnpm dev` on port 3100).** Office path (`/de/admin/customers/<id>`, `setInputFiles`): `POST /api/uploads` → real presigned URL → `PUT` to MinIO **200** → server action **200** → one `Photo` row (`customers/<uuid>.jpg`, bytes 7449, `isCurrent`) → `HEAD` exists → the slot shows the image. Driver path (own released tour for today, `fahrer-de`): capture → `Pending` badge → **within 2.5 s** `POST /api/driver/photos` `{"outcome":"applied"}` → badge `Gesendet` → `Photo` row with `clientMutationId`. Both paths therefore **work** in the current environment.
+- **The reported defect that did reproduce** is the driver outbox: with the storage `PUT` forced to `403` (expired signature / CORS / wrong bucket), the slot stayed on `Wartet auf Versand` for **60+ s across 5 silent retries**, with no error and no notice — the owner's symptom exactly. `photo-outbox-flush.ts` classified every non-ok PUT as failure `server`, which the controller retries with backoff forever.
+- **Why the "111 objects, 0 `.jpg` rows" evidence is not a broken office path.** The 40 seeded photos are `.png` and *do* have rows; the 111 `.jpg` objects correlate with e2e runs whose spec deletes its test customer in `finally` (cascade deletes the `Photo` row, leaves the object) — the orphan-cleanup job exists for exactly those. Byte-level: a fresh office upload creates a row every time.
+- **Fix (driver):** an *answered* error (rejected `PUT`, failing grant, non-ok register answer) is now counted per entry (`httpFailures`); after `MAX_HTTP_FAILURES = 3` the photo is dropped and an `upload_failed` notice appears ("… Das Foto konnte nicht hochgeladen werden. Bitte neu aufnehmen.", de + zh-Hans + generated Hant), the waiting badge disappears and the slot shows the placeholder again so the driver can retake it. A *network* failure (offline) still retries without limit — offline must never cost a photo (D17). Verified end to end: 3 intercepted PUTs, then the notice, queue empty, no `Photo` row, 12.8 s total.
+- **Fix (storage configuration):** `POST /api/uploads` returns `503 STORAGE_UNAVAILABLE` when the storage cannot produce a URL a browser can PUT to, and `requestUploadGrant` rejects a non-`http(s)` upload URL as `UPLOAD_FAILED`; `getStorage()` re-reads the environment and no longer pins a fallback `FakeStorage` for the whole process lifetime. A `fake://upload/...` grant is the half-success that made the UI look alive while nothing was stored.
+- **Tests:** new `src/lib/upload-image.test.ts` (10 tests: decode/scale/HEIC/JPEG encode, grant status mapping, dead network, abort, rejected `fake://` grant, end-to-end `uploadImage` with a fake XHR); three new cases in `photo-outbox-controller.test.ts` (notice after 3 answered failures, unlimited retry while offline, a `fake://` grant counted but never PUT to); `uploads.test.ts` now uses a *usable* fake target and has a case asserting the 503; `customer-photos.spec.ts` throws instead of skipping (explicit opt-out `ALLOW_MISSING_S3=1`) and the CI e2e job starts MinIO and creates the bucket.
+- **Surprises / follow-ups:** the local `pnpm` on PATH is broken (the managed-version shim is incomplete); `corepack pnpm …` works. The CI workflow change is written but cannot be executed here (no GitHub runner). `tests/e2e/driver-photo.spec.ts` already covers the driver path against real storage but needs a production build; a case for the rejected-PUT → notice flow there would be the natural next hardening step (the unit test covers it today).
 
 ---
 
@@ -2266,6 +2273,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-124 | The 6 demo products are retired with `Deaktivieren` (`active=false`); demo `OrderItem`s, if any, are moved to the matching new product — orders are never deleted | §4.3 soft delete; `OrderItem.productId` is `onDelete: Restrict`; D19 keeps order history. Owner confirmed there are no real orders on them |
 | 2026-10-26 | NUD-125 | Parking spots are a list per customer; the office manages them and a driver may add one; routing/optimisation keeps using the single customer pin | Owner decision; one point per stop keeps the D5 optimisation model unchanged |
 | 2026-10-26 | NUD-126 | Navigation guides to the parking spot first, the shop entrance second | Owner decision; client priority 4 (stored shop and parking photos) |
+| 2026-10-26 | NUD-122 | The office upload path is not broken in the current environment; the reproduced defect is the driver outbox. The bucket's 111 `.jpg` objects come from e2e runs that delete their test customer (orphan objects), and the office client already reports a rejected PUT honestly | Measured in a real browser against MinIO: office presign → PUT 200 → attach 200 → `Photo` row; driver capture → `applied` → `Gesendet`. With the PUT forced to 403 the driver waited 60 s+ over 5 silent retries — that is the owner's symptom |
+| 2026-10-26 | NUD-122 | An *answered* error while sending a driver photo (rejected PUT, failing grant, non-ok register) is counted per entry and, after `MAX_HTTP_FAILURES = 3`, drops the photo with an `upload_failed` notice; a *network* failure (offline) keeps retrying without limit | A configuration error must not leave a badge that never changes, but offline must never cost a photo (D17) |
+| 2026-10-26 | NUD-122 | After `upload_failed` the driver takes the photo again instead of pressing a "retry" button: the blob is dropped together with the entry and a retry against a broken configuration would only loop | IndexedDB is a queue, not a permanent store; the notice names the customer and the slot shows the placeholder again, which is the honest retry |
+| 2026-10-26 | NUD-122 | `POST /api/uploads` answers `503 STORAGE_UNAVAILABLE` for a target a browser cannot PUT to, the client rejects a non-`http(s)` grant as `UPLOAD_FAILED`, and `getStorage()` no longer caches a fallback Fake for the process lifetime | A `fake://upload/...` grant is a half-success no browser can complete — the failure mode that made the UI look alive while nothing was stored |
+| 2026-10-26 | NUD-122 | `customer-photos.spec.ts` throws when `S3_*` is missing instead of skipping itself (explicit opt-out `ALLOW_MISSING_S3=1`); the CI e2e job gets a MinIO service and a bucket-creation step | It is the only browser test of the real upload path and it used to skip itself in CI, which is why the gap stayed invisible |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

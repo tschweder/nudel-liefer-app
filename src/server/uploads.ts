@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   extensionFor,
   isAllowedImageType,
+  isUsableUploadUrl,
   MAX_UPLOAD_BYTES,
   type UploadGrant,
   type UploadPurpose,
@@ -77,6 +78,14 @@ export async function handleCreateUpload(request: Request, deps: UploadDeps): Pr
     contentType,
     contentLength: size,
   });
+  // Fail closed: a target a browser cannot PUT to (FakeStorage's `fake://...`) must never be
+  // reported as a working upload. The caller gets a clear error instead of a silent half-success.
+  if (!isUsableUploadUrl(target.url)) {
+    console.error(
+      "[uploads] storage did not return a usable upload URL - check the S3_* configuration",
+    );
+    return json({ error: "STORAGE_UNAVAILABLE" }, 503);
+  }
   const grant: UploadGrant = {
     storageKey,
     uploadUrl: target.url,

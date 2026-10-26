@@ -6,10 +6,12 @@ import {
   type PhotoRegisterResponse,
   type RegisteredPhoto,
 } from "@/domain/driver-photo";
+import { isUsableUploadUrl } from "@/lib/upload-url";
 
 import { PHOTO_REGISTER_API_PATH } from "./constants";
 import type { OutboxNotice } from "./outbox";
 import {
+  MAX_HTTP_FAILURES,
   MAX_MISSING_RETRIES,
   patchTourPhoto,
   type PhotoEntry,
@@ -29,9 +31,11 @@ import type { PhotoOutboxStore } from "./photo-outbox-store";
  *     once; a retry (answer lost) is answered `replayed` with the same photo.
  *  3. On success the blob is put into the photo cache under the real photo id and the stored tour
  *     copy is patched, then the entry is removed.
- * A network or server problem ends the run (the order of photos of one slot must not be broken)
- * and keeps everything queued; the caller retries with backoff. An answer that can never succeed
- * (`not_found`, `tour_not_active`, an invalid request, ...) removes the photo and leaves a notice.
+ * A network problem ends the run and keeps everything queued (offline retries forever). An *answer*
+ * that is an error - a rejected PUT, a failing grant, a 5xx - is counted per entry and, after
+ * `MAX_HTTP_FAILURES`, drops the photo with an `upload_failed` notice instead of leaving the driver
+ * with a "waiting" badge that never changes (NUD-122). An answer that can never succeed at all
+ * (`not_found`, `tour_not_active`, an invalid request, ...) drops the photo at once, with a notice.
  */
 export type PhotoFlushFailure = "network" | "server" | "unauthorized";
 
@@ -40,6 +44,9 @@ export type RegisteredInfo = {
   photo: RegisteredPhoto;
   replayed: boolean;
 };
+
+/** Everything that drops a photo and raises a notice: the register vocabulary + two client cases. */
+export type PhotoFlushError = PhotoRegisterError | "invalid" | "upload_failed";
 
 export type PhotoFlushOutcome =
   | { kind: "empty" }
@@ -65,11 +72,19 @@ export type PhotoFlushDeps = {
 
 type Step =
   | { kind: "done"; response: Extract<PhotoRegisterResponse, { outcome: "applied" | "replayed" }> }
-  | { kind: "final"; error: PhotoRegisterError | "invalid" }
+  | { kind: "final"; error: PhotoFlushError }
   | { kind: "again" } // stored a changed entry, try the same entry once more later
+  | { kind: "answered" } // storage or the server *answered* with an error: counted, not endless
   | { kind: "stop"; failure: PhotoFlushFailure };
 
 const jsonHeaders = { "Content-Type": "application/json", Accept: "application/json" };
+
+/** Reason codes the driver's notice list knows how to render; anything else becomes `invalid`. */
+const NOTICE_ERRORS: ReadonlySet<string> = new Set<string>([
+  ...FINAL_PHOTO_ERRORS,
+  "invalid",
+  "upload_failed",
+]);
 
 type UploadGrantLike = {
   storageKey: string;
@@ -103,7 +118,7 @@ async function upload(
   // The blob can never be accepted (wrong type, too large): drop it with a notice.
   if (response.status === 400 || response.status === 413)
     return { kind: "final", error: "invalid" };
-  if (!response.ok) return { kind: "stop", failure: "server" };
+  if (!response.ok) return { kind: "answered" };
   let grant: UploadGrantLike;
   try {
     const raw = (await response.json()) as Partial<UploadGrantLike>;
@@ -113,12 +128,15 @@ async function upload(
       typeof raw.headers !== "object" ||
       raw.headers === null
     ) {
-      return { kind: "stop", failure: "server" };
+      return { kind: "answered" };
     }
     grant = raw as UploadGrantLike;
   } catch {
-    return { kind: "stop", failure: "server" };
+    return { kind: "answered" };
   }
+  // Storage that is not configured (a presigned URL no browser can PUT to) is an answer, not a
+  // network problem: counting it leads to the notice instead of a badge that waits forever.
+  if (!isUsableUploadUrl(grant.uploadUrl)) return { kind: "answered" };
   try {
     // The storage is another origin: its CORS rule has to allow PUT (docs/env.md, NUD-006).
     const put = await deps.fetchImpl(grant.uploadUrl, {
@@ -128,18 +146,37 @@ async function upload(
       headers: grant.headers,
       body: entry.blob,
     });
-    // A rejected PUT (e.g. an expired signature) is retried with a fresh grant next time.
-    if (!put.ok) return { kind: "stop", failure: "server" };
+    // A rejected PUT (an expired signature, a wrong bucket, a forbidden CORS rule) is an answer:
+    // retried a few times with a fresh grant, then dropped with a notice (NUD-122).
+    if (!put.ok) return { kind: "answered" };
   } catch {
     return { kind: "stop", failure: "network" };
   }
   return { kind: "ok", storageKey: grant.storageKey };
 }
 
+/**
+ * An error *answer* (not a network failure) while sending a photo. Offline retries forever on
+ * purpose, but a configuration that keeps answering with an error must not leave the driver with a
+ * "waiting" badge that never becomes "sent": after `MAX_HTTP_FAILURES` the photo is dropped with a
+ * notice, and the driver takes it again (NUD-122).
+ */
+async function countAnswered(
+  deps: PhotoFlushDeps,
+  entry: PhotoEntry,
+  error: PhotoFlushError,
+): Promise<Step> {
+  const httpFailures = (entry.httpFailures ?? 0) + 1;
+  if (httpFailures >= MAX_HTTP_FAILURES) return { kind: "final", error };
+  await deps.store.putEntry({ ...entry, httpFailures });
+  return { kind: "stop", failure: "server" };
+}
+
 async function sendOne(deps: PhotoFlushDeps, entry: PhotoEntry): Promise<Step> {
   let current = entry;
   if (!current.storageKey) {
     const uploaded = await upload(deps, current);
+    if (uploaded.kind === "answered") return countAnswered(deps, current, "upload_failed");
     if (uploaded.kind !== "ok") return uploaded;
     current = { ...current, storageKey: uploaded.storageKey };
     // From here on a retry only registers; losing this write only costs one more upload.
@@ -169,7 +206,7 @@ async function sendOne(deps: PhotoFlushDeps, entry: PhotoEntry): Promise<Step> {
     return { kind: "stop", failure: "unauthorized" };
   }
   if ([400, 413, 415].includes(response.status)) return { kind: "final", error: "invalid" };
-  if (!response.ok) return { kind: "stop", failure: "server" };
+  if (!response.ok) return countAnswered(deps, current, "upload_failed");
   let parsed: PhotoRegisterResponse | null;
   try {
     parsed = parsePhotoRegisterResponse(await response.json());
@@ -226,6 +263,13 @@ export async function flushPhotos(
         entry = undefined;
         break;
       }
+      // `sendOne` turns an error answer into a counted failure, so this cannot happen today;
+      // treating it as a server problem keeps the queue intact instead of crashing the run.
+      if (step.kind === "answered") {
+        failure = "server";
+        entry = undefined;
+        break;
+      }
       if (step.kind === "final") {
         const notice: OutboxNotice = {
           id: entry.clientMutationId,
@@ -233,9 +277,7 @@ export async function flushPhotos(
           stopId: entry.stopId,
           customerName: entry.customerName,
           type: "photo",
-          error: FINAL_PHOTO_ERRORS.includes(step.error as PhotoRegisterError)
-            ? step.error
-            : "invalid",
+          error: NOTICE_ERRORS.has(step.error) ? step.error : "invalid",
           createdAt: deps.now().toISOString(),
         };
         await deps.putNotice(notice);

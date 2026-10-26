@@ -6,7 +6,22 @@ import { Client } from "pg";
 // Needs a seeded database, DATABASE_URL, SEED_ADMIN_PASSWORD and a real S3-compatible storage
 // (MinIO from docker-compose, or the s3rver emulator) configured via S3_* for the app AND visible
 // in this process: the browser PUTs the photo to the presigned URL and reads it back signed.
+//
+// NUD-122: this is the only browser test of the real upload path, so it must never be skipped
+// silently - a missing S3_* configuration made it do exactly that in CI while the upload was
+// broken. It now fails loudly unless the suite is explicitly acknowledged as unable to run.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
+
+const REQUIRED_S3_VARS = ["S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const;
+const missingS3 = REQUIRED_S3_VARS.filter((name) => !process.env[name]);
+if (missingS3.length > 0 && process.env.ALLOW_MISSING_S3 !== "1") {
+  throw new Error(
+    `customer-photos.spec.ts needs real object storage, but ${missingS3.join(", ")} ${
+      missingS3.length === 1 ? "is" : "are"
+    } not set. Start MinIO (docker compose up -d) and provide the S3_* variables, or set ` +
+      "ALLOW_MISSING_S3=1 to state explicitly that the real upload path is not covered here.",
+  );
+}
 
 const TILE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -77,7 +92,6 @@ const noHorizontalScroll = (page: Page) =>
 test("customer photos: upload, flag, reload, replace with history, fullscreen", async ({
   page,
 }, testInfo) => {
-  test.skip(!process.env.S3_BUCKET, "needs S3_* (MinIO / s3rver) for real uploads");
   test.setTimeout(180_000);
   const tag = `e2ep${testInfo.project.name}${Date.now()}${Math.floor(Math.random() * 1e4)}`;
   const db = new Client({ connectionString: process.env.DATABASE_URL });

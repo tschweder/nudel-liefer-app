@@ -1420,6 +1420,7 @@
       "photoNotices": {
         "not_found": "{name}: Dieser Stopp wurde aus der Tour entfernt. Das Foto wurde nicht übernommen.",
         "tour_not_active": "{name}: Diese Tour ist nicht mehr aktiv. Das Foto wurde nicht übernommen.",
+        "upload_failed": "{name}: Das Foto konnte nicht hochgeladen werden. Bitte neu aufnehmen.",
         "generic": "{name}: Das Foto konnte nicht übernommen werden."
       },
       "outboxTitle": "Wartet auf Übertragung",

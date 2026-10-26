@@ -42,18 +42,41 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      # NUD-122: the real upload path (presigned PUT + attach) must run here, not be skipped.
+      # MinIO was removed from Docker Hub, so the chainguard image is used (same as docker-compose).
+      minio:
+        image: chainguard/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MC_HOST_self: http://minioadmin:minioadmin@localhost:9000
+        ports: ["9000:9000"]
+        options: >-
+          --health-cmd "mc ready self" --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nudel
       SEED_ADMIN_PASSWORD: ci-only-password
       AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
       # NUD-094: the hidden pages /admin/dev/error and /driver/dev-error (error page tests).
       ENABLE_ERROR_TEST_PAGES: "true"
+      # NUD-122: object storage for the app AND for Playwright (customer-photos.spec.ts fails loudly
+      # when these are missing instead of skipping itself).
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: nudel-photos
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - name: Create the object-storage bucket
+        run: |
+          docker run --rm --network host \
+            -e MC_HOST_local=http://minioadmin:minioadmin@localhost:9000 \
+            chainguard/minio-client:latest mb --ignore-existing local/nudel-photos
       - run: pnpm db:migrate && pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
       # The MVP happy path needs the demo seed (confirmed depot); the other specs expect the plain

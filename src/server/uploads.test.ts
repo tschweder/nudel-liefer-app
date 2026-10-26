@@ -5,6 +5,7 @@ import { isCustomerPhotoKey, isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/upl
 
 import { type Actor, AuthorizationError, resolveActor, type Role } from "./auth/actor";
 import { FakeStorage } from "./storage/fake";
+import type { Storage } from "./storage/types";
 import { handleCreateUpload } from "./uploads";
 
 type FakeUser = { id: string; role: Role; active: boolean; locale: "de"; displayName: string };
@@ -19,12 +20,24 @@ const db = {
 };
 
 /** Uses the real `resolveActor` so role / active-user rules are exercised, only the session is faked. */
-function deps(sessionUserId: string | null, storage = new FakeStorage()) {
+function deps(sessionUserId: string | null, storage: Storage = new UsableFakeStorage()) {
   return {
     storage: () => storage,
     requireRole: (...roles: Role[]): Promise<Actor> =>
       resolveActor(sessionUserId ? { id: sessionUserId } : null, roles, db as never),
   };
+}
+
+/**
+ * A Fake whose upload target a browser could really use. `FakeStorage` itself answers
+ * `fake://upload/<key>`, which is exactly the misconfiguration NUD-122 is about: the route must
+ * refuse it (see the test below), so the happy-path fixtures need a usable URL.
+ */
+class UsableFakeStorage extends FakeStorage {
+  override async createUploadUrl(input: Parameters<FakeStorage["createUploadUrl"]>[0]) {
+    const target = await super.createUploadUrl(input);
+    return { ...target, url: `http://storage.test/${input.key}` };
+  }
 }
 
 function post(body: unknown) {
@@ -38,9 +51,9 @@ function post(body: unknown) {
 const valid = { purpose: "customer-photo", contentType: "image/jpeg", size: 200_000 };
 
 describe("POST /api/uploads", () => {
-  let storage: FakeStorage;
+  let storage: UsableFakeStorage;
   beforeEach(() => {
-    storage = new FakeStorage();
+    storage = new UsableFakeStorage();
   });
 
   it("rejects unauthenticated requests with 401 and never touches storage", async () => {
@@ -130,6 +143,14 @@ describe("POST /api/uploads", () => {
     expect(isScreenshotKey(shot.storageKey), shot.storageKey).toBe(true);
     const photo = await (await handleCreateUpload(post(valid), deps("admin"))).json();
     expect(isScreenshotKey(photo.storageKey)).toBe(false);
+  });
+
+  it("fails closed when the storage cannot produce a usable URL (NUD-122)", async () => {
+    // The plain Fake answers `fake://upload/<key>`: no browser can PUT there, so the route must say
+    // so instead of handing out a grant that would half-succeed.
+    const res = await handleCreateUpload(post(valid), deps("admin", new FakeStorage()));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ error: "STORAGE_UNAVAILABLE" });
   });
 
   it("re-throws unexpected errors instead of reporting them as auth failures", async () => {

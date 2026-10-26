@@ -33,9 +33,18 @@ export type PhotoEntry = {
   storageKey?: string;
   /** How often the server did not find the object after we uploaded it. */
   missingCount?: number;
+  /**
+   * How often storage or the server *answered* with an error while this photo was sent (a rejected
+   * PUT, a failing grant). A network failure does not count: offline retries forever, an answer that
+   * keeps being an error is a broken configuration and must end in a notice (NUD-122).
+   */
+  httpFailures?: number;
 };
 
 export const MAX_MISSING_RETRIES = 3;
+
+/** Answered errors allowed before a photo is dropped with a notice instead of retried forever. */
+export const MAX_HTTP_FAILURES = 3;
 
 export function sortPhotoEntries<T extends Pick<PhotoEntry, "createdAt" | "seq">>(
   entries: readonly T[],

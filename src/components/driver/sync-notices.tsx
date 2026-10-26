@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { getOutbox, useOutbox } from "@/lib/offline/outbox-browser";
 
-const KNOWN_PHOTO = new Set(["not_found", "tour_not_active"]);
+const KNOWN_PHOTO = new Set(["not_found", "tour_not_active", "upload_failed"]);
 
 const KNOWN = new Set([
   "changed_by_office",

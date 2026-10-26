@@ -1,6 +1,7 @@
 import {
   computeTargetSize,
   isAllowedImageType,
+  isUsableUploadUrl,
   JPEG_QUALITY,
   MAX_LONG_EDGE,
   MAX_UPLOAD_BYTES,
@@ -111,7 +112,12 @@ export async function requestUploadGrant(
   if (response.status === 403) throw new UploadError("FORBIDDEN");
   if (response.status === 413) throw new UploadError("TOO_LARGE");
   if (!response.ok) throw new UploadError("REQUEST_FAILED", `HTTP ${response.status}`);
-  return (await response.json()) as UploadGrant;
+  const grant = (await response.json()) as UploadGrant;
+  // Defence in depth (NUD-122): a URL the browser cannot PUT to must never look like a success.
+  if (!isUsableUploadUrl(grant.uploadUrl)) {
+    throw new UploadError("UPLOAD_FAILED", "storage is not configured");
+  }
+  return grant;
 }
 
 /** PUTs the blob to the presigned URL with progress reporting (XHR, since fetch has none). */

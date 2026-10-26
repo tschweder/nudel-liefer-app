@@ -1420,6 +1420,7 @@
       "photoNotices": {
         "not_found": "{name}：此站点已从路线中移除，照片未被采用。",
         "tour_not_active": "{name}：此路线已不再有效，照片未被采用。",
+        "upload_failed": "{name}：照片上传失败，请重新拍摄。",
         "generic": "{name}：照片未被采用。"
       },
       "outboxTitle": "等待同步",

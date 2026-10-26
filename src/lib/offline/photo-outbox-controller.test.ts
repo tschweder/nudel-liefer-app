@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { OutboxNotice } from "./outbox";
+import { MAX_HTTP_FAILURES } from "./photo-outbox";
 import { createPhotoOutboxController } from "./photo-outbox-controller";
 import { createMemoryPhotoStore } from "./photo-outbox-store";
 
@@ -156,6 +157,76 @@ describe("offline capture", () => {
     expect(Object.keys(body).sort()).toEqual(
       ["clientMutationId", "height", "kind", "storageKey", "stopId", "width"].sort(),
     );
+  });
+});
+
+describe("a permanently failing upload ends with a notice (NUD-122)", () => {
+  it("drops the photo after MAX_HTTP_FAILURES rejected PUTs and tells the driver", async () => {
+    // A rejected PUT (expired signature, wrong bucket, CORS) is an answer, not a dead network: the
+    // badge used to stay on "waiting" forever while the outbox retried the same PUT without end.
+    const t = setup({ put: () => new Response("SignatureDoesNotMatch", { status: 403 }) });
+    await t.controller.start("u1");
+    const entry = await t.controller.enqueue(photo());
+
+    for (let i = 1; i < MAX_HTTP_FAILURES; i++) {
+      expect(await t.controller.flush({ force: true })).toMatchObject({ failure: "server" });
+      expect(t.store.entryRows.has(entry.clientMutationId)).toBe(true);
+      expect(t.store.entryRows.get(entry.clientMutationId)?.httpFailures).toBe(i);
+      expect(t.notices).toHaveLength(0);
+    }
+
+    expect(await t.controller.flush({ force: true })).toMatchObject({
+      kind: "ran",
+      failure: null,
+      rejected: 1,
+    });
+    expect(t.notices).toHaveLength(1);
+    expect(t.notices[0]).toMatchObject({
+      type: "photo",
+      error: "upload_failed",
+      customerName: "Trattoria",
+    });
+    expect(t.store.entryRows.has(entry.clientMutationId)).toBe(false);
+    expect(t.controller.getState().entries).toHaveLength(0);
+  });
+
+  it("keeps retrying without an answer: a dead network must never cost the driver a photo", async () => {
+    const t = setup();
+    await t.controller.start("u1");
+    const entry = await t.controller.enqueue(photo());
+    t.setOnline(false);
+
+    for (let i = 0; i < MAX_HTTP_FAILURES + 3; i++) {
+      expect(await t.controller.flush({ force: true })).toMatchObject({ failure: "network" });
+    }
+    expect(t.store.entryRows.get(entry.clientMutationId)?.httpFailures).toBeUndefined();
+    expect(t.controller.getState().entries).toHaveLength(1);
+    expect(t.notices).toHaveLength(0);
+  });
+
+  it("counts a grant without a usable upload URL as an answered error", async () => {
+    const t = setup({
+      uploads: () =>
+        json({
+          storageKey: "customers/key-1.jpg",
+          // FakeStorage's answer: no browser can PUT there, so it must end in a notice, not a loop.
+          uploadUrl: "fake://upload/customers/key-1.jpg",
+          method: "PUT",
+          headers: { "Content-Type": "image/jpeg" },
+          expiresAt: "2099-07-02T08:05:00.000Z",
+        }),
+    });
+    await t.controller.start("u1");
+    const entry = await t.controller.enqueue(photo());
+
+    for (let i = 1; i < MAX_HTTP_FAILURES; i++) {
+      expect(await t.controller.flush({ force: true })).toMatchObject({ failure: "server" });
+    }
+    expect(await t.controller.flush({ force: true })).toMatchObject({ rejected: 1 });
+    expect(t.notices[0]).toMatchObject({ error: "upload_failed" });
+    expect(t.store.entryRows.has(entry.clientMutationId)).toBe(false);
+    // The unusable URL was never PUT to.
+    expect(t.uploadedKeys.size).toBe(0);
   });
 });
 

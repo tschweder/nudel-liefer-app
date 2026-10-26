@@ -1421,6 +1421,7 @@
       "photoNotices": {
         "not_found": "{name}：此站點已從路線中移除，照片未被採用。",
         "tour_not_active": "{name}：此路線已不再有效，照片未被採用。",
+        "upload_failed": "{name}：照片上傳失敗，請重新拍攝。",
         "generic": "{name}：照片未被採用。"
       },
       "outboxTitle": "等待同步",
