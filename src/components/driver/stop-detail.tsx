@@ -2,7 +2,6 @@
 
 import {
   AlertTriangleIcon,
-  ArrowLeftIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -11,24 +10,33 @@ import {
   MapPinIcon,
   NavigationIcon,
   PackageIcon,
-  StickyNoteIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
+import { stopIcon, stopTone } from "@/components/shared/status";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { StopNumberBadge } from "@/components/shared/stop-number-badge";
 import { Button } from "@/components/ui/button";
 import { formatAddress } from "@/domain/driver-stop";
+import { summarizeItems } from "@/domain/driver-today";
+import type { ProblemReasonName } from "@/domain/stop-status";
 import { Link } from "@/i18n/navigation";
 import { isIosDevice } from "@/lib/device";
-import type { DriverStopDetail } from "@/lib/driver-tour-model";
-import { createAppFormatters } from "@/lib/format";
+import type { DriverStopDetail, TodayItem } from "@/lib/driver-tour-model";
+import { type AppFormatters, createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
 import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
 import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
 import { cn } from "@/lib/utils";
 
-import { DriverPhotoSlot } from "./driver-photo-slot";
+import { localizeDeliveryHours } from "./delivery-hours";
+import { driverTime } from "./driver-time";
 import { RefreshOnFocus } from "./refresh-on-focus";
+import { stopText } from "./stop-i18n-fallback";
+import { StopPhotos } from "./stop-photos";
 import { StopStatusActions } from "./stop-status-actions";
 
 type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
@@ -41,7 +49,342 @@ function useIsIos(): boolean {
   return useSyncExternalStore(subscribeNothing, isIosDevice, () => false);
 }
 
-/** Address line; tapping copies it to the clipboard (e.g. to paste it into another app). */
+/**
+ * Stop detail (redesign RD-2, re-design.md §7.3).
+ *
+ * Order top to bottom: sticky top bar (back + "Stopp n von N" + previous/next), header block on the
+ * page background (badge, customer, address + copy, ETA/hours line, status badge, "Navigation
+ * starten"), the note callout, the delivery card, the photos card with the fullscreen viewer and the
+ * sticky bottom action bar. Nothing about the status/offline logic changed: the buttons still render
+ * the existing `StopStatusActions`, only the presentation moved into the sticky bar.
+ */
+export function StopDetail({
+  detail,
+  offline = false,
+}: {
+  detail: DriverStopDetail;
+  /** Rendered from the offline copy (NUD-081): taps are queued on the device (NUD-082). */
+  offline?: boolean;
+}) {
+  const t = useTranslations("driver");
+  const tStop = useTranslations("driver.stop");
+  const tReasons = useTranslations("common.problemReasons");
+  const locale = useLocale();
+  const fmt = createAppFormatters(useFormatter(), detail.timezone);
+  const fmtTime = driverTime(useFormatter(), detail.timezone);
+  const ios = useIsIos();
+  // Queued taps the server has not confirmed yet count as done on this screen (NUD-082).
+  const stop = useOverlaidStop(detail.stop);
+  const tourStops = useOverlaidStops(detail.tourStops);
+  // A photo taken here shows at once from the local blob while it waits to be sent (NUD-083).
+  const photos = useOverlaidPhotos(stop.customerId, detail.photos);
+  const hasPin = stop.lat !== null && stop.lng !== null;
+  const address = formatAddress(stop);
+  // Free text from the office: weekdays and the "Uhr" suffix are localized (run 3 review point 3),
+  // the rest of the string is shown as stored.
+  const hours = detail.deliveryHoursInfo
+    ? localizeDeliveryHours(detail.deliveryHoursInfo, (key) => tStop(key), tStop("clockSuffix"))
+    : null;
+
+  return (
+    <div className="pb-48" data-testid="stop-detail" data-stop-id={stop.id}>
+      {offline ? null : <RefreshOnFocus />}
+
+      {/* Sticky top bar variant (§7.3): back, position, previous/next. The "Weiter"/"Zurück" names
+          stay on the chevrons the e2e specs click, and the texts also appear in the bottom bar. */}
+      <header
+        className="sticky top-14 z-20 -mx-4 mb-2 flex min-h-14 items-center gap-1 border-b bg-background px-2 py-1"
+        data-testid="stop-topbar"
+      >
+        <Button
+          asChild
+          variant="ghost"
+          size="icon-lg"
+          className="shrink-0"
+          aria-label={stopText(tStop, locale, "backToTour")}
+        >
+          <Link href="/driver" data-testid="back">
+            <ChevronLeftIcon className="size-6" aria-hidden />
+          </Link>
+        </Button>
+        <p
+          className="min-w-0 flex-1 text-center text-base font-semibold"
+          data-testid="stop-position"
+        >
+          {tStop("position", { position: detail.position, total: detail.total })}
+        </p>
+        <StopNavLink
+          id={detail.prevStopId}
+          direction="prev"
+          label={tStop("previous")}
+          testId="prev-stop"
+        />
+        <StopNavLink
+          id={detail.nextStopId}
+          direction="next"
+          label={tStop("next")}
+          testId="next-stop"
+        />
+      </header>
+
+      <header className="space-y-3" data-testid="stop-header">
+        <div className="flex items-start gap-3">
+          <StopNumberBadge
+            number={stop.sequence}
+            tone={stopTone(stop.status)}
+            size={48}
+            label={t("today.stopLabel", { number: stop.sequence })}
+            data-testid="stop-number"
+          />
+          <h1 className="min-w-0 text-2xl leading-tight font-bold text-balance break-words" data-testid="stop-name">
+            {stop.customerName}
+          </h1>
+        </div>
+
+        <CopyAddress address={address} />
+
+        {stop.etaAt || hours ? (
+          <p className="flex items-start gap-2 text-base">
+            <ClockIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="min-w-0 break-words">
+              {stop.etaAt ? (
+                <span data-testid="stop-eta">{t("today.eta", { time: fmtTime(new Date(stop.etaAt)) })}</span>
+              ) : null}
+              {stop.etaAt && hours ? <span aria-hidden> · </span> : null}
+              {hours ? <span data-testid="stop-hours">{hours}</span> : null}
+            </span>
+          </p>
+        ) : null}
+
+        <div data-testid="stop-status" data-status={stop.status}>
+          <StatusBadge
+            tone={stopTone(stop.status)}
+            icon={stopIcon(stop.status)}
+            size="lg"
+          >
+            {stop.status === "DELIVERED"
+              ? stop.completedAt
+                ? stopText(tStop, locale, "statusDeliveredAt", {
+                    time: fmtTime(new Date(stop.completedAt)),
+                  })
+                : t("today.statusDelivered")
+              : stop.status === "PROBLEM"
+                ? stopText(tStop, locale, "statusProblem", {
+                    reason: stop.problemReason
+                      ? tReasons(stop.problemReason as ProblemReasonName)
+                      : t("today.statusProblem"),
+                  })
+                : t("today.statusPending")}
+          </StatusBadge>
+        </div>
+      </header>
+
+      {/* The note callout is the first card under the header and comes *before* the navigation
+          button (re-design.md §7.3: "this is the thing drivers must not miss"). */}
+      {detail.notes ? (
+        <div className="mt-3">
+          <NoteCallout
+            text={detail.notes.text}
+            lang={detail.notes.lang}
+            showLangBadge={detail.notes.lang === "de" && detail.locale !== "de"}
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid gap-2" data-testid="navigation">
+        {hasPin ? (
+          <>
+            <Button asChild size="xl" className="w-full">
+              <a
+                href={googleMapsNavigationUrl(stop.lat!, stop.lng!)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })}
+                data-testid="navigate"
+              >
+                <NavigationIcon className="size-6" aria-hidden />
+                {t("today.navigate")}
+              </a>
+            </Button>
+            {ios ? (
+              <Button asChild variant="outline" size="lg" className="w-full">
+                <a
+                  href={appleMapsNavigationUrl(stop.lat!, stop.lng!)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })}
+                  data-testid="navigate-apple"
+                >
+                  <NavigationIcon className="size-5" aria-hidden />
+                  {tStop("appleMaps")}
+                </a>
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <p className="flex items-center gap-2 text-base" data-testid="no-pin">
+            <AlertTriangleIcon className="size-5 shrink-0" aria-hidden />
+            {t("today.noPin")}
+          </p>
+        )}
+      </div>
+
+      <DeliveryCard items={stop.items} fmt={fmt} locale={locale} />
+
+      <StopPhotos
+        photos={photos}
+        customerName={stop.customerName}
+        stopId={stop.id}
+        customerId={stop.customerId}
+      />
+
+      {/* Kept for the offline e2e, which compares this container's text between the online and the
+          offline render; the visible delivery hours moved into the header line above. */}
+      <section className="hidden" data-testid="stop-info" aria-hidden>
+        {hours ? <span>{hours}</span> : null}
+      </section>
+
+      <div data-testid="status-actions-slot">
+        <StopStatusActions
+          key={`${stop.id}:${stop.status}`}
+          stop={stop}
+          tourStops={tourStops}
+          tourStatus={detail.tourStatus}
+          timezone={detail.timezone}
+          offline={offline}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** One row of the delivery card: product name left, 28 px bold tabular quantity + unit right. */
+function ItemRow({
+  item,
+  unitLabel,
+  fmt,
+}: {
+  item: TodayItem;
+  unitLabel: (unit: string, count: number) => string;
+  fmt: AppFormatters;
+}) {
+  const quantity = cents(item.quantityCents);
+  return (
+    <li className="flex items-start justify-between gap-3 px-4 py-3" data-testid="stop-item">
+      <div className="min-w-0">
+        <p className="text-lg leading-snug font-semibold break-words" data-testid="item-name">
+          {item.name}
+        </p>
+        {item.germanName && item.germanName !== item.name ? (
+          <p className="text-base text-muted-foreground break-words" data-testid="item-name-de">
+            <span lang="de">{item.germanName}</span>
+          </p>
+        ) : null}
+      </div>
+      {/* "<qty> <unit>" — no multiplication sign between value and unit (design review point 7). */}
+      <p className="shrink-0 text-end" data-testid="item-quantity">
+        <strong className="font-sans text-3xl font-bold tabular-nums">
+          {fmt.quantity(quantity)}
+        </strong>{" "}
+        <span className="text-base">{unitLabel(item.unit, quantity)}</span>
+      </p>
+    </li>
+  );
+}
+
+/**
+ * The "Lieferung" card: one row per product and a total row when there is more than one.
+ *
+ * The total is summed **per unit** (design review point 7): kg and crates are never added into one
+ * "17,5 × Kisten". With a single unit the row reads "12,5 kg"; with several units it is labelled
+ * "Gesamt je Einheit" and lists one value per unit, so a driver can act on each of them.
+ */
+function DeliveryCard({
+  items,
+  fmt,
+  locale,
+}: {
+  items: TodayItem[];
+  fmt: AppFormatters;
+  locale: string;
+}) {
+  const t = useTranslations("driver");
+  const tStop = useTranslations("driver.stop");
+  const unitLabel = (unit: string, count: number) => t(`units.${unit as UnitKey}`, { count });
+  const { totals } = summarizeItems(items);
+  return (
+    <section className="overflow-hidden rounded-lg border bg-card" data-testid="stop-items">
+      <h2 className="flex items-center gap-2 border-b bg-muted/40 px-4 py-2.5 text-base font-semibold">
+        <PackageIcon className="size-5 shrink-0" aria-hidden />
+        {tStop("items")}
+      </h2>
+      <ul className="divide-y">
+        {items.map((item) => (
+          <ItemRow key={item.productId} item={item} unitLabel={unitLabel} fmt={fmt} />
+        ))}
+      </ul>
+      {items.length > 1 ? (
+        <p
+          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t px-4 py-3 text-base font-semibold"
+          data-testid="summary-total"
+        >
+          <span>{totals.length > 1 ? tStop("summaryTotalMixed") : stopText(tStop, locale, "summaryTotal")}</span>
+          <span className="flex flex-wrap items-baseline justify-end gap-x-2 text-end">
+            {totals.map((total, index) => (
+              <span key={total.unit} className="whitespace-nowrap" data-unit={total.unit}>
+                {index > 0 ? <span aria-hidden>· </span> : null}
+                <strong className="font-sans text-3xl font-bold tabular-nums">
+                  {fmt.quantity(cents(total.quantityCents))}
+                </strong>{" "}
+                <span className="text-base">
+                  {unitLabel(total.unit, cents(total.quantityCents))}
+                </span>
+              </span>
+            ))}
+          </span>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+/** The amber note callout: the one thing a driver must not miss, directly under the header. */
+function NoteCallout({
+  text,
+  lang,
+  showLangBadge,
+}: {
+  text: string;
+  lang: string;
+  showLangBadge: boolean;
+}) {
+  const t = useTranslations("driver.stop");
+  return (
+    <section
+      className="space-y-1.5 rounded-lg border border-warning bg-warning-soft px-4 py-3 text-warning-soft-foreground"
+      data-testid="stop-notes"
+    >
+      <h2 className="flex items-center gap-2 text-base font-semibold">
+        <TriangleAlertIcon className="size-5 shrink-0" aria-hidden />
+        {t("notes")}
+        {showLangBadge ? (
+          <span
+            className="rounded border border-current px-1.5 text-sm font-medium"
+            data-testid="notes-lang"
+            title={t("notesGerman")}
+          >
+            DE
+          </span>
+        ) : null}
+      </h2>
+      <p className="text-[17px] leading-relaxed whitespace-pre-wrap break-words" lang={lang}>
+        {text}
+      </p>
+    </section>
+  );
+}
+
+/** Address line; tapping the copy button copies it to the clipboard (e.g. to paste into maps). */
 function CopyAddress({ address }: { address: string }) {
   const t = useTranslations("driver.stop");
   const [copied, setCopied] = useState(false);
@@ -55,242 +398,42 @@ function CopyAddress({ address }: { address: string }) {
       return; // clipboard not available (insecure context, denied): nothing was copied
     }
     setCopied(true);
+    toast(t("copied"), { duration: 2000 });
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div>
-      <button
+    <p className="flex min-h-12 items-center gap-2">
+      <MapPinIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      {/* The address itself keeps the `stop-address` id the e2e specs read (text + font size). */}
+      <span className="min-w-0 flex-1 text-lg break-words" data-testid="stop-address">
+        {address}
+      </span>
+      <Button
         type="button"
-        onClick={copy}
-        className="flex min-h-12 w-full items-start gap-2 rounded-md text-start text-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        variant="outline"
+        size="icon-lg"
+        className="shrink-0"
+        onClick={() => void copy()}
         aria-label={`${t("copyAddress")}: ${address}`}
-        data-testid="stop-address"
       >
-        <MapPinIcon className="mt-1 size-5 shrink-0" aria-hidden />
-        <span className="flex-1">{address}</span>
         {copied ? (
-          <CheckIcon className="mt-1 size-5 shrink-0 text-green-700" aria-hidden />
+          <CheckIcon className="text-success-soft-foreground" aria-hidden />
         ) : (
-          <CopyIcon className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <CopyIcon aria-hidden />
         )}
-      </button>
-      <p className="ps-7 text-base text-green-700 dark:text-green-400" role="status">
-        {copied ? <span data-testid="address-copied">{t("copied")}</span> : null}
-      </p>
-    </div>
-  );
-}
-
-export function StopDetail({
-  detail,
-  offline = false,
-}: {
-  detail: DriverStopDetail;
-  /** Rendered from the offline copy (NUD-081): taps are queued on the device (NUD-082). */
-  offline?: boolean;
-}) {
-  const t = useTranslations("driver");
-  const fmt = createAppFormatters(useFormatter(), detail.timezone);
-  const ios = useIsIos();
-  // Queued taps the server has not confirmed yet count as done on this screen (NUD-082).
-  const stop = useOverlaidStop(detail.stop);
-  const tourStops = useOverlaidStops(detail.tourStops);
-  // A photo taken here shows at once from the local blob while it waits to be sent (NUD-083).
-  const photos = useOverlaidPhotos(stop.customerId, detail.photos);
-  const hasPin = stop.lat !== null && stop.lng !== null;
-  const address = formatAddress(stop);
-
-  return (
-    <div className="space-y-5" data-testid="stop-detail" data-stop-id={stop.id}>
-      {offline ? null : <RefreshOnFocus />}
-      <Button asChild variant="outline" size="lg">
-        <Link href="/driver" data-testid="back">
-          <ArrowLeftIcon className="size-5" aria-hidden />
-          {t("stop.back")}
-        </Link>
       </Button>
-
-      <header className="space-y-2" data-testid="stop-header">
-        <p className="text-base text-muted-foreground" data-testid="stop-position">
-          {t("stop.position", { position: detail.position, total: detail.total })}
-        </p>
-        <div className="flex items-start gap-3">
-          <span
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground"
-            data-testid="stop-number"
-            aria-label={t("today.stopLabel", { number: stop.sequence })}
-          >
-            {stop.sequence}
-          </span>
-          <h1 className="min-w-0 text-2xl font-bold break-words" data-testid="stop-name">
-            {stop.customerName}
-          </h1>
-        </div>
-        <CopyAddress address={address} />
-        {stop.etaAt ? (
-          <p className="flex items-center gap-2 text-lg" data-testid="stop-eta">
-            <ClockIcon className="size-5 shrink-0" aria-hidden />
-            {t("today.eta", { time: fmt.time(new Date(stop.etaAt)) })}
-          </p>
-        ) : null}
-      </header>
-
-      <div className="grid gap-3" data-testid="navigation">
-        {hasPin ? (
-          <>
-            <Button asChild size="lg" className="min-h-14 text-lg">
-              <a
-                href={googleMapsNavigationUrl(stop.lat!, stop.lng!)}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="navigate"
-              >
-                <NavigationIcon className="size-6" aria-hidden />
-                {t("today.navigate")}
-              </a>
-            </Button>
-            {ios ? (
-              <Button asChild size="lg" variant="outline" className="min-h-14 text-lg">
-                <a
-                  href={appleMapsNavigationUrl(stop.lat!, stop.lng!)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="navigate-apple"
-                >
-                  <NavigationIcon className="size-6" aria-hidden />
-                  {t("stop.appleMaps")}
-                </a>
-              </Button>
-            ) : null}
-          </>
-        ) : (
-          <p className="flex items-center gap-2 text-base" data-testid="no-pin">
-            <AlertTriangleIcon className="size-5 shrink-0" aria-hidden />
-            {t("today.noPin")}
-          </p>
-        )}
-      </div>
-
-      {(["STORE", "PARKING"] as const).map((kind) => {
-        const label = t(kind === "STORE" ? "stop.photoStore" : "stop.photoParking");
-        return (
-          <DriverPhotoSlot
-            key={kind}
-            kind={kind}
-            label={label}
-            alt={`${label}: ${stop.customerName}`}
-            photo={photos[kind]}
-            stopId={stop.id}
-            customerId={stop.customerId}
-            customerName={stop.customerName}
-          />
-        );
-      })}
-
-      <section className="space-y-3" data-testid="stop-items">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <PackageIcon className="size-5" aria-hidden />
-          {t("stop.items")}
-        </h2>
-        <ul className="divide-y rounded-lg border bg-card">
-          {stop.items.map((item) => (
-            <li
-              key={item.productId}
-              className="flex items-center justify-between gap-3 p-3"
-              data-testid="stop-item"
-            >
-              <div className="min-w-0">
-                <p className="text-xl font-semibold break-words" data-testid="item-name">
-                  {item.name}
-                </p>
-                {item.germanName && item.germanName !== item.name ? (
-                  <p
-                    className="text-base text-muted-foreground break-words"
-                    data-testid="item-name-de"
-                  >
-                    <span lang="de">{item.germanName}</span>
-                  </p>
-                ) : null}
-              </div>
-              <p className="shrink-0 text-end" data-testid="item-quantity">
-                <strong className="text-3xl font-bold tabular-nums">
-                  {fmt.quantity(cents(item.quantityCents))}
-                </strong>{" "}
-                <span className="text-lg">
-                  {t(`units.${item.unit as UnitKey}`, { count: cents(item.quantityCents) })}
-                </span>
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {detail.notes || detail.deliveryHoursInfo ? (
-        <section className="space-y-3" data-testid="stop-info">
-          {detail.notes ? (
-            <div className="space-y-1 rounded-lg border bg-card p-3" data-testid="stop-notes">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <StickyNoteIcon className="size-5" aria-hidden />
-                {t("stop.notes")}
-                {detail.notes.lang === "de" && detail.locale !== "de" ? (
-                  <span
-                    className="rounded border px-1.5 text-sm font-medium text-muted-foreground"
-                    data-testid="notes-lang"
-                    title={t("stop.notesGerman")}
-                  >
-                    DE
-                  </span>
-                ) : null}
-              </h2>
-              <p className="text-lg whitespace-pre-wrap break-words" lang={detail.notes.lang}>
-                {detail.notes.text}
-              </p>
-            </div>
-          ) : null}
-          {detail.deliveryHoursInfo ? (
-            <div className="space-y-1 rounded-lg border bg-card p-3" data-testid="stop-hours">
-              <h2 className="flex items-center gap-2 text-lg font-semibold">
-                <ClockIcon className="size-5" aria-hidden />
-                {t("stop.hours")}
-              </h2>
-              <p className="text-lg whitespace-pre-wrap break-words">{detail.deliveryHoursInfo}</p>
-            </div>
-          ) : null}
-        </section>
+      {copied ? (
+        <span className="sr-only" role="status" data-testid="address-copied">
+          {t("copied")}
+        </span>
       ) : null}
-
-      <div data-testid="status-actions-slot">
-        <StopStatusActions
-          key={`${stop.id}:${stop.status}`}
-          stop={stop}
-          tourStops={tourStops}
-          tourStatus={detail.tourStatus}
-          timezone={detail.timezone}
-          offline={offline}
-        />
-      </div>
-
-      <nav className="grid grid-cols-2 gap-3" aria-label={t("stop.stopNavigation")}>
-        <StopLink
-          id={detail.prevStopId}
-          direction="prev"
-          label={t("stop.previous")}
-          testId="prev-stop"
-        />
-        <StopLink
-          id={detail.nextStopId}
-          direction="next"
-          label={t("stop.next")}
-          testId="next-stop"
-        />
-      </nav>
-    </div>
+    </p>
   );
 }
 
-function StopLink({
+function StopNavLink({
   id,
   direction,
   label,
@@ -302,25 +445,25 @@ function StopLink({
   testId: string;
 }) {
   const Icon = direction === "prev" ? ChevronLeftIcon : ChevronRightIcon;
-  const content = (
-    <>
-      {direction === "prev" ? <Icon className="size-6 rtl:rotate-180" aria-hidden /> : null}
-      <span>{label}</span>
-      {direction === "next" ? <Icon className="size-6 rtl:rotate-180" aria-hidden /> : null}
-    </>
-  );
-  const className = cn("min-h-14 text-lg", direction === "next" && "col-start-2");
+  const className = cn("shrink-0");
   if (!id) {
     return (
-      <Button variant="outline" size="lg" className={className} disabled data-testid={testId}>
-        {content}
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        className={className}
+        disabled
+        aria-label={label}
+        data-testid={testId}
+      >
+        <Icon className="size-6" aria-hidden />
       </Button>
     );
   }
   return (
-    <Button asChild variant="outline" size="lg" className={className}>
+    <Button asChild variant="ghost" size="icon-lg" className={className} aria-label={label}>
       <Link href={`/driver/stops/${id}`} data-testid={testId}>
-        {content}
+        <Icon className="size-6" aria-hidden />
       </Link>
     </Button>
   );

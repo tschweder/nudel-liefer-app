@@ -19,28 +19,29 @@ const KNOWN = new Set([
 ]);
 
 /**
- * Taps (NUD-082) and photos (NUD-083) the server did not take because its state won: the office changed the stop,
- * removed it, the tour is no longer active ... Each notice stays until the driver acknowledges it,
- * also across reloads (it is kept in IndexedDB).
+ * Taps (NUD-082) and photos (NUD-083) the server did not take because its state won: the office
+ * changed the stop, removed it, the tour is no longer active ... Each notice stays until the driver
+ * acknowledges it, also across reloads (it is kept in IndexedDB). Restyled to the warning tokens
+ * (re-design.md §7.6, "red strip / amber strip" vocabulary); ids and copy are unchanged.
  */
 export function SyncNotices() {
   const t = useTranslations("driver.sync");
   const { notices } = useOutbox();
   if (notices.length === 0) return null;
   return (
-    <div className="space-y-3" data-testid="sync-notices">
+    <div className="flex flex-col gap-3" data-testid="sync-notices">
       {notices.map((notice) => (
         <div
           key={notice.id}
           role="alert"
-          className="space-y-2 rounded-xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/40 dark:text-amber-50"
+          className="flex flex-col gap-2 rounded-xl bg-warning-soft p-4 text-warning-soft-foreground"
           data-testid="sync-notice"
           data-error={notice.error}
           data-stop-id={notice.stopId}
         >
           <p className="flex items-start gap-2 text-base font-semibold">
             <InfoIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
-            <span>
+            <span className="min-w-0">
               {notice.type === "photo"
                 ? t(`photoNotices.${KNOWN_PHOTO.has(notice.error) ? notice.error : "generic"}`, {
                     name: notice.customerName,
@@ -54,7 +55,7 @@ export function SyncNotices() {
             type="button"
             variant="outline"
             size="lg"
-            className="min-h-12 w-full text-base"
+            className="w-full"
             onClick={() => void getOutbox().dismissNotice(notice.id)}
             data-testid="sync-notice-dismiss"
           >

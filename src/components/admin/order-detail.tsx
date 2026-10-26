@@ -11,6 +11,7 @@ import type { OrderDetail } from "@/server/orders";
 
 import { AuditTimeline } from "./audit-timeline";
 import { OrderActions } from "./order-actions";
+import { PageHeader } from "./page-header";
 
 function productName(name: unknown, locale: AppLocale): string {
   const parsed = localizedTextSchema.safeParse(name);
@@ -34,29 +35,34 @@ export function OrderDetailView({
   const t = useTranslations("admin.orders");
   const td = useTranslations("admin.orders.detail");
   const tc = useTranslations("common");
+  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
+  const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
 
   return (
     <div className="flex flex-col gap-6" data-testid="order-detail">
-      <div className="flex flex-col gap-2">
-        <Link
-          href="/admin/orders"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          {t("backToList")}
-        </Link>
-        <h1 className="text-3xl font-semibold" data-testid="section-title">
-          {td("title")}
-        </h1>
-      </div>
-
-      <OrderActions
-        orderId={order.id}
-        editable={order.editable}
-        inTour={order.tour !== null}
-        defaultDuplicateDate={formatCalendarDate(defaultDuplicateDate)}
+      <PageHeader
+        title={td("title")}
+        description={`${fmt.calendarDate(order.deliveryDate)} · ${order.customer.name}`}
+        breadcrumb={
+          <Link
+            href="/admin/orders"
+            className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("backToList")}
+          </Link>
+        }
+        actions={
+          <OrderActions
+            orderId={order.id}
+            editable={order.editable}
+            inTour={order.tour !== null}
+            defaultDuplicateDate={formatCalendarDate(defaultDuplicateDate)}
+          />
+        }
       />
+
       {order.editable ? null : (
         <p className="max-w-3xl text-base text-muted-foreground" data-testid="read-only-note">
           {order.status === "CANCELLED" ? td("readOnlyCancelled") : td("readOnlyPast")}
@@ -117,7 +123,9 @@ export function OrderDetailView({
             <li key={item.id} className="text-base" data-testid="detail-item">
               <span className="font-semibold">
                 {fmt.quantity(item.quantity)}{" "}
-                {tc(`units.${item.unit as "KG" | "PACK" | "CRATE" | "PIECE"}`)}
+                {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
+                  count: Number(item.quantity),
+                })}
               </span>{" "}
               · {productName(item.productName, locale)}
             </li>

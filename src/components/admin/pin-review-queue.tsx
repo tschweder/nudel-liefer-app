@@ -236,6 +236,7 @@ export function PinReviewQueue({ items, tiles }: { items: PinReviewItem[]; tiles
         onChange={(point) => setPins((p) => ({ ...p, [item.id]: point }))}
         tiles={tiles}
         focus={focus}
+        address={addressQuery(item)}
         labels={{
           locate: tm("locate"),
           locating: tm("locating"),

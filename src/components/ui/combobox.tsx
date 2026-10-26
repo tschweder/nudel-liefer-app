@@ -28,9 +28,17 @@ type ComboboxProps = {
   disabled?: boolean;
   className?: string;
   id?: string;
+  /** `lg` is the 48 px driver height; the default 40 px is the admin height. */
+  size?: "sm" | "md" | "lg";
+  /** Accessible name when no external `<Label htmlFor>` points at the trigger. */
+  "aria-label"?: string;
 };
 
-/** Searchable single-select (popover + command). */
+/**
+ * Searchable single-select (popover + command) — the native-`<select>` replacement for customer
+ * filters and pickers (re-design.md §5). The trigger is a real button (`role="combobox"`); its
+ * accessible name comes from `aria-label` or an external label pointing at `id`.
+ */
 function Combobox({
   options,
   value,
@@ -41,6 +49,8 @@ function Combobox({
   disabled,
   className,
   id,
+  size = "md",
+  "aria-label": ariaLabel,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const selected = options.find((option) => option.value === value);
@@ -53,13 +63,15 @@ function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-label={ariaLabel}
           disabled={disabled}
+          size={size === "lg" ? "lg" : size === "sm" ? "sm" : "default"}
           className={cn("w-full justify-between font-normal", className)}
         >
           <span className={cn("truncate", !selected && "text-muted-foreground")}>
             {selected?.label ?? placeholder}
           </span>
-          <ChevronsUpDownIcon className="size-4 opacity-70" aria-hidden />
+          <ChevronsUpDownIcon className="size-4 shrink-0 opacity-70" aria-hidden />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">

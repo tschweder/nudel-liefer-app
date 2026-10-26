@@ -1,13 +1,58 @@
 "use client";
 
+import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Select (redesign RD-2, re-design.md §5): the shadcn/Radix select, sized for a **drop-in native
+ * `<select>` replacement** in filters and language pickers. `size="lg"` is the 48 px driver height,
+ * the default 40 px is the admin height.
+ *
+ * Radix renders a real `role="combobox"` trigger, so an accessible name comes from `aria-label` or
+ * an external `<Label htmlFor>` pointing at `SelectTrigger`'s `id`. The selected value is announced
+ * through `SelectValue`; the visible label always accompanies the colour.
+ */
 function Select(props: React.ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...props} />;
+}
+
+const selectTriggerVariants = cva(
+  "flex w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-base whitespace-nowrap transition-colors duration-150 ease-out outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none aria-invalid:border-destructive data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1",
+  {
+    variants: {
+      size: {
+        default: "h-10",
+        sm: "h-9 text-sm",
+        lg: "min-h-12",
+      },
+    },
+    defaultVariants: { size: "default" },
+  },
+);
+
+function SelectTrigger({
+  className,
+  children,
+  size,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> &
+  VariantProps<typeof selectTriggerVariants>) {
+  return (
+    <SelectPrimitive.Trigger
+      data-slot="select-trigger"
+      className={cn(selectTriggerVariants({ size }), className)}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDownIcon className="size-4 shrink-0 opacity-70" aria-hidden />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  );
 }
 
 function SelectGroup(props: React.ComponentProps<typeof SelectPrimitive.Group>) {
@@ -16,28 +61,6 @@ function SelectGroup(props: React.ComponentProps<typeof SelectPrimitive.Group>) 
 
 function SelectValue(props: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
-}
-
-function SelectTrigger({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
-  return (
-    <SelectPrimitive.Trigger
-      data-slot="select-trigger"
-      className={cn(
-        "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-base whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive data-[placeholder]:text-muted-foreground [&>span]:line-clamp-1",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-70" aria-hidden />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
-  );
 }
 
 function SelectContent({
@@ -52,9 +75,8 @@ function SelectContent({
         data-slot="select-content"
         position={position}
         className={cn(
-          "relative z-50 max-h-72 min-w-32 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
-          position === "popper" &&
-            "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+          "relative z-50 max-h-72 min-w-32 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+          position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
         )}
         {...props}
@@ -127,5 +149,6 @@ export {
   SelectLabel,
   SelectSeparator,
   SelectTrigger,
+  selectTriggerVariants,
   SelectValue,
 };

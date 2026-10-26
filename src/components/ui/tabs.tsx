@@ -5,11 +5,16 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Tabs (redesign RD-2). Radix `Tabs` keeps the roving focus and the `tab`/`tabpanel` wiring; the
+ * active tab is marked by the surface *and* the text colour, not by colour alone. Driver screens use
+ * `SegmentedControl` instead (48 px targets) — tabs stay the admin pattern.
+ */
 function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return (
     <TabsPrimitive.Root
       data-slot="tabs"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex flex-col gap-3", className)}
       {...props}
     />
   );
@@ -33,7 +38,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-base font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+        "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-base font-medium whitespace-nowrap outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none data-[state=active]:bg-card data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-sm",
         className,
       )}
       {...props}

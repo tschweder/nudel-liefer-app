@@ -20,6 +20,18 @@ vi.mock("@/i18n/navigation", () => ({
   ),
 }));
 vi.mock("@/components/maps/lazy", () => ({ TourMapLazy: () => <div data-testid="tour-map" /> }));
+// The outbox overlay is a view over the (IndexedDB-backed) store: empty in the unit test.
+vi.mock("@/lib/offline/outbox-browser", () => ({
+  useOutbox: () => ({
+    userId: null,
+    entries: [],
+    inFlight: new Set<string>(),
+    notices: [],
+    flushing: false,
+    failure: null,
+    confirmed: {},
+  }),
+}));
 
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
@@ -64,6 +76,7 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
   city: "Wien",
   lat: 48.2,
   lng: Number((16.3 + sequence / 100).toFixed(2)),
+  noteText: null,
   items: [
     {
       productId: "a",
@@ -224,7 +237,8 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     fireEvent.click(screen.getByTestId("view-map"));
     expect(screen.getByTestId("tour-map")).toBeInTheDocument();
     expect(screen.queryByTestId("stop-list")).toBeNull();
-    expect(screen.getByTestId("view-map")).toHaveAttribute("aria-pressed", "true");
+    // Radix renders the segment as a radio; the selected state is `aria-checked`.
+    expect(screen.getByTestId("view-map")).toHaveAttribute("aria-checked", "true");
   });
 
   it("offers no Navigate link without a confirmed pin", () => {

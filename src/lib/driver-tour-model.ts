@@ -8,6 +8,7 @@ import {
   type AppLocale,
   type LocalizedText,
   localizedTextSchema,
+  pick,
   pickWithSource,
 } from "./localized-text";
 
@@ -142,6 +143,12 @@ export type TodayStop = {
   city: string;
   lat: number | null;
   lng: number | null;
+  /**
+   * Customer note for the driver, in the best language the device has (the note travels localized,
+   * `LocalizedText`). `null` when the customer has none; optional so hand-built `TodayStop` values
+   * (screens that never show a note) stay valid. Only the "today" list shows it as a strip.
+   */
+  noteText?: string | null;
   items: TodayItem[];
 };
 
@@ -215,6 +222,7 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     city: stop.city,
     lat: stop.lat,
     lng: stop.lng,
+    noteText: stop.notes ? pick(stop.notes, locale).trim() || null : null,
     items: stop.items.map((item) => ({
       productId: item.productId,
       name: pickName(item.name, item.sku, locale),

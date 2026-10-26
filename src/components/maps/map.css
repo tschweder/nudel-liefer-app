@@ -1,83 +1,156 @@
+/*
+ * Map styling (redesign RD-4, re-design.md §6).
+ *
+ * Everything colour-related reads the design tokens, never a literal: `--map-route` (line),
+ * `--map-depot` (depot icon), `--card` (the white ring around every marker), `--primary`,
+ * `--success`, `--warning` (marker fill, through `StopNumberBadge`'s tone classes).
+ *
+ * Marker structure (see `map-icons.ts`):
+ *   .nudel-map-icon            Leaflet's divIcon box — the touch target, sized by iconSize
+ *     .nudel-stop-marker       the circle; data-testid="stop-marker", status cue is separate
+ *     .nudel-stop-badge        small ✓ / ! cue (kept: `admin-progress.spec.ts` pins this class)
+ */
+
+/* --- Leaflet shell ------------------------------------------------------- */
+
+.nudel-map-wrap {
+  position: relative;
+}
+
 .nudel-map-icon {
   background: none;
   border: 0;
 }
-.nudel-pin {
-  display: block;
-  width: 28px;
-  height: 28px;
-  margin: 0 auto;
-  background: #dc2626;
-  border: 3px solid #fff;
-  border-radius: 50% 50% 50% 0;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
-  transform: rotate(-45deg);
+
+/* Centres the badge inside the (bigger) touch box; the pin keeps the plain box for its anchor. */
+.nudel-map-icon-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.nudel-stop,
-.nudel-depot {
+
+.nudel-map-wrap .leaflet-container {
+  font-family: inherit;
+}
+
+/* --- Markers ------------------------------------------------------------- */
+
+/*
+ * The ring is a box-shadow, not a border: it must not change the marker's measured box (the a11y
+ * specs read the marker's position, and a border would shift the 40 px circle inside the 48 px
+ * touch box). 2 px in `--card` plus `shadow-sm` per re-design.md §6.
+ */
+.nudel-stop-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 2px hsl(var(--card)),
+    var(--shadow-sm);
+}
+
+/*
+ * The next stop: the brand tone plus a halo outside the white ring, so the driver sees at a glance
+ * which marker the tour is heading to. Declared before `[data-selected]` so selection wins.
+ */
+.nudel-stop-marker[data-next="true"] {
+  box-shadow:
+    0 0 0 2px hsl(var(--card)),
+    0 0 0 5px hsl(var(--ring) / 0.35),
+    var(--shadow-sm);
+}
+
+/* Selected / active marker (list <-> map linkage): stronger ring, the badge itself is 48 px. */
+.nudel-stop-marker[data-selected="true"] {
+  box-shadow:
+    0 0 0 3px hsl(var(--ring)),
+    var(--shadow-md);
+}
+
+/* Status cue next to the colour (never colour alone, re-design.md §9.2). */
+.nudel-stop-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid hsl(var(--card));
+  border-radius: 9999px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font:
+    700 12px/1 system-ui,
+    sans-serif;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Depot: house icon in `--map-depot`, square-ish so it never reads as a stop number. */
+.nudel-depot-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: hsl(var(--card));
+  color: hsl(var(--map-depot));
+  box-shadow:
+    0 0 0 2px hsl(var(--card)),
+    var(--shadow-sm);
+}
+
+/* Cluster badge: one marker for >= 2 stops closer than 28 px (re-design.md §6). */
+.nudel-cluster {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   height: 100%;
-  border: 2px solid #fff;
   border-radius: 9999px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
-  color: #fff;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   font:
-    700 15px/1 system-ui,
+    700 17px/1 system-ui,
     sans-serif;
-}
-.nudel-stop {
-  background: #1d4ed8;
-}
-.nudel-depot {
-  background: #15803d;
-  border-radius: 6px;
-  font-size: 18px;
-}
-.nudel-map-wrap .leaflet-container {
-  font-family: inherit;
-}
-.nudel-stop-delivered {
-  background: #047857;
-}
-.nudel-stop-problem {
-  width: 30px;
-  height: 30px;
-  margin: 3px;
-  background: #b91c1c;
-  border-radius: 4px;
-  transform: rotate(45deg);
-}
-.nudel-stop-num {
-  transform: rotate(-45deg);
-}
-.nudel-stop-badge {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: 1px solid #1f2937;
-  border-radius: 9999px;
-  background: #fff;
-  color: #111827;
-  font:
-    700 11px/1 system-ui,
-    sans-serif;
+  box-shadow:
+    0 0 0 3px hsl(var(--card)),
+    var(--shadow-md);
 }
 
-/* Driver map (NUD-095): 48 px touch targets, numbers >= 16 px. */
-.nudel-touch {
-  width: 36px;
-  height: 36px;
-  margin: 6px;
-  font-size: 18px;
+/* Draggable delivery-address pin (pin picker). */
+.nudel-pin {
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--card));
+  border-radius: 50% 50% 50% 0;
+  box-shadow: var(--shadow-md);
+  transform: rotate(-45deg);
 }
+
+/* --- Route line (re-design.md §6) ---------------------------------------- */
+
+.nudel-map-wrap .nudel-route {
+  stroke: hsl(var(--map-route));
+  stroke-opacity: 0.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Delivered leg: same colour, quieter. */
+.nudel-map-wrap .nudel-route-done {
+  stroke-opacity: 0.35;
+}
+
+/* --- Controls ------------------------------------------------------------ */
+
+/* Driver map (NUD-095): >= 48 px touch targets; the layout audit measures these. */
 .nudel-map-touch .leaflet-bar a {
   width: 48px;
   height: 48px;
@@ -87,9 +160,9 @@
 
 /* Offline / tiles unavailable (NUD-108): plain neutral background with a faint grid, no tiles. */
 .nudel-map-plain.leaflet-container {
-  background-color: #eef2f6;
+  background-color: hsl(var(--muted));
   background-image:
-    linear-gradient(#dde3ea 1px, transparent 1px),
-    linear-gradient(90deg, #dde3ea 1px, transparent 1px);
+    linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px);
   background-size: 48px 48px;
 }

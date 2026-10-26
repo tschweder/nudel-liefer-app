@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { CustomerForm } from "@/components/admin/customer-form";
+import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { Link } from "@/i18n/navigation";
 import { getMapTileConfig } from "@/lib/map-config";
@@ -14,17 +15,15 @@ async function Guarded({ locale }: { locale: string }) {
   const suggestion = await nextCustomerNumberQuery();
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Link
-          href="/admin/customers"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          {t("backToList")}
-        </Link>
-        <h1 className="text-3xl font-semibold" data-testid="section-title">
-          {t("new")}
-        </h1>
-      </div>
+      <PageHeader
+        breadcrumb={
+          <Link href="/admin/customers" className="underline-offset-4 hover:underline">
+            {t("backToList")}
+          </Link>
+        }
+        title={t("new")}
+        description={t("form.createDescription")}
+      />
       <CustomerForm
         customerId={null}
         tiles={getMapTileConfig()}

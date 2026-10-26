@@ -24,7 +24,8 @@ export function TourDiffList({
   addedHeading?: string;
 }) {
   const t = useTranslations("admin.tours.change");
-  const tc = useTranslations("common");
+  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
+  const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
 
@@ -71,7 +72,10 @@ export function TourDiffList({
                               ? fmt.quantity(item.beforeCents / 100)
                               : `${fmt.quantity(item.beforeCents / 100)} → ${fmt.quantity(item.afterCents / 100)}`}
                         </span>{" "}
-                        {tc(`units.${item.unit}`)}
+                        {/* The unit belongs to the last quantity shown ("2,5 Packungen"). */}
+                        {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
+                          count: (section.key === "removed" ? item.beforeCents : item.afterCents) / 100,
+                        })}
                       </li>
                     ))}
                   </ul>

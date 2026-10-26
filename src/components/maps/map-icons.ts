@@ -1,71 +1,70 @@
 import L from "leaflet";
 
 /**
- * Marker icons are CSS-only `divIcon`s: Leaflet's default PNG icons break under bundlers and the
- * numbered tour markers need text anyway.
+ * Marker plumbing for the Leaflet maps (redesign RD-4, re-design.md §6).
+ *
+ * A marker's *content* is real React — `StopNumberBadge` for stops, a lucide icon for the depot —
+ * rendered through a portal into a container element that is handed to `L.divIcon`. That way the
+ * marker can never drift from the shared badge, and the page does not have to pull the
+ * `react-dom/server` renderer (250 kB) into the client bundle just to build marker HTML.
+ * Geometry and colours live in `map.css`.
  */
+
+/** Markers closer than this many pixels at the current zoom collapse into one cluster badge. */
+export const STOP_OVERLAP_PX = 28;
+
+export type StopMarkerStatus = "PENDING" | "DELIVERED" | "PROBLEM";
+
+/** Stop circle diameter in px; the selected/active marker is 48 px (re-design.md §6). */
+export const MARKER_SIZE = 40;
+export const MARKER_SIZE_SELECTED = 48;
+/** Driver map: the divIcon box is the touch target, so it never drops below 48 px (backlog §4.3). */
+export const MARKER_TOUCH_BOX = 48;
+
+/** Box (divIcon) size of one stop marker: the badge plus the touch padding. */
+export function markerBox(selected: boolean, touch: boolean): number {
+  const circle = selected ? MARKER_SIZE_SELECTED : MARKER_SIZE;
+  return touch ? Math.max(MARKER_TOUCH_BOX, circle) : circle;
+}
+
+/**
+ * Off-screen container for one marker's React content. `display: contents` (the `contents` utility)
+ * keeps it out of the layout, so the badge inside stays the flex item of the centring icon box.
+ */
+export function createMarkerContainer(): HTMLSpanElement {
+  const element = document.createElement("span");
+  element.className = "contents";
+  return element;
+}
+
+/** Leaflet icon of a fixed box size whose only content is a rendered React marker. */
+export function markerIcon(container: HTMLElement, box: number): L.DivIcon {
+  return L.divIcon({
+    className: "nudel-map-icon nudel-map-icon-center",
+    html: container,
+    iconSize: [box, box],
+    iconAnchor: [box / 2, box / 2],
+  });
+}
+
+/** One badge for a group of stops that overlap at the current zoom. */
+export function clusterIcon(count: number, touch: boolean): L.DivIcon {
+  const box = touch ? MARKER_TOUCH_BOX : MARKER_SIZE;
+  return L.divIcon({
+    className: "nudel-map-icon nudel-map-icon-center",
+    html:
+      `<span class="nudel-cluster" data-testid="stop-cluster" aria-hidden="true">${count}</span>`,
+    iconSize: [box, box],
+    iconAnchor: [box / 2, box / 2],
+  });
+}
+
+/** Draggable delivery-address pin of the pin picker (QA-02). */
 export function pinIcon(): L.DivIcon {
   return L.divIcon({
     className: "nudel-map-icon",
     html: '<span class="nudel-pin" aria-hidden="true"></span>',
     iconSize: [28, 40],
     iconAnchor: [14, 38],
-  });
-}
-
-export type StopMarkerStatus = "PENDING" | "DELIVERED" | "PROBLEM";
-
-/**
- * Numbered stop marker. With a `status` (NUD-054) the colour AND the shape change: open = blue
- * circle, delivered = green circle with a check mark badge, problem = red diamond with a "!"
- * badge, so the status is readable without colour vision.
- */
-export function stopIcon(sequence: number, status?: StopMarkerStatus, touch = false): L.DivIcon {
-  if (touch) {
-    // Driver map (NUD-095): the marker element is a 48 px touch target around the 36 px circle.
-    return L.divIcon({
-      className: "nudel-map-icon",
-      html: `<span class="nudel-stop nudel-touch" data-testid="stop-marker">${sequence}</span>`,
-      iconSize: [48, 48],
-      iconAnchor: [24, 24],
-    });
-  }
-  if (!status) {
-    return L.divIcon({
-      className: "nudel-map-icon",
-      html: `<span class="nudel-stop" data-testid="stop-marker">${sequence}</span>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-    });
-  }
-  const badge = status === "DELIVERED" ? "&#10003;" : status === "PROBLEM" ? "!" : "";
-  const shape = status === "PROBLEM" ? "nudel-stop-problem" : "";
-  const inner =
-    status === "PROBLEM" ? `<span class="nudel-stop-num">${sequence}</span>` : `${sequence}`;
-  return L.divIcon({
-    className: "nudel-map-icon",
-    html:
-      `<span class="nudel-stop nudel-stop-${status.toLowerCase()} ${shape}" ` +
-      `data-testid="stop-marker" data-status="${status}">${inner}</span>` +
-      (badge ? `<span class="nudel-stop-badge" aria-hidden="true">${badge}</span>` : ""),
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  });
-}
-
-export function depotIcon(touch = false): L.DivIcon {
-  if (touch) {
-    return L.divIcon({
-      className: "nudel-map-icon",
-      html: '<span class="nudel-depot nudel-touch" data-testid="depot-marker" aria-hidden="true">&#9873;</span>',
-      iconSize: [48, 48],
-      iconAnchor: [24, 24],
-    });
-  }
-  return L.divIcon({
-    className: "nudel-map-icon",
-    html: '<span class="nudel-depot" data-testid="depot-marker" aria-hidden="true">&#9873;</span>',
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
   });
 }

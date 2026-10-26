@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import de from "../../../messages/de.json";
@@ -32,6 +33,11 @@ vi.mock("@/lib/offline/outbox-browser", () => ({
 vi.mock("@/lib/offline/browser", () => ({ requestOfflineSync: vi.fn() }));
 vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
+  Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 
@@ -193,6 +199,30 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
     renderIn(locale, done);
     expect(screen.queryByTestId("undo")).toBeNull();
     vi.useRealTimers();
+  });
+
+  it("shows the delivered strip and a Weiter action in the sticky bar after delivery", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2099-07-02T08:04:00Z"));
+    renderIn(locale, {
+      ...pendingStop,
+      status: "DELIVERED",
+      completedAt: "2099-07-02T08:00:00Z",
+    });
+    const bar = screen.getByTestId("stop-action-bar");
+    expect(within(bar).getByTestId("stop-strip")).toHaveTextContent(/\d{2}[:.]\d{2}/);
+    // The undo is offered twice on purpose: inside the result card and as the strip's inline link.
+    expect(within(bar).getByTestId("strip-undo")).toBeVisible();
+    expect(screen.getByTestId("next-stop-action")).toHaveAttribute("href", "/driver/stops/s2");
+    vi.useRealTimers();
+  });
+
+  it("links back to the tour when nothing is pending any more", () => {
+    renderIn(locale, { ...pendingStop, status: "DELIVERED", completedAt: "2099-07-02T08:00:00Z" }, "RELEASED", {
+      tourStops: tourOf("DELIVERED", "DELIVERED"),
+    });
+    expect(screen.getByTestId("back-to-tour-action")).toHaveAttribute("href", "/driver");
+    expect(screen.queryByTestId("next-stop-action")).toBeNull();
   });
 
   it("offers no undo once the tour is completed", () => {

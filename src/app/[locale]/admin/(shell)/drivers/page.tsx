@@ -1,9 +1,8 @@
-import { getFormatter, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { type UserListRow, UsersManager } from "@/components/admin/users-manager";
 import { LoadingSkeleton } from "@/components/shared/states";
-import { createAppFormatters } from "@/lib/format";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { getDb } from "@/server/db";
 import { getFactoryTimezone } from "@/server/settings";
@@ -12,12 +11,10 @@ import { listUsers } from "@/server/users";
 async function Guarded({ locale }: { locale: string }) {
   // Defence in depth behind the proxy and the admin layout.
   const actor = await requirePageActor("admin", locale);
+  const t = await getTranslations({ locale, namespace: "admin.drivers" });
   const db = getDb();
   const [drivers, admins] = await Promise.all([listUsers(db, "DRIVER"), listUsers(db, "ADMIN")]);
-  const formatters = createAppFormatters(
-    await getFormatter({ locale }),
-    await getFactoryTimezone(),
-  );
+  const timezone = await getFactoryTimezone();
   const toRow = (u: Awaited<ReturnType<typeof listUsers>>[number]): UserListRow => ({
     id: u.id,
     displayName: u.displayName,
@@ -25,13 +22,17 @@ async function Guarded({ locale }: { locale: string }) {
     email: u.email,
     locale: u.locale,
     active: u.active,
-    lastLogin: u.lastLoginAt ? formatters.dateTime(new Date(u.lastLoginAt)) : null,
+    // The ISO value stays raw; the client renders relative time plus the absolute tooltip.
+    lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt).toISOString() : null,
   });
   return (
     <UsersManager
+      title={t("title")}
+      description={t("description")}
       drivers={drivers.map(toRow)}
       admins={admins.map(toRow)}
       currentUserId={actor.id}
+      timezone={timezone}
     />
   );
 }

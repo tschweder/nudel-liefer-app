@@ -6,20 +6,18 @@ import { useTranslations } from "next-intl";
 import { useOnline } from "@/lib/offline/use-online";
 
 /**
- * Header indicator: the browser's online state. The detailed offline state ("last updated",
- * "ready offline") is shown by `OfflineStatusBar` (NUD-081); the queue state comes with NUD-082.
+ * The browser's online state as an accessibility marker. The visible sync state is the
+ * `SyncStatusChip`, which is fed from the same hooks; this element keeps the `data-online` attribute
+ * and the localized "Online"/"Offline" text that the driver specs and the offline screens assert
+ * (`driver-offline.spec.ts` reads `data-online="false"` after the network is cut). It is rendered
+ * inside the top bar's `sr-only` marker so the bar does not repeat the chip's text twice.
  */
 export function ConnectionIndicator() {
   const t = useTranslations("driver.shell");
   const online = useOnline();
   const Icon = online ? WifiIcon : WifiOffIcon;
   return (
-    <span
-      role="status"
-      data-testid="connection-indicator"
-      data-online={online}
-      className="flex items-center gap-1.5 text-base"
-    >
+    <span role="status" data-testid="connection-indicator" data-online={online}>
       <Icon className="size-5 shrink-0" aria-hidden />
       <span>{online ? t("connectionOnline") : t("connectionOffline")}</span>
     </span>

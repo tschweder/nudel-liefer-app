@@ -5,6 +5,7 @@ import "./map.css";
 
 import type L from "leaflet";
 import { LocateFixedIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
@@ -86,13 +87,27 @@ export function PinPickerMap({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [target, setTarget] = useState<FlyTarget | null>(null);
+  // QA-02: screen readers get the new position after a drag, not just the visual pin.
+  const [announcement, setAnnouncement] = useState("");
+  const t = useTranslations("maps");
+
+  /** "48.2082, 16.3738" — the pin is stored with 6 decimals, the announcement stays readable. */
+  const speak = useCallback(
+    (point: LatLng) =>
+      setAnnouncement(
+        t("pinMoved", { lat: point.lat.toFixed(4), lng: point.lng.toFixed(4) }),
+      ),
+    [t],
+  );
 
   const emit = useCallback(
-    (point: LatLng) => {
+    (point: LatLng, options?: { announce?: boolean }) => {
       setMessage(null);
-      onChange(roundLatLng(point));
+      const rounded = roundLatLng(point);
+      if (options?.announce) speak(rounded);
+      onChange(rounded);
     },
-    [onChange],
+    [onChange, speak],
   );
 
   async function locate() {
@@ -113,6 +128,7 @@ export function PinPickerMap({
         const best = result.candidates[0];
         const point = roundLatLng(best);
         onChange(point);
+        speak(point);
         setTarget({ point, zoom: 17, nonce: (target?.nonce ?? 0) + 1 });
         if (best.confidence < LOW_CONFIDENCE) setMessage(labels.lowConfidence);
       }
@@ -124,6 +140,12 @@ export function PinPickerMap({
   }
 
   const center = value ?? fallbackCenter;
+  // The accessible name of the pin: the typed address if there is one, otherwise the coordinates.
+  const markerTitle = value
+    ? t("pinMarker", {
+        place: address.trim() || `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`,
+      })
+    : "";
   const flyTarget = useMemo<FlyTarget | null>(
     () => (focus ? { point: focus.point, zoom: focus.zoom ?? 17, nonce: focus.nonce } : target),
     // The nonce identifies a focus request; the point object may be recreated on every render.
@@ -149,29 +171,37 @@ export function PinPickerMap({
           </p>
         </div>
       ) : null}
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={value ? 16 : 13}
-        className="h-96 w-full rounded-md border"
-        scrollWheelZoom
-      >
-        <TileLayer url={tiles.url} attribution={tiles.attribution} />
-        <ClickToPlace onPlace={emit} />
-        <Flyer target={flyTarget} />
-        {value ? (
-          <Marker
-            position={[value.lat, value.lng]}
-            icon={pinIcon()}
-            draggable
-            eventHandlers={{
-              dragend: (e) => {
-                const p = (e.target as L.Marker).getLatLng();
-                emit({ lat: p.lat, lng: p.lng });
-              },
-            }}
-          />
-        ) : null}
-      </MapContainer>
+      <div className="relative">
+        <MapContainer
+          center={[center.lat, center.lng]}
+          zoom={value ? 16 : 13}
+          className="h-96 w-full rounded-md border"
+          scrollWheelZoom
+        >
+          <TileLayer url={tiles.url} attribution={tiles.attribution} />
+          <ClickToPlace onPlace={emit} />
+          <Flyer target={flyTarget} />
+          {value ? (
+            <Marker
+              position={[value.lat, value.lng]}
+              icon={pinIcon()}
+              draggable
+              title={markerTitle}
+              alt={markerTitle}
+              eventHandlers={{
+                dragend: (e) => {
+                  const p = (e.target as L.Marker).getLatLng();
+                  emit({ lat: p.lat, lng: p.lng }, { announce: true });
+                },
+              }}
+            />
+          ) : null}
+        </MapContainer>
+        {/* QA-02: the pin is announced by name, never as an unnamed marker. */}
+        <p className="sr-only" role="status" aria-live="polite" data-testid="pin-live">
+          {announcement}
+        </p>
+      </div>
     </div>
   );
 }

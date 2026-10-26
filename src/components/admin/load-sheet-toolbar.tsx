@@ -46,20 +46,21 @@ export function LoadSheetToolbar({
         <nav aria-label={languageLabel} className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{languageLabel}</span>
           {LOCALES.map((l) => (
-            <a
+            <Button
               key={l}
-              href={`/${uiLocale}/admin/tours/${encodeURIComponent(tourId)}/print?locale=${l}`}
-              lang={l}
+              asChild
+              size="sm"
+              variant={l === printLocale ? "primary" : "outline"}
               aria-current={l === printLocale ? "true" : undefined}
-              data-testid={`load-sheet-locale-${l}`}
-              className={
-                l === printLocale
-                  ? "inline-flex min-h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
-                  : "inline-flex min-h-9 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-accent"
-              }
             >
-              {LOCALE_LABELS[l]}
-            </a>
+              <a
+                href={`/${uiLocale}/admin/tours/${encodeURIComponent(tourId)}/print?locale=${l}`}
+                lang={l}
+                data-testid={`load-sheet-locale-${l}`}
+              >
+                {LOCALE_LABELS[l]}
+              </a>
+            </Button>
           ))}
         </nav>
         <Button

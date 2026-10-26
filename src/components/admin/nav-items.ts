@@ -20,6 +20,18 @@ export const ADMIN_SECTIONS = [
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 
+/** Sidebar groups (re-design.md §8.1): Betrieb / Stammdaten / System. */
+export const ADMIN_NAV_GROUPS = [
+  { id: "operations", sections: ["dashboard", "orders", "tours"] },
+  { id: "masterData", sections: ["customers", "products", "drivers"] },
+  { id: "system", sections: ["settings"] },
+] as const satisfies ReadonlyArray<{
+  id: "operations" | "masterData" | "system";
+  sections: ReadonlyArray<AdminSection>;
+}>;
+
+export type AdminNavGroupId = (typeof ADMIN_NAV_GROUPS)[number]["id"];
+
 /** Locale-less paths (the i18n navigation helpers add the locale prefix). */
 export const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; icon: LucideIcon }> = [
   { section: "dashboard", href: "/admin", icon: LayoutDashboardIcon },
@@ -35,4 +47,19 @@ export const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; ico
 export function isNavActive(href: string, pathname: string): boolean {
   if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Nav entry (href + icon) of one section, in membership order. */
+export function navItem(section: AdminSection) {
+  const item = ADMIN_NAV.find((entry) => entry.section === section);
+  if (!item) throw new Error(`Unreachable: no nav item for section ${section}`);
+  return item;
+}
+
+/**
+ * Section the current path belongs to; the dashboard is the fallback so the shell always has a
+ * breadcrumb without reading any data (re-design.md §8.1/§14.3).
+ */
+export function activeNavItem(pathname: string) {
+  return ADMIN_NAV.find((entry) => isNavActive(entry.href, pathname)) ?? navItem("dashboard");
 }

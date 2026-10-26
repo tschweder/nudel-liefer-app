@@ -121,7 +121,10 @@
       "email": "E-Mail",
       "password": "Passwort",
       "submit": "Anmelden",
-      "driverLink": "Fahrer-Anmeldung"
+      "driverLink": "Fahrer-Anmeldung",
+      "brandSentence": "Büro-Anmeldung Nudel Liefer App",
+      "showPassword": "Anzeigen",
+      "hidePassword": "Verbergen"
     },
     "driverLogin": {
       "title": "Fahrer-Anmeldung",
@@ -133,7 +136,12 @@
     "errors": {
       "invalid": "Anmeldung fehlgeschlagen. Bitte Eingaben prüfen.",
       "rateLimited": "Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.",
-      "generic": "Anmeldung nicht möglich. Bitte später erneut versuchen."
+      "generic": "Anmeldung nicht möglich. Bitte später erneut versuchen.",
+      "pinLength": "PIN muss 6 Ziffern haben",
+      "usernameRequired": "Bitte Benutzername eingeben",
+      "credentials": "Benutzername oder PIN falsch",
+      "emailRequired": "Bitte E-Mail eingeben",
+      "passwordRequired": "Bitte Passwort eingeben"
     },
     "signedInAs": "Angemeldet als {name}",
     "logout": "Abmelden"
@@ -158,14 +166,48 @@
         "driver": "Fahrer: {name}",
         "openTour": "Tour ansehen",
         "openPlanning": "Tour planen",
-        "lateOrders": "{count, plural, one {# Bestellung für heute kam nach Abschluss der Tour und ist in keiner Tour.} other {# Bestellungen für heute kamen nach Abschluss der Tour und sind in keiner Tour.}} Bitte eine Folgetour erstellen."
+        "lateOrders": "{count, plural, one {# Bestellung für heute kam nach Abschluss der Tour und ist in keiner Tour.} other {# Bestellungen für heute kamen nach Abschluss der Tour und sind in keiner Tour.}} Bitte eine Folgetour erstellen.",
+        "countsBreakdown": "{delivered} geliefert · {problems, plural, =0 {keine Probleme} one {# Problem} other {# Probleme}} · {open} offen"
+      },
+      "description": "Fortschritt der heutigen Tour, was zu tun ist und die letzten Änderungen.",
+      "tiles": {
+        "title": "Kennzahlen",
+        "delivered": "Heute geliefert",
+        "problems": "Probleme",
+        "problemsSub": "heute gemeldet",
+        "tour": "Tour heute",
+        "noTour": "nicht angelegt",
+        "tourSub": "Für heute ist keine Tour geplant.",
+        "done": "Heute erledigt"
+      },
+      "attention": {
+        "title": "Zu erledigen",
+        "emptyTitle": "Nichts zu erledigen",
+        "emptyDescription": "Keine Probleme gemeldet und keine Bestellung ohne Tour.",
+        "reasonUnknown": "Problem gemeldet",
+        "lateOrders": "{count, plural, one {# Bestellung ohne Tour} other {# Bestellungen ohne Tour}}",
+        "lateOrdersHint": "Nach Abschluss der Tour eingegangen.",
+        "missingPhotos": "{count, plural, one {# Kunde ohne Fotos} other {# Kunden ohne Fotos}}",
+        "missingPhotosHint": "Stammdaten vervollständigen.",
+        "pinUnconfirmed": "{count, plural, one {# Kunde mit unbestätigtem Pin} other {# Kunden mit unbestätigtem Pin}}",
+        "pinUnconfirmedHint": "Kartenpunkt prüfen.",
+        "unconfirmedOrders": "{count, plural, one {# Entwurf für den nächsten Liefertag} other {# Entwürfe für den nächsten Liefertag}}",
+        "unconfirmedOrdersHint": "{date} · noch nicht bestätigt",
+        "emptyDescriptionAll": "Keine Probleme gemeldet, keine Bestellung ohne Tour und alle Kundenstammdaten vollständig."
+      },
+      "activity": {
+        "title": "Letzte Aktivität",
+        "empty": "Heute noch keine Einträge."
       }
     },
     "shell": {
       "mainNavigation": "Hauptnavigation",
       "openMenu": "Menü öffnen",
       "userMenu": "Benutzermenü",
-      "skipToContent": "Zum Inhalt springen"
+      "skipToContent": "Zum Inhalt springen",
+      "breadcrumb": "Brotkrumen-Navigation",
+      "collapseSidebar": "Seitenleiste einklappen",
+      "expandSidebar": "Seitenleiste ausklappen"
     },
     "nav": {
       "dashboard": "Übersicht",
@@ -174,7 +216,12 @@
       "customers": "Kunden",
       "products": "Produkte",
       "drivers": "Fahrer",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "groups": {
+        "operations": "Betrieb",
+        "masterData": "Stammdaten",
+        "system": "System"
+      }
     },
     "drivers": {
       "title": "Fahrer",
@@ -200,7 +247,8 @@
         "username": "Benutzername",
         "usernameHint": "3 bis 32 Zeichen: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich.",
         "locale": "Sprache",
-        "submit": "Anlegen"
+        "submit": "Anlegen",
+        "localeHint": "Der Fahrer sieht die App in dieser Sprache."
       },
       "pin": {
         "title": "PIN für {name}",
@@ -216,7 +264,8 @@
         "resetPin": "PIN zurücksetzen",
         "deactivate": "Deaktivieren",
         "reactivate": "Reaktivieren",
-        "changeLanguage": "Sprache von {name} ändern"
+        "changeLanguage": "Sprache von {name} ändern",
+        "editLogin": "Sprache bearbeiten"
       },
       "confirm": {
         "resetTitle": "PIN von {name} zurücksetzen?",
@@ -244,7 +293,18 @@
         "email": "E-Mail",
         "password": "Passwort",
         "passwordHint": "Mindestens 10 Zeichen.",
-        "you": "Sie"
+        "you": "Sie",
+        "description": "Büro-Konten mit E-Mail und Passwort.",
+        "emptyTitle": "Noch keine Administratoren",
+        "empty": "Es wurden noch keine Administratoren angelegt."
+      },
+      "emptyTitle": "Noch keine Fahrer",
+      "login": {
+        "title": "Sprache von {name}",
+        "description": "Der Fahrer sieht die App in dieser Sprache. Die Änderung gilt sofort."
+      },
+      "rowMenu": {
+        "label": "Aktionen für {name}"
       }
     },
     "customers": {
@@ -268,12 +328,15 @@
         "number": "Nr.",
         "name": "Name",
         "city": "Ort",
-        "flags": "Hinweise"
+        "flags": "Hinweise",
+        "customer": "Kunde",
+        "actions": "Aktionen"
       },
       "flags": {
         "photosMissing": "Fotos fehlen",
         "pinUnconfirmed": "Pin unbestätigt",
-        "archived": "Archiviert"
+        "archived": "Archiviert",
+        "notes": "Hinweis vorhanden"
       },
       "emptyTitle": "Noch keine Kunden",
       "empty": "Es wurden noch keine Kunden angelegt.",
@@ -286,7 +349,7 @@
       },
       "form": {
         "dataHeading": "Stammdaten",
-        "addressHeading": "Lieferadresse",
+        "addressHeading": "Lieferadresse & Pin",
         "pinHeading": "Kartenpunkt (Pin)",
         "extraHeading": "Lieferzeiten und Hinweise",
         "number": "Kundennummer",
@@ -319,7 +382,16 @@
         "backToDetail": "Zurück zum Kunden",
         "errors": {
           "invalid": "Bitte die Angaben prüfen: Name, Nummer, Straße, PLZ und Ort sind Pflicht, das Land hat 2 Buchstaben."
-        }
+        },
+        "pinSearchLabel": "Adresse für die Kartensuche",
+        "pinSearchPlaceholder": "Straße, PLZ oder Ort",
+        "pinChecked": "Pin geprüft",
+        "saveBarLabel": "Formularaktionen",
+        "discard": "Verwerfen",
+        "unsaved": "Ungespeicherte Änderungen",
+        "photosHeading": "Fotos",
+        "photosHint": "Eingang und Parkplatz – dieselben Fotos wie im Kundenprofil.",
+        "createDescription": "Stammdaten, Lieferadresse und Kartenpunkt erfassen."
       },
       "detail": {
         "number": "Kundennummer {number}",
@@ -352,7 +424,8 @@
           "key_in_use": "Dieses Bild wurde bereits verwendet. Bitte erneut hochladen."
         },
         "archiveUpcoming": "{count, plural, one {Achtung: Dieser Kunde hat noch # anstehende Bestellung} other {Achtung: Dieser Kunde hat noch # anstehende Bestellungen}}. Sie bleiben bestehen, werden aber nicht automatisch storniert. Bitte vorher prüfen.",
-        "photoByDriver": "Aktualisiert von Fahrer {name} am {date}"
+        "photoByDriver": "Aktualisiert von Fahrer {name} am {date}",
+        "photoAddHint": "Foto aufnehmen oder hochladen."
       },
       "translations": {
         "tabDetails": "Details",
@@ -552,6 +625,13 @@
         "reviewSkipped": "Übersprungene noch einmal ansehen",
         "toList": "Zur Kundenliste",
         "progressLabel": "Fortschritt der Pin-Prüfung"
+      },
+      "rowMenu": {
+        "label": "Aktionen für {name}"
+      },
+      "actions": {
+        "deactivate": "Deaktivieren",
+        "reactivate": "Wiederherstellen"
       }
     },
     "products": {
@@ -569,7 +649,8 @@
         "nameHans": "Name (vereinfacht)",
         "unit": "Einheit",
         "status": "Status",
-        "actions": "Aktionen"
+        "actions": "Aktionen",
+        "name": "Name (Deutsch / vereinfacht)"
       },
       "status": {
         "active": "Aktiv",
@@ -602,6 +683,14 @@
         "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
         "savedNew": "Produkt angelegt.",
         "savedEdit": "Produkt gespeichert."
+      },
+      "toggleStatus": "Status von {name} umschalten",
+      "rowMenu": {
+        "label": "Aktionen für {name}"
+      },
+      "confirm": {
+        "deactivateTitle": "{name} deaktivieren?",
+        "deactivateBody": "Das Produkt bleibt gespeichert, erscheint aber nicht mehr in der Produktauswahl bei neuen Bestellungen. Bestehende Bestellungen bleiben unverändert."
       }
     },
     "maps": {
@@ -625,7 +714,12 @@
       "noPin": "Noch kein Pin gesetzt.",
       "changes": "Änderungen: {count}",
       "tourMap": "Tourenkarte",
-      "sampleNote": "Beispieldaten, keine echten Lieferungen."
+      "sampleNote": "Beispieldaten, keine echten Lieferungen.",
+      "showOverlap": "Überlappung zeigen",
+      "hideOverlap": "Überlappung ausblenden",
+      "clusterTitle": "{count} Stopps an dieser Stelle",
+      "clusterClose": "Schließen",
+      "linkageTitle": "Stopp auswählen"
     },
     "settings": {
       "title": "Einstellungen",
@@ -663,7 +757,11 @@
         "invalid": "Bitte die Eingaben prüfen (Name, Adresse, Zeiten).",
         "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
         "depotNotSet": "Es kann keine Tour erstellt werden: Der Depot-Standort ist noch nicht festgelegt. Bitte unter Einstellungen den Depot-Pin setzen und bestätigen."
-      }
+      },
+      "sectionsLabel": "Abschnitte der Einstellungen",
+      "unsaved": "Ungespeicherte Änderungen",
+      "saved-state": "Alle Änderungen gespeichert",
+      "discard": "Verwerfen"
     },
     "orders": {
       "title": "Bestellungen",
@@ -672,7 +770,15 @@
       "newTitle": "Neue Bestellung erfassen",
       "backToList": "Zurück zu den Bestellungen",
       "emptyTitle": "Keine Bestellungen gefunden",
-      "empty": "Für diese Auswahl gibt es keine Bestellungen.",
+      "empty": {
+        "rangeTitle": "Keine Bestellungen für {date}",
+        "rangeTitleSpan": "Keine Bestellungen zwischen {from} und {to}",
+        "lastKnown": "Letzte Bestellungen: {date} ({count, plural, one {# Bestellung} other {# Bestellungen}})",
+        "goto": "{date} anzeigen",
+        "hint": "Im gewählten Zeitraum gibt es keine Bestellungen. Erweitere den Zeitraum — oder erfasse eine neue Bestellung.",
+        "hintWeek": "Im gewählten Zeitraum gibt es keine Bestellungen. Die Wochenansicht zeigt die Tage vom {from} bis {to}.",
+        "widen": "Diese Woche anzeigen"
+      },
       "columns": {
         "date": "Lieferdatum",
         "customer": "Kunde",
@@ -680,7 +786,8 @@
         "status": "Status",
         "source": "Quelle",
         "lines": "Positionen",
-        "tour": "Tour"
+        "tour": "Tour",
+        "actions": "Aktionen"
       },
       "source": {
         "MANUAL": "Manuell",
@@ -790,7 +897,17 @@
         "statusAll": "Alle Status",
         "source": "Quelle",
         "sourceAll": "Alle Quellen",
-        "reset": "Zurücksetzen (nächster Liefertag)"
+        "reset": "Zurücksetzen",
+        "rangeLabel": "Zeitraum",
+        "statusLabel": "Status filtern",
+        "sourceLabel": "Quelle filtern",
+        "all": "Alle",
+        "quick": {
+          "next": "Nächster Liefertag",
+          "today": "Heute",
+          "week": "Diese Woche",
+          "custom": "Benutzerdefiniert"
+        }
       },
       "truncated": "Es werden nur die ersten {count} Bestellungen angezeigt. Bitte den Zeitraum oder die Filter eingrenzen.",
       "totals": {
@@ -799,19 +916,50 @@
         "dateHeading": "{date} · {count, plural, one {# bestätigte Bestellung} other {# bestätigte Bestellungen}}",
         "product": "Produkt",
         "quantity": "Menge",
-        "empty": "Im gewählten Zeitraum gibt es keine bestätigten Bestellungen."
+        "empty": "Im gewählten Zeitraum gibt es keine bestätigten Bestellungen.",
+        "toggle": "Summen ein- oder ausklappen"
       },
       "late": {
         "badge": "Nachbestellung – Tour abgeschlossen",
         "title": "Bestellungen nach Abschluss der Tour",
         "body": "Für diese Tage ist die Tour bereits abgeschlossen. Die bestätigten Bestellungen sind in keiner Tour. In der Tourplanung kann eine Folgetour erstellt werden.",
         "count": "{count, plural, one {# Bestellung} other {# Bestellungen}}"
+      },
+      "group": {
+        "label": "Liefertag {date}"
+      },
+      "header": {
+        "range": "Liefertag {date} · {count, plural, one {# Bestellung} other {# Bestellungen}}",
+        "rangeSpan": "{from} – {to} · {count, plural, one {# Bestellung} other {# Bestellungen}}"
+      },
+      "positions": {
+        "summary": "{count, plural, one {# Position} other {# Positionen}}",
+        "showAll": "Alle {count} Positionen anzeigen"
+      },
+      "openOrder": "Bestellung öffnen",
+      "openCustomer": "Kunde öffnen",
+      "rowMenu": {
+        "label": "Aktionen für die Bestellung von {customer}",
+        "details": "Details anzeigen",
+        "open": "Bestellung öffnen",
+        "edit": "Bearbeiten",
+        "customer": "Kunde öffnen"
+      },
+      "drawer": {
+        "title": "Bestellung",
+        "description": "{customer} · {date}",
+        "positions": "Positionen",
+        "hint": "Interne Notiz und Screenshot findest du in der Detailansicht.",
+        "open": "Bestellung öffnen",
+        "edit": "Bearbeiten"
       }
     },
     "tours": {
       "title": "Touren",
       "description": "Tour eines Liefertags erstellen, prüfen, umsortieren und für den Fahrer freigeben.",
       "date": "Lieferdatum",
+      "datePrev": "Vorheriger Tag",
+      "dateNext": "Nächster Tag",
       "generate": "Tour erstellen",
       "generating": "Tour wird erstellt …",
       "reoptimize": "Neu optimieren",
@@ -838,6 +986,13 @@
       "warningLink": "Kunde öffnen",
       "stopsHeading": "Stopps",
       "mapLabel": "Karte der Tour",
+      "stepper": {
+        "label": "Tour-Status",
+        "draft": "Entwurf",
+        "assigned": "Zugewiesen",
+        "released": "Freigegeben",
+        "completed": "Abgeschlossen"
+      },
       "depotLabel": "Depot",
       "summary": {
         "stops": "{count, plural, one {# Stopp} other {# Stopps}}",
@@ -935,7 +1090,8 @@
         "machineTranslated": "maschinell übersetzt",
         "translationPending": "Übersetzung folgt",
         "showOriginal": "Original anzeigen",
-        "hideOriginal": "Original ausblenden"
+        "hideOriginal": "Original ausblenden",
+        "shortLabel": "Fortschritt"
       },
       "print": {
         "open": "Ladeliste drucken",
@@ -986,6 +1142,7 @@
       "title": "Verlauf",
       "description": "Wer hat wann was geändert. Einträge können nicht geändert oder gelöscht werden.",
       "empty": "Noch keine Einträge.",
+      "entriesCount": "{count, plural, one {# Eintrag} other {# Einträge}}",
       "by": "{name}",
       "roles": {
         "ADMIN": "Büro",
@@ -1061,12 +1218,22 @@
   "driver": {
     "home": {
       "title": "Heute",
-      "welcome": "Willkommen, {name}."
+      "welcome": "Willkommen, {name}.",
+      "todayCount": "{open} offen · {problems, plural, =0 {keine Probleme} one {# Problem} other {# Probleme}}",
+      "endTime": "Ende ca. {time}",
+      "nextStop": "Nächster Stopp",
+      "nextStopEta": "Ankunft ca. {time}",
+      "quantityChip": "{quantity} × {name}"
     },
     "shell": {
       "connectionOnline": "Online",
       "connectionOffline": "Offline",
-      "changeLanguage": "Sprache ändern"
+      "changeLanguage": "Sprache ändern",
+      "openOutbox": "Übertragung und Hinweise öffnen",
+      "language": "Sprache ändern",
+      "menu": "Weitere Optionen",
+      "logout": "Abmelden",
+      "currentLanguage": "Aktuelle Sprache"
     },
     "today": {
       "pageTitle": "Heutige Tour",
@@ -1101,7 +1268,21 @@
       "updatedDescription": "Das Büro hat die Tour geändert. Bitte die markierten Stopps prüfen. Angezeigt sind immer die aktuellen Mengen.",
       "removedStops": "Entfernte Stopps",
       "updatedConfirm": "Verstanden",
-      "finishedSummary": "{delivered} geliefert · {problems, plural, =0 {kein Problem} one {# Problem} other {# Probleme}}"
+      "finishedSummary": "{delivered} geliefert · {problems, plural, =0 {kein Problem} one {# Problem} other {# Probleme}}",
+      "openGroup": "Offen ({count})",
+      "doneGroup": "Erledigt ({count})",
+      "expandDone": "Erledigte Stopps anzeigen",
+      "collapseDone": "Erledigte Stopps ausblenden",
+      "problemReason": "Problem: {reason}",
+      "noteLabel": "Hinweis",
+      "waiting": "wartet",
+      "backToDepot": "Zurück zum Depot",
+      "finishedElapsed": "Dauer ca. {duration}",
+      "mapSheet": "Offene Stopps ({count})",
+      "mapSheetHide": "Stoppliste schließen",
+      "progressDone": "erledigt",
+      "mapSheetCount": "{count, plural, one {# offener Stopp} other {# offene Stopps}}",
+      "focusOnMap": "Auf der Karte zeigen"
     },
     "units": {
       "KG": "kg",
@@ -1114,8 +1295,8 @@
       "position": "Stopp {position} von {total}",
       "copyAddress": "Adresse kopieren",
       "copied": "Adresse kopiert",
-      "photoStore": "Geschäft / Eingang",
-      "photoParking": "Parken / Entladen",
+      "photoStore": "Eingang",
+      "photoParking": "Parken",
       "noPhoto": "Noch kein Foto",
       "items": "Lieferung",
       "notes": "Hinweis",
@@ -1133,7 +1314,31 @@
       "cancelPhoto": "Abbrechen",
       "photoPending": "Wartet auf Versand",
       "photoSent": "Gesendet",
-      "photoNotSaved": "Das Foto konnte auf dem Gerät nicht gespeichert werden. Bitte erneut versuchen."
+      "photoNotSaved": "Das Foto konnte auf dem Gerät nicht gespeichert werden. Bitte erneut versuchen.",
+      "backToTour": "Zurück zur Tour",
+      "photos": "Fotos",
+      "summaryTotal": "Gesamt",
+      "statusDeliveredAt": "Geliefert {time}",
+      "statusProblem": "Problem: {reason}",
+      "navigateStarting": "Navigation wird geöffnet …",
+      "deliveredStrip": "Geliefert um {time}",
+      "problemStrip": "Problem gemeldet",
+      "editAction": "Bearbeiten",
+      "nextStop": "Weiter zu Stopp {number}",
+      "backToTourAction": "Zur Tour",
+      "viewerTitle": "Foto ansehen",
+      "viewerPrev": "Vorheriges Foto",
+      "viewerNext": "Nächstes Foto",
+      "viewerClose": "Schließen",
+      "summaryTotalMixed": "Gesamt je Einheit",
+      "weekdayMo": "Mo",
+      "weekdayTu": "Di",
+      "weekdayWe": "Mi",
+      "weekdayTh": "Do",
+      "weekdayFr": "Fr",
+      "weekdaySa": "Sa",
+      "weekdaySu": "So",
+      "clockSuffix": "Uhr"
     },
     "status": {
       "delivered": "Geliefert",
@@ -1216,7 +1421,36 @@
         "not_found": "{name}: Dieser Stopp wurde aus der Tour entfernt. Das Foto wurde nicht übernommen.",
         "tour_not_active": "{name}: Diese Tour ist nicht mehr aktiv. Das Foto wurde nicht übernommen.",
         "generic": "{name}: Das Foto konnte nicht übernommen werden."
-      }
+      },
+      "outboxTitle": "Wartet auf Übertragung",
+      "outboxEmpty": "Alles übertragen. Nichts wartet.",
+      "outboxExplanation": "Diese Eingaben liegen noch auf dem Gerät. Sie werden gesendet, sobald du online bist – es geht nichts verloren.",
+      "outboxOnlineExplanation": "Diese Eingaben werden gerade gesendet. Du kannst weiterarbeiten.",
+      "outboxRetry": "Jetzt senden",
+      "outboxWaiting": "wartet",
+      "mutationDelivered": "geliefert",
+      "mutationProblem": "Problem gemeldet",
+      "mutationUndo": "rückgängig",
+      "mutationPhoto": "Foto",
+      "stopLine": "Stopp {number}",
+      "noticesTitle": "Hinweise",
+      "cachedBadge": "Offline bereit ✓",
+      "online": "Online",
+      "preparing": "Wird vorbereitet …",
+      "offline": "Offline",
+      "pendingChip": "{count} wartet",
+      "error": "Sync-Fehler",
+      "outboxNothingPending": "Nichts zu senden. Alles ist übertragen.",
+      "outboxSending": "{count, plural, one {# Eingabe wird gesendet …} other {# Eingaben werden gesendet …}}",
+      "preparingShort": "Speichert",
+      "errorShort": "Fehler",
+      "pendingShort": "{count}"
+    },
+    "unitsShort": {
+      "KG": "kg",
+      "PACK": "{count, plural, one {Pk.} other {Pk.}}",
+      "CRATE": "{count, plural, one {Kiste} other {Kisten}}",
+      "PIECE": "{count, plural, one {St.} other {St.}}"
     }
   },
   "pwa": {
@@ -1255,6 +1489,15 @@
   "maps": {
     "tilesOffline": "Kartenhintergrund offline nicht verfügbar",
     "tilesFailed": "Kartenhintergrund nicht verfügbar",
-    "tilesHint": "Stopps, Depot und Route werden weiterhin angezeigt."
+    "tilesHint": "Stopps, Depot und Route werden weiterhin angezeigt.",
+    "stopMarker": "Stopp {n}: {name}",
+    "stopMarkerPlain": "Stopp {n}",
+    "depotMarker": "Depot: {name}",
+    "depotMarkerPlain": "Depot",
+    "pinMarker": "Lieferadresse-Pin: {place}",
+    "pinMoved": "Standort: {lat}, {lng}",
+    "cluster": "{count, plural, one {# Stopp} other {# Stopps}}: {names}",
+    "clusterMore": "Erneut tippen zum Vergrößern",
+    "fitAll": "Alle Stopps anzeigen"
   }
 }

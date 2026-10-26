@@ -7,8 +7,10 @@ import { useOutbox } from "@/lib/offline/outbox-browser";
 import { usePhotoOutbox } from "@/lib/offline/photo-outbox-browser";
 
 /**
- * Number of taps and photos waiting on the device to be sent (NUD-082, NUD-083), in the driver top bar. Hidden when
- * the queue is empty, so a driver with a good connection never sees it for longer than a moment.
+ * Queue counter of the driver top bar (NUD-082, NUD-083). The redesign replaces the yellow count
+ * badge with the `SyncStatusChip` (state `pending` + count) and the Outbox sheet; this element stays
+ * in the tree as the accessible count marker the specs read (`data-count`), visually hidden so a
+ * good connection never shows two counters at once.
  */
 export function PendingBadge() {
   const t = useTranslations("driver.sync");
@@ -25,7 +27,7 @@ export function PendingBadge() {
       title={failure ? `${label} (${t("willRetry")})` : label}
       data-testid="pending-badge"
       data-count={count}
-      className="flex min-h-9 min-w-9 items-center justify-center gap-1 rounded-full bg-amber-500 px-2.5 text-base font-bold text-amber-950 tabular-nums"
+      className="sr-only"
     >
       <UploadCloudIcon className="size-5 shrink-0" aria-hidden />
       <span data-testid="pending-count">{count}</span>

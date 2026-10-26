@@ -144,13 +144,17 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     expect(from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(from > new Date().toISOString().slice(0, 10)).toBe(true);
     await expect(tid(page, "filter-to")).toHaveValue(from);
-    await expect(tid(page, "filter-status")).toHaveValue("");
+    // Status and Quelle are chip groups now (re-design.md §8.3): pressed, not selected.
+    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-pressed", "true");
 
     // Date range via the URL (bookmarkable) and via the controls.
     await page.goto(`/de/admin/orders?from=${D1}&to=${D2}`);
     const rows = tid(page, "order-row");
     await expect(rows).toHaveCount(5);
     // Totals per date: confirmed only (cancelled 99 and draft 77 are not counted).
+    // The sums card is collapsed by default now (re-design.md §8.3), so open it before reading them.
+    const totalsToggle = tid(page, "totals-toggle");
+    if ((await totalsToggle.count()) > 0) await totalsToggle.first().click();
     const day1 = page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible`);
     await expect(day1).toContainText("2 bestätigte Bestellungen");
     await expect(day1.locator("tr", { hasText: "Spaghetti 5 kg" })).toContainText("6,5 Packung");
@@ -177,19 +181,19 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     await page.screenshot({ path: testInfo.outputPath("order-overview.png"), fullPage: true });
 
     // Status filter.
-    await tid(page, "filter-status").selectOption("CANCELLED");
+    await tid(page, "filter-status-CANCELLED").click();
     await expect(page).toHaveURL(/status=CANCELLED/);
     await expect(rows).toHaveCount(1);
     await expect(page.locator(`[data-order-id="${f.ids.a1x}"]:visible`)).toBeVisible();
     // Totals ignore the status filter.
     await expect(tid(page, "totals-day")).toHaveCount(2);
-    await tid(page, "filter-status").selectOption("");
+    await tid(page, "filter-status-ALL").click();
     await expect(rows).toHaveCount(5);
 
     // Source filter.
-    await tid(page, "filter-source").selectOption("SCREENSHOT");
+    await tid(page, "filter-source-SCREENSHOT").click();
     await expect(rows).toHaveCount(1);
-    await tid(page, "filter-source").selectOption("");
+    await tid(page, "filter-source-ALL").click();
 
     // Customer filter (combobox).
     await page.locator("#filter-customer").click();
@@ -207,7 +211,8 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     // Reset returns to the default day.
     await tid(page, "filter-reset").click();
     await expect(tid(page, "filter-from")).toHaveValue(from);
-    await expect(tid(page, "filter-status")).toHaveValue("");
+    // Status and Quelle are chip groups now (re-design.md §8.3): pressed, not selected.
+    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-pressed", "true");
   } finally {
     await f.cleanup();
   }

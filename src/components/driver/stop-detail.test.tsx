@@ -71,6 +71,7 @@ const detail = (extra: Partial<DriverStopDetail> = {}): DriverStopDetail => ({
     status: "PENDING",
     problemReason: null,
     completedAt: null,
+    noteText: null,
     etaAt: "2099-07-02T08:15:00Z",
     legDurationS: 600,
     change: null,
@@ -127,8 +128,15 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
       "https://www.google.com/maps/dir/?api=1&destination=48.21,16.38&travelmode=driving",
     );
     expect(screen.queryByTestId("navigate-apple")).toBeNull();
-    // A present photo: the zoom button plus "Replace photo" (NUD-083)
+    // A present photo: the frame holds exactly one button (the viewer), the Replace overlay sits
+    // next to the frame so both stay separate 48 px targets.
+    expect(
+      within(within(screen.getByTestId("photo-store")).getByTestId("photo-frame")).getAllByRole(
+        "button",
+      ),
+    ).toHaveLength(1);
     expect(within(screen.getByTestId("photo-store")).getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByTestId("photo-open-store")).toBeVisible();
     expect(screen.getByTestId("photo-replace-store")).toBeVisible();
     // A missing photo: the placeholder offers "Take photo" right there (NUD-083)
     expect(within(screen.getByTestId("photo-parking")).getByTestId("photo-missing")).toBeVisible();
@@ -139,10 +147,18 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
     expect(within(rows[0]).getByTestId("item-name-de")).toHaveTextContent("Spaghetti lose");
     expect(within(rows[0]).getByTestId("item-quantity")).toHaveTextContent(/12[.,]5/);
     expect(within(rows[1]).queryByTestId("item-name-de")).toBeNull(); // same as the shown name
-    expect(screen.getByTestId("stop-hours")).toHaveTextContent("Mo-Fr 8-11");
+    // The delivery hours live on the merged ETA line in the header. Weekdays and the "Uhr" suffix
+    // follow the locale (run 3 review point 3), the rest of the free text stays as stored.
+    const hours = locale === "de" ? "Mo-Fr 8-11" : locale === "zh-Hans" ? "周一-周五 8-11" : "週一-週五 8-11";
+    expect(screen.getByTestId("stop-hours")).toHaveTextContent(hours);
+    expect(screen.getByTestId("stop-eta")).toHaveTextContent(/\d{1,2}[:.]\d{2}/);
+    expect(screen.getByTestId("stop-status")).toHaveAttribute("data-status", "PENDING");
     expect(screen.getByTestId("prev-stop")).toHaveAttribute("href", "/driver/stops/s1");
     expect(screen.getByTestId("next-stop")).toHaveAttribute("href", "/driver/stops/s3");
     expect(screen.getByTestId("status-actions-slot")).toBeInTheDocument();
+    // The delivery card stays above the photos card, the top bar carries the position.
+    expect(screen.getByTestId("summary-total")).toBeInTheDocument();
+    expect(screen.getByTestId("stop-position")).toHaveTextContent("2");
   });
 
   it("marks German-only notes with a DE badge outside German", () => {
@@ -164,7 +180,8 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
       }),
     );
     expect(screen.getAllByTestId("photo-missing")).toHaveLength(2);
-    expect(screen.queryByTestId("stop-info")).toBeNull();
+    // The container stays in the DOM for the offline render comparison, but is not exposed.
+    expect(screen.getByTestId("stop-info")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByTestId("prev-stop")).toBeDisabled();
     expect(screen.getByTestId("next-stop")).toBeDisabled();
   });
@@ -178,7 +195,7 @@ describe("StopDetail details", () => {
 
   it("copies the full address on tap and confirms it", async () => {
     renderIn("de", detail());
-    fireEvent.click(screen.getByTestId("stop-address"));
+    fireEvent.click(screen.getByRole("button", { name: /Adresse kopieren/ }));
     await waitFor(() => expect(screen.getByTestId("address-copied")).toBeInTheDocument());
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Hauptstraße 1, 1010 Wien");
   });

@@ -6,9 +6,16 @@ import { type FormEvent, useEffect, useRef, useState, useTransition } from "reac
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Link, useRouter } from "@/i18n/navigation";
 import { UNITS } from "@/lib/units";
 import {
@@ -27,8 +34,6 @@ type Props = {
 };
 
 const DERIVE_DELAY_MS = 200;
-const selectClass =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50";
 
 type FormError = "invalid" | "generic" | "skuTaken" | "unitLocked" | null;
 
@@ -106,8 +111,7 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
         <h2 id="prod-data" className="text-xl font-semibold">
           {t("dataHeading")}
         </h2>
-        <div className="flex max-w-xs flex-col gap-2">
-          <Label htmlFor="prod-sku">{t("sku")}</Label>
+        <FormField label={t("sku")} htmlFor="prod-sku" required className="max-w-xs">
           <Input
             id="prod-sku"
             value={sku}
@@ -120,32 +124,33 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
             required
             data-testid="product-sku"
           />
-          {error === "skuTaken" ? (
-            <p className="text-sm text-destructive" role="alert" data-testid="sku-taken">
-              {t("skuTaken")}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("skuHint")}</p>
-          )}
-        </div>
-        <div className="flex max-w-xs flex-col gap-2">
-          <Label htmlFor="prod-unit">{t("unit")}</Label>
-          <select
-            id="prod-unit"
-            className={selectClass}
-            value={unit}
-            disabled={unitLocked}
-            onChange={(e) => setUnit(e.target.value as typeof unit)}
-            data-testid="product-unit"
-          >
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {tc(`units.${u}`)}
-              </option>
-            ))}
-          </select>
-          {unitLocked ? <p className="text-sm text-muted-foreground">{t("unitLocked")}</p> : null}
-        </div>
+        </FormField>
+        {error === "skuTaken" ? (
+          <p className="-mt-2 max-w-xs text-sm text-destructive" role="alert" data-testid="sku-taken">
+            {t("skuTaken")}
+          </p>
+        ) : (
+          <p className="-mt-2 max-w-xs text-sm text-muted-foreground">{t("skuHint")}</p>
+        )}
+        <FormField
+          label={t("unit")}
+          htmlFor="prod-unit"
+          className="max-w-xs"
+          description={unitLocked ? t("unitLocked") : undefined}
+        >
+          <Select value={unit} disabled={unitLocked} onValueChange={(v) => setUnit(v as typeof unit)}>
+            <SelectTrigger id="prod-unit" data-testid="product-unit" aria-label={t("unit")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {UNITS.map((u) => (
+                <SelectItem key={u} value={u}>
+                  {tc(`units.${u}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
       </section>
 
       <section className="flex flex-col gap-4" aria-labelledby="prod-names">
@@ -153,8 +158,7 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
           {t("namesHeading")}
         </h2>
         <p className="max-w-prose text-sm text-muted-foreground">{t("namesHint")}</p>
-        <div className="flex max-w-xl flex-col gap-2">
-          <Label htmlFor="prod-de">{t("nameDe")}</Label>
+        <FormField label={t("nameDe")} htmlFor="prod-de" required className="max-w-xl">
           <Input
             id="prod-de"
             lang="de"
@@ -164,9 +168,8 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
             required
             data-testid="product-name-de"
           />
-        </div>
-        <div className="flex max-w-xl flex-col gap-2">
-          <Label htmlFor="prod-hans">{t("nameHans")}</Label>
+        </FormField>
+        <FormField label={t("nameHans")} htmlFor="prod-hans" required className="max-w-xl">
           <Input
             id="prod-hans"
             lang="zh-Hans"
@@ -176,39 +179,43 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
               setHans(e.target.value);
               setHansMissing(false);
             }}
-            aria-invalid={hansMissing || undefined}
-            required
             data-testid="product-name-hans"
           />
-          {hansMissing ? (
-            <p className="text-sm text-destructive" role="alert" data-testid="hans-required">
-              {t("hansRequired")}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
+        {hansMissing ? (
+          <p className="-mt-2 max-w-xl text-sm text-destructive" role="alert" data-testid="hans-required">
+            {t("hansRequired")}
+          </p>
+        ) : null}
         {(
           [
             ["hk", "zh-Hant-HK", hk, setHk, hkAuto, setHkAuto],
             ["tw", "zh-Hant-TW", tw, setTw, twAuto, setTwAuto],
           ] as const
         ).map(([key, lang, value, setValue, auto, setAuto]) => (
-          <div key={key} className="flex max-w-xl flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Label htmlFor={`prod-${key}`}>{t(key === "hk" ? "nameHk" : "nameTw")}</Label>
-              {auto ? autoBadge : null}
-              {!auto ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setAuto(true)}
-                  data-testid={`rederive-${key}`}
-                >
-                  <RefreshCwIcon aria-hidden />
-                  {t("rederive")}
-                </Button>
-              ) : null}
-            </div>
+          <FormField
+            key={key}
+            label={t(key === "hk" ? "nameHk" : "nameTw")}
+            htmlFor={`prod-${key}`}
+            className="max-w-xl"
+            hint={
+              <span className="flex flex-wrap items-center gap-2">
+                {auto ? autoBadge : null}
+                {!auto ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAuto(true)}
+                    data-testid={`rederive-${key}`}
+                  >
+                    <RefreshCwIcon aria-hidden />
+                    {t("rederive")}
+                  </Button>
+                ) : null}
+              </span>
+            }
+          >
             <Input
               id={`prod-${key}`}
               lang={lang}
@@ -220,7 +227,7 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
               }}
               data-testid={`product-name-${key}`}
             />
-          </div>
+          </FormField>
         ))}
       </section>
 
@@ -236,9 +243,9 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
         <Button type="submit" disabled={pending} data-testid="product-save">
           {tc("actions.save")}
         </Button>
-        <Link href="/admin/products" className={buttonVariants({ variant: "outline" })}>
-          {tc("actions.cancel")}
-        </Link>
+        <Button variant="outline" asChild>
+          <Link href="/admin/products">{tc("actions.cancel")}</Link>
+        </Button>
       </div>
     </form>
   );

@@ -1,9 +1,29 @@
-import { ArchiveIcon, ImageOffIcon, MapPinOffIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+"use client";
+
+import {
+  ArchiveIcon,
+  ImageOffIcon,
+  type LucideIcon,
+  MapPinOffIcon,
+  PencilIcon,
+  StickyNoteIcon,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/shared/states";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActions } from "@/components/ui/row-actions";
 import {
   Table,
   TableBody,
@@ -12,10 +32,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Link } from "@/i18n/navigation";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link, useRouter } from "@/i18n/navigation";
 import { customerListQuery } from "@/lib/customer-list-params";
+import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
-import type { CustomerListResult } from "@/server/customers";
+import { setCustomerActiveAction } from "@/server/customer-actions";
+import type { CustomerListResult, CustomerListRow } from "@/server/customers";
 
 type Filters = {
   q: string;
@@ -24,6 +47,52 @@ type Filters = {
   pinUnconfirmed: boolean;
 };
 
+/** Initials avatars use the soft tone pairs of the design system (never a hard-coded colour). */
+const AVATAR_TONES = [
+  "bg-primary-soft text-primary-soft-foreground",
+  "bg-success-soft text-success-soft-foreground",
+  "bg-warning-soft text-warning-soft-foreground",
+  "bg-info-soft text-info-soft-foreground",
+  "bg-destructive-soft text-destructive-soft-foreground",
+  "bg-muted text-foreground",
+] as const;
+
+/** Deterministic tone from the customer number, so a customer always keeps the same colour. */
+function avatarTone(customerNumber: string): string {
+  let hash = 0;
+  for (const char of customerNumber) hash = (hash * 31 + char.charCodeAt(0)) % 997;
+  return AVATAR_TONES[hash % AVATAR_TONES.length]!;
+}
+
+function initials(name: string): string {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts
+    .map((part) => [...part][0] ?? "")
+    .join("")
+    .toLocaleUpperCase();
+}
+
+/**
+ * Does the customer have a delivery note? `notes` is a `LocalizedText` (or `null`); the icon shows
+ * when the locale's fallback chain yields any non-empty text — the same rule `pick` uses to render
+ * the note on the customer detail page.
+ */
+function hasNote(notes: unknown, locale: AppLocale): boolean {
+  const parsed = localizedTextSchema.safeParse(notes);
+  return parsed.success && pick(parsed.data, locale).trim() !== "";
+}
+
+/**
+ * Customers list (re-design.md §8.5/§8.10): a real `<table>` with 48 px rows and a sticky header,
+ * initials avatars, the number in mono, and the "Hinweise" flags as named icons with tooltips (an
+ * accessible name in the tooltip alone is not enough — each flag carries `sr-only` text too). Every
+ * row has exactly one visible control: the `RowActions` overflow menu (edit, deactivate/reactivate).
+ * All `data-testid`s of `tests/e2e/customers.spec.ts` and `customer-form.spec.ts` are unchanged.
+ */
 export function CustomersTable({
   result,
   filters,
@@ -48,74 +117,25 @@ export function CustomersTable({
       <EmptyState
         title={filtered ? t("emptyFilteredTitle") : t("emptyTitle")}
         description={filtered ? t("emptyFiltered") : t("empty")}
-      >
-        {filtered ? (
-          <Link
-            href="/admin/customers"
-            className={buttonVariants({ variant: "outline" })}
-            data-testid="reset-filters"
-          >
-            {t("resetFilters")}
-          </Link>
-        ) : null}
-      </EmptyState>
+      />
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground" data-testid="customer-count" aria-live="polite">
-        {tc("itemsCount", { count: result.total })}
-      </p>
-      <Table data-testid="customers-table">
-        <TableHeader>
+      <Table data-testid="customers-table" aria-label={t("title")}>
+        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm [&_th]:bg-muted/95">
           <TableRow>
+            <TableHead>{t("columns.customer")}</TableHead>
             <TableHead>{t("columns.number")}</TableHead>
-            <TableHead>{t("columns.name")}</TableHead>
             <TableHead>{t("columns.city")}</TableHead>
             <TableHead>{t("columns.flags")}</TableHead>
+            <TableHead className="w-12 text-end">{t("columns.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {result.rows.map((c) => (
-            <TableRow key={c.id} data-testid="customer-row" data-number={c.customerNumber}>
-              <TableCell className="font-mono">{c.customerNumber}</TableCell>
-              <TableCell>
-                <Link
-                  href={`/admin/customers/${c.id}`}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                  data-testid="customer-link"
-                >
-                  {c.name}
-                </Link>
-                <div className="text-sm text-muted-foreground">{c.street}</div>
-              </TableCell>
-              <TableCell>
-                {c.postalCode} {c.city}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1.5">
-                  {c.photosMissing ? (
-                    <Badge variant="warning" data-testid="flag-photos-missing">
-                      <ImageOffIcon aria-hidden />
-                      {t("flags.photosMissing")}
-                    </Badge>
-                  ) : null}
-                  {!c.pinConfirmed ? (
-                    <Badge variant="warning" data-testid="flag-pin-unconfirmed">
-                      <MapPinOffIcon aria-hidden />
-                      {t("flags.pinUnconfirmed")}
-                    </Badge>
-                  ) : null}
-                  {!c.active ? (
-                    <Badge variant="secondary" data-testid="flag-archived">
-                      <ArchiveIcon aria-hidden />
-                      {t("flags.archived")}
-                    </Badge>
-                  ) : null}
-                </div>
-              </TableCell>
-            </TableRow>
+            <CustomerRow key={c.id} customer={c} />
           ))}
         </TableBody>
       </Table>
@@ -141,6 +161,173 @@ export function CustomersTable({
         </nav>
       ) : null}
     </div>
+  );
+}
+
+function CustomerRow({ customer }: { customer: CustomerListRow }) {
+  const t = useTranslations("admin.customers");
+  const tc = useTranslations("common");
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const active = customer.active;
+
+  function apply(next: boolean) {
+    startTransition(async () => {
+      let result;
+      try {
+        result = await setCustomerActiveAction(customer.id, next);
+      } catch {
+        return void toast.error(tc("errors.generic"));
+      }
+      if (!result.ok) return void toast.error(tc("errors.generic"));
+      setOpen(false);
+      toast.success(t(next ? "detail.restored" : "detail.archived"));
+      router.refresh();
+    });
+  }
+
+  return (
+    <TableRow data-testid="customer-row" data-number={customer.customerNumber}>
+      <TableCell>
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden
+            className={`flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarTone(customer.customerNumber)}`}
+          >
+            {initials(customer.name)}
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <Link
+              href={`/admin/customers/${customer.id}`}
+              className="font-medium break-words text-primary underline-offset-4 hover:underline"
+              data-testid="customer-link"
+            >
+              {customer.name}
+            </Link>
+            <span className="text-sm text-muted-foreground">{customer.street}</span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="font-mono text-sm text-muted-foreground tabular-nums">
+        {customer.customerNumber}
+      </TableCell>
+      <TableCell>
+        {customer.postalCode} {customer.city}
+      </TableCell>
+      <TableCell>
+        <FlagList customer={customer} />
+      </TableCell>
+      <TableCell className="text-end">
+        <RowActions label={t("rowMenu.label", { name: customer.name })}>
+          <DropdownMenuItem asChild>
+            <Link href={`/admin/customers/${customer.id}/edit`} data-testid="customer-row-edit">
+              <PencilIcon aria-hidden />
+              {tc("actions.edit")}
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setOpen(true)} data-testid="customer-row-deactivate">
+            {active ? <ArchiveIcon aria-hidden /> : null}
+            {t(active ? "actions.deactivate" : "actions.reactivate")}
+          </DropdownMenuItem>
+        </RowActions>
+      </TableCell>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("detail.archiveTitle")}</DialogTitle>
+            <DialogDescription>{t("detail.archiveDescription")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              {tc("actions.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant={active ? "destructive" : "default"}
+              disabled={pending}
+              onClick={() => apply(!active)}
+              data-testid="customer-row-deactivate-confirm"
+            >
+              {active ? t("actions.deactivate") : t("actions.reactivate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </TableRow>
+  );
+}
+
+/**
+ * "Hinweise" column (re-design.md §8.5): the icon flags the toolbar filters by, for **every** row
+ * whose data matches — `photosMissing` and `!pinConfirmed` are exactly the predicates of the two
+ * filter chips, `!active` marks an archived customer, and `StickyNote` marks a customer whose
+ * `notes` (LocalizedText) carries text in the locale's fallback chain. A row without a single match
+ * shows a muted dash, so an empty cell never reads as a rendering bug.
+ */
+function FlagList({ customer }: { customer: CustomerListRow }) {
+  const t = useTranslations("admin.customers");
+  const locale = useLocale() as AppLocale;
+  const flags: { testId: string; icon: LucideIcon; title: string }[] = [];
+  if (customer.photosMissing) {
+    flags.push({
+      testId: "flag-photos-missing",
+      icon: ImageOffIcon,
+      title: t("flags.photosMissing"),
+    });
+  }
+  if (!customer.pinConfirmed) {
+    flags.push({
+      testId: "flag-pin-unconfirmed",
+      icon: MapPinOffIcon,
+      title: t("flags.pinUnconfirmed"),
+    });
+  }
+  if (hasNote(customer.notes, locale)) {
+    flags.push({
+      testId: "flag-notes",
+      icon: StickyNoteIcon,
+      title: t("flags.notes"),
+    });
+  }
+  if (!customer.active) {
+    flags.push({ testId: "flag-archived", icon: ArchiveIcon, title: t("flags.archived") });
+  }
+
+  if (flags.length === 0) {
+    return (
+      <span className="text-muted-foreground" aria-hidden>
+        —
+      </span>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {flags.map((flag) => (
+        <Flag key={flag.testId} testId={flag.testId} icon={flag.icon} title={flag.title} />
+      ))}
+    </div>
+  );
+}
+
+/** One "Hinweis" flag: an icon with sr-only text, a tooltip and a keyboard focus stop. */
+function Flag({ testId, icon: Icon, title }: { testId: string; icon: LucideIcon; title: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            data-testid={testId}
+            tabIndex={0}
+            className="inline-flex size-6 items-center justify-center rounded-md text-warning outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+          >
+            <Icon className="size-4" aria-hidden />
+            <span className="sr-only">{title}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{title}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { OrderForm } from "@/components/admin/order-form";
+import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
@@ -21,17 +22,17 @@ async function Guarded({ locale }: { locale: string }) {
   ]);
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Link
-          href="/admin/orders"
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          {t("backToList")}
-        </Link>
-        <h1 className="text-3xl font-semibold" data-testid="section-title">
-          {t("newTitle")}
-        </h1>
-      </div>
+      <PageHeader
+        title={t("newTitle")}
+        breadcrumb={
+          <Link
+            href="/admin/orders"
+            className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("backToList")}
+          </Link>
+        }
+      />
       <OrderForm
         defaultDate={formatCalendarDate(defaultDate)}
         customers={customers.map((c) => ({

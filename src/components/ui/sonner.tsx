@@ -3,16 +3,39 @@
 import { useTranslations } from "next-intl";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-/** Toast host. Mount once (locale layout); call `toast(...)` from `sonner` anywhere on the client. */
-function Toaster(props: ToasterProps) {
+/**
+ * Toast host (redesign RD-2, re-design.md §5). Mount once — `src/app/[locale]/layout.tsx` renders
+ * the single global `<Toaster />` for both apps.
+ *
+ * Position: this component cannot know whether the viewer is in the driver or the admin app, so the
+ * position is a prop with a sensible default. The shell that owns the layout passes
+ * `position="bottom-center"` for the driver app (above the sticky action bar) and
+ * `position="top-right"` for the admin app. Toasts with an `action` render a labelled button
+ * (sonner does that itself), which is what the offline "Rückgängig" undo uses.
+ */
+function Toaster({
+  position = "top-right",
+  toastOptions,
+  ...props
+}: ToasterProps & { position?: ToasterProps["position"] }) {
   const t = useTranslations("common");
   return (
     <Sonner
       theme="system"
+      position={position}
       // The live region's name is read by screen readers: localized, without the "alt+T" hotkey hint.
       containerAriaLabel={t("notifications")}
       hotkey={[]}
       className="toaster group"
+      toastOptions={{
+        ...toastOptions,
+        classNames: {
+          toast: "rounded-lg border border-border shadow-md",
+          actionButton: "rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground",
+          cancelButton: "rounded-md bg-muted px-3 py-1.5 font-medium text-foreground",
+          ...toastOptions?.classNames,
+        },
+      }}
       style={
         {
           "--normal-bg": "var(--popover)",

@@ -3,33 +3,65 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { CustomerForm } from "@/components/admin/customer-form";
+import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { Link } from "@/i18n/navigation";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
-import { getCustomerQuery } from "@/server/customer-queries";
+import { customerPhotosQuery, getCustomerQuery } from "@/server/customer-queries";
+
+const toSlot = ({
+  id,
+  url,
+  width,
+  height,
+  createdAt,
+  uploadedBy,
+}: {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+  createdAt: Date;
+  uploadedBy: { name: string; role: "ADMIN" | "DRIVER" };
+}) => ({
+  id,
+  url,
+  width,
+  height,
+  createdAt: createdAt.toISOString(),
+  // Only drivers are named: the office knows its own uploads (NUD-083 "updated by driver X").
+  driverName: uploadedBy.role === "DRIVER" ? uploadedBy.name : null,
+});
 
 async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
+  const photos = await customerPhotosQuery(id);
   const t = await getTranslations({ locale, namespace: "admin.customers" });
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <Link
-          href={`/admin/customers/${customer.id}`}
-          className="text-sm text-primary underline-offset-4 hover:underline"
-        >
-          {t("form.backToDetail")}
-        </Link>
-        <h1 className="text-3xl font-semibold" data-testid="section-title">
-          {t("form.editTitle")}
-        </h1>
-      </div>
+      <PageHeader
+        breadcrumb={
+          <Link
+            href={`/admin/customers/${customer.id}`}
+            className="underline-offset-4 hover:underline"
+          >
+            {t("form.backToDetail")}
+          </Link>
+        }
+        title={t("form.editTitle")}
+        description={t("detail.number", { number: customer.customerNumber })}
+      />
       <CustomerForm
         customerId={customer.id}
         tiles={getMapTileConfig()}
+        customerName={customer.name}
+        photos={{
+          STORE: photos.STORE && toSlot(photos.STORE),
+          PARKING: photos.PARKING && toSlot(photos.PARKING),
+        }}
         initial={{
           customerNumber: customer.customerNumber,
           name: customer.name,

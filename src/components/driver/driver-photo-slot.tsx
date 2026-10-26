@@ -12,7 +12,6 @@ import {
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { ImagePreview } from "@/components/shared/image-preview";
 import { Button } from "@/components/ui/button";
 import type { DriverPhotoKind } from "@/domain/driver-photo";
 import type { ShownPhoto } from "@/lib/offline/photo-outbox";
@@ -33,16 +32,20 @@ type Props = {
   stopId: string;
   customerId: string;
   customerName: string;
+  /** Presentation only: the photos card opens the shared fullscreen viewer on tap (re-design.md §7.3). */
+  onOpen?: () => void;
 };
 
 /**
- * One photo slot of the stop screen (STORE or PARKING) with the camera built in (NUD-083).
- * - No photo: the placeholder itself offers "Take photo" (a file input with `capture="environment"`
- *   opens the phone camera directly).
- * - Photo present: "Replace photo" below it.
- * - After the shot: the resized picture is shown in the same 4:3 frame with "Use photo" /
- *   "Retake" / "Cancel". "Use photo" puts it in the on-device queue (works offline); the slot shows
- *   it at once, marked "waiting to be sent" until the server has taken it ("sent").
+ * One square photo thumbnail of the stop screen (STORE or PARKING) with the camera built in
+ * (NUD-083, redesign RD-2 §7.3). The upload logic is unchanged: the file input is still the leaf,
+ * the resized blob still goes into the on-device photo queue and the slot still shows the queued
+ * photo at once ("waiting"/"sent").
+ *
+ * Presentation only since the redesign: the frame is a 1:1 thumbnail that the photos card puts next
+ * to its sibling; tapping a present photo opens the shared fullscreen viewer (`onOpen`), the
+ * "Replace photo" overlay button is a sibling of the frame (never nested inside it), and a missing
+ * photo is a dashed placeholder whose own button opens the rear camera.
  */
 export function DriverPhotoSlot({
   kind,
@@ -52,6 +55,7 @@ export function DriverPhotoSlot({
   stopId,
   customerId,
   customerName,
+  onOpen,
 }: Props) {
   const t = useTranslations("driver.stop");
   const tErrors = useTranslations("common.upload.errors");
@@ -98,85 +102,112 @@ export function DriverPhotoSlot({
   const busy = phase.name === "preparing" || phase.name === "saving";
 
   return (
-    <section className="space-y-2" data-testid={`photo-${id}`}>
-      <h2 className="text-lg font-semibold">{label}</h2>
-      {/* Fixed 4:3 box: a missing, slow or broken photo never changes the layout. */}
-      <div
-        className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border bg-muted"
-        data-testid="photo-frame"
-      >
-        {phase.name === "preview" ? (
-          // eslint-disable-next-line @next/next/no-img-element -- local blob of the photo just taken
-          <img
-            src={phase.url}
-            alt={alt}
-            className="size-full object-contain"
-            data-testid="photo-preview"
-          />
-        ) : busy ? (
-          <div
-            className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center text-muted-foreground"
-            role="status"
-            data-testid="photo-busy"
-          >
-            <Loader2Icon className="size-12 animate-spin" aria-hidden />
-            <span className="text-base font-medium">{t("photoPreparing")}</span>
-          </div>
-        ) : photo ? (
-          <>
-            <ImagePreview
-              src={photo.url}
+    <section className="min-w-0 space-y-2" data-testid={`photo-${id}`}>
+      <h3 className="truncate text-base font-semibold" data-testid={`photo-label-${id}`}>
+        {label}
+      </h3>
+      <div className="relative">
+        {/* 1:1 frame: a missing, slow or broken photo never changes the layout. */}
+        <div
+          className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted"
+          data-testid="photo-frame"
+        >
+          {phase.name === "preview" ? (
+            // eslint-disable-next-line @next/next/no-img-element -- local blob of the photo just taken
+            <img
+              src={phase.url}
               alt={alt}
-              fit="contain"
-              className="size-full rounded-none"
+              className="size-full object-contain"
+              data-testid="photo-preview"
             />
-            {photo.pending ? (
-              <span
-                role="status"
-                data-testid="photo-pending"
-                className="absolute start-2 top-2 flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1 text-base font-bold text-amber-950"
-              >
-                <UploadCloudIcon className="size-5 shrink-0" aria-hidden />
-                {t("photoPending")}
-              </span>
-            ) : photo.sent ? (
-              <span
-                role="status"
-                data-testid="photo-sent"
-                className="absolute start-2 top-2 flex items-center gap-1.5 rounded-full bg-green-700 px-3 py-1 text-base font-bold text-white"
-              >
-                <CheckIcon className="size-5 shrink-0" aria-hidden />
-                {t("photoSent")}
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <div
-            className="flex size-full flex-col items-center justify-center gap-3 p-4 text-center text-muted-foreground"
-            data-testid="photo-missing"
-          >
-            <ImageOffIcon className="size-12" aria-hidden />
-            <span className="text-base font-medium">{t("noPhoto")}</span>
-            <Button
-              type="button"
-              size="lg"
-              className="min-h-14 text-lg"
-              onClick={take}
-              data-testid={`photo-take-${id}`}
+          ) : busy ? (
+            <div
+              className="flex size-full flex-col items-center justify-center gap-2 p-2 text-center text-muted-foreground"
+              role="status"
+              data-testid="photo-busy"
             >
-              <CameraIcon className="size-6" aria-hidden />
-              {t("takePhoto")}
-            </Button>
-          </div>
-        )}
+              <Loader2Icon className="size-10 animate-spin" aria-hidden />
+              <span className="text-base font-medium">{t("photoPreparing")}</span>
+            </div>
+          ) : photo ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              disabled={!onOpen}
+              className="block size-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              aria-label={t("viewerTitle")}
+              data-testid={`photo-open-${id}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- signed storage URL, already resized */}
+              <img src={photo.url} alt={alt} className="size-full object-cover" />
+            </button>
+          ) : (
+            <div
+              // Absolutely filled so a missing photo can never stretch the 1:1 frame: in German
+              // "Foto aufnehmen" is the longest label and used to make this tile taller than the
+              // tile beside it (design review point 9).
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border p-1.5 text-center text-muted-foreground"
+              data-testid="photo-missing"
+            >
+              <ImageOffIcon className="size-9" aria-hidden />
+              <span className="text-base font-medium">{t("noPhoto")}</span>
+              <Button
+                type="button"
+                size="lg"
+                // One line, no icon: 16 px is the driver floor and "Foto aufnehmen" only fits the
+                // 148 px tile unwrapped without the 24 px camera (the label text is unchanged).
+                className="min-h-12 w-full px-1 whitespace-nowrap text-base"
+                onClick={take}
+                data-testid={`photo-take-${id}`}
+              >
+                {t("takePhoto")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Overlay: 48 px target, a sibling of the frame so the frame holds exactly one button. */}
+        {photo && !busy && phase.name !== "preview" ? (
+          <Button
+            type="button"
+            size="icon-lg"
+            variant="secondary"
+            className="absolute end-2 bottom-2 shadow-md"
+            onClick={take}
+            aria-label={t("replacePhoto")}
+            data-testid={`photo-replace-${id}`}
+          >
+            <CameraIcon aria-hidden />
+          </Button>
+        ) : null}
+
+        {photo?.pending && phase.name === "idle" ? (
+          <span
+            role="status"
+            data-testid="photo-pending"
+            className="absolute start-2 top-2 flex items-center gap-1 rounded-full bg-warning-soft px-2 py-1 text-sm font-bold text-warning-soft-foreground"
+          >
+            <UploadCloudIcon className="size-4 shrink-0" aria-hidden />
+            {t("photoPending")}
+          </span>
+        ) : photo?.sent && phase.name === "idle" ? (
+          <span
+            role="status"
+            data-testid="photo-sent"
+            className="absolute start-2 top-2 flex items-center gap-1 rounded-full bg-success-soft px-2 py-1 text-sm font-bold text-success-soft-foreground"
+          >
+            <CheckIcon className="size-4 shrink-0" aria-hidden />
+            {t("photoSent")}
+          </span>
+        ) : null}
       </div>
 
       {phase.name === "preview" ? (
-        <div className="grid grid-cols-2 gap-3" data-testid="photo-confirm-bar">
+        <div className="grid grid-cols-2 gap-2" data-testid="photo-confirm-bar">
           <Button
             type="button"
             size="lg"
-            className="col-span-2 min-h-14 text-lg"
+            className="col-span-2 text-base"
             onClick={() => void confirm()}
             data-testid="photo-confirm"
           >
@@ -187,7 +218,7 @@ export function DriverPhotoSlot({
             type="button"
             variant="outline"
             size="lg"
-            className="min-h-14 text-lg"
+            className="text-base"
             onClick={take}
             data-testid="photo-retake"
           >
@@ -198,7 +229,7 @@ export function DriverPhotoSlot({
             type="button"
             variant="outline"
             size="lg"
-            className="min-h-14 text-lg"
+            className="text-base"
             onClick={() => setPhase({ name: "idle" })}
             data-testid="photo-cancel"
           >
@@ -206,18 +237,6 @@ export function DriverPhotoSlot({
             {t("cancelPhoto")}
           </Button>
         </div>
-      ) : photo && !busy ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="min-h-14 w-full text-lg"
-          onClick={take}
-          data-testid={`photo-replace-${id}`}
-        >
-          <CameraIcon className="size-6" aria-hidden />
-          {t("replacePhoto")}
-        </Button>
       ) : null}
 
       {errorCode ? (

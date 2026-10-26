@@ -64,6 +64,30 @@ function renderSlot(locale: string, photo: ShownPhoto | null, kind: "STORE" | "P
 
 const file = () => new File(["raw"], "shot.jpg", { type: "image/jpeg" });
 
+/** A slot with the photos card's viewer callback, in German. */
+function SlotWithViewer({ onOpen }: { onOpen: () => void }) {
+  return (
+    <NextIntlClientProvider
+      locale="de"
+      messages={LOCALES.de}
+      onError={(error) => {
+        throw error;
+      }}
+    >
+      <DriverPhotoSlot
+        kind="STORE"
+        label="Eingang"
+        alt="Eingang: Trattoria"
+        photo={shown()}
+        stopId="s1"
+        customerId="c1"
+        customerName="Trattoria Roma"
+        onOpen={onOpen}
+      />
+    </NextIntlClientProvider>
+  );
+}
+
 beforeEach(() => {
   enqueuePhoto.mockReset().mockResolvedValue({});
   resizeImage.mockReset().mockResolvedValue({
@@ -103,6 +127,17 @@ describe.each(Object.keys(LOCALES))("photo slot (%s)", (locale) => {
     renderSlot(locale, shown({ sent: true }));
     expect(screen.getByTestId("photo-sent")).toBeTruthy();
     void rerender;
+  });
+
+  it("opens the shared viewer on tap, but only when the card offers one", () => {
+    const onOpen = vi.fn();
+    render(<SlotWithViewer onOpen={onOpen} />);
+    fireEvent.click(screen.getByTestId("photo-open-store"));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    cleanup();
+    // Without a viewer callback (a standalone slot) the button is inert and disabled.
+    renderSlot(locale, shown());
+    expect(screen.getByTestId("photo-open-store")).toBeDisabled();
   });
 });
 

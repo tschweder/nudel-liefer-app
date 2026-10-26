@@ -16,12 +16,17 @@ const isUnit = (u: string): u is UnitKey => (UNITS as readonly string[]).include
  */
 export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: AppLocale }) {
   const t = await getTranslations({ locale, namespace: "admin.tours.print" });
-  const tc = await getTranslations({ locale, namespace: "common" });
+  // Plural unit labels ("15 Packungen", "12 Kisten") live once, under `driver.units` (§9.3) —
+  // a printed load sheet must not say "15 Packung".
+  const tu = await getTranslations({ locale, namespace: "driver.units" });
   const format = await getFormatter({ locale });
 
   const quantity = (cents: number) =>
     format.number(cents / 100, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const unitText = (unit: string) => (isUnit(unit) ? tc(`units.${unit}`) : "");
+  const unitText = (unit: string, countCents: number) =>
+    isUnit(unit)
+      ? tu(unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: countCents / 100 })
+      : "";
   const products = new Map(tour.products.map((p) => [p.id, p]));
   const label = (productId: string) => {
     const p = products.get(productId);
@@ -118,7 +123,9 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                     <td className="break-words py-1 pe-2">{renderName(row.productId)}</td>
                     <td className="py-1 text-end text-lg font-bold whitespace-nowrap">
                       <span data-testid="load-sheet-total-qty">{quantity(row.quantityCents)}</span>{" "}
-                      <span className="text-[0.85em] font-semibold">{unitText(row.unit)}</span>
+                      <span className="text-[0.85em] font-semibold">
+                        {unitText(row.unit, row.quantityCents)}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -183,7 +190,7 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                                 <span className="shrink-0 font-bold whitespace-nowrap">
                                   {quantity(item.quantityCents)}{" "}
                                   <span className="text-[0.85em] font-semibold">
-                                    {unitText(unit)}
+                                    {unitText(unit, item.quantityCents)}
                                   </span>
                                 </span>
                               </li>

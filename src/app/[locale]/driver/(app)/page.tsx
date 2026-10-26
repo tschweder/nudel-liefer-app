@@ -10,25 +10,27 @@ import { requirePageActor } from "@/server/auth/page-guards";
 import { driverTodayQuery } from "@/server/driver-today";
 
 async function Today({ locale }: { locale: string }) {
-  const actor = await requirePageActor("driver", locale);
+  await requirePageActor("driver", locale);
   const t = await getTranslations({ locale, namespace: "driver" });
   const today = await driverTodayQuery(locale as AppLocale);
+  const hasTour = today !== null && today.stops.length > 0;
   return (
     <>
-      <h1 className="sr-only" data-testid="driver-title">
-        {t("home.title")}
-      </h1>
-      {today && today.stops.length > 0 ? (
+      {hasTour ? null : (
+        // The tour screen brings its own (visually hidden) h1: exactly one h1 per page (QA-03).
+        <h1 className="sr-only" data-testid="driver-title">
+          {t("today.pageTitle")}
+        </h1>
+      )}
+      {today && hasTour ? (
         <TodayTour today={today} tiles={getMapTileConfig()} />
       ) : (
-        <EmptyState title={t("today.emptyTitle")} description={t("today.emptyDescription")} />
+        <EmptyState
+          title={t("today.emptyTitle")}
+          description={t("today.emptyDescription")}
+          action={<LogoutButton locale={locale} />}
+        />
       )}
-      <footer className="mt-4 flex flex-col items-start gap-2">
-        <p className="text-base" data-testid="signed-in-as">
-          {t("home.welcome", { name: actor.name })}
-        </p>
-        <LogoutButton locale={locale} />
-      </footer>
     </>
   );
 }
@@ -37,7 +39,7 @@ export default async function DriverTodayPage({ params }: PageProps<"/[locale]/d
   const { locale } = await params;
   setRequestLocale(locale);
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
+    <Suspense fallback={<LoadingSkeleton variant="list" rows={6} />}>
       <Today locale={locale} />
     </Suspense>
   );

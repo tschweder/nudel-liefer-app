@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { AuditTimeline } from "@/components/admin/audit-timeline";
+import { PageHeader } from "@/components/admin/page-header";
 import { TourDateField } from "@/components/admin/tour-date-field";
 import { TourPlanner } from "@/components/admin/tour-planner";
 import { LoadingSkeleton } from "@/components/shared/states";
@@ -29,15 +30,11 @@ async function Guarded({
   const history = plan.tour ? await tourHistoryQuery(plan.tour.id) : null;
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold" data-testid="section-title">
-            {t("title")}
-          </h1>
-          <p className="max-w-2xl text-base text-muted-foreground">{t("description")}</p>
-        </div>
-        <TourDateField value={plan.date} />
-      </div>
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        actions={<TourDateField value={plan.date} />}
+      />
       <TourPlanner
         key={plan.tour?.id ?? "none"}
         plan={plan}

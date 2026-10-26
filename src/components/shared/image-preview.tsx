@@ -68,7 +68,8 @@ export function ZoomableImage({ src, alt }: { src: string; alt: string }) {
   }
 
   function onPointerDown(event: PointerEvent) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // jsdom (and very old browsers) do not implement pointer capture; zooming works without it.
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.current.size === 2) pinch.current = { distance: distance(pointers.current) };
   }

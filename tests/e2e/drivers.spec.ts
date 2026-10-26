@@ -41,7 +41,8 @@ test("admin manages a driver: create, PIN shown once, reset, deactivate -> logge
   const form = admin.getByTestId("create-driver-form");
   await form.getByLabel("Anzeigename").fill("E2E Fahrer");
   await form.getByLabel("Benutzername").fill(username);
-  await form.getByLabel("Sprache").selectOption("zh-Hant-HK");
+  // The language picker is a localized control (no hard-coded German option text).
+  await form.getByTestId("locale-input").selectOption("zh-Hant-HK");
   await admin.getByTestId("create-submit").click();
   const pinValue = admin.getByTestId("pin-value");
   await expect(pinValue).toBeVisible();

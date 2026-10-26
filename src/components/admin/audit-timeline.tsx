@@ -1,5 +1,7 @@
+import { ChevronDownIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
+import { Card } from "@/components/ui/card";
 import type { AuditAction } from "@/domain/audit";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
@@ -10,6 +12,9 @@ type ActionKey = ReplaceDot<AuditAction>;
 type ReplaceDot<S extends string> = S extends `${infer A}.${infer B}` ? `${A}_${B}` : S;
 type Translate = ReturnType<typeof useTranslations<"admin.history">>;
 
+/** Above this many entries the history starts collapsed (re-design.md §8.4). */
+const COLLAPSE_THRESHOLD = 5;
+
 function productName(line: AuditProductLine, locale: AppLocale): string {
   const parsed = localizedTextSchema.safeParse(line.productName);
   return (parsed.success ? pick(parsed.data, locale) : "") || line.sku;
@@ -19,23 +24,30 @@ function productName(line: AuditProductLine, locale: AppLocale): string {
  * Compact history of an order or a tour (NUD-092): newest entry first, each with what happened,
  * who did it (office or driver), when, and the details that changed. Quantities show
  * before -> after with the product name in the viewer's language.
+ *
+ * Presentation follows re-design.md §8.4: a vertical timeline (dot + time + actor + text) in a
+ * `Card`, collapsed by default once it grows past five entries. Append-only: nothing here edits.
  */
 export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
   const t = useTranslations("admin.history");
   const tc = useTranslations("common");
+  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
+  const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
 
   const qty = (cents: number) => fmt.quantity(cents / 100);
 
   const lineText = (line: AuditProductLine) => {
-    const unit = tc(`units.${line.unit as "KG" | "PACK" | "CRATE" | "PIECE"}`);
+    // The unit always follows the quantity it belongs to, so the plural follows that one.
+    const unitOf = (cents: number) =>
+      tu(line.unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: cents / 100 });
     const change =
       line.before === null && line.after !== null
-        ? `${qty(line.after)} ${unit} (${t("line.added")})`
+        ? `${qty(line.after)} ${unitOf(line.after)} (${t("line.added")})`
         : line.after === null && line.before !== null
-          ? `${qty(line.before)} ${unit} → ${t("line.removed")}`
-          : `${qty(line.before ?? 0)} → ${qty(line.after ?? 0)} ${unit}`;
+          ? `${qty(line.before)} ${unitOf(line.before)} → ${t("line.removed")}`
+          : `${qty(line.before ?? 0)} → ${qty(line.after ?? 0)} ${unitOf(line.after ?? 0)}`;
     return `${productName(line, locale)}: ${change}`;
   };
 
@@ -94,24 +106,47 @@ export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
     }
   };
 
-  return (
-    <section
-      className="flex max-w-3xl flex-col gap-3"
-      aria-labelledby="audit-history"
-      data-testid="audit-timeline"
-    >
-      <div className="flex flex-col gap-1">
-        <h2 id="audit-history" className="text-xl font-semibold">
-          {t("title")}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t("description")}</p>
-      </div>
-      {entries.length === 0 ? (
+  const heading = (
+    <div className="flex min-w-0 flex-col gap-1">
+      <h2 id="audit-history" className="text-xl font-semibold">
+        {t("title")}
+      </h2>
+      <p className="text-sm text-muted-foreground">{t("description")}</p>
+    </div>
+  );
+
+  if (entries.length === 0) {
+    return (
+      <Card
+        className="gap-1 p-5"
+        aria-labelledby="audit-history"
+        data-testid="audit-timeline"
+      >
+        {heading}
         <p className="text-base text-muted-foreground" data-testid="audit-empty">
           {t("empty")}
         </p>
-      ) : (
-        <ol className="flex flex-col gap-4 border-l-2 pl-4">
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="gap-0 p-0" aria-labelledby="audit-history" data-testid="audit-timeline">
+      <details open={entries.length > COLLAPSE_THRESHOLD ? undefined : true} className="group">
+        <summary
+          data-testid="audit-toggle"
+          className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-lg px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
+        >
+          {heading}
+          <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+            {t("entriesCount", { count: entries.length })}
+            <ChevronDownIcon
+              className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden
+            />
+          </span>
+        </summary>
+        <ol className="ms-6 flex flex-col gap-5 border-s-2 border-border pb-5 ps-5">
           {entries.map((entry) => (
             <Entry
               key={entry.id}
@@ -123,8 +158,8 @@ export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
             />
           ))}
         </ol>
-      )}
-    </section>
+      </details>
+    </Card>
   );
 }
 
@@ -142,7 +177,15 @@ function Entry({
   lineText: (l: AuditProductLine) => string;
 }) {
   return (
-    <li className="flex flex-col gap-1" data-testid="audit-entry" data-action={entry.action}>
+    <li
+      className="relative flex flex-col gap-1"
+      data-testid="audit-entry"
+      data-action={entry.action}
+    >
+      <span
+        aria-hidden
+        className="absolute -start-[1.625rem] top-1.5 size-2.5 rounded-full bg-muted-foreground ring-4 ring-card"
+      />
       <div className="flex flex-wrap items-baseline gap-x-3">
         <span className="text-base font-semibold" data-testid="audit-action">
           {t(`actions.${entry.action.replace(".", "_") as ActionKey}`)}
@@ -155,7 +198,7 @@ function Entry({
         </span>
       </div>
       {entry.details.length > 0 ? (
-        <ul className="ml-1 flex flex-col gap-0.5 text-base">
+        <ul className="flex flex-col gap-0.5 text-base">
           {entry.details.map((d, index) =>
             d.kind === "stopGroup" ? (
               <li key={index} data-testid="audit-stop-group">

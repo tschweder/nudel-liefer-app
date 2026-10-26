@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2Icon, CloudAlertIcon, LoaderCircleIcon, WifiOffIcon } from "lucide-react";
+import { CloudAlertIcon, WifiOffIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { createAppFormatters } from "@/lib/format";
@@ -8,9 +8,12 @@ import { useOfflineStatus } from "@/lib/offline/browser";
 import { useOnline } from "@/lib/offline/use-online";
 
 /**
- * Offline state of the driver app (NUD-081): while offline an amber bar "offline - last updated
- * 07:12"; while online a chip "ready offline" once the tour and ALL its photos are stored (a
- * partial state names the missing photos instead of claiming readiness).
+ * Offline state of the driver app (NUD-081) as thin banners above the content: offline an amber
+ * strip "Offline – Daten vom 07:12. Du kannst weiterarbeiten.", online a warning line while only some
+ * of the photos are stored. The vocabulary of the five sync states lives in the top bar's chip
+ * (re-design.md §7.6) — "ready offline" and "being saved for offline" are states of that chip, so
+ * this component only reports the copy state and keeps the test ids the offline/outbox specs assert
+ * (`offline-bar`, `offline-partial`, `offline-error`).
  */
 export function OfflineStatusBar() {
   const t = useTranslations("driver.offline");
@@ -24,7 +27,7 @@ export function OfflineStatusBar() {
     return (
       <p
         role="status"
-        className="flex items-center gap-2 rounded-lg border-2 border-amber-500 bg-amber-50 p-3 text-base font-semibold text-amber-950 dark:bg-amber-950/40 dark:text-amber-50"
+        className="flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-base font-medium text-warning-soft-foreground"
         data-testid="offline-bar"
       >
         <WifiOffIcon className="size-5 shrink-0" aria-hidden />
@@ -36,22 +39,19 @@ export function OfflineStatusBar() {
   }
 
   if (status.phase === "ready" && hasCopy) {
-    return (
-      <p
-        role="status"
-        className="flex items-center gap-2 text-base font-medium text-green-800 dark:text-green-400"
-        data-testid="offline-ready"
-      >
-        <CheckCircle2Icon className="size-5 shrink-0" aria-hidden />
-        {t("ready")}
-      </p>
-    );
+    // The "ready offline" state lives in the SyncStatusChip now (re-design.md §7.6): the chip's
+    // marker in the top bar carries the same text, so no second line is rendered here.
+    return null;
   }
+  // "Tour wird für offline gespeichert …" is no longer a strip of its own either (design review,
+  // point 2): the chip in the top bar carries that state (`preparing`), and the strip only pushed
+  // the hero card — and with it the primary CTA — below the fold at 375 x 667.
+  if (status.syncing) return null;
   if (status.phase === "partial" && hasCopy && !status.syncing) {
     return (
       <p
         role="status"
-        className="flex items-center gap-2 text-base font-medium text-amber-900 dark:text-amber-300"
+        className="flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-base font-medium text-warning-soft-foreground"
         data-testid="offline-partial"
       >
         <CloudAlertIcon className="size-5 shrink-0" aria-hidden />
@@ -59,23 +59,11 @@ export function OfflineStatusBar() {
       </p>
     );
   }
-  if (status.syncing) {
-    return (
-      <p
-        role="status"
-        className="flex items-center gap-2 text-base text-muted-foreground"
-        data-testid="offline-syncing"
-      >
-        <LoaderCircleIcon className="size-5 shrink-0 animate-spin" aria-hidden />
-        {t("syncing")}
-      </p>
-    );
-  }
   if (status.phase === "error") {
     return (
       <p
         role="status"
-        className="flex items-center gap-2 text-base font-medium text-amber-900 dark:text-amber-300"
+        className="flex items-center gap-2 rounded-lg bg-warning-soft px-3 py-2 text-base font-medium text-warning-soft-foreground"
         data-testid="offline-error"
       >
         <CloudAlertIcon className="size-5 shrink-0" aria-hidden />

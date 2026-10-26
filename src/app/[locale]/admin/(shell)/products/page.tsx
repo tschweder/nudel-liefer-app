@@ -2,9 +2,10 @@ import { PlusIcon } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { PageHeader } from "@/components/admin/page-header";
 import { ProductsTable } from "@/components/admin/products-table";
 import { LoadingSkeleton } from "@/components/shared/states";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { listProductsQuery } from "@/server/product-queries";
@@ -16,18 +17,19 @@ async function Guarded({ locale }: { locale: string }) {
   const rows = await listProductsQuery();
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold" data-testid="section-title">
-            {t("title")}
-          </h1>
-          <p className="max-w-prose text-muted-foreground">{t("description")}</p>
-        </div>
-        <Link href="/admin/products/new" className={buttonVariants()} data-testid="new-product">
-          <PlusIcon aria-hidden />
-          {t("new")}
-        </Link>
-      </div>
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        actions={
+          // A link styled as a button: the header action is navigation, so it stays a real `<a>`.
+          <Button asChild data-testid="new-product">
+            <Link href="/admin/products/new">
+              <PlusIcon aria-hidden />
+              {t("new")}
+            </Link>
+          </Button>
+        }
+      />
       <ProductsTable rows={rows} />
     </div>
   );

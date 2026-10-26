@@ -28,6 +28,12 @@ export type CustomerListRow = {
   pinConfirmed: boolean;
   active: boolean;
   photosMissing: boolean;
+  /**
+   * `Customer.notes` (LocalizedText) — selected so the "Hinweise" column can show the `StickyNote`
+   * flag of re-design.md §8.5. Presentation-only addition to the `SELECT`: the filters, the ordering
+   * and the paging are untouched.
+   */
+  notes: unknown;
 };
 
 export type CustomerListResult = {
@@ -81,7 +87,7 @@ export async function listCustomers(
   const [rows, counted] = await Promise.all([
     db.$queryRaw<CustomerListRow[]>`
       SELECT c."id", c."customerNumber", c."name", c."street", c."postalCode", c."city",
-             c."pinConfirmed", c."active", (${MISSING_PHOTO}) AS "photosMissing"
+             c."pinConfirmed", c."active", c."notes", (${MISSING_PHOTO}) AS "photosMissing"
       FROM "Customer" c
       ${where}
       ORDER BY lower(c."name"), c."customerNumber"

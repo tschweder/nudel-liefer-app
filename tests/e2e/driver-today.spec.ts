@@ -182,18 +182,22 @@ for (const locale of LOCALES) {
       "https://www.google.com/maps/dir/?api=1&destination=48.21,16.38&travelmode=driving",
     );
 
-    // Mixed units are not added together: stop 3 has 5 kg and 3 packs.
-    const row3 = page.getByTestId("stop-row").nth(2);
+    // Mixed units are not added together: stop 3 has 5 kg and 3 packs. Select the row by its stop
+    // id: the redesign groups finished stops into a collapsible "done" section, so the DOM order of
+    // `stop-row` no longer equals the sequence number.
+    const row3 = page.locator(`[data-testid="stop-row"][data-stop-id="${stopIds[2]}"]`);
     await expect(row3.getByTestId("summary-total")).toHaveCount(2);
     await expect(row3.getByTestId("summary-total").nth(0)).toHaveAttribute("data-unit", "KG");
     await expect(row3.getByTestId("summary-total").nth(1)).toHaveAttribute("data-unit", "PACK");
 
-    // List: all four stops with a status each.
+    // List: all four stops with a status each. The delivered stop now lives in the collapsible
+    // "done" group at the end, so identify it by id instead of by position (see above).
     await expect(page.getByTestId("stop-row")).toHaveCount(4);
-    await expect(page.getByTestId("stop-row").first().getByTestId("stop-status")).toHaveAttribute(
-      "data-status",
-      "DELIVERED",
-    );
+    await expect(
+      page
+        .locator(`[data-testid="stop-row"][data-stop-id="${stopIds[0]}"]`)
+        .getByTestId("stop-status"),
+    ).toHaveAttribute("data-status", "DELIVERED");
 
     // Driver UI rules: touch targets >= 48 px, body >= 16 px, quantities >= 28 px bold.
     for (const id of ["navigate", "details", "view-list", "view-map"]) {

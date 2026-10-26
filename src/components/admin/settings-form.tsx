@@ -1,20 +1,23 @@
 "use client";
 
-import { AlertTriangleIcon, CheckCircle2Icon } from "lucide-react";
+import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useState, useTransition } from "react";
+import { type FormEvent, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { LatLngInputs } from "@/components/maps/lat-lng-inputs";
 import { PinPickerMapLazy } from "@/components/maps/lazy";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ISO_WEEKDAYS } from "@/domain/settings";
 import type { LatLng } from "@/lib/coords";
 import type { MapTileConfig } from "@/lib/map-config";
+import { cn } from "@/lib/utils";
 import { geocodeAddressAction } from "@/server/geocode-actions";
 import { saveSettingsAction } from "@/server/settings-actions";
 
@@ -30,9 +33,16 @@ export type SettingsFormValues = {
   deliveryWeekdays: number[];
 };
 
-const selectClass =
-  "flex h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background";
-
+/**
+ * Settings (re-design.md §8.8/§8.5): left in-page anchor nav (sticky) + right form sections in
+ * `Card`s (never nested), and a **sticky save bar** at the bottom with Speichern / Verwerfen and an
+ * unsaved-changes indicator. The depot map keeps the §6 pin treatment through `PinPickerMapLazy`
+ * (this component only passes props).
+ *
+ * The Playwright contract stays: `section-title`, `depot-status`, `depot-confirm` (now a `Switch`
+ * with a hidden checkbox input), `settings-save`, `settings-error`, `weekday-<n>`, `pin-lat`,
+ * `pin-lng`, and the labels "Name", "Adresse", "Standard-Abfahrtszeit", "Minuten pro Stopp".
+ */
 export function SettingsForm({
   initial,
   timezones,
@@ -62,10 +72,45 @@ export function SettingsForm({
       new Date(Date.UTC(2026, 0, 4 + day)), // 2026-01-05 is a Monday
     );
 
+  const dirty = useMemo(() => {
+    const samePin = (a: LatLng | null, b: LatLng | null) =>
+      a === b || (a !== null && b !== null && a.lat === b.lat && a.lng === b.lng);
+    const sameDays =
+      weekdays.length === initial.deliveryWeekdays.length &&
+      [...weekdays].sort().every((d, i) => d === [...initial.deliveryWeekdays].sort()[i]);
+    return (
+      name !== initial.depotName ||
+      address !== initial.depotAddress ||
+      !samePin(pin, initial.depotPin) ||
+      confirmed !== initial.depotPinConfirmed ||
+      timezone !== initial.timezone ||
+      departure !== initial.departureTime ||
+      minutes !== String(initial.serviceMinutesPerStop) ||
+      !sameDays
+    );
+  }, [name, address, pin, confirmed, timezone, departure, minutes, weekdays, initial]);
+
+  const sections = [
+    { id: "settings-depot", label: t("depot.heading") },
+    { id: "settings-planning", label: t("planning.heading") },
+  ];
+
   // Moving the pin or changing the address invalidates an earlier confirmation (D9).
   function changePin(next: LatLng) {
     setPin(next);
     setConfirmed(false);
+  }
+
+  function reset() {
+    setName(initial.depotName);
+    setAddress(initial.depotAddress);
+    setPin(initial.depotPin);
+    setConfirmed(initial.depotPinConfirmed);
+    setTimezone(initial.timezone);
+    setDeparture(initial.departureTime);
+    setMinutes(String(initial.serviceMinutesPerStop));
+    setWeekdays(initial.deliveryWeekdays);
+    setError(null);
   }
 
   function toggleDay(day: number, on: boolean) {
@@ -103,180 +148,265 @@ export function SettingsForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-3xl flex-col gap-10" noValidate>
-      <div>
-        <h1 className="text-3xl font-semibold" data-testid="section-title">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6 pb-24" noValidate>
+      <div className="flex flex-col gap-1">
+        <h1 className="hyphens-auto text-2xl font-semibold text-balance" data-testid="section-title">
           {t("title")}
         </h1>
-        <p className="mt-1 text-base text-muted-foreground">{t("description")}</p>
+        <p className="max-w-prose text-base text-muted-foreground">{t("description")}</p>
       </div>
 
-      <section className="flex flex-col gap-4" aria-labelledby="depot-heading">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 id="depot-heading" className="text-xl font-semibold">
-            {t("depot.heading")}
-          </h2>
-          {initial.depotPinConfirmed ? (
-            <Badge variant="success" data-testid="depot-status">
-              <CheckCircle2Icon aria-hidden="true" />
-              {t("depot.status.confirmed")}
-            </Badge>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        {/* Left: in-page anchor nav, sticky under the 56 px top bar on wide screens. */}
+        <nav
+          aria-label={t("sectionsLabel")}
+          className="lg:sticky lg:top-20 lg:w-56 lg:shrink-0"
+        >
+          <ul className="flex flex-wrap gap-1 lg:flex-col">
+            {sections.map((section) => (
+              <li key={section.id}>
+                <a
+                  href={`#${section.id}`}
+                  className="mx-2 block rounded-md px-3 py-2 text-base text-muted-foreground transition-colors duration-150 ease-out hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-reduce:transition-none lg:mx-0"
+                >
+                  {section.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <Card id="settings-depot" className="scroll-mt-20">
+            <CardHeader
+              action={
+                // The test id lives on a wrapper: `StatusBadge` does not forward extra attributes.
+                <span data-testid="depot-status">
+                  {initial.depotPinConfirmed ? (
+                    <StatusBadge tone="success" icon={CheckCircle2Icon}>
+                      {t("depot.status.confirmed")}
+                    </StatusBadge>
+                  ) : (
+                    <StatusBadge tone="warning" icon={TriangleAlertIcon}>
+                      {t("depot.status.unconfirmed")}
+                    </StatusBadge>
+                  )}
+                </span>
+              }
+            >
+              <CardTitle>{t("depot.heading")}</CardTitle>
+              {initial.depotPinConfirmed ? null : (
+                <p className="text-base" data-testid="depot-unconfirmed-notice">
+                  {t("depot.unconfirmedNotice")}
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              <FormField label={t("depot.name")} htmlFor="depot-name" required className="max-w-xl">
+                <Input
+                  id="depot-name"
+                  value={name}
+                  maxLength={120}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </FormField>
+              <FormField
+                label={t("depot.address")}
+                htmlFor="depot-address"
+                required
+                className="max-w-xl"
+              >
+                <Input
+                  id="depot-address"
+                  value={address}
+                  maxLength={300}
+                  placeholder={t("depot.addressPlaceholder")}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setConfirmed(false);
+                  }}
+                  required
+                />
+              </FormField>
+
+              <div className="flex flex-col gap-1">
+                <h3 className="text-lg font-medium">{t("depot.pinHeading")}</h3>
+                <p className="max-w-prose text-sm text-muted-foreground">{t("depot.pinHint")}</p>
+              </div>
+              <PinPickerMapLazy
+                value={pin}
+                onChange={changePin}
+                tiles={tiles}
+                address={address}
+                onLocate={geocodeAddressAction}
+                labels={{
+                  locate: tm("locate"),
+                  locating: tm("locating"),
+                  noAddress: tm("noAddress"),
+                  notFound: tm("notFound"),
+                  failed: tm("failed"),
+                  lowConfidence: tm("lowConfidence"),
+                }}
+              />
+              <LatLngInputs
+                value={pin}
+                onChange={changePin}
+                labels={{
+                  legend: tm("coordinates"),
+                  latitude: tm("latitude"),
+                  longitude: tm("longitude"),
+                  invalid: tm("coordinatesInvalid"),
+                }}
+              />
+
+              {/* Pin confirmation: the explanation stays visible, the control is a Switch. A hidden
+                  checkbox keeps the `depot-confirm` form contract the Playwright spec asserts. */}
+              <div className="flex items-start gap-3">
+                <Switch
+                  checked={confirmed}
+                  disabled={!pin}
+                  aria-labelledby="depot-confirm-label"
+                  onCheckedChange={setConfirmed}
+                />
+                <input
+                  id="depot-confirm"
+                  type="checkbox"
+                  className="sr-only"
+                  checked={confirmed}
+                  disabled={!pin}
+                  onChange={(event) => setConfirmed(event.target.checked)}
+                  data-testid="depot-confirm"
+                  aria-hidden
+                  tabIndex={-1}
+                />
+                <label id="depot-confirm-label" htmlFor="depot-confirm" className="text-base">
+                  {t("depot.confirm")}
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card id="settings-planning" className="scroll-mt-20">
+            <CardHeader>
+              <CardTitle>{t("planning.heading")}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              <FormField label={t("planning.timezone")} htmlFor="timezone" className="max-w-sm">
+                {/* A native select on purpose: the IANA list has ~400 entries, which is unusable in a
+                    popover listbox but fine for the browser's own type-ahead. Styled like the kit. */}
+                <select
+                  id="timezone"
+                  value={timezone}
+                  onChange={(event) => setTimezone(event.target.value)}
+                  data-testid="timezone"
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                >
+                  {timezones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <div className="flex flex-wrap gap-6">
+                <FormField
+                  label={t("planning.departureTime")}
+                  htmlFor="departure"
+                  required
+                  className="w-44"
+                >
+                  <Input
+                    id="departure"
+                    type="time"
+                    value={departure}
+                    onChange={(e) => setDeparture(e.target.value)}
+                    required
+                  />
+                </FormField>
+                <FormField
+                  label={t("planning.serviceMinutes")}
+                  htmlFor="service-minutes"
+                  required
+                  className="w-44"
+                  description={t("planning.serviceMinutesHint")}
+                >
+                  <Input
+                    id="service-minutes"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={180}
+                    step={1}
+                    value={minutes}
+                    onChange={(e) => setMinutes(e.target.value)}
+                    required
+                  />
+                </FormField>
+              </div>
+
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-base font-medium">{t("planning.weekdays")}</legend>
+                <p className="text-sm text-muted-foreground">{t("planning.weekdaysHint")}</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-3" data-testid="weekdays">
+                  {ISO_WEEKDAYS.map((day) => (
+                    <label key={day} className="flex items-center gap-2 text-base">
+                      <input
+                        type="checkbox"
+                        className="size-5 accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+                        checked={weekdays.includes(day)}
+                        onChange={(e) => toggleDay(day, e.target.checked)}
+                        data-testid={`weekday-${day}`}
+                      />
+                      {weekdayName(day)}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Sticky save bar (re-design.md §8.5/§8.8): always reachable, never hidden behind content. */}
+      <div className="sticky bottom-0 z-20 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8">
+        <div className="flex items-center gap-3">
+          {error ? (
+            <p
+              className="text-base font-medium text-destructive"
+              role="alert"
+              data-testid="settings-error"
+            >
+              {error}
+            </p>
           ) : (
-            <Badge variant="warning" data-testid="depot-status">
-              <AlertTriangleIcon aria-hidden="true" />
-              {t("depot.status.unconfirmed")}
-            </Badge>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-2 rounded-full",
+                  dirty ? "bg-warning" : "bg-success",
+                )}
+              />
+              {dirty ? t("unsaved") : t("saved-state")}
+            </p>
           )}
         </div>
-        {initial.depotPinConfirmed ? null : (
-          <p className="text-base" data-testid="depot-unconfirmed-notice">
-            {t("depot.unconfirmedNotice")}
-          </p>
-        )}
-        <div className="flex max-w-xl flex-col gap-2">
-          <Label htmlFor="depot-name">{t("depot.name")}</Label>
-          <Input
-            id="depot-name"
-            value={name}
-            maxLength={120}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div className="flex max-w-xl flex-col gap-2">
-          <Label htmlFor="depot-address">{t("depot.address")}</Label>
-          <Input
-            id="depot-address"
-            value={address}
-            maxLength={300}
-            placeholder={t("depot.addressPlaceholder")}
-            onChange={(e) => {
-              setAddress(e.target.value);
-              setConfirmed(false);
-            }}
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-medium">{t("depot.pinHeading")}</h3>
-          <p className="text-sm text-muted-foreground">{t("depot.pinHint")}</p>
-        </div>
-        <PinPickerMapLazy
-          value={pin}
-          onChange={changePin}
-          tiles={tiles}
-          address={address}
-          onLocate={geocodeAddressAction}
-          labels={{
-            locate: tm("locate"),
-            locating: tm("locating"),
-            noAddress: tm("noAddress"),
-            notFound: tm("notFound"),
-            failed: tm("failed"),
-            lowConfidence: tm("lowConfidence"),
-          }}
-        />
-        <LatLngInputs
-          value={pin}
-          onChange={changePin}
-          labels={{
-            legend: tm("coordinates"),
-            latitude: tm("latitude"),
-            longitude: tm("longitude"),
-            invalid: tm("coordinatesInvalid"),
-          }}
-        />
-        <label className="flex items-start gap-3 text-base">
-          <input
-            type="checkbox"
-            className="mt-1 size-5 accent-primary"
-            checked={confirmed}
-            disabled={!pin}
-            onChange={(e) => setConfirmed(e.target.checked)}
-            data-testid="depot-confirm"
-          />
-          <span>{t("depot.confirm")}</span>
-        </label>
-      </section>
-
-      <section className="flex flex-col gap-4" aria-labelledby="planning-heading">
-        <h2 id="planning-heading" className="text-xl font-semibold">
-          {t("planning.heading")}
-        </h2>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="timezone">{t("planning.timezone")}</Label>
-          <select
-            id="timezone"
-            className={selectClass}
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!dirty || pending}
+            data-testid="settings-reset"
+            onClick={reset}
           >
-            {timezones.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz}
-              </option>
-            ))}
-          </select>
+            {t("discard")}
+          </Button>
+          <Button type="submit" loading={pending} data-testid="settings-save">
+            {t("save")}
+          </Button>
         </div>
-        <div className="flex flex-wrap gap-6">
-          <div className="flex w-44 flex-col gap-2">
-            <Label htmlFor="departure">{t("planning.departureTime")}</Label>
-            <Input
-              id="departure"
-              type="time"
-              value={departure}
-              onChange={(e) => setDeparture(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex w-44 flex-col gap-2">
-            <Label htmlFor="service-minutes">{t("planning.serviceMinutes")}</Label>
-            <Input
-              id="service-minutes"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={180}
-              step={1}
-              value={minutes}
-              onChange={(e) => setMinutes(e.target.value)}
-              aria-describedby="service-minutes-hint"
-              required
-            />
-          </div>
-        </div>
-        <p id="service-minutes-hint" className="-mt-2 text-sm text-muted-foreground">
-          {t("planning.serviceMinutesHint")}
-        </p>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">{t("planning.weekdays")}</legend>
-          <p className="text-sm text-muted-foreground">{t("planning.weekdaysHint")}</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2" data-testid="weekdays">
-            {ISO_WEEKDAYS.map((day) => (
-              <label key={day} className="flex items-center gap-2 text-base">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-primary"
-                  checked={weekdays.includes(day)}
-                  onChange={(e) => toggleDay(day, e.target.checked)}
-                  data-testid={`weekday-${day}`}
-                />
-                {weekdayName(day)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      </section>
-
-      {error ? (
-        <p className="text-base text-destructive" role="alert" data-testid="settings-error">
-          {error}
-        </p>
-      ) : null}
-      <div>
-        <Button type="submit" disabled={pending} data-testid="settings-save">
-          {pending ? t("saving") : t("save")}
-        </Button>
       </div>
     </form>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2Icon, ImageOffIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
+import { CameraIcon, CheckCircle2Icon, ImageOffIcon, RefreshCwIcon, TruckIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -114,9 +114,20 @@ function PhotoSlot({
         <ImagePreview
           src={photo.url}
           alt={`${label}: ${customerName}`}
-          className="aspect-[4/3] w-full bg-muted"
+          className="aspect-square w-full bg-muted"
         />
-      ) : null}
+      ) : (
+        // 1:1 dashed placeholder (the same shape the driver app uses while a photo is missing), so
+        // the two slots always line up and the empty one is recognisable at a glance.
+        <div
+          data-testid="photo-missing-frame"
+          className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-4 text-center"
+        >
+          <CameraIcon className="size-8 text-muted-foreground" aria-hidden />
+          <p className="text-base font-medium">{t("photoMissing")}</p>
+          <p className="text-sm text-muted-foreground text-pretty">{t("photoAddHint")}</p>
+        </div>
+      )}
 
       {photo?.driverName && photo.createdAt ? (
         <p

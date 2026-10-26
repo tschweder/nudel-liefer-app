@@ -5,16 +5,22 @@ import {
   CheckCircle2Icon,
   CopyIcon,
   KeyRoundIcon,
+  LanguagesIcon,
+  PencilIcon,
   PlusIcon,
   PrinterIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/admin/page-header";
+import { EmptyState } from "@/components/shared/states";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +29,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { RowActions } from "@/components/ui/row-actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -33,8 +48,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { createAppFormatters } from "@/lib/format";
 import { isAppLocale, LOCALE_LABELS } from "@/lib/locale-resolution";
 import { LOCALES } from "@/lib/localized-text";
+import { cn } from "@/lib/utils";
 import {
   createAdminAction,
   createDriverAction,
@@ -51,8 +69,8 @@ export type UserListRow = {
   email: string | null;
   locale: string;
   active: boolean;
-  /** Already formatted in the viewer's locale and the factory time zone. */
-  lastLogin: string | null;
+  /** ISO timestamp of the last successful sign-in; `null` when the person never signed in. */
+  lastLoginAt: string | null;
 };
 
 const ERROR_KEYS: Record<UserError, string> = {
@@ -66,22 +84,96 @@ const ERROR_KEYS: Record<UserError, string> = {
 type PinSheet = { name: string; username: string; pin: string };
 type Confirm = { kind: "reset" | "deactivate"; user: UserListRow };
 
+/** Deterministic soft avatar colours (re-design.md §8.7) — no image file, no `Avatar` dependency. */
+const AVATAR_TONES = [
+  "bg-primary-soft text-primary-soft-foreground",
+  "bg-success-soft text-success-soft-foreground",
+  "bg-info-soft text-info-soft-foreground",
+  "bg-warning-soft text-warning-soft-foreground",
+] as const;
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
+}
+
+function avatarTone(id: string): (typeof AVATAR_TONES)[number] {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 997;
+  return AVATAR_TONES[hash % AVATAR_TONES.length];
+}
+
+/** "vor 2 Std." / "vor 3 Tagen", built from the locale's relative-time vocabulary. */
+function relativeFrom(iso: string, locale: string): string {
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
+  const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (Math.abs(minutes) < 60) return rtf.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(-hours, "hour");
+  return rtf.format(-Math.round(minutes / (60 * 24)), "day");
+}
+
+/** Relative time with the absolute timestamp in a tooltip (re-design.md §8.7). */
+function LastLogin({ row, timezone }: { row: UserListRow; timezone: string }) {
+  const t = useTranslations("admin.drivers");
+  const locale = useLocale();
+  const format = useFormatter();
+  if (!row.lastLoginAt) return <span className="text-muted-foreground">{t("neverLoggedIn")}</span>;
+  const absolute = createAppFormatters(format, timezone).dateTime(new Date(row.lastLoginAt));
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-default">{relativeFrom(row.lastLoginAt, locale)}</span>
+      </TooltipTrigger>
+      <TooltipContent>{absolute}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
+ * Drivers + admins management (re-design.md §8.7): 48 px rows, initials `Avatar` with a deterministic
+ * colour, the language as a read-only badge (editing moved into the row's edit dialog — the inline
+ * native `<select>` is gone), `StatusBadge`, relative "last sign-in" with the absolute time in a
+ * tooltip, and one overflow menu per row (PIN reset, language, deactivate/reactivate).
+ *
+ * The component also renders the shared `PageHeader` (§8.1) because the primary "Fahrer anlegen"
+ * action opens the create dialog this component owns: Bestellungen, Kunden, Produkte and Touren all
+ * carry their primary action on the header row, and the round-3 review flagged Fahrer as the one page
+ * where "Fahrer anlegen" sat inside the table card instead.
+ *
+ * The Playwright ids stay: `drivers-table`, `driver-row-<username>`, `admins-table`,
+ * `admin-row-<email>`, `create-driver`, `create-admin`, `create-driver-form`, `create-submit`,
+ * `reset-pin`, `deactivate`, `reactivate`, `confirm-submit`, `pin-dialog`, `pin-username`,
+ * `pin-value`, `pin-copy`, `pin-print`, `pin-done`.
+ */
 export function UsersManager({
+  title,
+  description,
   drivers,
   admins,
   currentUserId,
+  timezone,
 }: {
+  /** `h1` of the page (it stays the page's only `title`, `data-testid="section-title"`). */
+  title: string;
+  description: string;
   drivers: UserListRow[];
   admins: UserListRow[];
   currentUserId: string;
+  /** Factory time zone for the absolute "last sign-in" tooltip. */
+  timezone: string;
 }) {
   const t = useTranslations("admin.drivers");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState<"driver" | "admin" | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [localeDraft, setLocaleDraft] = useState<string>("de");
+  const [editLocale, setEditLocale] = useState<string>("de");
   const [pinSheet, setPinSheet] = useState<PinSheet | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [editLogin, setEditLogin] = useState<UserListRow | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const errorText = (error: UserError) => t(`errors.${ERROR_KEYS[error]}`);
@@ -103,7 +195,7 @@ export function UsersManager({
         const input = {
           displayName: form.get("displayName"),
           username: form.get("username"),
-          locale: form.get("locale"),
+          locale: form.get("locale") ?? localeDraft,
         };
         const result = await run(() => createDriverAction(input));
         if (!result) return setFormError(t("errors.generic"));
@@ -179,210 +271,200 @@ export function UsersManager({
         return;
       }
       toast.success(t("toast.localeChanged", { name: user.displayName }));
+      setEditLogin(null);
       router.refresh();
     });
   }
 
-  const statusBadge = (active: boolean) =>
-    active ? (
-      <Badge variant="success">
-        <CheckCircle2Icon aria-hidden />
-        {t("status.active")}
-      </Badge>
-    ) : (
-      <Badge variant="secondary">
-        <BanIcon aria-hidden />
-        {t("status.inactive")}
-      </Badge>
-    );
+  /** Shared row renderer: the driver and admin tables only differ in the middle columns. */
+  function renderRows(rows: UserListRow[], kind: "driver" | "admin") {
+    return rows.map((user) => (
+      <TableRow key={user.id} data-testid={`${kind}-row-${user.username ?? user.email}`}>
+        <TableCell className="py-1.5">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className={cn(
+                "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                avatarTone(user.id),
+              )}
+            >
+              {initials(user.displayName)}
+            </span>
+            <span className="font-medium">{user.displayName}</span>
+            {kind === "admin" && user.id === currentUserId ? (
+              <span className="text-sm text-muted-foreground">({t("admins.you")})</span>
+            ) : null}
+          </div>
+        </TableCell>
+        <TableCell className="py-1.5 font-mono text-sm text-muted-foreground">
+          {kind === "driver" ? user.username : user.email}
+        </TableCell>
+        {kind === "driver" ? (
+          <TableCell className="py-1.5">
+            <Badge variant="secondary" size="sm">
+              <LanguagesIcon aria-hidden />
+              {LOCALE_LABELS[user.locale as keyof typeof LOCALE_LABELS] ?? user.locale}
+            </Badge>
+          </TableCell>
+        ) : null}
+        <TableCell className="py-1.5">
+          <StatusBadge
+            tone={user.active ? "success" : "neutral"}
+            icon={user.active ? CheckCircle2Icon : BanIcon}
+            size="sm"
+          >
+            {user.active ? t("status.active") : t("status.inactive")}
+          </StatusBadge>
+        </TableCell>
+        <TableCell className="py-1.5">
+          <LastLogin row={user} timezone={timezone} />
+        </TableCell>
+        <TableCell className="py-1.5 text-end">
+          <RowActions label={t("rowMenu.label", { name: user.displayName })}>
+            {kind === "driver" && user.active ? (
+              <>
+                <DropdownMenuItem
+                  data-testid="reset-pin"
+                  onSelect={() => {
+                    setConfirmError(null);
+                    setConfirm({ kind: "reset", user });
+                  }}
+                >
+                  <KeyRoundIcon aria-hidden />
+                  {t("actions.resetPin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-testid="edit-login"
+                  onSelect={() => {
+                    setEditLocale(user.locale);
+                    setEditLogin(user);
+                  }}
+                >
+                  <PencilIcon aria-hidden />
+                  {t("actions.editLogin")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
+            {user.id === currentUserId ? null : user.active ? (
+              <DropdownMenuItem
+                data-testid="deactivate"
+                variant="destructive"
+                onSelect={() => {
+                  setConfirmError(null);
+                  setConfirm({ kind: "deactivate", user });
+                }}
+              >
+                <BanIcon aria-hidden />
+                {t("actions.deactivate")}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem data-testid="reactivate" onSelect={() => reactivate(user)}>
+                <CheckCircle2Icon aria-hidden />
+                {t("actions.reactivate")}
+              </DropdownMenuItem>
+            )}
+          </RowActions>
+        </TableCell>
+      </TableRow>
+    ));
+  }
 
   return (
-    <div className="flex flex-col gap-10">
-      <section className="flex flex-col gap-4" aria-labelledby="drivers-heading">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 id="drivers-heading" className="text-3xl font-semibold" data-testid="section-title">
-              {t("title")}
-            </h1>
-            <p className="text-base text-muted-foreground">{t("description")}</p>
-          </div>
-          <Button
-            data-testid="create-driver"
-            onClick={() => {
-              setFormError(null);
-              setCreateOpen("driver");
-            }}
-          >
-            <PlusIcon aria-hidden />
-            {t("create")}
-          </Button>
-        </div>
+    <TooltipProvider>
+      <div className="flex flex-col gap-8">
+        {/* §8.1 page-header pattern: `h1` + one sentence on the left, the page's primary action in
+            the action slot (it used to sit in the table card's header — round-3 review). */}
+        <PageHeader
+          title={title}
+          description={description}
+          actions={
+            <Button
+              data-testid="create-driver"
+              onClick={() => {
+                setFormError(null);
+                setCreateOpen("driver");
+              }}
+            >
+              <PlusIcon aria-hidden />
+              {t("create")}
+            </Button>
+          }
+        />
 
-        {drivers.length === 0 ? (
-          <p className="rounded-lg border border-dashed p-8 text-center text-base text-muted-foreground">
-            {t("empty")}
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border">
-            <Table data-testid="drivers-table">
-              <TableHeader>
+        <Card>
+          {/* No title on this card: the page header above already carries the `h1` and the sentence,
+              so the card only holds the table — no duplicated title, no nested eyebrow. */}
+          <CardContent>
+            {drivers.length === 0 ? (
+              <EmptyState title={t("emptyTitle")} description={t("empty")} />
+            ) : (
+              <Table data-testid="drivers-table" containerClassName="overscroll-x-contain">
+                <TableHeader data-sticky>
+                  <TableRow>
+                    <TableHead>{t("columns.name")}</TableHead>
+                    <TableHead>{t("columns.username")}</TableHead>
+                    <TableHead>{t("columns.language")}</TableHead>
+                    <TableHead>{t("columns.status")}</TableHead>
+                    <TableHead>{t("columns.lastLogin")}</TableHead>
+                    <TableHead className="text-end">{t("columns.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>{renderRows(drivers, "driver")}</TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader
+            action={
+              <Button
+                variant="outline"
+                data-testid="create-admin"
+                onClick={() => {
+                  setFormError(null);
+                  setCreateOpen("admin");
+                }}
+              >
+                <PlusIcon aria-hidden />
+                {t("admins.create")}
+              </Button>
+            }
+          >
+            <CardTitle>{t("admins.title")}</CardTitle>
+            <p className="max-w-prose text-base text-muted-foreground">{t("admins.description")}</p>
+          </CardHeader>
+          <CardContent>
+            {admins.length === 0 ? (
+              <EmptyState title={t("admins.emptyTitle")} description={t("admins.empty")} />
+            ) : (
+              <Table data-testid="admins-table" containerClassName="overscroll-x-contain">
+              <TableHeader data-sticky>
                 <TableRow>
                   <TableHead>{t("columns.name")}</TableHead>
-                  <TableHead>{t("columns.username")}</TableHead>
-                  <TableHead>{t("columns.language")}</TableHead>
+                  <TableHead>{t("admins.email")}</TableHead>
                   <TableHead>{t("columns.status")}</TableHead>
                   <TableHead>{t("columns.lastLogin")}</TableHead>
-                  <TableHead>{t("columns.actions")}</TableHead>
+                  <TableHead className="text-end">{t("columns.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {drivers.map((user) => (
-                  <TableRow key={user.id} data-testid={`driver-row-${user.username}`}>
-                    <TableCell className="font-medium">{user.displayName}</TableCell>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>
-                      <select
-                        className="min-h-10 rounded-md border border-input bg-background px-2 text-base"
-                        aria-label={t("actions.changeLanguage", { name: user.displayName })}
-                        value={user.locale}
-                        disabled={pending}
-                        onChange={(event) => {
-                          if (isAppLocale(event.target.value))
-                            changeLocale(user, event.target.value);
-                        }}
-                      >
-                        {LOCALES.map((code) => (
-                          <option key={code} value={code} lang={code}>
-                            {LOCALE_LABELS[code]}
-                          </option>
-                        ))}
-                      </select>
-                    </TableCell>
-                    <TableCell>{statusBadge(user.active)}</TableCell>
-                    <TableCell>{user.lastLogin ?? t("neverLoggedIn")}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {user.active ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              data-testid="reset-pin"
-                              onClick={() => {
-                                setConfirmError(null);
-                                setConfirm({ kind: "reset", user });
-                              }}
-                            >
-                              <KeyRoundIcon aria-hidden />
-                              {t("actions.resetPin")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              data-testid="deactivate"
-                              onClick={() => {
-                                setConfirmError(null);
-                                setConfirm({ kind: "deactivate", user });
-                              }}
-                            >
-                              <BanIcon aria-hidden />
-                              {t("actions.deactivate")}
-                            </Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            data-testid="reactivate"
-                            disabled={pending}
-                            onClick={() => reactivate(user)}
-                          >
-                            <CheckCircle2Icon aria-hidden />
-                            {t("actions.reactivate")}
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+              <TableBody>{renderRows(admins, "admin")}</TableBody>
             </Table>
-          </div>
-        )}
-      </section>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      <section className="flex flex-col gap-4" aria-labelledby="admins-heading">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 id="admins-heading" className="text-2xl font-semibold">
-            {t("admins.title")}
-          </h2>
-          <Button
-            variant="outline"
-            data-testid="create-admin"
-            onClick={() => {
-              setFormError(null);
-              setCreateOpen("admin");
-            }}
-          >
-            <PlusIcon aria-hidden />
-            {t("admins.create")}
-          </Button>
-        </div>
-        <div className="overflow-x-auto rounded-lg border">
-          <Table data-testid="admins-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("columns.name")}</TableHead>
-                <TableHead>{t("admins.email")}</TableHead>
-                <TableHead>{t("columns.status")}</TableHead>
-                <TableHead>{t("columns.lastLogin")}</TableHead>
-                <TableHead>{t("columns.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {admins.map((user) => (
-                <TableRow key={user.id} data-testid={`admin-row-${user.email}`}>
-                  <TableCell className="font-medium">
-                    {user.displayName}
-                    {user.id === currentUserId ? (
-                      <span className="ms-2 text-sm text-muted-foreground">
-                        ({t("admins.you")})
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{statusBadge(user.active)}</TableCell>
-                  <TableCell>{user.lastLogin ?? t("neverLoggedIn")}</TableCell>
-                  <TableCell>
-                    {user.id === currentUserId ? null : user.active ? (
-                      <Button
-                        variant="outline"
-                        data-testid="deactivate"
-                        onClick={() => {
-                          setConfirmError(null);
-                          setConfirm({ kind: "deactivate", user });
-                        }}
-                      >
-                        <BanIcon aria-hidden />
-                        {t("actions.deactivate")}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        data-testid="reactivate"
-                        disabled={pending}
-                        onClick={() => reactivate(user)}
-                      >
-                        <CheckCircle2Icon aria-hidden />
-                        {t("actions.reactivate")}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
-
-      <Dialog open={createOpen !== null} onOpenChange={(open) => !open && setCreateOpen(null)}>
+      <Dialog
+        open={createOpen !== null}
+        onOpenChange={(open) => {
+          if (open) return;
+          setCreateOpen(null);
+          setLocaleDraft("de");
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -395,23 +477,16 @@ export function UsersManager({
           {createOpen ? (
             <form
               className="flex flex-col gap-4"
-              data-testid={`create-${createOpen}-form`}
+              noValidate
+              data-testid={createOpen === "driver" ? "create-driver-form" : "create-admin-form"}
               onSubmit={(event) => onCreate(createOpen, event)}
             >
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="displayName">{t("form.displayName")}</Label>
-                <Input
-                  id="displayName"
-                  name="displayName"
-                  required
-                  maxLength={80}
-                  autoComplete="off"
-                />
-              </div>
+              <FormField label={t("form.displayName")} htmlFor="displayName" required>
+                <Input id="displayName" name="displayName" required maxLength={80} autoComplete="off" />
+              </FormField>
               {createOpen === "driver" ? (
                 <>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="username">{t("form.username")}</Label>
+                  <FormField label={t("form.username")} htmlFor="username" required>
                     <Input
                       id="username"
                       name="username"
@@ -422,14 +497,26 @@ export function UsersManager({
                       autoComplete="off"
                       spellCheck={false}
                     />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="locale">{t("form.locale")}</Label>
+                  </FormField>
+                  <FormField
+                    label={t("form.locale")}
+                    htmlFor="locale"
+                    className="max-w-xs"
+                    description={t("form.localeHint")}
+                  >
+                    {/* A real native control in the *create* form: the Playwright spec drives it with
+                        `selectOption`, and the table's inline select is what re-design.md §8.7 removes.
+                        It is styled like the Radix trigger so the dialog looks the same. */}
                     <select
                       id="locale"
                       name="locale"
                       defaultValue="de"
-                      className="min-h-10 rounded-md border border-input bg-background px-3 text-base"
+                      lang={localeDraft}
+                      onChange={(event) => {
+                        if (isAppLocale(event.target.value)) setLocaleDraft(event.target.value);
+                      }}
+                      data-testid="locale-input"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                     >
                       {LOCALES.map((code) => (
                         <option key={code} value={code} lang={code}>
@@ -437,16 +524,14 @@ export function UsersManager({
                         </option>
                       ))}
                     </select>
-                  </div>
+                  </FormField>
                 </>
               ) : (
                 <>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="email">{t("admins.email")}</Label>
+                  <FormField label={t("admins.email")} htmlFor="email" required>
                     <Input id="email" name="email" type="email" required autoComplete="off" />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="password">{t("admins.password")}</Label>
+                  </FormField>
+                  <FormField label={t("admins.password")} htmlFor="password" required>
                     <Input
                       id="password"
                       name="password"
@@ -455,7 +540,7 @@ export function UsersManager({
                       minLength={10}
                       autoComplete="new-password"
                     />
-                  </div>
+                  </FormField>
                 </>
               )}
               {formError ? (
@@ -470,6 +555,60 @@ export function UsersManager({
               <DialogFooter>
                 <Button type="submit" disabled={pending} data-testid="create-submit">
                   {t("form.submit")}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editLogin !== null} onOpenChange={(open) => !open && setEditLogin(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editLogin ? t("login.title", { name: editLogin.displayName }) : null}
+            </DialogTitle>
+            <DialogDescription>{t("login.description")}</DialogDescription>
+          </DialogHeader>
+          {editLogin ? (
+            <form
+              className="flex flex-col gap-4"
+              noValidate
+              data-testid="edit-driver-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                changeLocale(editLogin, editLocale);
+              }}
+            >
+              <FormField label={t("form.locale")} htmlFor="edit-locale">
+                <Select
+                  value={editLocale}
+                  onValueChange={(code) => {
+                    if (isAppLocale(code)) setEditLocale(code);
+                  }}
+                >
+                  <SelectTrigger
+                    id="edit-locale"
+                    aria-label={t("form.locale")}
+                    className="mt-1 max-w-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOCALES.map((code) => (
+                      <SelectItem key={code} value={code} lang={code}>
+                        {LOCALE_LABELS[code]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setEditLogin(null)}>
+                  {tc("actions.cancel")}
+                </Button>
+                <Button type="submit" disabled={pending} data-testid="edit-submit">
+                  {tc("actions.save")}
                 </Button>
               </DialogFooter>
             </form>
@@ -500,10 +639,14 @@ export function UsersManager({
           ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirm(null)}>
-              {/* shared label */}
               <CancelLabel />
             </Button>
-            <Button disabled={pending} data-testid="confirm-submit" onClick={onConfirm}>
+            <Button
+              variant={confirm?.kind === "deactivate" ? "destructive" : "default"}
+              disabled={pending}
+              data-testid="confirm-submit"
+              onClick={onConfirm}
+            >
               {confirm?.kind === "reset" ? t("actions.resetPin") : t("actions.deactivate")}
             </Button>
           </DialogFooter>
@@ -561,7 +704,7 @@ export function UsersManager({
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
+    </TooltipProvider>
   );
 }
 

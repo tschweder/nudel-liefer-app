@@ -58,6 +58,12 @@ const eslintConfig = defineConfig([
     "public/sw.js",
     "public/offline.js",
     ".lighthouseci/**",
+    // Scratch / generated artefacts that are not application code: the QA run's own copy of the app
+    // and its runner scripts, the web-tester's browser driver, and this session's redesign harness.
+    "docs/qa-2026-10-26/**",
+    "web-test/**",
+    ".redesign/**",
+    ".qa-shots/**",
   ]),
 ]);
 

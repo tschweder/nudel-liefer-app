@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { CustomerFilters } from "@/components/admin/customer-filters";
 import { CustomersTable } from "@/components/admin/customers-table";
+import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { buttonVariants } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
@@ -21,6 +22,7 @@ async function Guarded({
   // Defence in depth behind the proxy and the admin layout; the query re-checks the role too.
   await requirePageActor("admin", locale);
   const t = await getTranslations({ locale, namespace: "admin.customers" });
+  const tc = await getTranslations({ locale, namespace: "common" });
   const input = parseCustomerListParams(await searchParams);
   const result = await listCustomersQuery(input);
   const filters = {
@@ -31,29 +33,40 @@ async function Guarded({
   };
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold" data-testid="section-title">
-            {t("title")}
-          </h1>
-          <p className="max-w-prose text-muted-foreground">{t("description")}</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/customers/import"
-            className={buttonVariants({ variant: "outline" })}
-            data-testid="import-customers"
-          >
-            <UploadIcon aria-hidden />
-            {t("import.link")}
-          </Link>
-          <Link href="/admin/customers/new" className={buttonVariants()} data-testid="new-customer">
-            <PlusIcon aria-hidden />
-            {t("new")}
-          </Link>
-        </div>
-      </div>
-      <CustomerFilters values={filters} />
+      <PageHeader
+        title={t("title")}
+        description={
+          <>
+            <span className="text-foreground tabular-nums" data-testid="customer-count" aria-live="polite">
+              {tc("itemsCount", { count: result.total })}
+            </span>
+            {" · "}
+            {t("description")}
+          </>
+        }
+        actions={
+          <>
+            <Link
+              href="/admin/customers/import"
+              className={buttonVariants({ variant: "outline" })}
+              data-testid="import-customers"
+            >
+              <UploadIcon aria-hidden />
+              {t("import.link")}
+            </Link>
+            <Link
+              href="/admin/customers/new"
+              className={buttonVariants()}
+              data-testid="new-customer"
+            >
+              <PlusIcon aria-hidden />
+              {t("new")}
+            </Link>
+          </>
+        }
+      >
+        <CustomerFilters values={filters} />
+      </PageHeader>
       <CustomersTable result={result} filters={filters} />
     </div>
   );
@@ -66,7 +79,7 @@ export default async function Page({
   const { locale } = await params;
   setRequestLocale(locale);
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
+    <Suspense fallback={<LoadingSkeleton variant="table" rows={8} />}>
       <Guarded locale={locale} searchParams={searchParams} />
     </Suspense>
   );

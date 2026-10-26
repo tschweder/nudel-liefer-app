@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "src/sw/sw.ts"]
+  "exclude": [
+    "node_modules",
+    "src/sw/sw.ts",
+    "docs/qa-2026-10-26/production-copy",
+    ".redesign"
+  ]
 }

@@ -121,7 +121,10 @@
       "email": "电子邮箱",
       "password": "密码",
       "submit": "登录",
-      "driverLink": "司机登录"
+      "driverLink": "司机登录",
+      "brandSentence": "Nudel Liefer 应用办公室登录",
+      "showPassword": "显示",
+      "hidePassword": "隐藏"
     },
     "driverLogin": {
       "title": "司机登录",
@@ -133,7 +136,12 @@
     "errors": {
       "invalid": "登录失败，请检查输入。",
       "rateLimited": "失败次数过多，请15分钟后再试。",
-      "generic": "暂时无法登录，请稍后再试。"
+      "generic": "暂时无法登录，请稍后再试。",
+      "pinLength": "PIN 必须为 6 位数字",
+      "usernameRequired": "请输入用户名",
+      "credentials": "用户名或 PIN 错误",
+      "emailRequired": "请输入电子邮箱",
+      "passwordRequired": "请输入密码"
     },
     "signedInAs": "当前用户：{name}",
     "logout": "退出登录"
@@ -158,14 +166,48 @@
         "driver": "司机：{name}",
         "openTour": "查看行程",
         "openPlanning": "规划行程",
-        "lateOrders": "{count, plural, other {今天有 # 个订单}}是在配送线路完成之后才收到的，不在任何配送线路中。请创建补充线路。"
+        "lateOrders": "{count, plural, other {今天有 # 个订单}}是在配送线路完成之后才收到的，不在任何配送线路中。请创建补充线路。",
+        "countsBreakdown": "已送达 {delivered} · {problems, plural, =0 {无问题} other {# 个问题}} · 待处理 {open}"
+      },
+      "description": "今日路线的进度、待处理事项和最近的变更。",
+      "tiles": {
+        "title": "关键指标",
+        "delivered": "今日已送达",
+        "problems": "问题",
+        "problemsSub": "今日上报",
+        "tour": "今日路线",
+        "noTour": "未创建",
+        "tourSub": "今天尚未安排路线。",
+        "done": "今日已完成"
+      },
+      "attention": {
+        "title": "待处理",
+        "emptyTitle": "没有待处理事项",
+        "emptyDescription": "没有上报的问题，也没有未排入路线的订单。",
+        "reasonUnknown": "已上报问题",
+        "lateOrders": "{count, plural, other {# 个订单未排入路线}}",
+        "lateOrdersHint": "在路线完成后收到。",
+        "missingPhotos": "{count, plural, other {# 位客户缺少照片}}",
+        "missingPhotosHint": "请补全客户资料。",
+        "pinUnconfirmed": "{count, plural, other {# 位客户的地图点位未确认}}",
+        "pinUnconfirmedHint": "请确认地图点位。",
+        "unconfirmedOrders": "{count, plural, other {下个配送日有 # 个草稿订单}}",
+        "unconfirmedOrdersHint": "{date} · 尚未确认",
+        "emptyDescriptionAll": "没有已报告的问题，没有未排入路线的订单，客户资料也都完整。"
+      },
+      "activity": {
+        "title": "最近活动",
+        "empty": "今天还没有记录。"
       }
     },
     "shell": {
       "mainNavigation": "主导航",
       "openMenu": "打开菜单",
       "userMenu": "用户菜单",
-      "skipToContent": "跳到正文"
+      "skipToContent": "跳到正文",
+      "breadcrumb": "面包屑导航",
+      "collapseSidebar": "收起侧边栏",
+      "expandSidebar": "展开侧边栏"
     },
     "nav": {
       "dashboard": "总览",
@@ -174,7 +216,12 @@
       "customers": "客户",
       "products": "产品",
       "drivers": "司机",
-      "settings": "设置"
+      "settings": "设置",
+      "groups": {
+        "operations": "运营",
+        "masterData": "基础数据",
+        "system": "系统"
+      }
     },
     "drivers": {
       "title": "司机",
@@ -200,7 +247,8 @@
         "username": "用户名",
         "usernameHint": "3至32个字符：小写字母、数字、点、连字符、下划线。",
         "locale": "语言",
-        "submit": "创建"
+        "submit": "创建",
+        "localeHint": "司机将以该语言使用应用。"
       },
       "pin": {
         "title": "{name}的PIN码",
@@ -216,7 +264,8 @@
         "resetPin": "重置PIN码",
         "deactivate": "停用",
         "reactivate": "重新启用",
-        "changeLanguage": "更改{name}的语言"
+        "changeLanguage": "更改{name}的语言",
+        "editLogin": "修改语言"
       },
       "confirm": {
         "resetTitle": "重置{name}的PIN码？",
@@ -244,7 +293,18 @@
         "email": "电子邮箱",
         "password": "密码",
         "passwordHint": "至少10个字符。",
-        "you": "您"
+        "you": "您",
+        "description": "使用邮箱和密码登录的办公室账号。",
+        "emptyTitle": "还没有管理员",
+        "empty": "尚未创建任何管理员。"
+      },
+      "emptyTitle": "还没有司机",
+      "login": {
+        "title": "{name} 的语言",
+        "description": "司机将以该语言使用应用。更改立即生效。"
+      },
+      "rowMenu": {
+        "label": "{name} 的操作"
       }
     },
     "customers": {
@@ -268,12 +328,15 @@
         "number": "编号",
         "name": "名称",
         "city": "城市",
-        "flags": "提示"
+        "flags": "提示",
+        "customer": "客户",
+        "actions": "操作"
       },
       "flags": {
         "photosMissing": "缺少照片",
         "pinUnconfirmed": "位置未确认",
-        "archived": "已归档"
+        "archived": "已归档",
+        "notes": "有备注"
       },
       "emptyTitle": "还没有客户",
       "empty": "还没有创建任何客户。",
@@ -286,7 +349,7 @@
       },
       "form": {
         "dataHeading": "基本资料",
-        "addressHeading": "送货地址",
+        "addressHeading": "送货地址和地图标记",
         "pinHeading": "地图标记（位置）",
         "extraHeading": "送货时间与备注",
         "number": "客户编号",
@@ -319,7 +382,16 @@
         "backToDetail": "返回客户",
         "errors": {
           "invalid": "请检查填写内容：名称、编号、街道、邮编和城市为必填，国家为两个字母。"
-        }
+        },
+        "pinSearchLabel": "用于地图搜索的地址",
+        "pinSearchPlaceholder": "街道、邮编或城市",
+        "pinChecked": "标记已核对",
+        "saveBarLabel": "表单操作",
+        "discard": "放弃更改",
+        "unsaved": "有未保存的更改",
+        "photosHeading": "照片",
+        "photosHint": "门店入口和停车位，与客户档案中的照片相同。",
+        "createDescription": "填写基本信息、送货地址和地图标记。"
       },
       "detail": {
         "number": "客户编号 {number}",
@@ -352,7 +424,8 @@
           "key_in_use": "该图片已被使用，请重新上传。"
         },
         "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。",
-        "photoByDriver": "由司机 {name} 于 {date} 更新"
+        "photoByDriver": "由司机 {name} 于 {date} 更新",
+        "photoAddHint": "拍照或上传照片。"
       },
       "translations": {
         "tabDetails": "详情",
@@ -552,6 +625,13 @@
         "reviewSkipped": "再看一遍跳过的",
         "toList": "前往客户列表",
         "progressLabel": "地图标记检查进度"
+      },
+      "rowMenu": {
+        "label": "{name} 的操作"
+      },
+      "actions": {
+        "deactivate": "停用",
+        "reactivate": "恢复"
       }
     },
     "products": {
@@ -569,7 +649,8 @@
         "nameHans": "名称（简体）",
         "unit": "单位",
         "status": "状态",
-        "actions": "操作"
+        "actions": "操作",
+        "name": "名称（德语 / 简体）"
       },
       "status": {
         "active": "启用",
@@ -602,6 +683,14 @@
         "generic": "保存失败，请重试。",
         "savedNew": "产品已创建。",
         "savedEdit": "产品已保存。"
+      },
+      "toggleStatus": "切换 {name} 的状态",
+      "rowMenu": {
+        "label": "{name} 的操作"
+      },
+      "confirm": {
+        "deactivateTitle": "停用 {name}？",
+        "deactivateBody": "产品会被保留，但不再出现在新订单的产品选择中。已有订单保持不变。"
       }
     },
     "maps": {
@@ -625,7 +714,12 @@
       "noPin": "尚未设置标记。",
       "changes": "更改次数：{count}",
       "tourMap": "路线地图",
-      "sampleNote": "示例数据，并非真实配送。"
+      "sampleNote": "示例数据，并非真实配送。",
+      "showOverlap": "显示重叠站点",
+      "hideOverlap": "隐藏重叠站点",
+      "clusterTitle": "此处有 {count} 个站点",
+      "clusterClose": "关闭",
+      "linkageTitle": "选择站点"
     },
     "settings": {
       "title": "设置",
@@ -663,7 +757,11 @@
         "invalid": "请检查输入内容（名称、地址、时间）。",
         "generic": "保存失败，请重试。",
         "depotNotSet": "无法生成配送路线：尚未设置仓库位置。请在设置中设置并确认仓库标记点。"
-      }
+      },
+      "sectionsLabel": "设置分区",
+      "unsaved": "有未保存的更改",
+      "saved-state": "所有更改已保存",
+      "discard": "放弃更改"
     },
     "orders": {
       "title": "订单",
@@ -672,7 +770,15 @@
       "newTitle": "录入新订单",
       "backToList": "返回订单列表",
       "emptyTitle": "没有找到订单",
-      "empty": "当前筛选条件下没有订单。",
+      "empty": {
+        "rangeTitle": "{date} 没有订单",
+        "rangeTitleSpan": "{from} 至 {to} 之间没有订单",
+        "lastKnown": "最近的订单：{date}（{count, plural, one {# 个订单} other {# 个订单}}）",
+        "goto": "查看 {date}",
+        "hint": "所选时间范围内没有订单。请扩大时间范围，或新建一个订单。",
+        "hintWeek": "所选时间范围内没有订单。周视图显示 {from} 至 {to} 的订单。",
+        "widen": "查看本周"
+      },
       "columns": {
         "date": "送货日期",
         "customer": "客户",
@@ -680,7 +786,8 @@
         "status": "状态",
         "source": "来源",
         "lines": "明细行数",
-        "tour": "路线"
+        "tour": "路线",
+        "actions": "操作"
       },
       "source": {
         "MANUAL": "手动录入",
@@ -790,7 +897,17 @@
         "statusAll": "所有状态",
         "source": "来源",
         "sourceAll": "所有来源",
-        "reset": "重置（下一个送货日）"
+        "reset": "重置",
+        "rangeLabel": "时间范围",
+        "statusLabel": "按状态筛选",
+        "sourceLabel": "按来源筛选",
+        "all": "全部",
+        "quick": {
+          "next": "下一个送货日",
+          "today": "今天",
+          "week": "本周",
+          "custom": "自定义"
+        }
       },
       "truncated": "仅显示前 {count} 个订单，请缩小日期范围或筛选条件。",
       "totals": {
@@ -799,19 +916,50 @@
         "dateHeading": "{date} · {count} 个已确认订单",
         "product": "产品",
         "quantity": "数量",
-        "empty": "所选时间段内没有已确认订单。"
+        "empty": "所选时间段内没有已确认订单。",
+        "toggle": "展开或收起汇总"
       },
       "late": {
         "badge": "补单 – 线路已完成",
         "title": "配送线路完成后的订单",
         "body": "这些日期的配送线路已经完成，以下已确认订单不在任何配送线路中。可以在线路规划页面创建补充线路。",
         "count": "{count, plural, other {# 个订单}}"
+      },
+      "group": {
+        "label": "送货日 {date}"
+      },
+      "header": {
+        "range": "送货日 {date} · {count, plural, one {# 个订单} other {# 个订单}}",
+        "rangeSpan": "{from} – {to} · {count, plural, one {# 个订单} other {# 个订单}}"
+      },
+      "positions": {
+        "summary": "{count, plural, one {# 行明细} other {# 行明细}}",
+        "showAll": "显示全部 {count} 行明细"
+      },
+      "openOrder": "打开订单",
+      "openCustomer": "打开客户",
+      "rowMenu": {
+        "label": "{customer} 的订单操作",
+        "details": "查看详情",
+        "open": "打开订单",
+        "edit": "编辑",
+        "customer": "打开客户"
+      },
+      "drawer": {
+        "title": "订单",
+        "description": "{customer} · {date}",
+        "positions": "订单明细",
+        "hint": "内部备注和截图请在详情页查看。",
+        "open": "打开订单",
+        "edit": "编辑"
       }
     },
     "tours": {
       "title": "配送线路",
       "description": "为某个配送日创建、检查、调整顺序并向司机发布配送线路。",
       "date": "配送日期",
+      "datePrev": "前一天",
+      "dateNext": "后一天",
       "generate": "生成配送线路",
       "generating": "正在生成配送线路…",
       "reoptimize": "重新优化",
@@ -838,6 +986,13 @@
       "warningLink": "打开客户",
       "stopsHeading": "站点",
       "mapLabel": "配送线路地图",
+      "stepper": {
+        "label": "配送状态",
+        "draft": "草稿",
+        "assigned": "已分配",
+        "released": "已发布",
+        "completed": "已完成"
+      },
       "depotLabel": "仓库",
       "summary": {
         "stops": "{count} 个站点",
@@ -935,7 +1090,8 @@
         "machineTranslated": "机器翻译",
         "translationPending": "翻译中",
         "showOriginal": "显示原文",
-        "hideOriginal": "隐藏原文"
+        "hideOriginal": "隐藏原文",
+        "shortLabel": "进度"
       },
       "print": {
         "open": "打印装车单",
@@ -986,6 +1142,7 @@
       "title": "变更记录",
       "description": "谁在什么时候做了什么修改。记录无法修改或删除。",
       "empty": "暂无记录。",
+      "entriesCount": "{count, plural, other {# 条记录}}",
       "by": "{name}",
       "roles": {
         "ADMIN": "办公室",
@@ -1061,12 +1218,22 @@
   "driver": {
     "home": {
       "title": "今天",
-      "welcome": "你好，{name}。"
+      "welcome": "你好，{name}。",
+      "todayCount": "{open} 个待送 · {problems, plural, =0 {无问题} other {# 个问题}}",
+      "endTime": "约 {time} 结束",
+      "nextStop": "下一站",
+      "nextStopEta": "约 {time} 到达",
+      "quantityChip": "{quantity} × {name}"
     },
     "shell": {
       "connectionOnline": "在线",
       "connectionOffline": "离线",
-      "changeLanguage": "更改语言"
+      "changeLanguage": "更改语言",
+      "openOutbox": "打开同步与提示",
+      "language": "更改语言",
+      "menu": "更多选项",
+      "logout": "退出登录",
+      "currentLanguage": "当前语言"
     },
     "today": {
       "pageTitle": "今日行程",
@@ -1101,7 +1268,21 @@
       "updatedDescription": "办公室更改了线路。请查看标记的站点。显示的始终是最新数量。",
       "removedStops": "已移除的站点",
       "updatedConfirm": "我知道了",
-      "finishedSummary": "{delivered} 站已送达 · {problems, plural, =0 {无问题} other {# 站有问题}}"
+      "finishedSummary": "{delivered} 站已送达 · {problems, plural, =0 {无问题} other {# 站有问题}}",
+      "openGroup": "待送 ({count})",
+      "doneGroup": "已完成 ({count})",
+      "expandDone": "显示已完成的站点",
+      "collapseDone": "隐藏已完成的站点",
+      "problemReason": "问题：{reason}",
+      "noteLabel": "提示",
+      "waiting": "等待中",
+      "backToDepot": "返回仓库",
+      "finishedElapsed": "用时约 {duration}",
+      "mapSheet": "待送站点（{count}）",
+      "mapSheetHide": "关闭站点列表",
+      "progressDone": "已完成",
+      "mapSheetCount": "{count} 个待送站点",
+      "focusOnMap": "在地图上显示"
     },
     "units": {
       "KG": "公斤",
@@ -1114,8 +1295,8 @@
       "position": "第 {position} 站，共 {total} 站",
       "copyAddress": "复制地址",
       "copied": "地址已复制",
-      "photoStore": "店铺 / 入口",
-      "photoParking": "停车 / 卸货",
+      "photoStore": "入口",
+      "photoParking": "停车",
       "noPhoto": "暂无照片",
       "items": "送货内容",
       "notes": "备注",
@@ -1133,7 +1314,31 @@
       "cancelPhoto": "取消",
       "photoPending": "等待发送",
       "photoSent": "已发送",
-      "photoNotSaved": "照片无法保存在本设备上，请重试。"
+      "photoNotSaved": "照片无法保存在本设备上，请重试。",
+      "backToTour": "返回线路",
+      "photos": "照片",
+      "summaryTotal": "合计",
+      "statusDeliveredAt": "{time} 已送达",
+      "statusProblem": "有问题：{reason}",
+      "navigateStarting": "正在打开导航 …",
+      "deliveredStrip": "{time} 已送达",
+      "problemStrip": "问题已上报",
+      "editAction": "编辑",
+      "nextStop": "前往第 {number} 站",
+      "backToTourAction": "返回线路",
+      "viewerTitle": "查看照片",
+      "viewerPrev": "上一张照片",
+      "viewerNext": "下一张照片",
+      "viewerClose": "关闭",
+      "summaryTotalMixed": "各单位合计",
+      "weekdayMo": "周一",
+      "weekdayTu": "周二",
+      "weekdayWe": "周三",
+      "weekdayTh": "周四",
+      "weekdayFr": "周五",
+      "weekdaySa": "周六",
+      "weekdaySu": "周日",
+      "clockSuffix": "时"
     },
     "status": {
       "delivered": "已送达",
@@ -1216,7 +1421,36 @@
         "not_found": "{name}：此站点已从路线中移除，照片未被采用。",
         "tour_not_active": "{name}：此路线已不再有效，照片未被采用。",
         "generic": "{name}：照片未被采用。"
-      }
+      },
+      "outboxTitle": "等待同步",
+      "outboxEmpty": "全部已同步，没有待发内容。",
+      "outboxExplanation": "这些操作还保存在设备上。恢复网络后会自动发送，不会丢失。",
+      "outboxOnlineExplanation": "这些操作正在发送中，你可以继续工作。",
+      "outboxRetry": "立即发送",
+      "outboxWaiting": "等待中",
+      "mutationDelivered": "已送达",
+      "mutationProblem": "已上报问题",
+      "mutationUndo": "已撤销",
+      "mutationPhoto": "照片",
+      "stopLine": "第 {number} 站",
+      "noticesTitle": "提示",
+      "cachedBadge": "离线可用 ✓",
+      "online": "在线",
+      "preparing": "正在准备…",
+      "offline": "离线",
+      "pendingChip": "待同步 {count} 条",
+      "error": "同步出错",
+      "outboxNothingPending": "没有需要发送的内容，全部已同步。",
+      "outboxSending": "{count} 条内容正在发送…",
+      "preparingShort": "保存中",
+      "errorShort": "错误",
+      "pendingShort": "{count}"
+    },
+    "unitsShort": {
+      "KG": "公斤",
+      "PACK": "包",
+      "CRATE": "箱",
+      "PIECE": "件"
     }
   },
   "pwa": {
@@ -1255,6 +1489,15 @@
   "maps": {
     "tilesOffline": "离线时无法显示地图背景",
     "tilesFailed": "地图背景暂时无法加载",
-    "tilesHint": "站点、仓库和线路仍会显示。"
+    "tilesHint": "站点、仓库和线路仍会显示。",
+    "stopMarker": "站点 {n}：{name}",
+    "stopMarkerPlain": "站点 {n}",
+    "depotMarker": "仓库：{name}",
+    "depotMarkerPlain": "仓库",
+    "pinMarker": "送货地址标记：{place}",
+    "pinMoved": "位置：{lat}, {lng}",
+    "cluster": "{count} 个站点：{names}",
+    "clusterMore": "再次点击可放大",
+    "fitAll": "显示所有站点"
   }
 }

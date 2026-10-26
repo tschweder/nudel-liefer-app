@@ -274,6 +274,10 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
     await expect(tid(page, "tour-status")).toHaveText("Freigegeben");
 
     // NUD-092: the history lists generate, lock, driver assignment and release (newest first).
+    // The redesign collapses the Verlauf above 5 entries (re-design.md §8.4); this spec generates
+    // more, so open it before asserting visibility. Attributes/order are read either way.
+    const auditToggle = tid(page, "audit-toggle");
+    if ((await auditToggle.count()) > 0) await auditToggle.first().click();
     const actionsShown = await tid(page, "audit-entry").evaluateAll((els) =>
       els.map((el) => el.getAttribute("data-action")),
     );

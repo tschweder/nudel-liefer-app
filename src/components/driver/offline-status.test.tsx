@@ -44,8 +44,10 @@ afterEach(cleanup);
 describe("OfflineStatusBar", () => {
   for (const locale of Object.keys(MESSAGES) as Array<keyof typeof MESSAGES>) {
     it(`shows ready / partial / offline in ${locale}`, () => {
+      // "ready offline" moved into the SyncStatusChip marker (re-design.md §7.6): no extra line.
       show(locale, { phase: "ready" }, true);
-      expect(screen.getByTestId("offline-ready")).toBeTruthy();
+      expect(screen.queryByTestId("offline-ready")).toBeNull();
+      expect(screen.queryByTestId("offline-bar")).toBeNull();
       cleanup();
       show(locale, { phase: "partial", photos: { total: 3, cached: 1 } }, true);
       expect(screen.getByTestId("offline-partial").textContent).toMatch(/1/);
