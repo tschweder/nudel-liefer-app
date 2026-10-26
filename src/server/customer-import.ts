@@ -5,6 +5,7 @@ import {
   type ExistingCustomer,
   IMPORT_FIELDS,
   numberKey,
+  PATCH_FIELDS,
   planImport,
   type PlanSummary,
   type RowIssue,
@@ -14,7 +15,7 @@ import {
 import { IMPORT_LIMITS } from "@/domain/import-file";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
-import { customerInputSchema, notesText } from "./customer-admin";
+import { customerInputSchema, notesText, officeFields } from "./customer-admin";
 import { notesJson, prepareNotesWithoutTranslation } from "./customer-notes";
 
 type ImportDb = Pick<PrismaClient, "customer">;
@@ -49,6 +50,11 @@ async function loadStored(db: ImportDb): Promise<Map<string, StoredRow>> {
       country: true,
       deliveryHoursInfo: true,
       notes: true,
+      companyName: true,
+      vatId: true,
+      billingStreet: true,
+      billingPostalCode: true,
+      billingCity: true,
       active: true,
       updatedAt: true,
     },
@@ -66,6 +72,11 @@ async function loadStored(db: ImportDb): Promise<Map<string, StoredRow>> {
         country: r.country,
         deliveryHoursInfo: r.deliveryHoursInfo,
         notes: notesText(r.notes),
+        companyName: r.companyName,
+        vatId: r.vatId,
+        billingStreet: r.billingStreet,
+        billingPostalCode: r.billingPostalCode,
+        billingCity: r.billingCity,
         active: r.active,
         updatedAt: r.updatedAt,
         notesRaw: r.notes,
@@ -196,6 +207,7 @@ export async function commitImport(
             city: input.data.city,
             country: input.data.country,
             deliveryHoursInfo: input.data.deliveryHoursInfo,
+            ...officeFields(input.data),
             notes: notesJson(prepareNotesWithoutTranslation(null, input.data.notes, now)),
             pinConfirmed: false,
           },
@@ -209,10 +221,9 @@ export async function commitImport(
       const before = byId.get(p.existingId!)!;
       const patch = p.patch as CustomerPatch;
       const data: Prisma.CustomerUpdateManyMutationInput = {};
-      for (const key of ["name", "street", "postalCode", "city", "country"] as const) {
-        if (patch[key] !== undefined) data[key] = patch[key];
+      for (const key of PATCH_FIELDS) {
+        if (key !== "notes" && patch[key] !== undefined) data[key] = patch[key];
       }
-      if (patch.deliveryHoursInfo !== undefined) data.deliveryHoursInfo = patch.deliveryHoursInfo;
       if (patch.notes !== undefined) {
         data.notes = notesJson(prepareNotesWithoutTranslation(before.notesRaw, patch.notes, now));
       }

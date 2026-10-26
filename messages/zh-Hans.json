@@ -400,7 +400,16 @@
         "unsaved": "有未保存的更改",
         "photosHeading": "照片",
         "photosHint": "门店入口和停车位，与客户档案中的照片相同。",
-        "createDescription": "填写基本信息、送货地址和地图标记。"
+        "createDescription": "填写基本信息、送货地址和地图标记。",
+        "officeHeading": "公司与发票",
+        "officeHint": "仅供办公室使用，司机看不到这些信息。只有当发票地址与送货地址不同时才填写发票地址。",
+        "office": {
+          "companyName": "公司名称",
+          "vatId": "增值税号（UID）",
+          "billingStreet": "发票地址：街道和门牌号",
+          "billingPostalCode": "发票地址：邮编",
+          "billingCity": "发票地址：城市"
+        }
       },
       "detail": {
         "number": "客户编号 {number}",
@@ -434,7 +443,9 @@
         },
         "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。",
         "photoByDriver": "由司机 {name} 于 {date} 更新",
-        "photoAddHint": "拍照或上传照片。"
+        "photoAddHint": "拍照或上传照片。",
+        "billingAddress": "发票地址",
+        "billingSameAsDelivery": "与送货地址相同"
       },
       "translations": {
         "tabDetails": "详情",
@@ -479,7 +490,7 @@
       "import": {
         "link": "导入",
         "title": "导入客户",
-        "description": "从 CSV 或 Excel 文件（XLSX）读取现有客户名单。已有客户编号的会更新，新客户会新建。",
+        "description": "从 CSV 或 Excel（XLSX）文件导入现有客户名单。客户按客户编号识别，没有编号时按名称识别。已有客户会被更新，新客户会被创建。",
         "steps": {
           "upload": "文件",
           "mapping": "列",
@@ -494,7 +505,11 @@
           "city": "城市",
           "country": "国家",
           "deliveryHoursInfo": "送货时间",
-          "notes": "司机备注"
+          "notes": "司机备注",
+          "houseNumber": "门牌号",
+          "companyName": "公司名称",
+          "vatId": "增值税号（UID）",
+          "deliveryAddress": "其他送货地址"
         },
         "upload": {
           "heading": "1. 选择文件",
@@ -602,11 +617,15 @@
           "too_long": "{field}太长（最多 {max} 个字符）。",
           "formula": "{field}以 = + - 或 @ 开头，可能被 Excel 当作公式执行。",
           "bad_country": "无法识别国家。请使用 2 个字母的代码（如 AT、DE）或国家名称。",
-          "duplicate_in_file": "这个客户编号已在第 {line} 行出现，本行将被跳过。",
+          "duplicate_in_file": "{field}已在第 {line} 行出现。此行将被跳过。",
           "postal_padded": "邮编已补上开头的 0。",
           "invalid": "内容无效。",
           "number_taken": "客户编号刚刚被占用。",
-          "changed_meanwhile": "导入期间该客户被修改过，本行未导入。"
+          "changed_meanwhile": "导入期间该客户被修改过，本行未导入。",
+          "number_assigned": "文件中没有客户编号：已分配下一个可用编号。",
+          "name_ambiguous": "有多个现有客户使用此名称。请填写客户编号。",
+          "delivery_address_used": "其他送货地址：送货前往该地址，地址列保存为发票地址。",
+          "delivery_postal_assumed": "送货地址中没有邮编：已采用发票地址的邮编和城市。请检查。"
         },
         "reviewLink": "{count, plural, =0 {检查地图标记} other {检查地图标记（{count}）}}"
       },

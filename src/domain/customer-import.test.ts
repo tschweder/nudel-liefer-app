@@ -37,6 +37,11 @@ const stored: ExistingCustomer = {
   country: "AT",
   deliveryHoursInfo: "Mo-Fr 6-10",
   notes: "Hof",
+  companyName: null,
+  vatId: null,
+  billingStreet: null,
+  billingPostalCode: null,
+  billingCity: null,
   active: true,
 };
 
@@ -300,6 +305,11 @@ describe("150-row fixture", () => {
         country: p.create!.country,
         deliveryHoursInfo: p.create!.deliveryHoursInfo,
         notes: p.create!.notes ?? "",
+        companyName: p.create!.companyName,
+        vatId: p.create!.vatId,
+        billingStreet: p.create!.billingStreet,
+        billingPostalCode: p.create!.billingPostalCode,
+        billingCity: p.create!.billingCity,
         active: true,
       }));
     const second = planImport(records, existing(stored));

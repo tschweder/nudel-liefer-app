@@ -67,6 +67,7 @@ export function CustomerDetailView({
 }) {
   const t = useTranslations("admin.customers");
   const td = useTranslations("admin.customers.detail");
+  const tf = useTranslations("admin.customers.form");
   const tt = useTranslations("admin.customers.translations");
   const tc = useTranslations("common");
   // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
@@ -156,6 +157,23 @@ export function CustomerDetailView({
                 <Field label={td("hours")}>{customer.deliveryHoursInfo ?? td("none")}</Field>
                 <Field label={td("notes")} testId="detail-notes">
                   {customer.notes || td("none")}
+                </Field>
+                <Field label={tf("office.companyName")} testId="detail-company">
+                  {customer.companyName ?? td("none")}
+                </Field>
+                <Field label={tf("office.vatId")} testId="detail-vat-id">
+                  {customer.vatId ?? td("none")}
+                </Field>
+                <Field label={td("billingAddress")} testId="detail-billing-address">
+                  {customer.billingStreet || customer.billingPostalCode || customer.billingCity ? (
+                    <>
+                      {customer.billingStreet ?? ""}
+                      {"\n"}
+                      {[customer.billingPostalCode, customer.billingCity].filter(Boolean).join(" ")}
+                    </>
+                  ) : (
+                    td("billingSameAsDelivery")
+                  )}
                 </Field>
                 <Field label={td("pin")} testId="detail-pin">
                   {customer.lat !== null && customer.lng !== null ? (

@@ -46,6 +46,12 @@ export const customerInputSchema = z
     deliveryHoursInfo: optionalText(300),
     /** German note for the driver (source); translations are made on save, edited on the detail page. */
     notes: optionalText(2000),
+    /** Office-only master data (NUD-136); empty text is stored as `null`. */
+    companyName: optionalText(160),
+    vatId: optionalText(32),
+    billingStreet: optionalText(160),
+    billingPostalCode: optionalText(16),
+    billingCity: optionalText(100),
   })
   .refine((v) => (v.lat === null) === (v.lng === null), { message: "pin" })
   .refine((v) => `${v.street}, ${v.postalCode} ${v.city}`.length <= MAX_ADDRESS_LENGTH, {
@@ -53,6 +59,17 @@ export const customerInputSchema = z
   });
 
 export type CustomerInput = z.input<typeof customerInputSchema>;
+
+/** The office-only master data columns, written as they come from the form (NUD-136). */
+export function officeFields(v: z.output<typeof customerInputSchema>) {
+  return {
+    companyName: v.companyName,
+    vatId: v.vatId,
+    billingStreet: v.billingStreet,
+    billingPostalCode: v.billingPostalCode,
+    billingCity: v.billingCity,
+  };
+}
 export type CustomerSaveResult =
   | { ok: true; id: string; pinConfirmed: boolean }
   | { ok: false; error: "invalid" | "number_taken" | "not_found" };
@@ -110,6 +127,7 @@ export async function createCustomer(
         lng: v.lng,
         pinConfirmed,
         deliveryHoursInfo: v.deliveryHoursInfo,
+        ...officeFields(v),
         notes: notesJson(await prepareNotes(null, v.notes, options)),
       },
       select: { id: true },
@@ -159,6 +177,7 @@ export async function updateCustomer(
         lng: v.lng,
         pinConfirmed,
         deliveryHoursInfo: v.deliveryHoursInfo,
+        ...officeFields(v),
         notes: notesJson(await prepareNotes(stored.notes, v.notes, options)),
       },
     });
@@ -204,6 +223,11 @@ export type CustomerDetail = {
   pinConfirmed: boolean;
   deliveryHoursInfo: string | null;
   notes: string;
+  companyName: string | null;
+  vatId: string | null;
+  billingStreet: string | null;
+  billingPostalCode: string | null;
+  billingCity: string | null;
   active: boolean;
   hasStorePhoto: boolean;
   hasParkingPhoto: boolean;
@@ -235,6 +259,11 @@ export async function getCustomerDetail(
     pinConfirmed: row.pinConfirmed,
     deliveryHoursInfo: row.deliveryHoursInfo,
     notes: notesText(row.notes),
+    companyName: row.companyName,
+    vatId: row.vatId,
+    billingStreet: row.billingStreet,
+    billingPostalCode: row.billingPostalCode,
+    billingCity: row.billingCity,
     active: row.active,
     hasStorePhoto: row.photos.some((p) => p.kind === "STORE"),
     hasParkingPhoto: row.photos.some((p) => p.kind === "PARKING"),

@@ -3,7 +3,7 @@
  * create / update / unchanged plan per row. No framework imports; the server (`src/server/
  * customer-import.ts`) loads the existing customers, calls `planImport` and writes the result.
  */
-import { addressChanged } from "./customer";
+import { addressChanged, suggestNextCustomerNumber } from "./customer";
 import type { ParsedTable } from "./import-file";
 
 export const IMPORT_FIELDS = [
@@ -15,11 +15,19 @@ export const IMPORT_FIELDS = [
   "country",
   "deliveryHoursInfo",
   "notes",
+  // NUD-136: the factory's own customer list ("Kunden.xlsx").
+  "houseNumber",
+  "companyName",
+  "vatId",
+  "deliveryAddress",
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
+/**
+ * The customer number is optional (NUD-136): a row without one is matched by name, and a new
+ * customer gets the next free number.
+ */
 export const REQUIRED_IMPORT_FIELDS: readonly ImportField[] = [
-  "customerNumber",
   "name",
   "street",
   "postalCode",
@@ -36,6 +44,10 @@ export const FIELD_MAX_LENGTH: Record<ImportField, number> = {
   country: 2,
   deliveryHoursInfo: 300,
   notes: 2000,
+  houseNumber: 40,
+  companyName: 160,
+  vatId: 32,
+  deliveryAddress: 300,
 };
 
 export const DEFAULT_COUNTRY = "AT";
@@ -85,13 +97,12 @@ const SYNONYMS: Record<ImportField, string[]> = {
   name: [
     "name",
     "kundenname",
-    "firma",
-    "firmenname",
     "bezeichnung",
     "kunde",
     "customer",
     "customername",
-    "company",
+    "geschaeft",
+    "geschaftsname",
     "客户名称",
     "客户名",
     "店名",
@@ -105,7 +116,6 @@ const SYNONYMS: Record<ImportField, string[]> = {
     "strasseundhausnummer",
     "adresse",
     "anschrift",
-    "lieferadresse",
     "street",
     "address",
     "streetaddress",
@@ -155,6 +165,42 @@ const SYNONYMS: Record<ImportField, string[]> = {
     "备注",
     "備註",
   ],
+  houseNumber: ["hausnummer", "hausnr", "hnr", "housenumber", "門牌號", "门牌号"],
+  companyName: [
+    "firma",
+    "firmenname",
+    "firmenbezeichnung",
+    "rechtstrager",
+    "unternehmen",
+    "company",
+    "companyname",
+    "legalname",
+    "公司",
+    "公司名称",
+    "公司名稱",
+  ],
+  vatId: [
+    "uid",
+    "uidnummer",
+    "uidnr",
+    "ustid",
+    "ustidnr",
+    "umsatzsteuerid",
+    "vatid",
+    "vat",
+    "vatnumber",
+    "税号",
+    "稅號",
+  ],
+  deliveryAddress: [
+    "lieferadresse",
+    "lieferanschrift",
+    "abweichendelieferadresse",
+    "deliveryaddress",
+    "shippingaddress",
+    "送货地址",
+    "送貨地址",
+  ],
 };
 
 const SYNONYM_LOOKUP: Map<string, ImportField> = (() => {
@@ -196,6 +242,12 @@ export function suggestMapping(
     const field = SYNONYM_LOOKUP.get(header);
     if (field) assign(field, column);
   });
+  // A file whose only name column is "Firma" / "Company" (no "Kundenname") keeps using it as the
+  // customer name, as before NUD-136.
+  if (mapping.name === undefined && mapping.companyName !== undefined) {
+    mapping.name = mapping.companyName;
+    delete mapping.companyName;
+  }
   return mapping;
 }
 
@@ -270,7 +322,12 @@ export type IssueCode =
   | "postal_padded"
   | "invalid"
   | "number_taken"
-  | "changed_meanwhile";
+  | "changed_meanwhile"
+  // NUD-136
+  | "number_assigned"
+  | "name_ambiguous"
+  | "delivery_address_used"
+  | "delivery_postal_assumed";
 
 export type RowIssue = {
   code: IssueCode;
@@ -355,9 +412,13 @@ export function parseCountry(value: string): string | null {
   return COUNTRY_NAMES[normalizeHeader(value)] ?? COUNTRY_NAMES[value] ?? null;
 }
 
-/** A row after validation; `country` is `null` when the cell was empty (default or stored value applies). */
+/**
+ * A row after validation; `country` is `null` when the cell was empty (default or stored value
+ * applies), `customerNumber` is `null` when the file has none for this row (NUD-136). `street`
+ * already contains the house number. Optional office fields are `null` when empty.
+ */
 export type ValidRow = {
-  customerNumber: string;
+  customerNumber: string | null;
   name: string;
   street: string;
   postalCode: string;
@@ -365,13 +426,49 @@ export type ValidRow = {
   country: string | null;
   deliveryHoursInfo: string | null;
   notes: string | null;
+  companyName: string | null;
+  vatId: string | null;
+  billingStreet: string | null;
+  billingPostalCode: string | null;
+  billingCity: string | null;
 };
 
-export type RowValidation = { ok: true; value: ValidRow } | { ok: false; issues: RowIssue[] };
+export type RowValidation =
+  { ok: true; value: ValidRow; warnings: RowIssue[] } | { ok: false; issues: RowIssue[] };
+
+/** Digits of a postal code per country (default 4: AT, CH, LI, HU, SI, ...). */
+const POSTAL_DIGITS: Record<string, number> = { DE: 5, FR: 5, IT: 5, ES: 5, FI: 5 };
+
+/**
+ * Splits a free-text delivery address ("Schönbrunner Straße 230/E10 1120 Wien",
+ * "Hauptstraße 5, 60311 Frankfurt") into street, postal code and city. The postal code is the LAST
+ * group of the country's postal-code length that is followed by the city at the end of the text,
+ * so a house number glued to the postal code ("230/E101120 Wien") still splits right. `null`
+ * postal code / city when the text has none ("Handelskai 94-96, Millennium Tower").
+ */
+export function parseDeliveryAddress(
+  text: string,
+  country: string,
+): { street: string; postalCode: string | null; city: string | null } {
+  const digits = POSTAL_DIGITS[country] ?? 4;
+  const match = new RegExp(
+    `^(.*\\S)?[\\s,]*?(\\d{${digits}})\\s+([^\\d,]*[^\\d\\s,])\\s*$`,
+    "u",
+  ).exec(text);
+  if (match && match[1]) {
+    const street = match[1].replace(/[\s,]+$/u, "");
+    if (street !== "") return { street, postalCode: match[2]!, city: match[3]!.trim() };
+  }
+  return { street: text.replace(/[\s,]+$/u, ""), postalCode: null, city: null };
+}
+
+/** "atu 1234 5678" -> "ATU12345678" (spaces dropped, upper case). */
+export const normalizeVatId = (value: string): string => value.replace(/\s+/gu, "").toUpperCase();
 
 /** Validates and cleans one record (no database, no duplicates across rows). */
 export function validateRecord(record: ImportRecord): RowValidation {
   const issues: RowIssue[] = [];
+  const warnings: RowIssue[] = [];
   const cleaned: Partial<Record<ImportField, string>> = {};
 
   for (const field of IMPORT_FIELDS) {
@@ -386,6 +483,7 @@ export function validateRecord(record: ImportRecord): RowValidation {
     }
     let value = cleanCell(raw, field === "notes");
     if (field === "customerNumber" || field === "postalCode") value = stripTrailingZeros(value);
+    if (field === "vatId") value = normalizeVatId(value);
     if (value === "") {
       if (REQUIRED_IMPORT_FIELDS.includes(field)) issues.push({ code: "required", field });
       continue;
@@ -403,17 +501,58 @@ export function validateRecord(record: ImportRecord): RowValidation {
     cleaned[field] = value;
   }
   if (issues.length > 0) return { ok: false, issues };
+
+  // Street and house number may come in two columns ("Gablenzgasse" + "1/Top11").
+  const street = [cleaned.street!, cleaned.houseNumber].filter(Boolean).join(" ");
+  if (street.length > FIELD_MAX_LENGTH.street) {
+    return {
+      ok: false,
+      issues: [{ code: "too_long", field: "street", max: FIELD_MAX_LENGTH.street }],
+    };
+  }
+  let delivery = { street, postalCode: cleaned.postalCode!, city: cleaned.city! };
+  let billing: { street: string; postalCode: string; city: string } | null = null;
+
+  // A separate delivery address: that one is geocoded, routed and shown to the driver; the address
+  // columns become the billing address (office only).
+  if (cleaned.deliveryAddress) {
+    const parsed = parseDeliveryAddress(
+      cleaned.deliveryAddress,
+      cleaned.country ?? DEFAULT_COUNTRY,
+    );
+    if (parsed.street.length > FIELD_MAX_LENGTH.street) {
+      return {
+        ok: false,
+        issues: [{ code: "too_long", field: "deliveryAddress", max: FIELD_MAX_LENGTH.street }],
+      };
+    }
+    billing = delivery;
+    delivery = {
+      street: parsed.street,
+      postalCode: parsed.postalCode ?? billing.postalCode,
+      city: parsed.city ?? billing.city,
+    };
+    warnings.push({ code: "delivery_address_used", field: "deliveryAddress" });
+    if (parsed.postalCode === null) {
+      warnings.push({ code: "delivery_postal_assumed", field: "deliveryAddress" });
+    }
+  }
+
   return {
     ok: true,
+    warnings,
     value: {
-      customerNumber: cleaned.customerNumber!,
+      customerNumber: cleaned.customerNumber ?? null,
       name: cleaned.name!,
-      street: cleaned.street!,
-      postalCode: cleaned.postalCode!,
-      city: cleaned.city!,
+      ...delivery,
       country: cleaned.country ?? null,
       deliveryHoursInfo: cleaned.deliveryHoursInfo ?? null,
       notes: cleaned.notes ?? null,
+      companyName: cleaned.companyName ?? null,
+      vatId: cleaned.vatId ?? null,
+      billingStreet: billing?.street ?? null,
+      billingPostalCode: billing?.postalCode ?? null,
+      billingCity: billing?.city ?? null,
     },
   };
 }
@@ -425,6 +564,9 @@ export function padPostalCode(postalCode: string, country: string): string {
 
 /** Key used to match a customer number (case-insensitive, as in the form). */
 export const numberKey = (customerNumber: string): string => customerNumber.trim().toLowerCase();
+
+/** Key used to match a customer by name when the file has no customer number (NUD-136). */
+export const nameKey = (name: string): string => name.trim().replace(/\s+/gu, " ").toLowerCase();
 
 // ---------------------------------------------------------------------------------------------
 // Plan: create / update / unchanged
@@ -440,23 +582,62 @@ export type ExistingCustomer = {
   deliveryHoursInfo: string | null;
   /** German note text ("" when none). */
   notes: string;
+  companyName: string | null;
+  vatId: string | null;
+  billingStreet: string | null;
+  billingPostalCode: string | null;
+  billingCity: string | null;
   active: boolean;
 };
 
 export type RowStatus = "create" | "update" | "unchanged" | "error";
 
+/** Fields an update may change; the import file's columns map onto these. */
+export const PATCH_FIELDS = [
+  "name",
+  "street",
+  "postalCode",
+  "city",
+  "country",
+  "deliveryHoursInfo",
+  "notes",
+  "companyName",
+  "vatId",
+  "billingStreet",
+  "billingPostalCode",
+  "billingCity",
+] as const;
+export type PatchField = (typeof PATCH_FIELDS)[number];
+
 /** What an update changes; absent keys stay as they are. */
-export type CustomerPatch = Partial<
-  Record<
-    "name" | "street" | "postalCode" | "city" | "country" | "deliveryHoursInfo" | "notes",
-    string
-  >
->;
+export type CustomerPatch = Partial<Record<PatchField, string>>;
+
+/** A new customer: the validated row with its final number and country. */
+export type CreateRow = Omit<ValidRow, "customerNumber" | "country"> & {
+  customerNumber: string;
+  country: string;
+};
+
+/** Which file field a changed customer column comes from (for the preview's "changed" list). */
+const PATCH_SOURCE: Record<PatchField, ImportField> = {
+  name: "name",
+  street: "street",
+  postalCode: "postalCode",
+  city: "city",
+  country: "country",
+  deliveryHoursInfo: "deliveryHoursInfo",
+  notes: "notes",
+  companyName: "companyName",
+  vatId: "vatId",
+  billingStreet: "deliveryAddress",
+  billingPostalCode: "deliveryAddress",
+  billingCity: "deliveryAddress",
+};
 
 export type RowPlan = {
   line: number;
   status: RowStatus;
-  /** As written in the file (cleaned) or, for unreadable rows, the raw text. */
+  /** As written in the file (cleaned), the number assigned to a new customer, or the matched one. */
   customerNumber: string;
   name: string;
   issues: RowIssue[];
@@ -469,7 +650,7 @@ export type RowPlan = {
   pinReset: boolean;
   existingId: string | null;
   /** `create`: the full row; `update`: only the changed fields. */
-  create: (ValidRow & { country: string }) | null;
+  create: CreateRow | null;
   patch: CustomerPatch | null;
 };
 
@@ -478,8 +659,13 @@ const rawOf = (record: ImportRecord, field: ImportField) => cleanCell(record[fie
 /**
  * The plan for every file row. Rules:
  * - a customer is matched by number, case-insensitive; the stored spelling of the number is kept;
- * - a number twice in the file: the first row counts, later rows are errors;
- * - empty optional cells (country, delivery hours, notes) never erase stored data;
+ * - a row without a number is matched by name (case- and whitespace-insensitive, NUD-136); a name
+ *   that two stored customers share is an error, an unknown name creates a customer with the next
+ *   free number (after every number in the database and in the file);
+ * - a number (or, without numbers, a name) twice in the file: the first row counts, later rows are
+ *   errors;
+ * - empty optional cells (country, delivery hours, notes, company, VAT id, delivery address) never
+ *   erase stored data;
  * - a changed address drops the pin and its confirmation, an unchanged one keeps both;
  * - an archived customer is updated but not reactivated.
  */
@@ -487,7 +673,31 @@ export function planImport(
   rows: ReadonlyArray<{ line: number; record: ImportRecord }>,
   existing: ReadonlyMap<string, ExistingCustomer>,
 ): RowPlan[] {
+  const byName = new Map<string, ExistingCustomer | "ambiguous">();
+  for (const c of existing.values()) {
+    const key = nameKey(c.name);
+    byName.set(key, byName.has(key) ? "ambiguous" : c);
+  }
+  // Every number already in use: stored ones and those written in the file.
+  const usedNumbers = [...existing.values()].map((c) => c.customerNumber);
+  const usedKeys = new Set(usedNumbers.map(numberKey));
+  for (const { record } of rows) {
+    const n = stripTrailingZeros(cleanCell(record.customerNumber ?? ""));
+    if (n !== "" && !usedKeys.has(numberKey(n))) {
+      usedNumbers.push(n);
+      usedKeys.add(numberKey(n));
+    }
+  }
+  const assignNumber = () => {
+    let next = suggestNextCustomerNumber(usedNumbers);
+    while (usedKeys.has(numberKey(next))) next = suggestNextCustomerNumber([...usedNumbers, next]);
+    usedNumbers.push(next);
+    usedKeys.add(numberKey(next));
+    return next;
+  };
+
   const firstLine = new Map<string, number>();
+  const firstNameLine = new Map<string, number>();
   return rows.map(({ line, record }) => {
     const base = {
       line,
@@ -504,42 +714,72 @@ export function planImport(
     const checked = validateRecord(record);
     if (!checked.ok) return { ...base, status: "error" as const, issues: checked.issues };
     const v = checked.value;
+    const warnings: RowIssue[] = [...checked.warnings];
 
-    const key = numberKey(v.customerNumber);
-    const earlier = firstLine.get(key);
-    if (earlier !== undefined) {
-      return {
-        ...base,
-        status: "error" as const,
-        issues: [
-          { code: "duplicate_in_file" as const, field: "customerNumber" as const, line: earlier },
-        ],
-      };
+    let stored: ExistingCustomer | null;
+    if (v.customerNumber !== null) {
+      const key = numberKey(v.customerNumber);
+      const earlier = firstLine.get(key);
+      if (earlier !== undefined) {
+        return {
+          ...base,
+          status: "error" as const,
+          issues: [
+            { code: "duplicate_in_file" as const, field: "customerNumber" as const, line: earlier },
+          ],
+        };
+      }
+      firstLine.set(key, line);
+      stored = existing.get(key) ?? null;
+    } else {
+      const key = nameKey(v.name);
+      const earlier = firstNameLine.get(key);
+      if (earlier !== undefined) {
+        return {
+          ...base,
+          status: "error" as const,
+          issues: [{ code: "duplicate_in_file" as const, field: "name" as const, line: earlier }],
+        };
+      }
+      firstNameLine.set(key, line);
+      const hit = byName.get(key) ?? null;
+      if (hit === "ambiguous") {
+        return {
+          ...base,
+          status: "error" as const,
+          issues: [{ code: "name_ambiguous" as const, field: "name" as const }],
+        };
+      }
+      stored = hit;
     }
-    firstLine.set(key, line);
 
-    const stored = existing.get(key) ?? null;
     const country = v.country ?? stored?.country ?? DEFAULT_COUNTRY;
     const postalCode = padPostalCode(v.postalCode, country);
-    const warnings: RowIssue[] =
-      postalCode !== v.postalCode ? [{ code: "postal_padded", field: "postalCode" }] : [];
+    if (postalCode !== v.postalCode) warnings.push({ code: "postal_padded", field: "postalCode" });
 
     if (!stored) {
+      let customerNumber = v.customerNumber;
+      if (customerNumber === null) {
+        customerNumber = assignNumber();
+        warnings.push({ code: "number_assigned", field: "customerNumber" });
+      }
       return {
         ...base,
+        customerNumber,
         status: "create" as const,
         issues: [],
         warnings,
-        create: { ...v, postalCode, country },
+        create: { ...v, customerNumber, postalCode, country },
       };
     }
 
     const patch: CustomerPatch = {};
     const changedFields: ImportField[] = [];
-    const set = (field: ImportField, value: string | null, current: string | null) => {
+    const set = (field: PatchField, value: string | null, current: string | null) => {
       if (value === null || value === (current ?? "")) return;
-      (patch as Record<string, string>)[field] = value;
-      changedFields.push(field);
+      patch[field] = value;
+      const source = PATCH_SOURCE[field];
+      if (!changedFields.includes(source)) changedFields.push(source);
     };
     set("name", v.name, stored.name);
     set("street", v.street, stored.street);
@@ -548,6 +788,11 @@ export function planImport(
     set("country", country === stored.country ? null : country, stored.country);
     set("deliveryHoursInfo", v.deliveryHoursInfo, stored.deliveryHoursInfo);
     set("notes", v.notes, stored.notes);
+    set("companyName", v.companyName, stored.companyName);
+    set("vatId", v.vatId, stored.vatId);
+    set("billingStreet", v.billingStreet, stored.billingStreet);
+    set("billingPostalCode", v.billingPostalCode, stored.billingPostalCode);
+    set("billingCity", v.billingCity, stored.billingCity);
 
     const pinReset = addressChanged(stored, {
       street: v.street,
@@ -557,6 +802,7 @@ export function planImport(
     });
     return {
       ...base,
+      customerNumber: v.customerNumber ?? stored.customerNumber,
       status: changedFields.length === 0 ? ("unchanged" as const) : ("update" as const),
       issues: [],
       warnings,

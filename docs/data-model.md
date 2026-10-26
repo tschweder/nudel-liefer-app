@@ -44,7 +44,10 @@ The provider is `postgresql`; the generated client is emitted to
   `depotPinConfirmed` (tour building requires it), `timezone`, `departureTime`,
   `serviceMinutesPerStop` and `deliveryWeekdays`.
 - **`Customer`** — addresses with `customerNumber` (unique), coordinates, `pinConfirmed`, and
-  `notes`/`deliveryHoursInfo`. `searchText` is accent-folded search material **maintained by a DB
+  `notes`/`deliveryHoursInfo`. Office-only master data (NUD-136): `companyName` ("Firma"), `vatId`
+  ("UID") and `billingStreet`/`billingPostalCode`/`billingCity`, set only when the billing address
+  differs; `street`/`postalCode`/`city` are always the **delivery** address (geocoded, routed, shown
+  to the driver). `searchText` is accent-folded search material **maintained by a DB
   trigger — never write it** (see migrations, NUD-013). Referenced with `onDelete: Restrict`.
 - **`Photo`** — a customer photo (`kind` STORE or PARKING) whose binary lives in object storage;
   the row holds `storageKey`, dimensions and `bytes`, the uploader, and `isCurrent`
@@ -114,6 +117,8 @@ plain DDL are:
 
 - `20261017160000_customer_search_text` — creates `nudel_fold`, the `Customer.searchText` column
   and the `Customer_search_text` trigger, then backfills existing rows.
+- `20261026160000_customer_company_billing` — adds the five office columns and extends the search
+  trigger with `companyName` and `vatId` (NUD-136).
 - `20261017180000_tour_release_revision` — adds the NUD-043 columns and backfills: existing stops
   get an `items` snapshot from their linked order lines (quantities in cents), and tours already
   `RELEASED`/`IN_PROGRESS`/`COMPLETED` get `releaseRevision = 1`.

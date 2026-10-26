@@ -34,7 +34,34 @@ export type CustomerFormValues = {
   pinConfirmed: boolean;
   deliveryHoursInfo: string;
   notes: string;
+  /** Office-only master data (NUD-136): legal entity, VAT id, billing address if different. */
+  office: OfficeValues;
 };
+
+export type OfficeValues = {
+  companyName: string;
+  vatId: string;
+  billingStreet: string;
+  billingPostalCode: string;
+  billingCity: string;
+};
+
+export const EMPTY_OFFICE_VALUES: OfficeValues = {
+  companyName: "",
+  vatId: "",
+  billingStreet: "",
+  billingPostalCode: "",
+  billingCity: "",
+};
+
+/** Field -> input id, max length and test id for the "Firma & Rechnung" section. */
+const OFFICE_FIELDS: ReadonlyArray<{ key: keyof OfficeValues; max: number; width: string }> = [
+  { key: "companyName", max: 160, width: "max-w-xl" },
+  { key: "vatId", max: 32, width: "max-w-xs" },
+  { key: "billingStreet", max: 160, width: "max-w-xl" },
+  { key: "billingPostalCode", max: 16, width: "max-w-32" },
+  { key: "billingCity", max: 100, width: "max-w-sm" },
+];
 
 type Props = {
   /** `null` creates a customer; an id edits that customer. */
@@ -94,6 +121,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
   const [country, setCountry] = useState(initial.country);
   const [hours, setHours] = useState(initial.deliveryHoursInfo);
   const [notes, setNotes] = useState(initial.notes);
+  const [office, setOffice] = useState(initial.office);
   const [pin, setPin] = useState(initial.pin);
   const [confirmed, setConfirmed] = useState(initial.pinConfirmed);
   const [search, setSearch] = useState<Search>({ state: "idle" });
@@ -118,7 +146,11 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
 
   // The map's search overlay follows the address fields until the user types something themselves
   // (`null` = untouched); no effect needed, the value is derived during render.
-  const derivedQuery = addressQuery([street, [postalCode, city].filter(Boolean).join(" "), country]);
+  const derivedQuery = addressQuery([
+    street,
+    [postalCode, city].filter(Boolean).join(" "),
+    country,
+  ]);
   const [queryEdit, setQueryEdit] = useState<string | null>(null);
   const query = queryEdit ?? derivedQuery;
 
@@ -132,6 +164,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     country: initial.country,
     hours: initial.deliveryHoursInfo,
     notes: initial.notes,
+    office: initial.office,
     lat: initial.pin?.lat ?? null,
     lng: initial.pin?.lng ?? null,
     pinConfirmed: initial.pinConfirmed,
@@ -146,6 +179,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       country,
       hours,
       notes,
+      office,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
       pinConfirmed,
@@ -172,6 +206,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     setCountry(initial.country);
     setHours(initial.deliveryHoursInfo);
     setNotes(initial.notes);
+    setOffice(initial.office);
     setPin(initial.pin);
     setConfirmed(initial.pinConfirmed);
     setSearch({ state: "idle" });
@@ -232,6 +267,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       pinConfirmed,
       deliveryHoursInfo: hours,
       notes,
+      ...office,
     };
     startTransition(async () => {
       let result;
@@ -377,7 +413,11 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
               onChange={changePin}
               tiles={tiles}
               focus={focus}
-              address={addressQuery([street, [postalCode, city].filter(Boolean).join(" "), country])}
+              address={addressQuery([
+                street,
+                [postalCode, city].filter(Boolean).join(" "),
+                country,
+              ])}
               labels={{
                 locate: tm("locate"),
                 locating: tm("locating"),
@@ -524,6 +564,27 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
             data-testid="customer-notes"
           />
         </FieldRow>
+      </section>
+
+      <section className="flex flex-col gap-6" aria-labelledby="cust-office">
+        <div className="flex flex-col gap-1">
+          <h2 id="cust-office" className="text-xl font-semibold">
+            {t("officeHeading")}
+          </h2>
+          <p className="max-w-prose text-sm text-muted-foreground">{t("officeHint")}</p>
+        </div>
+        {OFFICE_FIELDS.map(({ key, max, width }) => (
+          <FieldRow key={key} id={`cust-${key}`} label={t(`office.${key}`)}>
+            <Input
+              id={`cust-${key}`}
+              className={width}
+              value={office[key]}
+              maxLength={max}
+              onChange={(e) => setOffice({ ...office, [key]: e.target.value })}
+              data-testid={`customer-${key}`}
+            />
+          </FieldRow>
+        ))}
       </section>
 
       {customerId && photos && customerName ? (

@@ -125,6 +125,14 @@ model Customer {
   /// LocalizedText
   notes             Json?
   deliveryHoursInfo String?
+  /// Legal entity behind the shop ("Firma"), office only. The driver matches `name` to the signage.
+  companyName       String?
+  /// VAT identification number ("UID", e.g. ATU12345678), office only.
+  vatId             String?
+  /// Billing address, only when it differs from the delivery address above (office only, never routed).
+  billingStreet     String?
+  billingPostalCode String?
+  billingCity       String?
   active            Boolean  @default(true)
   /// Accent-folded number/name/address for search. Maintained by a DB trigger (migration NUD-013); never write it.
   searchText        String   @default("")

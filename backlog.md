@@ -275,6 +275,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-133 | Six committed tests import locale fixtures that are not in git | M2 | – | todo |
 | NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
 | NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
+| NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -2140,6 +2141,34 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 
 ---
 
+#### NUD-136 · Customer master data from the factory list (Firma, UID, billing address) + number-less import
+**Status:** done · **depends_on:** 090
+
+**Goal:** the factory's own customer list (`Kunden.xlsx`: Kundenname, Firma, Straße, Hausnummer, Ort, PLZ, UID, LieferAdresse; 195 rows, no customer numbers) imports as it is, and the office keeps the company, VAT id and billing address on the customer.
+
+**Scope**
+- `Customer` gets optional `companyName`, `vatId`, `billingStreet`, `billingPostalCode`, `billingCity` (office only, never shown to the driver). `street`/`postalCode`/`city` stay the delivery address.
+- Customer form section "Firma & Rechnung", detail page fields, search covers company and VAT id.
+- Import: customer number optional (match by name, otherwise next free number); new optional columns house number, company, VAT id, delivery address.
+
+**Acceptance criteria**
+- [x] `Kunden.xlsx` maps automatically (Kundenname → name, Firma → company, Hausnummer, UID, LieferAdresse) and previews 195 new, 0 errors. (Rehearsed with the real file through the UI against a local DB: 195 created, 0 failed.)
+- [x] Re-importing the same file changes nothing (matched by name). (Domain + integration test.)
+- [x] A row with a LieferAdresse is routed to that address and keeps the address columns as billing address; a missing postal code in it is flagged. (Domain + integration test; 3 rows in the real file, 2 of them flagged.)
+- [x] Office fields can be entered, cleared and found via the list search. (Integration test.)
+
+**Implementation notes**
+- Migration `20261026160000_customer_company_billing` (5 nullable columns, search trigger extended with `companyName` and `vatId`, backfill). Hand-written SQL: the Prisma schema engine binary could not be downloaded in the agent's sandbox; tests apply the committed SQL like every other migration.
+- Domain (`src/domain/customer-import.ts`): `customerNumber` no longer required; `nameKey` matching for rows without a number (`name_ambiguous`, `duplicate_in_file` on the name); `assignNumber` uses `suggestNextCustomerNumber` over every stored and in-file number (`number_assigned` warning); `houseNumber` is appended to the street; `vatId` normalised (no spaces, upper case); `parseDeliveryAddress` splits "street PLZ city" taking the LAST postal-code-length digit group before the city (so `230/E101120 Wien` → `230/E10`, `1120`, `Wien`); `delivery_address_used` / `delivery_postal_assumed` warnings. Header synonyms: "Firma"/"Company" moved from name to company (fallback: used as the name when a file has no other name column, keeps old files working); "Lieferadresse" moved from street to delivery address.
+- Server: `officeFields()` in `customer-admin.ts` shared by the form and the import; the import update loop writes every `PATCH_FIELDS` key.
+- Strings: `admin.customers.form.office*`, `detail.billing*`, `import.fields.*`, `import.issues.*` (de, zh-Hans by hand, Hant generated). `duplicate_in_file` now names the field.
+- Tests: `domain/customer-import-factory-list.test.ts` (mapping, numbering, delivery/billing, re-import, name match update, ambiguous / duplicate names, numbers further down the file, 5 address parses), `server/customer-company-billing.integration.test.ts` (form create/update/clear, search, import + re-import).
+- Verified in the agent's sandbox: lint, typecheck, i18n:check, `pnpm test` (1840 passed; `backup.integration` "never leaks the password" fails only because the sandbox Postgres uses trust auth), e2e `customer-import` + `customers` green; `customer-form.spec.ts` "create … find it" fails at the search-result click identically on the unchanged code (pre-existing dev-mode flake, not touched).
+- NOT verified: `pnpm build`; the real ORS geocoding of the 195 addresses; the mobile e2e project.
+- Follow-ups for the office: the 3 delivery-address rows (`063.0 Wokhouse`, `048.1 12edo`, `Hk sm`) need their pin checked; two had no postal code in the LieferAdresse, so the billing PLZ was used.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
@@ -2487,6 +2516,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-123 | Realigning only `orders.spec.ts` in this ticket, everything else about the redesign's presentation drift goes to NUD-128 | Backlog §0: stay in scope, missing things become new tickets |
 | 2026-10-26 | NUD-123 | The first-start language picker needs no change: a GUI-created driver is `localeChosen = false`, the layout guard redirects to `/driver/start` and the picker renders. `drivers.spec.ts` fails only under `pnpm dev` (5 s `toHaveURL` vs. an on-demand route compile) | Verified in a browser plus a control driver written straight into the DB; `RUN-AND-TEST.md` §8 documents the dev-mode flakiness, CI runs a production build |
 | 2026-10-26 | NUD-131 | `127.0.0.1` goes into `allowedDevOrigins` (plus `DEV_ALLOWED_ORIGINS` for a phone/tunnel), instead of telling everyone to use `localhost` | The owner hit it from the tablet/desktop and it is indistinguishable from "the app is broken": Next 16 blocks cross-origin dev requests, the page renders server-side and every button is dead. The env var also protects the upcoming real-device tickets (NUD-107/109/115) from the same trap |
+| 2026-10-26 | NUD-136 | Office-only `companyName` / `vatId` / `billing*` columns instead of a second address entity; billing stays `null` when it equals the delivery address | Glossary: a customer has exactly one delivery address, which is what is routed and shown to the driver; invoicing is out of scope (D19), the office only needs to keep the data |
+| 2026-10-26 | NUD-136 | Import without customer numbers matches by name and assigns the next free number | The owner's list has none; "Kundenname" is unique in it and is the office's own short name, so re-imports stay idempotent |
+| 2026-10-26 | NUD-136 | A LieferAdresse without a postal code takes postal code and city from the address columns, flagged for review, instead of rejecting the row | Pins need the admin's confirmation anyway (D9); rejecting would lose the customer |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

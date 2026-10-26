@@ -401,7 +401,16 @@
         "unsaved": "有未儲存的更改",
         "photosHeading": "照片",
         "photosHint": "門店入口和停車位，與客戶檔案中的照片相同。",
-        "createDescription": "填寫基本資訊、送貨地址和地圖示記。"
+        "createDescription": "填寫基本資訊、送貨地址和地圖示記。",
+        "officeHeading": "公司與發票",
+        "officeHint": "僅供辦公室使用，司機看不到這些資訊。只有當發票地址與送貨地址不同時才填寫發票地址。",
+        "office": {
+          "companyName": "公司名稱",
+          "vatId": "增值稅號（UID）",
+          "billingStreet": "發票地址：街道和門牌號",
+          "billingPostalCode": "發票地址：郵編",
+          "billingCity": "發票地址：城市"
+        }
       },
       "detail": {
         "number": "客戶編號 {number}",
@@ -435,7 +444,9 @@
         },
         "archiveUpcoming": "{count, plural, other {注意：該客戶還有 # 個待處理訂單}}。這些訂單會保留，但不會自動取消，請先檢查。",
         "photoByDriver": "由司機 {name} 於 {date} 更新",
-        "photoAddHint": "拍照或上傳照片。"
+        "photoAddHint": "拍照或上傳照片。",
+        "billingAddress": "發票地址",
+        "billingSameAsDelivery": "與送貨地址相同"
       },
       "translations": {
         "tabDetails": "詳情",
@@ -480,7 +491,7 @@
       "import": {
         "link": "匯入",
         "title": "匯入客戶",
-        "description": "從 CSV 或 Excel 檔案（XLSX）讀取現有客戶名單。已有客戶編號的會更新，新客戶會新建。",
+        "description": "從 CSV 或 Excel（XLSX）檔案匯入現有客戶名單。客戶按客戶編號識別，沒有編號時按名稱識別。已有客戶會被更新，新客戶會被建立。",
         "steps": {
           "upload": "檔案",
           "mapping": "列",
@@ -495,7 +506,11 @@
           "city": "城市",
           "country": "國家",
           "deliveryHoursInfo": "送貨時間",
-          "notes": "司機備註"
+          "notes": "司機備註",
+          "houseNumber": "門牌號",
+          "companyName": "公司名稱",
+          "vatId": "增值稅號（UID）",
+          "deliveryAddress": "其他送貨地址"
         },
         "upload": {
           "heading": "1. 選擇檔案",
@@ -603,11 +618,15 @@
           "too_long": "{field}太長（最多 {max} 個字元）。",
           "formula": "{field}以 = + - 或 @ 開頭，可能被 Excel 當作公式執行。",
           "bad_country": "無法識別國家。請使用 2 個字母的程式碼（如 AT、DE）或國家名稱。",
-          "duplicate_in_file": "這個客戶編號已在第 {line} 行出現，本行將被跳過。",
+          "duplicate_in_file": "{field}已在第 {line} 行出現。此行將被跳過。",
           "postal_padded": "郵編已補上開頭的 0。",
           "invalid": "內容無效。",
           "number_taken": "客戶編號剛剛被佔用。",
-          "changed_meanwhile": "匯入期間該客戶被修改過，本行未匯入。"
+          "changed_meanwhile": "匯入期間該客戶被修改過，本行未匯入。",
+          "number_assigned": "檔案中沒有客戶編號：已分配下一個可用編號。",
+          "name_ambiguous": "有多個現有客戶使用此名稱。請填寫客戶編號。",
+          "delivery_address_used": "其他送貨地址：送貨前往該地址，地址列儲存為發票地址。",
+          "delivery_postal_assumed": "送貨地址中沒有郵編：已採用發票地址的郵編和城市。請檢查。"
         },
         "reviewLink": "{count, plural, =0 {檢查地圖示記} other {檢查地圖示記（{count}）}}"
       },

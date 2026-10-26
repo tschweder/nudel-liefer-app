@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
-import { CustomerForm } from "@/components/admin/customer-form";
+import { CustomerForm, EMPTY_OFFICE_VALUES } from "@/components/admin/customer-form";
 import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { Link } from "@/i18n/navigation";
@@ -38,6 +38,7 @@ async function Guarded({ locale }: { locale: string }) {
           pinConfirmed: false,
           deliveryHoursInfo: "",
           notes: "",
+          office: EMPTY_OFFICE_VALUES,
         }}
       />
     </div>

@@ -76,6 +76,13 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
           pinConfirmed: customer.pinConfirmed,
           deliveryHoursInfo: customer.deliveryHoursInfo ?? "",
           notes: customer.notes,
+          office: {
+            companyName: customer.companyName ?? "",
+            vatId: customer.vatId ?? "",
+            billingStreet: customer.billingStreet ?? "",
+            billingPostalCode: customer.billingPostalCode ?? "",
+            billingCity: customer.billingCity ?? "",
+          },
         }}
       />
     </div>

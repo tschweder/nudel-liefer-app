@@ -168,6 +168,20 @@ from the upload is stored; the server re-validates the rows at commit time.
   removed via `looksLikeFormula` guard against CSV injection, country default
   `AT`, postal code zero-padded) and becomes `create`, `update`, `unchanged` or
   `error`, matched to existing customers by customer number case-insensitively.
+- Customer lists without numbers (NUD-136, the factory's own `Kunden.xlsx`): the
+  number is optional. A row without one is matched by name (case- and
+  whitespace-insensitive; a name two stored customers share is `name_ambiguous`,
+  a name twice in the file `duplicate_in_file`); an unknown name is created with
+  the next free number after every number in the database and the file
+  (`number_assigned` warning). Optional columns: `houseNumber` (appended to the
+  street), `companyName`, `vatId` (spaces removed, upper case) and
+  `deliveryAddress`. A delivery address cell becomes the routed address
+  (`parseDeliveryAddress`: the last 4-digit postal code, 5 for DE/FR/IT/ES/FI,
+  followed by the city at the end) and the address columns are stored as the
+  billing address (`delivery_address_used`); without a postal code in the cell,
+  postal code and city of the billing address are used and the row is flagged
+  `delivery_postal_assumed` for the office to check before confirming the pin.
+  A file whose only name column is "Firma"/"Company" keeps using it as the name.
 - `previewImport` (dry run, writes nothing) returns per-row plans and a
   `summarizePlan` summary.
 - `commitImport` writes the valid rows in one request: creates unknown customers
