@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// NUD-042. Needs a seeded database (product SPAG-5, demo drivers), DATABASE_URL and
+// NUD-042. Needs a seeded database (product NUDELN-BEUTEL, demo drivers), DATABASE_URL and
 // SEED_ADMIN_PASSWORD in the environment. Desktop only (the planning screen is an admin desktop
 // screen). The fixture confirms the depot pin for its duration and restores the old value
 // afterwards, so do not run it at the same time as `settings.spec.ts` (that spec expects an
@@ -48,8 +48,8 @@ async function fixture() {
   await client.connect();
   const admin = (await client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
     .rows[0] as { id: string };
-  const spag = (await client.query(`SELECT "id" FROM "Product" WHERE "sku"='SPAG-5'`)).rows[0]
-    .id as string;
+  const spag = (await client.query(`SELECT "id" FROM "Product" WHERE "sku"='NUDELN-BEUTEL'`))
+    .rows[0].id as string;
   const depot = (
     await client.query(`SELECT "depotLat","depotLng","depotPinConfirmed" FROM "Settings"`)
   ).rows[0] as { depotLat: number; depotLng: number; depotPinConfirmed: boolean };

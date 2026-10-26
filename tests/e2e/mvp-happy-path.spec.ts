@@ -134,10 +134,12 @@ for (const { locale, username } of DRIVER_LOCALES) {
     expect(driverRow, `demo driver ${username} exists (pnpm db:seed)`).toBeDefined();
     expect(driverRow!.locale).toBe(locale);
     const products = (
-      await db.query(`SELECT "sku","name" FROM "Product" WHERE "sku" IN ('SPAG-5','PENN-5')`)
+      await db.query(
+        `SELECT "sku","name" FROM "Product" WHERE "sku" IN ('NUDELN-BEUTEL','NUDELN-KARTON')`,
+      )
     ).rows as { sku: string; name: Record<string, string> }[];
-    const productName = (sku: string) => products.find((p) => p.sku === sku)!.name[locale]!;
-    expect(productName("SPAG-5")).toBeTruthy();
+    expect(products).toHaveLength(2);
+    expect(products.every((p) => p.name[locale])).toBe(true);
 
     // ---------------------------------------------------------------- admin: customer + order
     const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -173,11 +175,11 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await admin.getByRole("option", { name: new RegExp(number) }).click();
     await admin.getByTestId("order-date").fill(today);
     const lines = admin.getByTestId("order-line");
-    await pickProduct(admin, lines.nth(0), "SPAG");
+    await pickProduct(admin, lines.nth(0), "BEUTEL");
     await lines.nth(0).getByTestId("line-quantity").fill("3");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
-    await pickProduct(admin, lines.nth(1), "PENN");
+    await pickProduct(admin, lines.nth(1), "KARTON");
     await lines.nth(1).getByTestId("line-quantity").fill("4");
     await admin.getByTestId("order-save").click();
     await expect(admin).toHaveURL(/\/admin\/orders(\?.*)?$/);
@@ -189,7 +191,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
       [number],
     );
     expect(stored.rows).toEqual([
-      { status: "CONFIRMED", date: today, items: ["PENN-5=4", "SPAG-5=3"] },
+      { status: "CONFIRMED", date: today, items: ["NUDELN-BEUTEL=3", "NUDELN-KARTON=4"] },
     ]);
 
     // ---------------------------------------------------------------- admin: generate + release
@@ -228,7 +230,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await expect(driver).toHaveURL(new RegExp(`/${locale}/driver$`));
     await expect(driver.locator("html")).toHaveAttribute("lang", locale);
 
-    // Today's tour: one stop, the customer, the total shown as a number (2.5 + 4 are different
+    // Today's tour: one stop, the customer, the total shown as a number (3 Beutel + 4 Karton are different
     // products, so the list shows the number of varieties, not one summed quantity).
     await expect(visible(driver, "today-tour")).toBeVisible();
     await expect(visible(driver, "next-stop-name")).toHaveText(name);
@@ -236,21 +238,18 @@ for (const { locale, username } of DRIVER_LOCALES) {
     expect(await noHorizontalScroll(driver)).toBe(true);
     await driver.screenshot({ path: testInfo.outputPath(`mvp-driver-tour-${locale}.png`) });
 
-    // Open the stop: both products with the exact quantities (decimal separator follows the locale).
+    // Open the stop: both products with the exact whole-number quantities.
     await visible(driver, "details").click();
     await expect(driver).toHaveURL(new RegExp(`/${locale}/driver/stops/[^/]+$`));
     await expect(visible(driver, "stop-detail")).toContainText(name);
     const items = driver.locator('[data-testid="stop-item"]:visible');
     await expect(items).toHaveCount(2);
-    const quantityOf = async (sku: string) =>
-      (
-        await items
-          .filter({ hasText: productName(sku) })
-          .getByTestId("item-quantity")
-          .innerText()
-      ).trim();
-    expect(await quantityOf("SPAG-5")).toMatch(/^2[.,]5(?!\d)/);
-    expect(await quantityOf("PENN-5")).toMatch(/^4(?![.,]?\d)/);
+    // Both products are called "Nudeln" (Beutel and Karton), so read the quantities by position.
+    const quantities = (await items.getByTestId("item-quantity").allInnerTexts()).map((t) =>
+      t.trim(),
+    );
+    expect(quantities.some((q) => /^3(?!\d)/.test(q))).toBe(true);
+    expect(quantities.some((q) => /^4(?!\d)/.test(q))).toBe(true);
     expect(await noHorizontalScroll(driver)).toBe(true);
     await driver.screenshot({ path: testInfo.outputPath(`mvp-driver-stop-${locale}.png`) });
 

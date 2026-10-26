@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { seed } from "../../prisma/seed";
+import { CATALOG_PRODUCTS } from "./product-catalog";
 import { createTestDb, type TestDb } from "./test-db";
 
 // Needs a real PostgreSQL (`DATABASE_URL`): `docker compose up -d` or `pnpm db:embedded`.
@@ -38,7 +39,12 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
       },
     });
     const product = await prisma.product.create({
-      data: { sku: `P-${Math.random()}`, name: { de: "Spaghetti", meta: {} }, unit: "PACK" },
+      data: {
+        sku: `P-${Math.random()}`,
+        name: { de: "Spaghetti", meta: {} },
+        unit: "PACK",
+        weightKgPerUnit: 1,
+      },
     });
     return { user, customer, product };
   }
@@ -94,7 +100,7 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     expect(await prisma.tour.count({ where: { date: new Date("2026-11-05") } })).toBe(2);
   });
 
-  it("seeds settings, 1 admin, 5 drivers, 6 products, 0 customers - idempotently", async () => {
+  it("seeds settings, 1 admin, 5 drivers, 3 products, 0 customers - idempotently", async () => {
     const { prisma } = testDb;
     // Fresh schema counts are asserted via deltas to stay independent of other tests' users.
     const before = {
@@ -126,7 +132,17 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     ]);
     // Only `driver-new` shows the first-start language picker (NUD-050).
     expect(drivers.filter((d) => !d.localeChosen).map((d) => d.username)).toEqual(["driver-new"]);
-    expect(await prisma.product.count()).toBe(before.products + 6);
+    // The migration creates the three catalog products (NUD-138); the seed finds them and adds none.
+    expect(await prisma.product.count()).toBe(before.products);
+    const catalog = await prisma.product.findMany({
+      where: { active: true, sku: { in: CATALOG_PRODUCTS.map((p) => p.sku) } },
+      orderBy: { sortOrder: "asc" },
+    });
+    expect(catalog.map((p) => [p.sku, p.unit, Number(p.weightKgPerUnit)])).toEqual([
+      ["NUDELN-BEUTEL", "PACK", 3],
+      ["NUDELN-KARTON", "CRATE", 10],
+      ["WANTAN-TEIG", "PIECE", 5],
+    ]);
     expect(await prisma.customer.count()).toBe(before.customers);
   });
 });

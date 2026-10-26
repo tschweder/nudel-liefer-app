@@ -5,6 +5,8 @@
  * for a demo - a real customer's pin has to be confirmed by the admin on the map (D9).
  */
 
+import { CATALOG_SKUS } from "./product-catalog";
+
 export const DEMO_DEPOT = {
   depotName: "Nudelfabrik Wien (Demo)",
   depotAddress: "Absberggasse 27, 1100 Wien",
@@ -216,40 +218,17 @@ export const DEMO_CUSTOMERS: readonly DemoCustomer[] = [
   },
 ];
 
-/**
- * The 8 demo products: the six of the base seed (`prisma/seed.ts`) plus these two, whose Hant
- * names are derived from the Simplified name with OpenCC (D15), flagged as machine-made.
- */
-export const DEMO_EXTRA_PRODUCTS = [
-  { sku: "RIGA-5", unit: "PACK", de: "Rigatoni 5 kg", hans: "粗通心粉 5公斤" },
-  { sku: "GNOC-2", unit: "CRATE", de: "Gnocchi, Karton", hans: "土豆团子 (箱)" },
-] as const;
-
-/** SKUs of all 8 products in display order (base seed first). */
-export const DEMO_PRODUCT_SKUS = [
-  "SPAG-5",
-  "PENN-5",
-  "TAGL-3",
-  "FUSI-5",
-  "LASA-2",
-  "RAVI-KG",
-  "RIGA-5",
-  "GNOC-2",
-] as const;
+/** SKUs of the three catalog products (NUD-138), in display order. */
+export const DEMO_PRODUCT_SKUS = CATALOG_SKUS;
 
 /**
  * Deterministic order lines for the customer at `index` (0-based): 1-3 distinct products.
- * Quantities are whole numbers (D23): kilogram products 2, 5, 8 or 10, all others 1-6.
+ * Quantities are whole numbers (D23), 1-6.
  */
-export function demoOrderLines(
-  index: number,
-  unitOf: (sku: string) => string,
-): { sku: string; quantity: number }[] {
+export function demoOrderLines(index: number): { sku: string; quantity: number }[] {
   const count = 1 + (index % 3);
   return Array.from({ length: count }, (_, k) => {
-    const sku = DEMO_PRODUCT_SKUS[(index * 3 + k * 2) % DEMO_PRODUCT_SKUS.length]!;
-    const quantity =
-      unitOf(sku) === "KG" ? [2, 5, 8, 10][(index + k) % 4]! : ((index + k * 2) % 6) + 1;
-    return { sku, quantity };
+    const sku = DEMO_PRODUCT_SKUS[(index + k) % DEMO_PRODUCT_SKUS.length]!;
+    return { sku, quantity: ((index + k * 2) % 6) + 1 };
   });
 }

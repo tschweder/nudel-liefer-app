@@ -36,9 +36,9 @@
     },
     "units": {
       "KG": "公斤",
-      "PACK": "包",
-      "CRATE": "箱",
-      "PIECE": "件"
+      "PACK": "袋",
+      "CRATE": "紙箱",
+      "PIECE": "×"
     },
     "statuses": {
       "order": {
@@ -118,6 +118,12 @@
         "zoomOut": "縮小",
         "reset": "重置"
       }
+    },
+    "unitNames": {
+      "KG": "公斤",
+      "PACK": "袋",
+      "CRATE": "紙箱",
+      "PIECE": "件 (N ×)"
     }
   },
   "home": {
@@ -679,7 +685,8 @@
         "unit": "單位",
         "status": "狀態",
         "actions": "操作",
-        "name": "名稱（德語 / 簡體）"
+        "name": "名稱（德語 / 簡體）",
+        "weight": "每單位重量"
       },
       "status": {
         "active": "啓用",
@@ -711,7 +718,10 @@
         "invalid": "請檢查輸入內容。",
         "generic": "保存失敗，請重試。",
         "savedNew": "產品已創建。",
-        "savedEdit": "產品已保存。"
+        "savedEdit": "產品已保存。",
+        "weight": "每單位重量 (公斤)",
+        "weightHint": "用於計算車輛載重。例如：一袋 3，一紙箱 10。",
+        "weightInvalid": "請輸入大於 0 公斤的重量（最多兩位小數）。"
       },
       "toggleStatus": "切換 {name} 的狀態",
       "rowMenu": {
@@ -1315,9 +1325,9 @@
     },
     "units": {
       "KG": "公斤",
-      "PACK": "包",
-      "CRATE": "箱",
-      "PIECE": "件"
+      "PACK": "袋",
+      "CRATE": "紙箱",
+      "PIECE": "×"
     },
     "stop": {
       "back": "返回線路",
@@ -1476,10 +1486,10 @@
       "errorShort": "錯誤",
       "pendingShort": "{count}"
     },
-    "unitsShort": {
+    "unitsTotal": {
       "KG": "公斤",
-      "PACK": "包",
-      "CRATE": "箱",
+      "PACK": "袋",
+      "CRATE": "紙箱",
       "PIECE": "件"
     }
   },

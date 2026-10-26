@@ -38,7 +38,7 @@ test.beforeAll(async () => {
   );
   const kg = `prod-kg-${tag}`;
   await db.query(
-    `INSERT INTO "Product" ("id","sku","name","unit","updatedAt") VALUES ($1,$2,$3::jsonb,'KG',now())`,
+    `INSERT INTO "Product" ("id","sku","name","unit","weightKgPerUnit","updatedAt") VALUES ($1,$2,$3::jsonb,'KG',1,now())`,
     [
       kg,
       `KG-${tag}`,

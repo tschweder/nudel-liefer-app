@@ -70,7 +70,7 @@ export function CustomerDetailView({
   const tf = useTranslations("admin.customers.form");
   const tt = useTranslations("admin.customers.translations");
   const tc = useTranslations("common");
-  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
+  // Unit labels ("Beutel", "Karton", "×") live once, under `driver.units` (§9.3).
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
@@ -246,7 +246,7 @@ export function CustomerDetailView({
                             {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
                               count: Number(item.quantity),
                             })}{" "}
-                            · {productName(item.productName, locale)}
+                            {productName(item.productName, locale)}
                           </li>
                         ))}
                       </ul>

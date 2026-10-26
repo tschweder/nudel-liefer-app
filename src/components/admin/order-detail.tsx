@@ -35,7 +35,7 @@ export function OrderDetailView({
   const t = useTranslations("admin.orders");
   const td = useTranslations("admin.orders.detail");
   const tc = useTranslations("common");
-  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
+  // Unit labels ("Beutel", "Karton", "×") live once, under `driver.units` (§9.3).
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
@@ -127,7 +127,7 @@ export function OrderDetailView({
                   count: Number(item.quantity),
                 })}
               </span>{" "}
-              · {productName(item.productName, locale)}
+              {productName(item.productName, locale)}
             </li>
           ))}
         </ul>

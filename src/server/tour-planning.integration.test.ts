@@ -129,7 +129,12 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
     ).id;
     productId = (
       await t.prisma.product.create({
-        data: { sku: "P1", unit: "PACK", name: { de: "P1", meta: { source: "de", machine: {} } } },
+        data: {
+          sku: "P1",
+          unit: "PACK",
+          weightKgPerUnit: 1,
+          name: { de: "P1", meta: { source: "de", machine: {} } },
+        },
       })
     ).id;
   }, 60_000);

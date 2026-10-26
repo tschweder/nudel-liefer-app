@@ -42,6 +42,7 @@ import type { MapTileConfig } from "@/lib/map-config";
 import { googleMapsNavigationUrl } from "@/lib/navigation";
 import { useOutbox } from "@/lib/offline/outbox-browser";
 import { useOverlaidStops } from "@/lib/offline/use-overlay";
+import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
 import { driverTime } from "./driver-time";
@@ -94,7 +95,7 @@ function ItemSummary({ items }: { items: TodayItem[] }) {
               <strong className="font-sans text-3xl font-bold tabular-nums">
                 {fmt.quantity(total.quantity)}
               </strong>{" "}
-              <span>{t(`units.${total.unit as UnitKey}`, { count: total.quantity })}</span>
+              <span>{t(`unitsTotal.${total.unit as UnitKey}`)}</span>
             </span>
           ))}
         </>
@@ -116,9 +117,11 @@ function ItemSummary({ items }: { items: TodayItem[] }) {
               </strong>
               <span aria-hidden>×</span>
               <span className="min-w-0 font-medium">{item.name}</span>
-              <span className="shrink-0 text-muted-foreground">
-                {t(`units.${item.unit as UnitKey}`, { count: quantity })}
-              </span>
+              {isPieceUnit(item.unit) ? null : (
+                <span className="shrink-0 text-muted-foreground">
+                  {t(`units.${item.unit as UnitKey}`, { count: quantity })}
+                </span>
+              )}
             </span>
           );
         })
@@ -163,7 +166,7 @@ function RowSummary({ items }: { items: TodayItem[] }) {
             data-unit={total.unit}
           >
             {/* Same ICU plural form as the hero chip: "5 Kisten", not "5 Kiste" (run 3 review). */}
-            {fmt.quantity(quantity)} {t(`unitsShort.${total.unit as UnitKey}`, { count: quantity })}
+            {fmt.quantity(quantity)} {t(`unitsTotal.${total.unit as UnitKey}`)}
           </span>
         );
       })}
@@ -223,9 +226,11 @@ function ChangeHighlight({ stop }: { stop: TodayStop }) {
                   {fmt.quantity(item.previousQuantity ?? 0)}
                 </span>{" "}
                 <span aria-hidden>→</span> {fmt.quantity(item.quantity)}{" "}
-                <span className="text-base font-medium">
-                  {t(`units.${item.unit as UnitKey}`, { count: item.quantity })}
-                </span>
+                {isPieceUnit(item.unit) ? null : (
+                  <span className="text-base font-medium">
+                    {t(`units.${item.unit as UnitKey}`, { count: item.quantity })}
+                  </span>
+                )}
               </span>
             </li>
           ))}

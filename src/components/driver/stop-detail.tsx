@@ -30,6 +30,7 @@ import { type AppFormatters, createAppFormatters } from "@/lib/format";
 import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
 import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
 import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
+import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
 import { localizeDeliveryHours } from "./delivery-hours";
@@ -272,25 +273,56 @@ function ItemRow({
   fmt: AppFormatters;
 }) {
   const quantity = item.quantity;
+  const piece = isPieceUnit(item.unit);
+  const qty = (
+    <strong className="font-sans text-3xl font-bold tabular-nums" data-testid="item-quantity-value">
+      {fmt.quantity(quantity)}
+    </strong>
+  );
   return (
     <li className="flex items-start justify-between gap-3 px-4 py-3" data-testid="stop-item">
-      <div className="min-w-0">
-        <p className="text-lg leading-snug font-semibold break-words" data-testid="item-name">
-          {item.name}
+      {/* "3 × Wantan-Teig": a piece line has no unit word, so the quantity leads the name. */}
+      {piece ? (
+        <p className="flex min-w-0 items-baseline gap-2" data-testid="item-quantity">
+          {qty}
+          <span aria-hidden className="text-2xl">
+            ×
+          </span>
+          <span className="min-w-0">
+            <span
+              className="block text-lg leading-snug font-semibold break-words"
+              data-testid="item-name"
+            >
+              {item.name}
+            </span>
+            {item.germanName && item.germanName !== item.name ? (
+              <span
+                className="block text-base font-normal text-muted-foreground break-words"
+                data-testid="item-name-de"
+              >
+                <span lang="de">{item.germanName}</span>
+              </span>
+            ) : null}
+          </span>
         </p>
-        {item.germanName && item.germanName !== item.name ? (
-          <p className="text-base text-muted-foreground break-words" data-testid="item-name-de">
-            <span lang="de">{item.germanName}</span>
+      ) : (
+        <>
+          <div className="min-w-0">
+            <p className="text-lg leading-snug font-semibold break-words" data-testid="item-name">
+              {item.name}
+            </p>
+            {item.germanName && item.germanName !== item.name ? (
+              <p className="text-base text-muted-foreground break-words" data-testid="item-name-de">
+                <span lang="de">{item.germanName}</span>
+              </p>
+            ) : null}
+          </div>
+          {/* "<qty> <unit>" — no multiplication sign between value and unit (design review point 7). */}
+          <p className="shrink-0 text-end" data-testid="item-quantity">
+            {qty} <span className="text-base">{unitLabel(item.unit, quantity)}</span>
           </p>
-        ) : null}
-      </div>
-      {/* "<qty> <unit>" — no multiplication sign between value and unit (design review point 7). */}
-      <p className="shrink-0 text-end" data-testid="item-quantity">
-        <strong className="font-sans text-3xl font-bold tabular-nums">
-          {fmt.quantity(quantity)}
-        </strong>{" "}
-        <span className="text-base">{unitLabel(item.unit, quantity)}</span>
-      </p>
+        </>
+      )}
     </li>
   );
 }
@@ -343,7 +375,7 @@ function DeliveryCard({
                 <strong className="font-sans text-3xl font-bold tabular-nums">
                   {fmt.quantity(total.quantity)}
                 </strong>{" "}
-                <span className="text-base">{unitLabel(total.unit, total.quantity)}</span>
+                <span className="text-base">{t(`unitsTotal.${total.unit as UnitKey}`)}</span>
               </span>
             ))}
           </span>

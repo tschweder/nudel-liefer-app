@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDownIcon, ArrowUpIcon, BanIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -47,6 +47,7 @@ import type { ProductRow } from "@/server/products";
 export function ProductsTable({ rows }: { rows: ProductRow[] }) {
   const t = useTranslations("admin.products");
   const tc = useTranslations("common");
+  const fmt = useFormatter();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   /** Deactivation is confirmed because it is a soft delete (the product stops being ordered). */
@@ -111,6 +112,7 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
             {/* Both names share one column (re-design.md §8.6): German bold, Simplified muted below. */}
             <TableHead>{t("columns.name")}</TableHead>
             <TableHead>{t("columns.unit")}</TableHead>
+            <TableHead className="text-end">{t("columns.weight")}</TableHead>
             <TableHead>{t("columns.status")}</TableHead>
             <TableHead className="text-end">
               <span className="sr-only">{t("columns.actions")}</span>
@@ -183,8 +185,15 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
 
                 <TableCell className="py-1.5">
                   <StatusBadge tone="neutral" size="sm">
-                    {tc(`units.${p.unit}`)}
+                    {tc(`unitNames.${p.unit}`)}
                   </StatusBadge>
+                </TableCell>
+
+                <TableCell
+                  className="py-1.5 text-end tabular-nums"
+                  data-testid="product-weight-cell"
+                >
+                  {fmt.number(p.weightKgPerUnit, { maximumFractionDigits: 2 })} kg
                 </TableCell>
 
                 <TableCell className="py-1.5">

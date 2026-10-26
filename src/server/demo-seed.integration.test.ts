@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { hansToHk } from "@/lib/opencc";
 import { isCustomerPhotoKey } from "@/lib/uploads";
 
 import { seed } from "../../prisma/seed";
@@ -29,10 +28,9 @@ describe("demo data (pure)", () => {
   });
 
   it("builds 1-3 distinct order lines with sensible quantities", () => {
-    expect(DEMO_PRODUCT_SKUS).toHaveLength(8);
-    const unitOf = (sku: string) => (sku === "RAVI-KG" ? "KG" : "PACK");
+    expect(DEMO_PRODUCT_SKUS).toHaveLength(3);
     for (let i = 0; i < DEMO_CUSTOMERS.length; i += 1) {
-      const lines = demoOrderLines(i, unitOf);
+      const lines = demoOrderLines(i);
       expect(lines.length).toBeGreaterThanOrEqual(1);
       expect(lines.length).toBeLessThanOrEqual(3);
       expect(new Set(lines.map((l) => l.sku)).size).toBe(lines.length);
@@ -81,7 +79,6 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
       customersCreated: 20,
       photosCreated: 40,
       ordersCreated: 20,
-      productsCreated: 2,
     });
 
     const settings = await t.prisma.settings.findUniqueOrThrow({ where: { id: 1 } });
@@ -89,14 +86,11 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
     expect(settings.depotAddress).toContain("Wien");
 
     const products = await t.prisma.product.findMany({ where: { active: true } });
-    expect(products).toHaveLength(8);
+    expect(products).toHaveLength(3);
     for (const p of products) {
       const name = p.name as Record<string, string>;
       for (const l of ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) expect(name[l]).toBeTruthy();
     }
-    const extra = products.find((p) => p.sku === "RIGA-5")!.name as Record<string, string>;
-    expect(extra["zh-Hant-TW"]).toBeTruthy();
-    expect(extra["zh-Hant-HK"]).toBe(hansToHk("粗通心粉 5公斤"));
 
     const customers = await t.prisma.customer.findMany({ include: { photos: true } });
     expect(customers).toHaveLength(20);
@@ -123,12 +117,11 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
       customersCreated: 0,
       photosCreated: 0,
       ordersCreated: 0,
-      productsCreated: 0,
     });
     expect(await t.prisma.customer.count()).toBe(20);
     expect(await t.prisma.photo.count()).toBe(40);
     expect(await t.prisma.order.count()).toBe(20);
-    expect(await t.prisma.product.count()).toBe(8);
+    expect(await t.prisma.product.count()).toBe(3);
   });
 
   it("can create the orders for today, and a rerun adds nothing while they are current", async () => {

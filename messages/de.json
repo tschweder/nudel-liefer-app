@@ -35,9 +35,9 @@
     },
     "units": {
       "KG": "kg",
-      "PACK": "Packung",
-      "CRATE": "Kiste",
-      "PIECE": "Stück"
+      "PACK": "Beutel",
+      "CRATE": "Karton",
+      "PIECE": "×"
     },
     "statuses": {
       "order": {
@@ -117,6 +117,12 @@
         "zoomOut": "Verkleinern",
         "reset": "Zurücksetzen"
       }
+    },
+    "unitNames": {
+      "KG": "kg",
+      "PACK": "Beutel",
+      "CRATE": "Karton",
+      "PIECE": "Stück (N ×)"
     }
   },
   "home": {
@@ -678,7 +684,8 @@
         "unit": "Einheit",
         "status": "Status",
         "actions": "Aktionen",
-        "name": "Name (Deutsch / vereinfacht)"
+        "name": "Name (Deutsch / vereinfacht)",
+        "weight": "Gewicht pro Einheit"
       },
       "status": {
         "active": "Aktiv",
@@ -710,7 +717,10 @@
         "invalid": "Bitte Eingaben prüfen.",
         "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
         "savedNew": "Produkt angelegt.",
-        "savedEdit": "Produkt gespeichert."
+        "savedEdit": "Produkt gespeichert.",
+        "weight": "Gewicht pro Einheit (kg)",
+        "weightHint": "Wird für die Fahrzeugauslastung verwendet. Zum Beispiel 3 für einen Beutel, 10 für einen Karton.",
+        "weightInvalid": "Bitte ein Gewicht größer als 0 kg angeben (höchstens zwei Nachkommastellen)."
       },
       "toggleStatus": "Status von {name} umschalten",
       "rowMenu": {
@@ -1314,9 +1324,9 @@
     },
     "units": {
       "KG": "kg",
-      "PACK": "{count, plural, one {Packung} other {Packungen}}",
-      "CRATE": "{count, plural, one {Kiste} other {Kisten}}",
-      "PIECE": "{count, plural, one {Stück} other {Stück}}"
+      "PACK": "Beutel",
+      "CRATE": "Karton",
+      "PIECE": "×"
     },
     "stop": {
       "back": "Zurück zur Tour",
@@ -1475,11 +1485,11 @@
       "errorShort": "Fehler",
       "pendingShort": "{count}"
     },
-    "unitsShort": {
+    "unitsTotal": {
       "KG": "kg",
-      "PACK": "{count, plural, one {Pk.} other {Pk.}}",
-      "CRATE": "{count, plural, one {Kiste} other {Kisten}}",
-      "PIECE": "{count, plural, one {St.} other {St.}}"
+      "PACK": "Beutel",
+      "CRATE": "Karton",
+      "PIECE": "Stück"
     }
   },
   "pwa": {

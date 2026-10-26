@@ -42,7 +42,7 @@ test.beforeAll(async () => {
   );
   const kg = `prod-kg-${tag}`;
   await db.query(
-    `INSERT INTO "Product" ("id","sku","name","unit","updatedAt") VALUES ($1,$2,$3::jsonb,'KG',now())`,
+    `INSERT INTO "Product" ("id","sku","name","unit","weightKgPerUnit","updatedAt") VALUES ($1,$2,$3::jsonb,'KG',1,now())`,
     [kg, `KG-${tag}`, text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵")],
   );
   const settings = (await db.query(`SELECT "timezone" FROM "Settings"`)).rows[0] as {

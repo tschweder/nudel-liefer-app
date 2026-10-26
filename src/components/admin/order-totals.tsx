@@ -35,9 +35,9 @@ export function OrderTotals({
 }) {
   const t = useTranslations("admin.orders.totals");
   const tp = useTranslations("admin.tours.print");
-  // Unit labels: the ICU plural forms already exist under `driver.units` ("15 Packungen",
-  // "12 Kisten"); the sums card reuses them rather than duplicating the German (§9.3).
-  const tu = useTranslations("driver.units");
+  // Quantities without a product name next to them ("22 Beutel", "3 Stück") use the word forms
+  // under `driver.unitsTotal` (§9.3); "×" only exists in front of a product name.
+  const tu = useTranslations("driver.unitsTotal");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
 
@@ -130,9 +130,7 @@ export function OrderTotals({
                           </td>
                           <td className={`${numericCell} py-1 font-medium whitespace-nowrap`}>
                             {fmt.quantity(p.quantity)}{" "}
-                            {tu(p.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
-                              count: Number(p.quantity),
-                            })}
+                            {tu(p.unit as "KG" | "PACK" | "CRATE" | "PIECE")}
                           </td>
                         </tr>
                       ))}

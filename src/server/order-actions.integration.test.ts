@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { hashSecret } from "./auth/password";
+import { CATALOG_SKUS } from "./product-catalog";
 import { createTestDb, type TestDb } from "./test-db";
 
 const state: { session: { user?: { id: string } } | null; db: TestDb["prisma"] | null } = {
@@ -88,6 +89,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
           data: {
             sku,
             unit: "PACK",
+            weightKgPerUnit: 1,
             name: { de: sku, meta: { source: "de", machine: {} } },
             ...extra,
           },
@@ -291,7 +293,9 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     expect(numbers).not.toContain("C2"); // archived
     expect(customers.find((c) => c.customerNumber === "C3")?.pinConfirmed).toBe(false);
     const skus = (await activeProductsQuery()).map((p) => p.sku);
-    expect(skus).toEqual(["P1", "P2", "P3"]);
+    // The three catalog products (NUD-138) come from the migration; the test adds P1-P3.
+    expect(skus.filter((s) => !CATALOG_SKUS.includes(s))).toEqual(["P1", "P2", "P3"]);
+    expect(CATALOG_SKUS.every((s) => skus.includes(s))).toBe(true);
   });
 
   it("counts only CONFIRMED orders of that customer and day", async () => {

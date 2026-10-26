@@ -292,7 +292,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
 | NUD-137 | Whole-number quantities | M2.6 | – | done |
-| NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | todo |
+| NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | done |
 | NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | todo |
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | todo |
 | NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | todo |
@@ -2244,7 +2244,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-138 · Product catalog: 3 real products with weight per unit
-**Status:** todo · **depends_on:** 137 · F5 · **supersedes NUD-124**
+**Status:** done · **depends_on:** 137 · F5 · **supersedes NUD-124**
 
 **Goal:** the catalog holds exactly the owner's three products; each product has an admin-editable weight per unit (used for vehicle capacity, NUD-146).
 
@@ -2261,9 +2261,17 @@ General rules for every ticket in this block:
 - Weight helper in `src/domain/` (`orderWeightKg(items, products)`) with unit tests.
 
 **Acceptance criteria**
-- [ ] Product list shows exactly the 3 active products; demo products are archived and not selectable.
-- [ ] Changing the weight per unit changes the computed weight of a tour (unit test).
-- [ ] No UI string in any locale contains "Kiste" or "Packung"; driver/checklist/load sheet render "3 × Wantan-Teig".
+- [x] Product list shows exactly the 3 active products; demo products are archived and not selectable. (Migration + seed: three active products, all others `active=false` and not offered by `getActiveProducts`; `db.integration.test.ts`, `demo-seed.integration.test.ts`, `order-actions.integration.test.ts`)
+- [x] Changing the weight per unit changes the computed weight of a tour (unit test). (`src/domain/weight.test.ts` and `product-actions.integration.test.ts`)
+- [x] No UI string in any locale contains "Kiste" or "Packung"; driver/checklist/load sheet render "3 × Wantan-Teig". (`common.units`, `driver.units`, `driver.unitsTotal`; driver stop card, hero chip, load sheet and office lists render "3 × Wantan-Teig")
+
+**Implementation notes**
+- Migration `20261026180000_product_catalog_weight` (hand-written SQL): adds `Product.weightKgPerUnit Decimal(6,2)` NOT NULL with a `CHECK > 0` (existing rows get 3/10/5/1 kg by unit), inserts the three products `NUDELN-BEUTEL`, `NUDELN-KARTON`, `WANTAN-TEIG` (de + zh-Hans + OpenCC Hant flagged machine-made), moves the order lines of the eight old demo SKUs onto them (lines that end up on the same product in one order are summed), and archives every other product. Verified on a database with sample orders.
+- `src/server/product-catalog.ts` is the single source for the base seed, the demo seed and the tests. The seed never overwrites an existing row, so an admin-edited weight survives a re-seed. The demo seed no longer creates extra products.
+- `orderWeightKg(items, products)` and `parseWeightKg` in `src/domain/weight.ts` (hundredths of a kilogram internally, no float drift). The product form has "Gewicht pro Einheit (kg)" (decimal comma or point, > 0, at most 9 999,99); the product list has a weight column.
+- Unit wording: `PACK` = Beutel, `CRATE` = Karton (zh-Hans 袋 / 纸箱), `PIECE` = "×" in front of the product name. Lines read "22 Beutel Nudeln", "14 Karton Nudeln", "3 × Wantan-Teig" (the old " · " separator is gone). Sums without a product name use `driver.unitsTotal` ("3 Stück"), the product form and list use `common.unitNames`. `driver.unitsShort` was removed (no longer used).
+- The load sheet now puts quantity and unit in the first column ("22 Beutel | Nudeln").
+- Pre-existing e2e failures, not caused by this ticket (stale redesign assertions, cf. NUD-128): `order-overview` "default date" and the `:visible` totals card, `products.spec` after the reorder step (`product-edit` sits inside the row menu).
 
 ---
 
@@ -2878,6 +2886,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-150 | No WhatsApp/WeChat bots and no PWA share target; a pasted-text field + screenshot instead | Owner decision; WeChat has no official bot API for personal accounts |
 | 2026-10-26 | NUD-137 | Audit-log quantities stay in hundredths (`toAuditQuantity`) although order quantities are integers now | The log is append-only; old rows cannot be rewritten, so one encoding keeps one reader |
 | 2026-10-26 | NUD-137 | Existing fractional quantities are rounded half up and never below 1 in the migration; max quantity per line is 99 999 | Simplest integer rule consistent with D23; non-integer rows are reported as NOTICE |
+| 2026-10-26 | NUD-138 | Both Nudeln products have the same name "Nudeln"; the order picker tells them apart by the SKU in its label (`NUDELN-BEUTEL`, `NUDELN-KARTON`) | Simplest option consistent with D23; the unit is shown right next to the quantity on every line |
+| 2026-10-26 | NUD-138 | Wantan-Teig is "馄饨皮" (zh-Hans) / "餛飩皮" (Hant); the old kilogram Ravioli demo lines moved to Beutel | No Chinese name was given; the standard written form is used and can be edited on the product form. Kilogram lines have no equivalent among the three products |
+| 2026-10-26 | NUD-138 | Quantity sums that have no product name next to them (driver totals, office sums card, tour diff, history) show "Stück" for pieces, not "×" | "3 ×" without a name is meaningless; "×" only exists in front of a product name (glossary §3) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

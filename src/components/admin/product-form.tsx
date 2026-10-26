@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { parseWeightKg } from "@/domain/weight";
 import { Link, useRouter } from "@/i18n/navigation";
 import { UNITS } from "@/lib/units";
 import {
@@ -35,7 +36,7 @@ type Props = {
 
 const DERIVE_DELAY_MS = 200;
 
-type FormError = "invalid" | "generic" | "skuTaken" | "unitLocked" | null;
+type FormError = "invalid" | "generic" | "skuTaken" | "unitLocked" | "weightInvalid" | null;
 
 export function ProductForm({ productId, initial, unitLocked }: Props) {
   const t = useTranslations("admin.products.form");
@@ -44,6 +45,7 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
   const [pending, startTransition] = useTransition();
   const [sku, setSku] = useState(initial.sku);
   const [unit, setUnit] = useState(initial.unit);
+  const [weight, setWeight] = useState(initial.weightKgPerUnit);
   const [de, setDe] = useState(initial.de);
   const [hans, setHans] = useState(initial.hans);
   const [hk, setHk] = useState(initial.hk);
@@ -78,7 +80,15 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
     setError(null);
     setHansMissing(hans.trim() === "");
     if (hans.trim() === "" || de.trim() === "" || sku.trim() === "") return setError("invalid");
-    const input = { sku, unit, name: { de, hans, hk, tw }, hkAuto, twAuto };
+    if (parseWeightKg(weight) === null) return setError("weightInvalid");
+    const input = {
+      sku,
+      unit,
+      weightKgPerUnit: weight,
+      name: { de, hans, hk, tw },
+      hkAuto,
+      twAuto,
+    };
     startTransition(async () => {
       let result;
       try {
@@ -153,11 +163,32 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
             <SelectContent>
               {UNITS.map((u) => (
                 <SelectItem key={u} value={u}>
-                  {tc(`units.${u}`)}
+                  {tc(`unitNames.${u}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </FormField>
+        <FormField
+          label={t("weight")}
+          htmlFor="prod-weight"
+          required
+          className="max-w-xs"
+          description={t("weightHint")}
+        >
+          <Input
+            id="prod-weight"
+            inputMode="decimal"
+            value={weight}
+            maxLength={8}
+            onChange={(e) => {
+              setWeight(e.target.value);
+              if (error === "weightInvalid") setError(null);
+            }}
+            aria-invalid={error === "weightInvalid" || undefined}
+            required
+            data-testid="product-weight"
+          />
         </FormField>
       </section>
 
@@ -243,11 +274,16 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
         ))}
       </section>
 
-      {error === "invalid" || error === "generic" || error === "unitLocked" ? (
+      {error === "invalid" ||
+      error === "generic" ||
+      error === "unitLocked" ||
+      error === "weightInvalid" ? (
         <p className="text-sm text-destructive" role="alert" data-testid="form-error">
           {error === "unitLocked"
             ? t("unitLockedError")
-            : t(error === "invalid" ? "invalid" : "generic")}
+            : error === "weightInvalid"
+              ? t("weightInvalid")
+              : t(error === "invalid" ? "invalid" : "generic")}
         </p>
       ) : null}
 

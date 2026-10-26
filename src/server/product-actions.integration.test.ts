@@ -30,6 +30,7 @@ const { activeProductsQuery, getProductQuery, listProductsQuery } =
 const valid = {
   sku: "tst-1",
   unit: "PACK",
+  weightKgPerUnit: "2,5",
   name: { de: "Schraubennudeln", hans: "螺旋意面", hk: "", tw: "" },
   hkAuto: true,
   twAuto: true,
@@ -174,6 +175,7 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
     const result = await updateProductAction(id, {
       sku: "TST-1",
       unit: "PACK",
+      weightKgPerUnit: "3",
       name: { de: "Fusilli", hans: "笔管面", hk: "x", tw: "Handarbeit 麵" },
       hkAuto: true,
       twAuto: false,
@@ -303,6 +305,31 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
     expect(await getProductQuery(id)).toMatchObject({ unitLocked: true });
     // Names stay editable.
     expect((await updateProductAction(id, { ...valid, sku: "U1", unit: "KG" })).ok).toBe(true);
+  });
+
+  it("stores the weight per unit, accepts a decimal comma and rejects 0, negatives and text", async () => {
+    asAdmin();
+    const id = await create({ sku: "W1", weightKgPerUnit: "12,5" });
+    expect(
+      Number((await t.prisma.product.findUniqueOrThrow({ where: { id } })).weightKgPerUnit),
+    ).toBe(12.5);
+    expect(await getProductQuery(id)).toMatchObject({ weightKgPerUnit: "12.5" });
+    expect((await updateProductAction(id, { ...valid, sku: "W1", weightKgPerUnit: 4 })).ok).toBe(
+      true,
+    );
+    expect(
+      Number((await t.prisma.product.findUniqueOrThrow({ where: { id } })).weightKgPerUnit),
+    ).toBe(4);
+    for (const bad of ["0", "-3", "abc", "", "1,234", "10000", undefined]) {
+      expect(await createProductAction({ ...valid, sku: "W2", weightKgPerUnit: bad })).toEqual({
+        ok: false,
+        error: "invalid",
+      });
+    }
+    // The database refuses a non-positive weight even when the service is bypassed.
+    await expect(
+      t.prisma.product.update({ where: { id }, data: { weightKgPerUnit: 0 } }),
+    ).rejects.toThrow();
   });
 
   it("deriveHantAction returns the OpenCC output for the live pre-fill", async () => {

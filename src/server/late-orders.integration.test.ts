@@ -171,7 +171,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const product = (sku: string) =>
         t.prisma.product
           .create({
-            data: { sku, unit: "PACK", name: { de: sku, meta: { source: "de", machine: {} } } },
+            data: {
+              sku,
+              unit: "PACK",
+              weightKgPerUnit: 1,
+              name: { de: sku, meta: { source: "de", machine: {} } },
+            },
           })
           .then((p) => p.id);
       p1 = await product("P1");

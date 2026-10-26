@@ -53,10 +53,10 @@ describe.skipIf(!process.env.DATABASE_URL)("driver today screen data", { timeout
     });
 
     const spaghetti = await t.prisma.product.create({
-      data: { sku: "SPAG", unit: "KG", name: text("Spaghetti", "意大利面") },
+      data: { sku: "SPAG", unit: "KG", weightKgPerUnit: 1, name: text("Spaghetti", "意大利面") },
     });
     const penne = await t.prisma.product.create({
-      data: { sku: "PENN", unit: "PACK", name: text("Penne", "笔管面") },
+      data: { sku: "PENN", unit: "PACK", weightKgPerUnit: 1, name: text("Penne", "笔管面") },
     });
     const customers = [];
     for (const n of [1, 2, 3]) {

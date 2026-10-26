@@ -8,7 +8,7 @@ import { Client } from "pg";
 //   day (tabs) -> assign + release -> the driver sees the follow-up tour with only the late
 //   quantities -> delivers -> both tours are COMPLETED.
 //
-// It needs a seeded database (products SPAG-5 / PENN-5), DATABASE_URL and SEED_ADMIN_PASSWORD.
+// It needs a seeded database (the catalog products NUDELN-BEUTEL / NUDELN-KARTON), DATABASE_URL and SEED_ADMIN_PASSWORD.
 // The driver only sees TODAY's tour, so the spec owns "today" of the database: it refuses to run
 // when another tour exists for today and removes everything it created. Like tour-rerelease.spec
 // it confirms the depot pin for its duration (do not run it together with settings.spec.ts or
@@ -122,7 +122,9 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   };
   const products = Object.fromEntries(
     (
-      await db.query(`SELECT "sku","id" FROM "Product" WHERE "sku" IN ('SPAG-5','PENN-5')`)
+      await db.query(
+        `SELECT "sku","id" FROM "Product" WHERE "sku" IN ('NUDELN-BEUTEL','NUDELN-KARTON')`,
+      )
     ).rows.map((r) => [r.sku as string, r.id as string]),
   );
   const driverId = `late-user-${tag}`;
@@ -158,8 +160,8 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
     );
     return id;
   };
-  await addOrder(customers.A.id, "SPAG-5", "2");
-  await addOrder(customers.B.id, "PENN-5", "4");
+  await addOrder(customers.A.id, "NUDELN-BEUTEL", "2");
+  await addOrder(customers.B.id, "NUDELN-KARTON", "4");
 
   // ------------------------------------------------------------------ admin: first tour
   const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -220,12 +222,12 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   await adminPage.getByRole("option", { name: new RegExp(customers.A.number) }).click();
   await adminPage.getByTestId("order-date").fill(today);
   const lines = adminPage.getByTestId("order-line");
-  await pickProduct(adminPage, lines.nth(0), "SPAG");
+  await pickProduct(adminPage, lines.nth(0), "BEUTEL");
   await lines.nth(0).getByTestId("line-quantity").fill("3");
   await adminPage.getByTestId("order-save").click();
   await expect(adminPage).toHaveURL(/\/admin\/orders(\?.*)?$/);
   // A second late order (a customer that was not on the tour), entered directly.
-  const lateC = await addOrder(customers.C.id, "PENN-5", "5");
+  const lateC = await addOrder(customers.C.id, "NUDELN-KARTON", "5");
 
   // The overview tells it: notice with the day, badge on the rows.
   await adminPage.goto(`/de/admin/orders?from=${today}&to=${today}`);
@@ -376,7 +378,7 @@ test("all four languages render the late-order banner and the tabs without error
     .rows[0] as {
     id: string;
   };
-  const spag = (await db.query(`SELECT "id" FROM "Product" WHERE "sku"='SPAG-5'`)).rows[0]
+  const spag = (await db.query(`SELECT "id" FROM "Product" WHERE "sku"='NUDELN-BEUTEL'`)).rows[0]
     .id as string;
   const id = `late-cust-L-${tag}`;
   await db.query(

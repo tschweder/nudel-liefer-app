@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// NUD-043. Needs a seeded database (product SPAG-5, demo driver), DATABASE_URL and
+// NUD-043. Needs a seeded database (product NUDELN-BEUTEL, demo driver), DATABASE_URL and
 // SEED_ADMIN_PASSWORD. Desktop only. Like tours.spec.ts it confirms the depot pin for its
 // duration, so do not run it at the same time as settings.spec.ts or tours.spec.ts.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
@@ -31,8 +31,8 @@ async function fixture() {
   await client.connect();
   const admin = (await client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
     .rows[0] as { id: string };
-  const spag = (await client.query(`SELECT "id" FROM "Product" WHERE "sku"='SPAG-5'`)).rows[0]
-    .id as string;
+  const spag = (await client.query(`SELECT "id" FROM "Product" WHERE "sku"='NUDELN-BEUTEL'`))
+    .rows[0].id as string;
   const depot = (
     await client.query(`SELECT "depotLat","depotLng","depotPinConfirmed" FROM "Settings"`)
   ).rows[0] as { depotLat: number; depotLng: number; depotPinConfirmed: boolean };
@@ -219,8 +219,8 @@ test("order quantity changed after release: banner with diff, re-release keeps d
       changeKind: "CHANGED",
       changedInRevision: 2,
     });
-    expect(byCustomer(f.b.id).items[0].quantity).toBe(500);
-    expect(byCustomer(f.c.id).items[0].quantity).toBe(400);
+    expect(byCustomer(f.b.id).items[0].quantity).toBe(5);
+    expect(byCustomer(f.c.id).items[0].quantity).toBe(4);
     const tour = (
       await f.client.query(
         `SELECT "status","isOutdated","releaseRevision","reReleasedAt" IS NOT NULL AS re FROM "Tour" WHERE "date"=$1`,

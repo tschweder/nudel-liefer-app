@@ -135,6 +135,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
           data: {
             sku,
             unit: "PACK",
+            weightKgPerUnit: 1,
             name: { de, meta: { source: "de", machine: {}, updatedAt: "x" } },
           },
         })

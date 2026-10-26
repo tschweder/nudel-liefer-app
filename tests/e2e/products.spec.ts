@@ -47,6 +47,15 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     await page.getByTestId("new-product").click();
     await expect(page).toHaveURL(/\/admin\/products\/new$/);
     await page.getByTestId("product-sku").fill(skuA);
+    // Weight per unit is required and must be > 0 (NUD-138).
+    await page.getByTestId("product-weight").fill("0");
+    await page.getByTestId("product-name-de").fill(`Schraubennudeln ${tag}`);
+    await page.getByTestId("product-name-hans").fill("螺旋意面");
+    await page.getByTestId("product-save").click();
+    await expect(page.getByTestId("form-error")).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/products\/new$/);
+    await page.getByTestId("product-weight").fill("2,5");
+    await page.getByTestId("product-name-hans").fill("");
     await page.getByTestId("product-name-de").fill(`Schraubennudeln ${tag}`);
     await page.getByTestId("product-save").click();
     await expect(page.getByTestId("hans-required")).toBeVisible();
@@ -72,6 +81,7 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     await expect(page).toHaveURL(/\/admin\/products$/);
     const rowA = page.locator(`[data-testid="product-row"][data-sku="${skuA}"]`);
     await expect(rowA).toContainText("螺旋意面 3公斤");
+    await expect(rowA.getByTestId("product-weight-cell")).toContainText("2,5 kg");
     await expect(rowA.getByTestId("status-active")).toBeVisible();
     const stored = (
       await client.query(`SELECT "name","unit","active" FROM "Product" WHERE "sku"=$1`, [skuA])
@@ -86,6 +96,7 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     // Duplicate SKU (case-insensitive) is rejected with a localized message.
     await page.getByTestId("new-product").click();
     await page.getByTestId("product-sku").fill(skuA.toLowerCase());
+    await page.getByTestId("product-weight").fill("3");
     await page.getByTestId("product-name-de").fill("Doppelt");
     await page.getByTestId("product-name-hans").fill("重复");
     await page.getByTestId("product-save").click();
@@ -93,6 +104,7 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
 
     // A second product, then reorder with the up/down buttons.
     await page.getByTestId("product-sku").fill(skuB);
+    await page.getByTestId("product-weight").fill("10");
     await page.getByTestId("product-save").click();
     await expect(page).toHaveURL(/\/admin\/products$/);
     const rowB = page.locator(`[data-testid="product-row"][data-sku="${skuB}"]`);

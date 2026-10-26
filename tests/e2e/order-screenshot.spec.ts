@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// NUD-031. Needs a seeded database (products SPAG-5, ...), DATABASE_URL, SEED_ADMIN_PASSWORD and a
+// NUD-031. Needs a seeded database (the three catalog products), DATABASE_URL, SEED_ADMIN_PASSWORD and a
 // real S3-compatible storage configured via S3_* (MinIO or the s3rver emulator): the browser PUTs
 // the screenshot to the presigned URL and reads it back through a signed URL.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
@@ -36,8 +36,8 @@ const IMAGE_IN_PAGE = `
     ctx.fillRect(0, 0, 1000, 700);
     ctx.fillStyle = "#000";
     ctx.font = "48px sans-serif";
-    ctx.fillText("Bitte 10 kg Spaghetti", 60, 200);
-    ctx.fillText("und 3 Packungen Penne", 60, 300);
+    ctx.fillText("Bitte 10 Beutel Nudeln", 60, 200);
+    ctx.fillText("und 3 Karton Nudeln", 60, 300);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const dt = new DataTransfer();
     dt.items.add(new File([blob], "whatsapp.png", { type: "image/png" }));
@@ -190,10 +190,10 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
       await expect(combo).toContainText(search.toUpperCase());
       await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
-    await pickProduct(0, "SPAG");
+    await pickProduct(0, "BEUTEL");
     await lines.nth(0).getByTestId("line-quantity").fill("10");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
-    await pickProduct(1, "PENN");
+    await pickProduct(1, "KARTON");
     await lines.nth(1).getByTestId("line-quantity").fill("3");
     await expect(pane).toBeVisible();
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
@@ -228,7 +228,7 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
     await expect(page.getByTestId("detail-customer")).toHaveText(f.name);
     await expect(page.getByTestId("detail-source")).toHaveText("Screenshot");
     await expect(page.getByTestId("detail-item")).toHaveCount(2);
-    await expect(page.getByTestId("detail-items")).toContainText("10 Packung · Spaghetti 5 kg");
+    await expect(page.getByTestId("detail-items")).toContainText("10 Beutel Nudeln");
 
     // Thumbnail -> fullscreen.
     const thumb = page.getByTestId("detail-screenshot").getByRole("button", {
@@ -296,7 +296,7 @@ test("screenshot order: file picker and drag-and-drop attach, remove brings the 
     await page.getByTestId("order-date").fill("2099-05-05");
     const combo = page.getByTestId("order-line").nth(0).getByRole("combobox");
     await combo.click();
-    await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").fill("SPAG");
+    await page.getByPlaceholder("Nach Name oder Artikelnummer suchen").fill("BEUTEL");
     await page.keyboard.press("Enter");
     await page.getByTestId("line-quantity").fill("1");
     await page.getByTestId("order-save").click();

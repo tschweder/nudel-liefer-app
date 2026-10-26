@@ -165,8 +165,8 @@ function OrderRow({
 }) {
   const t = useTranslations("admin.orders");
   const tc = useTranslations("common");
-  // Unit labels: the ICU plural forms already exist once, under `driver.units` ("2,5 Packungen",
-  // "12 Kisten") — the office screens reuse them instead of duplicating translations (§9.3).
+  // Unit labels ("Beutel", "Karton", "×") live once, under `driver.units` — the office screens
+  // reuse them instead of duplicating translations (§9.3).
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
@@ -176,11 +176,11 @@ function OrderRow({
     parseCalendarDate(today) ?? new Date(),
   );
   /**
-   * Full line ("2,5 Packung · Spaghetti 5 kg"): the tooltip, the collapsed list and the accessible
+   * Full line ("22 Beutel Nudeln", "3 × Wantan-Teig"): the tooltip, the collapsed list and the accessible
    * text of a chip. `orders.spec.ts` and `order-overview.spec.ts` read exactly this wording.
    */
   const itemLabel = (item: OrderOverviewRow["items"][number]) =>
-    `${fmt.quantity(item.quantity)} ${tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: Number(item.quantity) })} · ${productName(item.productName, locale)}`;
+    `${fmt.quantity(item.quantity)} ${tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: Number(item.quantity) })} ${productName(item.productName, locale)}`;
   /**
    * Compact chip (re-design.md §8.3: "4 × Penne 5 kg"). The unit and the product name both repeat
    * the pack size, so the short form leaves the one content-bearing column readable at 1280 px
@@ -277,7 +277,7 @@ function OrderRow({
                     {itemChipLabel(item)}
                   </span>
                   {/* The chip abbreviates visually only: AT (and the e2e specs) still read the full
-                      "2,5 Packung · Spaghetti 5 kg". */}
+                      "22 Beutel Nudeln". */}
                   <span className="sr-only">{itemLabel(item)}</span>
                 </li>
               ))}
@@ -489,7 +489,7 @@ function OrderDrawer({
                         count: Number(item.quantity),
                       })}
                     </span>{" "}
-                    · {productName(item.productName, locale)}
+                    {productName(item.productName, locale)}
                   </li>
                 ))}
               </ul>

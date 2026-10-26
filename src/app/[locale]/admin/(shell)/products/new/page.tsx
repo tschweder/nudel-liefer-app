@@ -28,6 +28,7 @@ async function Guarded({ locale }: { locale: string }) {
         initial={{
           sku: "",
           unit: "PACK",
+          weightKgPerUnit: "",
           de: "",
           hans: "",
           hk: "",

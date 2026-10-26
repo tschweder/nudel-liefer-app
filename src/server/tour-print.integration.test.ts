@@ -110,12 +110,17 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
     ).id;
     spag = (
       await t.prisma.product.create({
-        data: { sku: "SPAG-5", unit: "PACK", name: name("Spaghetti 5 kg", "意大利面 5 公斤") },
+        data: {
+          sku: "SPAG-5",
+          unit: "PACK",
+          weightKgPerUnit: 1,
+          name: name("Spaghetti 5 kg", "意大利面 5 公斤"),
+        },
       })
     ).id;
     flour = (
       await t.prisma.product.create({
-        data: { sku: "FLOUR", unit: "KG", name: name("Mehl", "面粉") },
+        data: { sku: "FLOUR", unit: "KG", weightKgPerUnit: 1, name: name("Mehl", "面粉") },
       })
     ).id;
   }, 60_000);

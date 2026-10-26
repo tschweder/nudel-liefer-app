@@ -168,15 +168,18 @@ model Photo {
 }
 
 model Product {
-  id        String   @id @default(cuid())
-  sku       String   @unique
+  id              String   @id @default(cuid())
+  sku             String   @unique
   /// LocalizedText
-  name      Json
-  unit      Unit
-  active    Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name            Json
+  unit            Unit
+  /// Weight of one unit in kilograms (NUD-138): Beutel 3, Karton 10, Wantan-Teig 5. Admin-editable,
+  /// always > 0 (CHECK constraint in the migration); the tour weight (NUD-146) is computed from it.
+  weightKgPerUnit Decimal  @db.Decimal(6, 2)
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   orderItems OrderItem[]
 }

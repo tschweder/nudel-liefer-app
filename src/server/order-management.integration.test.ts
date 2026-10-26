@@ -76,6 +76,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
           data: {
             sku,
             unit: "PACK",
+            weightKgPerUnit: 1,
             sortOrder,
             name: { de: sku, meta: { source: "de", machine: {} } },
             ...extra,

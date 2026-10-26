@@ -31,8 +31,9 @@ function productName(line: AuditProductLine, locale: AppLocale): string {
 export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
   const t = useTranslations("admin.history");
   const tc = useTranslations("common");
-  // Plural unit labels ("2,5 Packungen") live once, under `driver.units` (§9.3).
-  const tu = useTranslations("driver.units");
+  // Quantities without a product name next to them ("22 Beutel", "3 Stück") use the word forms
+  // under `driver.unitsTotal` (§9.3); "×" only exists in front of a product name.
+  const tu = useTranslations("driver.unitsTotal");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
 
@@ -40,14 +41,13 @@ export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
 
   const lineText = (line: AuditProductLine) => {
     // The unit always follows the quantity it belongs to, so the plural follows that one.
-    const unitOf = (cents: number) =>
-      tu(line.unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: cents / 100 });
+    const unitOf = () => tu(line.unit as "KG" | "PACK" | "CRATE" | "PIECE");
     const change =
       line.before === null && line.after !== null
-        ? `${qty(line.after)} ${unitOf(line.after)} (${t("line.added")})`
+        ? `${qty(line.after)} ${unitOf()} (${t("line.added")})`
         : line.after === null && line.before !== null
-          ? `${qty(line.before)} ${unitOf(line.before)} → ${t("line.removed")}`
-          : `${qty(line.before ?? 0)} → ${qty(line.after ?? 0)} ${unitOf(line.after ?? 0)}`;
+          ? `${qty(line.before)} ${unitOf()} → ${t("line.removed")}`
+          : `${qty(line.before ?? 0)} → ${qty(line.after ?? 0)} ${unitOf()}`;
     return `${productName(line, locale)}: ${change}`;
   };
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { parseWeightKg } from "@/domain/weight";
 import { Prisma, type PrismaClient, type Unit } from "@/generated/prisma/client";
 import { createLocalizedText, type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
 import { hansToHk, hansToTw } from "@/lib/opencc";
@@ -28,6 +29,12 @@ export const productInputSchema = z.object({
     .regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/)
     .transform((v) => v.toUpperCase()),
   unit: z.enum(UNITS),
+  /** Weight of one unit in kg (NUD-138): "3", "2,5" or a number; must be > 0. */
+  weightKgPerUnit: z.union([z.string().max(12), z.number()]).transform((v, ctx) => {
+    const parsed = parseWeightKg(v);
+    if (parsed === null) ctx.addIssue({ code: "custom", message: "invalid weight" });
+    return parsed ?? 0;
+  }),
   name: z.object({
     de: requiredText(160),
     hans: requiredText(160),
@@ -75,6 +82,8 @@ export function buildProductName(v: z.output<typeof productInputSchema>): Locali
 export type ProductFormValues = {
   sku: string;
   unit: Unit;
+  /** Kilograms per unit as the form edits it ("3", "2.5"). */
+  weightKgPerUnit: string;
   de: string;
   hans: string;
   hk: string;
@@ -83,12 +92,18 @@ export type ProductFormValues = {
   twAuto: boolean;
 };
 
-export function toFormValues(row: { sku: string; unit: Unit; name: unknown }): ProductFormValues {
+export function toFormValues(row: {
+  sku: string;
+  unit: Unit;
+  weightKgPerUnit: { toString(): string };
+  name: unknown;
+}): ProductFormValues {
   const parsed = localizedTextSchema.safeParse(row.name);
   const name = parsed.success ? parsed.data : null;
   return {
     sku: row.sku,
     unit: row.unit,
+    weightKgPerUnit: trimWeight(row.weightKgPerUnit.toString()),
     de: name?.de ?? "",
     hans: name?.["zh-Hans"] ?? "",
     hk: name?.["zh-Hant-HK"] ?? "",
@@ -96,6 +111,11 @@ export function toFormValues(row: { sku: string; unit: Unit; name: unknown }): P
     hkAuto: name?.meta.machine["zh-Hant-HK"] === true,
     twAuto: name?.meta.machine["zh-Hant-TW"] === true,
   };
+}
+
+/** "3.00" -> "3", "2.50" -> "2.5" (the form shows what the admin typed, not the column scale). */
+function trimWeight(text: string): string {
+  return text.includes(".") ? text.replace(/0+$/, "").replace(/\.$/, "") : text;
 }
 
 const asJson = (name: LocalizedText) => name as unknown as Prisma.InputJsonValue;
@@ -123,6 +143,7 @@ export async function createProduct(db: ProductDb, rawInput: unknown): Promise<P
       data: {
         sku: v.sku,
         unit: v.unit,
+        weightKgPerUnit: v.weightKgPerUnit,
         name: asJson(buildProductName(v)),
         sortOrder: (last._max.sortOrder ?? -1) + 1,
       },
@@ -158,7 +179,12 @@ export async function updateProduct(
   try {
     await db.product.update({
       where: { id: stored.id },
-      data: { sku: v.sku, unit: v.unit, name: asJson(buildProductName(v)) },
+      data: {
+        sku: v.sku,
+        unit: v.unit,
+        weightKgPerUnit: v.weightKgPerUnit,
+        name: asJson(buildProductName(v)),
+      },
     });
     return { ok: true, id: stored.id };
   } catch (error) {
@@ -220,6 +246,8 @@ export type ProductRow = {
   id: string;
   sku: string;
   unit: Unit;
+  /** Kilograms per unit (NUD-138). */
+  weightKgPerUnit: number;
   active: boolean;
   sortOrder: number;
   name: LocalizedText;
@@ -229,6 +257,7 @@ function toRow(row: {
   id: string;
   sku: string;
   unit: Unit;
+  weightKgPerUnit: { toString(): string };
   active: boolean;
   sortOrder: number;
   name: unknown;
@@ -238,6 +267,7 @@ function toRow(row: {
     id: row.id,
     sku: row.sku,
     unit: row.unit,
+    weightKgPerUnit: Number(row.weightKgPerUnit.toString()),
     active: row.active,
     sortOrder: row.sortOrder,
     name: parsed.success ? parsed.data : createLocalizedText({ de: row.sku }, "de"), // corrupt JSON: never crash the list

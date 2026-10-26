@@ -73,10 +73,15 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     otherDriverId = await user({ role: "DRIVER", username: "drv2", displayName: "O" });
 
     const spaghetti = await t.prisma.product.create({
-      data: { sku: "SPAG", unit: "KG", name: text("Spaghetti lose", "意大利面") },
+      data: {
+        sku: "SPAG",
+        unit: "KG",
+        weightKgPerUnit: 1,
+        name: text("Spaghetti lose", "意大利面"),
+      },
     });
     const penne = await t.prisma.product.create({
-      data: { sku: "PENN", unit: "PACK", name: text("Penne", "笔管面") },
+      data: { sku: "PENN", unit: "PACK", weightKgPerUnit: 1, name: text("Penne", "笔管面") },
     });
     const mkCustomer = (n: string, lng: number, extra: Record<string, unknown> = {}) =>
       t.prisma.customer

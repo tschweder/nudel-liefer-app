@@ -2,10 +2,11 @@ import "dotenv/config";
 
 import bcrypt from "bcryptjs";
 
-import { PrismaClient, type Unit } from "../src/generated/prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { createLocalizedText } from "../src/lib/localized-text";
 import { createPrismaClient } from "../src/server/db";
 import { assertDemoStorageConfigured, seedDemo } from "../src/server/demo-seed";
+import { CATALOG_PRODUCTS } from "../src/server/product-catalog";
 import { getStorage } from "../src/server/storage";
 
 // `localeChosen`: the four language demo drivers already have their language (they skip the
@@ -17,45 +18,6 @@ const DRIVERS = [
   { username: "driver-tw", displayName: "司機 台灣", locale: "zh_Hant_TW", localeChosen: true },
   { username: "driver-new", displayName: "Neuer Fahrer", locale: "de", localeChosen: false },
 ] as const;
-
-const PRODUCTS: {
-  sku: string;
-  unit: Unit;
-  de: string;
-  hans: string;
-  hant: string;
-}[] = [
-  {
-    sku: "SPAG-5",
-    unit: "PACK",
-    de: "Spaghetti 5 kg",
-    hans: "意大利直面 5公斤",
-    hant: "義大利直麵 5公斤",
-  },
-  { sku: "PENN-5", unit: "PACK", de: "Penne 5 kg", hans: "笔管面 5公斤", hant: "筆管麵 5公斤" },
-  {
-    sku: "TAGL-3",
-    unit: "PACK",
-    de: "Tagliatelle 3 kg",
-    hans: "宽面条 3公斤",
-    hant: "寬麵條 3公斤",
-  },
-  { sku: "FUSI-5", unit: "PACK", de: "Fusilli 5 kg", hans: "螺旋面 5公斤", hant: "螺旋麵 5公斤" },
-  {
-    sku: "LASA-2",
-    unit: "CRATE",
-    de: "Lasagneplatten, Karton",
-    hans: "千层面皮 (箱)",
-    hant: "千層麵皮 (箱)",
-  },
-  {
-    sku: "RAVI-KG",
-    unit: "KG",
-    de: "Ravioli Ricotta-Spinat",
-    hans: "里科塔菠菜意式饺子",
-    hant: "瑞可達菠菜義式餃子",
-  },
-];
 
 /** Seeds core data. Idempotent: safe to run repeatedly on the same database. */
 export async function seed(prisma: PrismaClient = createPrismaClient()) {
@@ -111,7 +73,7 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
     });
   }
 
-  for (const [index, p] of PRODUCTS.entries()) {
+  for (const [index, p] of CATALOG_PRODUCTS.entries()) {
     const name = createLocalizedText(
       { de: p.de, "zh-Hans": p.hans, "zh-Hant-HK": p.hant, "zh-Hant-TW": p.hant },
       "de",
@@ -119,7 +81,13 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
     await prisma.product.upsert({
       where: { sku: p.sku },
       update: {},
-      create: { sku: p.sku, unit: p.unit, name, sortOrder: index },
+      create: {
+        sku: p.sku,
+        unit: p.unit,
+        name,
+        weightKgPerUnit: p.weightKgPerUnit,
+        sortOrder: index,
+      },
     });
   }
 }

@@ -16,8 +16,7 @@ const isUnit = (u: string): u is UnitKey => (UNITS as readonly string[]).include
  */
 export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: AppLocale }) {
   const t = await getTranslations({ locale, namespace: "admin.tours.print" });
-  // Plural unit labels ("15 Packungen", "12 Kisten") live once, under `driver.units` (§9.3) —
-  // a printed load sheet must not say "15 Packung".
+  // Unit labels ("Beutel", "Karton", "×" for pieces) live once, under `driver.units` (§9.3).
   const tu = await getTranslations({ locale, namespace: "driver.units" });
   const format = await getFormatter({ locale });
 
@@ -101,11 +100,11 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
             <table className="w-full table-fixed border-collapse">
               <thead>
                 <tr className="border-y-2 border-black text-start">
-                  <th scope="col" className="w-[70%] py-1 pe-2 text-start">
-                    {t("product")}
-                  </th>
-                  <th scope="col" className="w-[30%] py-1 text-end">
+                  <th scope="col" className="w-[30%] py-1 pe-2 text-start">
                     {t("quantity")}
+                  </th>
+                  <th scope="col" className="w-[70%] py-1 text-start">
+                    {t("product")}
                   </th>
                 </tr>
               </thead>
@@ -117,13 +116,14 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                     data-testid="load-sheet-total-row"
                     data-product-id={row.productId}
                   >
-                    <td className="break-words py-1 pe-2">{renderName(row.productId)}</td>
-                    <td className="py-1 text-end text-lg font-bold whitespace-nowrap">
+                    {/* "22 Beutel Nudeln", "3 × Wantan-Teig": quantity and unit lead the name. */}
+                    <td className="py-1 pe-2 text-lg font-bold whitespace-nowrap">
                       <span data-testid="load-sheet-total-qty">{quantity(row.quantity)}</span>{" "}
                       <span className="text-[0.85em] font-semibold">
                         {unitText(row.unit, row.quantity)}
                       </span>
                     </td>
+                    <td className="break-words py-1">{renderName(row.productId)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -178,17 +178,17 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                             return (
                               <li
                                 key={item.productId}
-                                className="flex items-baseline justify-between gap-2"
+                                className="flex items-baseline gap-2"
                                 data-testid="load-sheet-item"
                               >
-                                <span className="min-w-0 break-words">
-                                  {renderName(item.productId)}
-                                </span>
                                 <span className="shrink-0 font-bold whitespace-nowrap">
                                   {quantity(item.quantity)}{" "}
                                   <span className="text-[0.85em] font-semibold">
                                     {unitText(unit, item.quantity)}
                                   </span>
+                                </span>
+                                <span className="min-w-0 break-words">
+                                  {renderName(item.productId)}
                                 </span>
                               </li>
                             );

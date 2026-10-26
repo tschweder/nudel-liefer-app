@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// Needs a seeded database (`pnpm db:seed`: products SPAG-5, PENN-5, FUSI-5), DATABASE_URL and
+// Needs a seeded database (`pnpm db:seed`: the three catalog products), DATABASE_URL and
 // SEED_ADMIN_PASSWORD in the environment.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 
@@ -112,15 +112,15 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
       // The picker closes with an animation; a second open one would make the placeholder ambiguous.
       await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
-    await pickProduct(0, "SPAG");
-    await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Packung");
+    await pickProduct(0, "BEUTEL");
+    await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Beutel");
     await lines.nth(0).getByTestId("line-quantity").fill("3");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
     await expect(lines.nth(1).getByRole("combobox")).toBeFocused();
 
     // Line 2: Enter on an invalid quantity (0, or a decimal such as 2,5) does not add a line.
-    await pickProduct(1, "PENN");
+    await pickProduct(1, "KARTON");
     await lines.nth(1).getByTestId("line-quantity").fill("0");
     await lines.nth(1).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
@@ -134,7 +134,7 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     await expect(lines).toHaveCount(3);
     await expect(lines.nth(1).getByTestId("error-line")).toHaveCount(0);
 
-    await pickProduct(2, "FUSI");
+    await pickProduct(2, "WANTAN");
     await lines.nth(2).getByTestId("line-quantity").fill("10");
     await page.getByTestId("order-note").fill("Anruf am Vormittag");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
@@ -147,10 +147,10 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name });
     await expect(row).toBeVisible();
     await expect(row.getByTestId("order-item")).toHaveCount(3);
-    // Unit labels are ICU plurals (re-design.md §9.3, `driver.units`): "3 Packungen", not "3 Packung".
-    await expect(row).toContainText("3 Packungen · Spaghetti 5 kg");
-    await expect(row).toContainText("4 Packungen · Penne 5 kg");
-    await expect(row).toContainText("10 Packungen · Fusilli 5 kg");
+    // Unit labels (glossary §3, `driver.units`): "3 Beutel Nudeln", "10 × Wantan-Teig" (no unit word).
+    await expect(row).toContainText("3 Beutel Nudeln");
+    await expect(row).toContainText("4 Karton Nudeln");
+    await expect(row).toContainText("10 × Wantan-Teig");
     await expect(row.getByTestId("order-status")).toHaveText("Bestätigt");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-list.png") });
@@ -227,7 +227,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
       // The picker closes with an animation; a second open one would make the placeholder ambiguous.
       await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
-    await pickProduct(0, "SPAG");
+    await pickProduct(0, "BEUTEL");
     await page.getByTestId("order-save").click();
     await expect(lines.nth(0).getByTestId("error-line")).toBeVisible();
     await lines.nth(0).getByTestId("line-quantity").fill("abc");
@@ -238,7 +238,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     // The same product twice is merged on save (quantities added); save as draft.
     await lines.nth(0).getByTestId("line-quantity").fill("2");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
-    await pickProduct(1, "SPAG");
+    await pickProduct(1, "BEUTEL");
     await lines.nth(1).getByTestId("line-quantity").fill("2");
     await expect(page.getByTestId("duplicate-notice")).toBeVisible();
     await page.getByTestId("order-save-draft").click();
@@ -247,7 +247,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name }).last();
     await expect(row.getByTestId("order-status")).toHaveText("Entwurf");
     await expect(row.getByTestId("order-item")).toHaveCount(1);
-    await expect(row).toContainText("4 Packungen · Spaghetti 5 kg");
+    await expect(row).toContainText("4 Beutel Nudeln");
     const items = await f.client.query<{ status: string; quantity: string }>(
       `SELECT o."status"::text AS status, i."quantity"::text AS quantity
        FROM "Order" o JOIN "OrderItem" i ON i."orderId"=o."id"

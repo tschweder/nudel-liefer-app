@@ -366,6 +366,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
           meta: { source: "de", machine: {}, updatedAt: "x" },
         },
         unit: "PACK",
+        weightKgPerUnit: 1,
       },
     });
     const day = (iso: string) => new Date(`${iso}T00:00:00Z`);

@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// NUD-032. Needs a seeded database (products SPAG-5, PENN-5, FUSI-5), DATABASE_URL and
+// NUD-032. Needs a seeded database (the three catalog products, NUD-138), DATABASE_URL and
 // SEED_ADMIN_PASSWORD in the environment.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 
@@ -43,7 +43,7 @@ async function fixture(projectName: string) {
     .rows[0] as { id: string };
   const product = async (sku: string) =>
     (await client.query(`SELECT "id" FROM "Product" WHERE "sku"=$1`, [sku])).rows[0].id as string;
-  const [spag, penn] = [await product("SPAG-5"), await product("PENN-5")];
+  const [spag, penn] = [await product("NUDELN-BEUTEL"), await product("NUDELN-KARTON")];
   const customer = async (suffix: string) => {
     const id = `id-${tag}-${suffix}`;
     await client.query(
@@ -157,11 +157,11 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     if ((await totalsToggle.count()) > 0) await totalsToggle.first().click();
     const day1 = page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible`);
     await expect(day1).toContainText("2 bestätigte Bestellungen");
-    await expect(day1.locator("tr", { hasText: "Spaghetti 5 kg" })).toContainText("7 Packung");
-    await expect(day1.locator("tr", { hasText: "Penne 5 kg" })).toContainText("1 Packung");
+    await expect(day1.locator("tr", { hasText: "Beutel" })).toContainText("7 Beutel");
+    await expect(day1.locator("tr", { hasText: "Karton" })).toContainText("1 Karton");
     const day2 = page.locator(`[data-testid="totals-day"][data-date="${D2}"]:visible`);
     await expect(day2).toContainText("1 bestätigte Bestellung");
-    await expect(day2.locator("tr", { hasText: "Penne 5 kg" })).toContainText("6 Packung");
+    await expect(day2.locator("tr", { hasText: "Karton" })).toContainText("6 Karton");
     await expect(tid(page, "totals-day")).toHaveCount(2);
 
     // Rows: line count, status, source icon, in-tour badge only for the order in the tour.
@@ -253,7 +253,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await lines.nth(0).getByTestId("line-quantity").fill("5");
     await tid(page, "order-save").click();
     await expect(page).toHaveURL(new RegExp(`/admin/orders/${f.ids.a1}$`));
-    await expect(tid(page, "detail-items")).toContainText("5 Packungen · Spaghetti 5 kg");
+    await expect(tid(page, "detail-items")).toContainText("5 Beutel Nudeln");
     const stored = await f.client.query<{ quantity: string }>(
       `SELECT "quantity"::text FROM "OrderItem" WHERE "orderId"=$1 ORDER BY "quantity"`,
       [f.ids.a1],
@@ -265,9 +265,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await expect(entries.first()).toHaveAttribute("data-action", "order.update");
     await expect(entries.first().getByTestId("audit-action")).toHaveText("Bestellung geändert");
     await expect(entries.first().getByTestId("audit-meta")).toContainText("Admin (Büro)");
-    await expect(entries.first().getByTestId("audit-line")).toHaveText(
-      "Spaghetti 5 kg: 3 → 5 Packungen",
-    );
+    await expect(entries.first().getByTestId("audit-line")).toHaveText("Nudeln: 3 → 5 Beutel");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-history.png"), fullPage: true });
     // The tour of that day is flagged outdated.
@@ -277,9 +275,9 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await page.goto(`/de/admin/orders?from=${D1}&to=${D1}`);
     await expect(
       page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible tr`, {
-        hasText: "Spaghetti 5 kg",
+        hasText: "Beutel",
       }),
-    ).toContainText("9 Packung");
+    ).toContainText("9 Beutel");
 
     // Duplicate order b1 to D3: a draft copy, the original stays.
     await page.goto(`/de/admin/orders/${f.ids.b1}`);
@@ -288,7 +286,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await tid(page, "order-duplicate-confirm").click();
     await expect(tid(page, "detail-status")).toHaveText("Entwurf");
     await expect(tid(page, "detail-date")).toContainText(String(f.year));
-    await expect(tid(page, "detail-items")).toContainText("4 Packung · Spaghetti 5 kg");
+    await expect(tid(page, "detail-items")).toContainText("4 Beutel Nudeln");
     const copies = await f.client.query<{
       status: string;
       source: string;

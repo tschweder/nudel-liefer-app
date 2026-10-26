@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { calendarDayIn, nextDeliveryDate } from "@/domain/settings";
-import type { PrismaClient, Unit } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { createLocalizedText } from "@/lib/localized-text";
 import { hansToHk, hansToTw } from "@/lib/opencc";
 
@@ -9,7 +9,6 @@ import { addCustomerPhoto } from "./customer-photos";
 import {
   DEMO_CUSTOMERS,
   DEMO_DEPOT,
-  DEMO_EXTRA_PRODUCTS,
   DEMO_ORDER_NOTE,
   DEMO_PRODUCT_SKUS,
   demoOrderLines,
@@ -23,7 +22,6 @@ export type DemoSeedSummary = {
   customersCreated: number;
   photosCreated: number;
   ordersCreated: number;
-  productsCreated: number;
 };
 
 /** Writes one object through the presigned URL the Storage interface hands out. */
@@ -133,29 +131,7 @@ export async function seedDemo(
     depotUpdated = true;
   }
 
-  // Products (the other six come from the base seed).
-  let productsCreated = 0;
-  for (const [i, p] of DEMO_EXTRA_PRODUCTS.entries()) {
-    if (await prisma.product.findUnique({ where: { sku: p.sku }, select: { id: true } })) continue;
-    await prisma.product.create({
-      data: {
-        sku: p.sku,
-        unit: p.unit as Unit,
-        sortOrder: 6 + i,
-        name: createLocalizedText(
-          {
-            de: p.de,
-            "zh-Hans": p.hans,
-            "zh-Hant-HK": hansToHk(p.hans),
-            "zh-Hant-TW": hansToTw(p.hans),
-          },
-          "de",
-          { machine: { "zh-Hant-HK": true, "zh-Hant-TW": true } },
-        ),
-      },
-    });
-    productsCreated += 1;
-  }
+  // Products come from the base seed (the three of the catalog, NUD-138).
   const products = await prisma.product.findMany({ select: { id: true, sku: true, unit: true } });
   const bySku = new Map(products.map((p) => [p.sku, p]));
   for (const sku of DEMO_PRODUCT_SKUS) {
@@ -235,7 +211,7 @@ export async function seedDemo(
       select: { id: true },
     });
     if (!hasOrder) {
-      const lines = demoOrderLines(index, (sku) => bySku.get(sku)!.unit);
+      const lines = demoOrderLines(index);
       await prisma.order.create({
         data: {
           customerId: customer.id,
@@ -259,6 +235,5 @@ export async function seedDemo(
     customersCreated,
     photosCreated,
     ordersCreated,
-    productsCreated,
   };
 }
