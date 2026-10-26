@@ -261,6 +261,12 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
 | NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | todo |
+| NUD-122 | Photo upload works on the office and driver path | M2 | – | in-progress |
+| NUD-123 | Add driver / customer / order through the GUI | M2 | – | todo |
+| NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | todo |
+| NUD-125 | Parking spots: schema + office UI | M2 | – | todo |
+| NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | todo |
+| NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -1830,6 +1836,111 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] New `stop.problem` entries contain no driver free text (or the client chose the alignment of periods); history view still shows reason and status; `docs/privacy.md` section 6 "Known gap" updated.
 
+### M2.5 — Owner pre-deploy fixes (NUD-122…127)
+
+Requested by the owner before the first deployment (T6 below). Work them **in order, one ticket per session**; NUD-127 must not start before NUD-122…126 are `done`.
+
+---
+
+#### NUD-122 · Photo upload works on the office and driver path
+**Status:** in-progress · **depends_on:** –
+
+**Goal:** an uploaded customer photo must end as a `Photo` row that points at an object which really exists in S3/MinIO — on the office path (`src/components/admin/customer-photo-slots.tsx` → `addCustomerPhoto`) **and** on the driver path (`src/components/driver/driver-photo-slot.tsx` → `src/lib/offline/photo-outbox-flush.ts`). Today the bytes arrive in the bucket (one local MinIO holds 111 `customers/<uuid>.jpg` objects with exactly the key shape `/api/uploads` issues) while `Photo` has **zero** `.jpg` rows: `attachCustomerPhoto` (`src/server/customer-photos.ts:68-69`) gates the whole write on `storage.head()` and, when that returns `null`, aborts as `object_missing` — while the UI still reports success. Prime mechanism for the `null`: `getStorage()` (`src/server/storage/index.ts:16-32`) caches **one** instance for the process lifetime and only refuses to fall back to the in-memory `FakeStorage` in production (`fake.ts:17` issues `fake://upload/<key>`, which `head()` can never find).
+
+**Scope**
+- Reproduce in a real browser first (office **and** driver), record which storage implementation the server resolved and why `head()` fails; fix that cause — do not paper over it in the UI and do not relax the security posture.
+- Office and driver are **two separate code paths** and two separate fixes; a permanently failing outbox entry must not be retried forever (`photo-outbox-flush.ts:132` returns failure `server` and retries without limit, so the driver sees `Wartet auf Versand` forever).
+- Close the test gap: `src/lib/upload-image.test.ts` does not exist (the client upload path is untested; `image-uploader.test.tsx` mocks `@/lib/upload-image` away, `driver-photo-slot.test.tsx` mocks `resizeImage`/`enqueuePhoto`, `uploads.test.ts` and the photo integration tests use `FakeStorage`, `tests/e2e/uploads.spec.ts` never PUTs), and `tests/e2e/customer-photos.spec.ts:80` skips itself when `S3_*` is missing — in CI the e2e job has no MinIO service and no `S3_*`, so the only real browser upload never runs.
+
+**Acceptance criteria**
+- [ ] Office: uploading a STORE and a PARKING photo in `pnpm dev` creates a current `Photo` row per kind whose `storageKey` exists in the bucket; a reload serves the signed URL and the image decodes.
+- [ ] Driver: a captured photo leaves `Wartet auf Versand` and becomes `Gesendet`, with the same `Photo` row result.
+- [ ] Storage failure is never reported as success: `/api/uploads` never returns a non-`http(s)` upload URL, and the client treats one as `UPLOAD_FAILED`.
+- [ ] A permanently failing outbox entry stops retrying and is visible to the driver with a retry action; transient/network failures still retry.
+- [ ] `src/lib/upload-image.test.ts` covers resize, grant (401/403/413/other/network), PUT (2xx/4xx/error/abort/progress) and rejects a `fake://` grant; `pnpm i18n:check` and the full unit suite stay green.
+- [ ] `tests/e2e/customer-photos.spec.ts` fails loudly instead of skipping when `S3_*` is absent; the CI e2e job gets a MinIO service + `S3_*` env so the real PUT/attach path runs.
+- [ ] Any new route handler / server action has an `authz-matrix.test.ts` row and follows the CSRF/size-limit conventions.
+
+**Implementation notes:** added after the fix.
+
+---
+
+#### NUD-123 · Add driver / customer / order through the GUI
+**Status:** todo · **depends_on:** –
+
+**Goal:** adding a driver ("Neuer Fahrer"), a customer ("Neuer Kunde"; there is no separate restaurant entity — restaurants are `Kunde`/`Kunden`) and an order ("Neue Bestellung") must each create the record through the GUI. The likely shared suspect is the redesigned Select/Combobox (one broken Select breaks all three forms at once), but `product-form.tsx:141` looks correct — **reproduce it in a real browser first and diagnose from the observed failure; do not guess.**
+
+**Acceptance criteria**
+- [ ] Each flow has a browser reproduction with screenshot + console/network evidence recorded under the ticket before any fix.
+- [ ] Driver create: a new `DRIVER` user with username + 6-digit PIN exists and can log in.
+- [ ] Customer create: the record is saved with a confirmed pin.
+- [ ] Order create: the order with its items is saved and appears in the overview.
+- [ ] A regression test in `tests/e2e` covers the form that was broken; new UI text in `de` + `zh-Hans`.
+- [ ] New server actions have `authz-matrix.test.ts` rows and wrong-role tests.
+
+---
+
+#### NUD-124 · Product list: relabel `PACK` → Beutel, six real products, archive the demo ones
+**Status:** todo · **depends_on:** –
+
+**Goal:** the catalog must hold exactly **6** products — *Nudeln* and *Wantan-Teig*, each in *kg* / *Karton* / *Beutel* — replacing the 6 demo products. "Beutel" is the existing `PACK` unit **relabelled** (no Prisma enum change, no fourth unit); `CRATE` = Karton, `KG` = kg. The owner confirmed there are **no real orders** on the demo products (all demo data), so they are retired with the existing `Deaktivieren` soft delete (`active=false`) — products already on an order cannot be hard-deleted (`OrderItem.productId` is `onDelete: Restrict`).
+
+**Scope**
+- `messages/de.json` + `messages/zh-Hans.json`: the UI label of `PACK` (and the unit pickers / load sheet / driver quantity views) becomes Beutel + its Chinese counterpart; `zh-Hant-*` generated by `pnpm i18n:build`, never hand-edited.
+- `prisma/seed.ts`: the 6 real products with `de` + `zh-Hans` names, units (`KG`, `CRATE`, `PACK`), sort order.
+- Migrate the demo data correctly: archive the demo products and, where demo orders exist, move their `OrderItem`s onto the matching new product (orders are transactional history, D19, and are never deleted).
+- Check the hard-coded `UNIT_ORDER` (`src/domain/driver-today.ts:3`, `src/domain/load-sheet.ts:9`) and `src/lib/units.ts` follow the relabel rather than a new unit.
+
+**Acceptance criteria**
+- [ ] The unit that was `PACK` is labelled Beutel (+ Chinese) everywhere it is shown to the office or the driver; no new enum value, no migration of the `Unit` type.
+- [ ] The catalog lists the 6 real products; the 6 demo products are archived and no longer selectable for new orders.
+- [ ] Existing demo order items still render and point at a valid product after the migration.
+- [ ] `pnpm db:seed` works on a fresh DB and the unit/domain tests pass.
+- [ ] New/changed UI text exists in `de` + `zh-Hans`; `pnpm i18n:build` was run.
+
+---
+
+#### NUD-125 · Parking spots: schema + office UI
+**Status:** todo · **depends_on:** –
+
+**Goal:** a customer has a **list** of parking spots (new `ParkingSpot` table) instead of today's single `PARKING` photo / single `lat`/`lng` pin. The office manages the list; routing and optimisation keep using the single customer pin (one point per stop, D5).
+
+**Scope**
+- Prisma schema + committed migration for `ParkingSpot` (customer, label/note, lat/lng, sortOrder, `active`, timestamps); soft delete only.
+- Service layer + server actions (zod, `.max()` on every string, `requireRole`, `rejectCrossOrigin` where it is a route handler) and audit entries in the same transaction (NUD-092).
+- Office UI on the customer detail page (add / edit / reorder / remove, first one is the default); new text in `de` + `zh-Hans`.
+
+**Acceptance criteria**
+- [ ] Migration is committed and `pnpm db:seed` still works on a fresh DB.
+- [ ] The office can create, edit, reorder and deactivate parking spots; every write has an audit entry.
+- [ ] Wrong-role access is rejected (authorization test + `authz-matrix.test.ts` rows).
+- [ ] `docs/privacy.md` updated if a spot stores free text; screens checked at 1280 px with no horizontal scroll.
+
+---
+
+#### NUD-126 · Parking spots: driver UI, park-first navigation, offline
+**Status:** todo · **depends_on:** 125
+
+**Goal:** the driver sees the parking spots of his stop and navigation guides him to the **parking spot first**, with the shop entrance as the secondary target. Routing/optimisation still uses the customer pin.
+
+**Scope**
+- Driver stop detail shows the customer's parking spots (label + note); primary action navigates to the chosen spot, secondary action to the entrance.
+- `src/lib/navigation.ts:5-12` currently builds Google/Apple Maps URLs from the single customer pin — extend it to take an explicit target point.
+- Offline: the parking list is part of the cached tour (NUD-081 pattern); touch targets ≥ 48 px; text in `de` + `zh-Hans`.
+
+**Acceptance criteria**
+- [ ] The driver can pick a parking spot and open navigation to it directly; the entrance stays reachable as the secondary target.
+- [ ] The parking list is available offline from the cached tour.
+- [ ] Routing/optimisation output is unchanged (still one point per stop).
+- [ ] Driver screen checked at 375 px, no horizontal scroll; new text in `de` + `zh-Hans`.
+
+---
+
+#### NUD-127 · 👤 Deploy to the vServer (handoff doc)
+**Status:** todo · **depends_on:** 122, 123, 124, 125, 126
+
+**Goal:** deploy the app to the vServer following `docs/handoff-vserver-deploy-and-help.md` (T6). **HUMAN ticket.** Must not be started until NUD-122…126 are `done`; the deployment itself is out of scope of those tickets and was explicitly excluded from this work.
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -2148,6 +2259,13 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-18 | NUD-112 | The scrub job is exempt from the audit rule with a reason instead of writing an aggregate audit entry | `AuditLog` needs a user id as actor and a per-record entity from a closed vocabulary (NUD-092); a system job has neither; counts go to the response and the log, as for the screenshot and audit retention |
 | 2026-10-18 | NUD-112 | Copy of the note in the `stop.problem` audit entry left as is; ticket NUD-121 | Changing what audit entries store is a separate decision (history views, client period); documented as known gap in `docs/privacy.md` |
 | 2026-10-18 | NUD-112 | Erasure runbook uses manual SQL for driver texts, screenshots and photos before their period | No admin UI to delete these exists and building one is out of scope; steps are explicit and touch one column / row |
+| 2026-10-26 | – | The owner's four pre-deploy fixes are tracked as NUD-122…127 (NUD-127 = the vServer deploy) and worked in that order, one ticket per session; they depend only on `done` tickets, so the older `todo` tickets (mostly 👤 HUMAN) stay untouched | AGENTS.md: one ticket per session, lowest-numbered eligible one; the owner asked for this order explicitly |
+| 2026-10-26 | NUD-122 | Office upload and driver upload are two tickets' worth of one defect: same root cause class, but two separate code paths and two separate fixes; the `head()` existence gate stays | Direct server action vs. IndexedDB outbox + flush (`photo-outbox-flush.ts`); the gate is what makes a missing object visible instead of storing a dangling key |
+| 2026-10-26 | NUD-122 | A storage provider must never be reported as working when it cannot store: `/api/uploads` must not hand out a non-`http(s)` URL and the client rejects one as `UPLOAD_FAILED` | The silent `FakeStorage` fallback in non-production (`storage/index.ts`) is what let the UI look alive while `Photo` stayed empty |
+| 2026-10-26 | NUD-124 | "Beutel" is the existing `PACK` unit relabelled in the UI (de + zh-Hans); no Prisma enum change, no fourth unit | The owner asked for the label only; an enum migration would be risk without benefit |
+| 2026-10-26 | NUD-124 | The 6 demo products are retired with `Deaktivieren` (`active=false`); demo `OrderItem`s, if any, are moved to the matching new product — orders are never deleted | §4.3 soft delete; `OrderItem.productId` is `onDelete: Restrict`; D19 keeps order history. Owner confirmed there are no real orders on them |
+| 2026-10-26 | NUD-125 | Parking spots are a list per customer; the office manages them and a driver may add one; routing/optimisation keeps using the single customer pin | Owner decision; one point per stop keeps the D5 optimisation model unchanged |
+| 2026-10-26 | NUD-126 | Navigation guides to the parking spot first, the shop entrance second | Owner decision; client priority 4 (stored shop and parking photos) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
