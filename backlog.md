@@ -273,7 +273,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-131 | The dev server serves 127.0.0.1 a page whose buttons do nothing | M2 | – | done |
 | NUD-132 | Brighter design with a light/dark toggle of its own | M2 | – | done |
 | NUD-133 | Six committed tests import locale fixtures that are not in git | M2 | – | todo |
-| NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | in-progress |
+| NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
+| NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -2099,24 +2100,43 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 ---
 
 #### NUD-134 · Load sheet: Deutsch/中文 printout, readable in dark mode
-**Status:** in-progress · **depends_on:** –
+**Status:** done (2026-10-26, deployed and verified live) · **depends_on:** –
 
 **Goal:** the owner reported from the live app that the language pill buttons on the print page were unreadable. The toolbar card follows the colour scheme now, and the load sheet offers exactly **two** printout languages: **Deutsch** and one Chinese option **中文** (the simplified `zh-Hans` sheet). The three regional Chinese labels (`简体中文` / `繁體中文（香港）` / `繁體中文（台灣）`) are gone. A German-only phase in between was dropped again on the owner's request.
 
 **Acceptance criteria**
-- [ ] The picker has exactly two links, `load-sheet-locale-de` ("Deutsch") and `load-sheet-locale-zh-Hans` ("中文"); the current one carries `aria-current="true"` and the labels stay untranslated.
-- [ ] `?locale=de` and a missing `?locale=` print the German sheet; `?locale=zh-Hans` prints the simplified Chinese sheet; `zh`, `zh-Hant-HK` and `zh-Hant-TW` fold onto that same sheet; anything else falls back to German, independent of the admin UI language.
-- [ ] The toolbar card is readable in light and dark mode (no hardcoded `bg-white` under theme-coloured buttons); the 中文 sheet still shows the German product name in small type (`productLabel`, unchanged).
+- [x] The picker has exactly two links, `load-sheet-locale-de` ("Deutsch") and `load-sheet-locale-zh-Hans` ("中文"); the current one carries `aria-current="true"` and the labels stay untranslated. Measured on the live server in both schemes: `["Deutsch","中文"]`.
+- [x] `?locale=de` and a missing `?locale=` print the German sheet; `?locale=zh-Hans` prints the simplified Chinese sheet (`装车单`); `zh`, `zh-Hant-HK` and `zh-Hant-TW` fold onto that same sheet; anything else falls back to German, independent of the admin UI language.
+- [x] The toolbar card is readable in light and dark mode (no hardcoded `bg-white` under theme-coloured buttons); the 中文 sheet still shows the German product name in small type (`productLabel`, unchanged). Measured contrast on the live server: Deutsch 5.45 (light) / 6.30 (dark), 中文 16.63 / 14.82, Zurück zur Tour 16.63 / 14.82, Drucken 5.45 / 6.30 - all above the WCAG AA 4.5.
 - [x] `src/lib/load-sheet-locale.ts` and its unit test cover every branch of `parseSheetLocale` and are green.
-- [ ] `docs/tour-planning.md` and the NUD-091 locale note describe the two-option behaviour, and `tests/e2e/load-sheet.spec.ts` asserts the German default, the `zh-Hans` sheet, the folded Hant variant, both toolbar links and the print-media overflow.
-- [x] `pnpm typecheck`, `pnpm i18n:check` and ESLint on the touched files are green (the load-sheet locale unit tests too).
-- [ ] Deployed to the vServer and verified there.
+- [x] `docs/tour-planning.md` and the NUD-091 locale note describe the two-option behaviour, and `tests/e2e/load-sheet.spec.ts` asserts the German default, the `zh-Hans` sheet, the folded Hant variant, both toolbar links and the print-media overflow.
+- [x] `pnpm typecheck`, `pnpm i18n:check` and ESLint on the touched files are green (the load-sheet locale unit tests too). Gates on the committed tree: lint 0, typecheck 0, i18n:check ok, **1823 tests passed / 4 skipped**.
+- [x] Deployed to the vServer and verified there (commit `6ace259`): the planner button href is `/delivery-app/de/admin/tours/<id>/print?locale=de` with `target="_blank"`, clicking it opens a new tab that loads the toolbar, both schemes pass the contrast checks above, and `/quiz/` is still 200.
+
+**A second, separate bug found while verifying "Ladeliste drucken funktioniert nicht":** the planner's print button and both print-page links were raw `<a href="/de/...">` anchors - root-absolute, so they were missing the deployment's base path (`/delivery-app`) and answered 404 on the server. They are next-intl `Link`s now (which apply base path and locale), and the planner's button opens in a new tab as requested.
 
 **Implementation notes**
 - **Root cause of the unreadable pills:** the toolbar card was hardcoded `bg-white` while the buttons inside use theme tokens (`variant` colours). In dark mode the dark-scheme pill colours sat on a white card and lost contrast. The card uses `bg-card text-card-foreground`, so it follows the colour scheme; the sheet itself stays black-on-white on purpose — that is the paper.
 - The print language choice is a documented NUD-091 feature (`?locale=`). `parsePrintLocale` (server, zod, four locales) and its unit test were removed and replaced by the client-safe `src/lib/load-sheet-locale.ts`: `SHEET_LOCALE_OPTIONS` (two entries), `SheetLocale` and `parseSheetLocale`. The toolbar builds its links from that list, so adding or removing an option touches one file.
 - Every Hant variant folds onto `zh-Hans` on purpose: the Hant message files are generated from the simplified ones, the owner explicitly does not want three Chinese options, and old or shared `?locale=zh-Hant-TW` URLs keep printing Chinese instead of silently printing German. Matching is literal/case-sensitive, like the URL segments; an unknown value is German, never a fallback to the UI language.
 - The e2e spec keeps the totals / reverse-order / A4-overflow / PDF / authorization assertions, replaces the German-only pass with a German pass plus a `zh-Hans` pass (Chinese heading, German name in small type, `aria-current`), and adds the folded-variant and unknown-value loops. Full `pnpm test:e2e` still needs the seeded database (not run in this session).
+
+---
+
+#### NUD-135 · Edit an existing tour from the admin view
+**Status:** todo · **depends_on:** – · asked for by the owner together with the NUD-134 fixes ("im Admin-Bereich bitte einen Bearbeiten-Button für die Touren, um sie bei Bedarf zu bearbeiten").
+
+**Goal:** the tour page offers reorder/lock/reoptimize/assign/release but no way to correct a tour itself. Add an explicit **Bearbeiten** entry point that leads to a real edit form.
+
+**Open question (blocks the design):** what may be edited? Candidates, in increasing risk: (a) only driver assignment and departure time, (b) also the stop order and which stops belong to the tour, (c) everything including the date, moving the orders along. Nothing is built until this is answered: a wrong guess writes to released tours that drivers may already be working on, and the release-revision rules (D19, "stop changed after release") must stay honest.
+
+**Acceptance criteria**
+- [ ] The owner has answered what "Bearbeiten" may change.
+- [ ] The entry point exists on the tour with an accessible label and a test id, and is only offered where editing is allowed.
+- [ ] Editing a released tour keeps the release/history rules intact (same "orders changed after release" signal as the existing flows, or a clear refusal).
+- [ ] Server-side role check + zod validation; a new server action gets its row in `src/server/authz-matrix.test.ts`; integration test for the edit.
+- [ ] The driver sees a change through the existing "tour was updated" path, or the edit is refused when it would alter a stop the driver already completed.
+- [ ] Screens checked at 1280 px (admin) and 375 px (driver, unchanged).
 
 ---
 
