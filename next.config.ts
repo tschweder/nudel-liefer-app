@@ -32,8 +32,26 @@ function readCspBuildFile(): { buildId?: string; hashes: string } {
 }
 const cspBuildFile = readCspBuildFile();
 
+/**
+ * NUD-123: Next blocks requests to dev-only assets and endpoints from origins other than the one the
+ * dev server was started with (`localhost`), so a visit via `http://127.0.0.1:3100` renders a page
+ * whose client runtime never starts - every button does nothing and the HMR socket is rejected
+ * (`ERR_INVALID_HTTP_RESPONSE`). Loopback is always allowed; a phone or a tunnel on the LAN adds its
+ * hostname through `DEV_ALLOWED_ORIGINS` (comma separated, hostnames only, no scheme and no port).
+ * Development only: the option has no effect on a build.
+ */
+const allowedDevOrigins = ["127.0.0.1"]
+  .concat(
+    (process.env.DEV_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((hostname) => hostname.trim())
+      .filter(Boolean),
+  )
+  .filter((hostname, index, all) => all.indexOf(hostname) === index);
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  allowedDevOrigins,
   // The build ID is part of the flight data inlined in static pages, whose script hashes the second
   // pass bakes into the proxy: both passes must use the same ID (a fresh random one per `pnpm
   // build`, because `reset` removes the file first).

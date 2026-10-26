@@ -270,6 +270,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
 | NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | todo |
 | NUD-130 | Give the admin-password test teardown the same timeout as its setup | M2 | – | todo |
+| NUD-131 | The dev server serves 127.0.0.1 a page whose buttons do nothing | M2 | – | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
 | NUD-101 | Recurring / standing orders | M3 | 032 | todo |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
@@ -2006,6 +2007,26 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 - [ ] `pnpm test` is green three times in a row with a warm dev server and Postgres under load.
 - [ ] No test behaviour is weakened — only the teardown's timeout changes.
 
+---
+
+#### NUD-131 · The dev server serves 127.0.0.1 a page whose buttons do nothing
+**Status:** done · **depends_on:** –
+
+**Goal:** reported by the owner while testing on the tablet/desktop: at `http://127.0.0.1:3100/de/driver/stops/<id>` **no button works** — not `Geliefert`, not `Problem`, not `Foto aufnehmen` — while the page itself renders. `localhost:3100` worked, which is why no test saw it (the whole e2e suite uses `localhost`).
+
+**Acceptance criteria**
+- [x] Root cause identified from the real failure, not guessed.
+- [x] `http://127.0.0.1:3100/...` is as interactive as `localhost:3100/...`; the 13 HMR errors are gone.
+- [x] The fix is development-only and does not relax anything in production (`allowedDevOrigins` has no effect on a build).
+- [x] Verified in a browser on both origins, side by side.
+
+**Implementation notes**
+- **Reproduction, both origins, same dev server, same DB row** (`Stop` reset to `PENDING` before each run): at `localhost:3100` clicking `btn-delivered` showed the result panel, wrote `DELIVERED` and sent `POST …/sync` (origin `http://localhost:3100`); at `127.0.0.1:3100` the **same click produced zero requests**, the stop stayed `PENDING`, and the console showed 13 × `WebSocket ws://127.0.0.1:3100/_next/hmr … net::ERR_INVALID_HTTP_RESPONSE`. A fresh browser profile with **no** service worker behaved identically, so it was neither the SW nor hydration of a stale bundle.
+- **Cause:** Next.js 16 blocks requests to dev-only assets and endpoints from origins other than the one the dev server was started with (`localhost` by default) — the bundled doc `node_modules/next/dist/docs/…/allowedDevOrigins.md:8-20` states it, and the client runtime never starts, so React handlers never fire. Nothing in `next.config.ts` widened that list.
+- **Fix:** `allowedDevOrigins: ["127.0.0.1"]` plus optional extra hostnames from `DEV_ALLOWED_ORIGINS` (comma separated, hostnames only) in `next.config.ts`, so a phone or a tunnel on the LAN does not hit the same trap during the NUD-107/109/115 real-device checks. Documented in `.env.example` and `docs/env.md`.
+- **Re-verified after the fix:** `127.0.0.1:3100` → result panel shown, stop `DELIVERED`, `POST …/sync` sent, **0** console errors; `localhost` unchanged. `pnpm lint`, `typecheck`, `i18n:check` green.
+- **Not changed:** the app's own `PwaRuntime` still registers the worker in production only (`src/components/driver/pwa-runtime.tsx:27`). A worker installed by an earlier `pnpm start` on the same origin keeps controlling it in dev — the one-time fix stays "DevTools → Application → Service Workers → Unregister".
+
 ### M3 — Later (refine before starting)
 
 #### NUD-100 · AI screenshot extraction (review required)
@@ -2340,6 +2361,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-123 | The add-order e2e assertions were realigned to the ICU plural unit labels instead of the old singular; the sibling specs get NUD-128 | `orders.spec.ts` was red only on `"2,5 Packung"` vs `"2,5 Packungen"` while the order was created correctly — a red run that looked like "add order is broken" |
 | 2026-10-26 | NUD-123 | Realigning only `orders.spec.ts` in this ticket, everything else about the redesign's presentation drift goes to NUD-128 | Backlog §0: stay in scope, missing things become new tickets |
 | 2026-10-26 | NUD-123 | The first-start language picker needs no change: a GUI-created driver is `localeChosen = false`, the layout guard redirects to `/driver/start` and the picker renders. `drivers.spec.ts` fails only under `pnpm dev` (5 s `toHaveURL` vs. an on-demand route compile) | Verified in a browser plus a control driver written straight into the DB; `RUN-AND-TEST.md` §8 documents the dev-mode flakiness, CI runs a production build |
+| 2026-10-26 | NUD-131 | `127.0.0.1` goes into `allowedDevOrigins` (plus `DEV_ALLOWED_ORIGINS` for a phone/tunnel), instead of telling everyone to use `localhost` | The owner hit it from the tablet/desktop and it is indistinguishable from "the app is broken": Next 16 blocks cross-origin dev requests, the page renders server-side and every button is dead. The env var also protects the upcoming real-device tickets (NUD-107/109/115) from the same trap |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
