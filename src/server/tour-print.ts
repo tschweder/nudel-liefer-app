@@ -2,12 +2,7 @@ import { z } from "zod";
 
 import { formatCalendarDate } from "@/domain/order";
 import type { PrismaClient } from "@/generated/prisma/client";
-import {
-  type AppLocale,
-  localeSchema,
-  type LocalizedText,
-  localizedTextSchema,
-} from "@/lib/localized-text";
+import { type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
 
 import { readStopItems } from "./tour-rerelease";
 
@@ -56,17 +51,6 @@ const idSchema = z.string().trim().min(1).max(64);
 
 // unbounded-ok: Tour.depotSnapshot JSON written by the server
 const depotSchema = z.object({ name: z.string(), address: z.string() });
-
-/**
- * `?locale=` of the print page. Anything that is not exactly one of the four app locales
- * (missing, empty, unknown, repeated, wrong case) falls back to `fallback` (the page locale):
- * a bad link still prints a usable sheet.
- */
-export function parsePrintLocale(raw: unknown, fallback: AppLocale): AppLocale {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const parsed = localeSchema.safeParse(value);
-  return parsed.success ? parsed.data : fallback;
-}
 
 export function parseTourId(raw: unknown): string | null {
   const parsed = idSchema.safeParse(raw);

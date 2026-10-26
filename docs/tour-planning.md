@@ -181,9 +181,12 @@ The caller has already checked `requireRole("DRIVER")`.
 `getTourPrint(db, rawId)` is the read model of the printable load sheet: the tour, its stops in
 delivery order with customer addresses and the `Stop.items` snapshot (never live orders), plus the
 products and the `Tour.depotSnapshot`. `isOutdated` warns instead of silently printing newer
-numbers. `parsePrintLocale` falls back to the page locale for a bad `?locale=`. `tourPlanQuery`
-and `tourPrintQuery` are the ADMIN-only queries (`requireRole("ADMIN")`); `tourPlanQuery` falls
-back to the next delivery date for a bad or missing `date`.
+numbers. `parseSheetLocale` (`lib/load-sheet-locale.ts`, NUD-134) resolves `?locale=`: `de` prints
+German, any `zh…` tag (`zh`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`) prints the simplified
+(`zh-Hans`) sheet, and anything else (missing, empty, `en`, junk) prints German regardless of the
+admin UI language. `tourPlanQuery` and `tourPrintQuery` are the ADMIN-only queries
+(`requireRole("ADMIN")`); `tourPlanQuery` falls back to the next delivery date for a bad or missing
+`date`.
 
 ### `tour-progress.ts` — dashboard "Today" card (NUD-054)
 

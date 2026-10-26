@@ -1,15 +1,21 @@
 "use client";
 
 import { ArrowLeftIcon, PrinterIcon, TriangleAlertIcon } from "lucide-react";
-import { useLocale } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { LOCALE_LABELS } from "@/lib/locale-resolution";
-import { type AppLocale, LOCALES } from "@/lib/localized-text";
+import { Link } from "@/i18n/navigation";
+import { SHEET_LOCALE_OPTIONS, type SheetLocale } from "@/lib/load-sheet-locale";
 
 /**
- * Screen-only controls of the load sheet (hidden when printing): back to the tour, language of the
- * printout (own-script labels, a plain link so the URL is shareable) and the Print button.
+ * Screen-only controls of the load sheet (hidden when printing): back to the tour, the printout
+ * language (two options, own-script labels, shareable links) and Print.
+ *
+ * The card follows the colour scheme (`bg-card`), not a hardcoded white: the buttons inside use theme
+ * tokens, so a white card made them unreadable in dark mode (reported from the live app). The sheet
+ * itself stays black-on-white on purpose - that is the paper.
+ *
+ * The links are next-intl `Link`s, not raw anchors: a root-absolute `<a href="/de/...">` misses the
+ * deployment's base path (/delivery-app) and 404s on the server (NUD-134).
  */
 export function LoadSheetToolbar({
   tourId,
@@ -23,43 +29,45 @@ export function LoadSheetToolbar({
 }: {
   tourId: string;
   date: string;
-  printLocale: AppLocale;
+  printLocale: SheetLocale;
   isOutdated: boolean;
   outdatedText: string;
   backLabel: string;
   printLabel: string;
   languageLabel: string;
 }) {
-  const uiLocale = useLocale();
   return (
     <div
       className="no-print mx-auto mb-4 flex w-full max-w-[210mm] flex-col gap-3 px-4 print:hidden"
       data-testid="load-sheet-toolbar"
     >
-      <div className="flex flex-wrap items-center gap-3 rounded-lg bg-white p-3 shadow">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg bg-card p-3 text-card-foreground shadow">
         <Button asChild variant="outline">
-          <a href={`/${uiLocale}/admin/tours?date=${date}`} data-testid="load-sheet-back">
+          <Link href={{ pathname: "/admin/tours", query: { date } }} data-testid="load-sheet-back">
             <ArrowLeftIcon aria-hidden />
             {backLabel}
-          </a>
+          </Link>
         </Button>
         <nav aria-label={languageLabel} className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">{languageLabel}</span>
-          {LOCALES.map((l) => (
+          {SHEET_LOCALE_OPTIONS.map((option) => (
             <Button
-              key={l}
+              key={option.value}
               asChild
               size="sm"
-              variant={l === printLocale ? "primary" : "outline"}
-              aria-current={l === printLocale ? "true" : undefined}
+              variant={option.value === printLocale ? "primary" : "outline"}
+              aria-current={option.value === printLocale ? "true" : undefined}
             >
-              <a
-                href={`/${uiLocale}/admin/tours/${encodeURIComponent(tourId)}/print?locale=${l}`}
-                lang={l}
-                data-testid={`load-sheet-locale-${l}`}
+              <Link
+                href={{
+                  pathname: `/admin/tours/${tourId}/print`,
+                  query: { locale: option.value },
+                }}
+                lang={option.value}
+                data-testid={`load-sheet-locale-${option.value}`}
               >
-                {LOCALE_LABELS[l]}
-              </a>
+                {option.label}
+              </Link>
             </Button>
           ))}
         </nav>

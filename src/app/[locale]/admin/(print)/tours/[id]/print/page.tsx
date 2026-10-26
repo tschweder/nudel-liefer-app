@@ -5,15 +5,18 @@ import { Suspense } from "react";
 import { LoadSheet } from "@/components/admin/load-sheet";
 import { LoadSheetToolbar } from "@/components/admin/load-sheet-toolbar";
 import { LoadingSkeleton } from "@/components/shared/states";
+import { parseSheetLocale } from "@/lib/load-sheet-locale";
 import { type AppLocale, LOCALES } from "@/lib/localized-text";
 import { requirePageActor } from "@/server/auth/page-guards";
-import { parsePrintLocale } from "@/server/tour-print";
 import { tourPrintQuery } from "@/server/tour-queries";
 
 /**
- * Packing list / load sheet (NUD-091): `/admin/tours/[id]/print?locale=…`. `locale` is the language
- * of the printout (product names, labels), independent of the language of the admin UI; anything
- * that is not one of the four app locales falls back to the UI locale.
+ * Packing list / load sheet (NUD-091): `/admin/tours/[id]/print?locale=…`.
+ *
+ * `locale` is the language of the printout (labels, product names, units), independent of the
+ * language of the admin UI. Two options only (NUD-134): Deutsch (`de`) and 中文 (`zh-Hans`, the
+ * simplified sheet). A Chinese tag - including the Hant variants - folds onto the simplified sheet;
+ * everything else (missing, `en`, junk) is German. Both cases are decided by `parseSheetLocale`.
  */
 async function Guarded({
   locale,
@@ -26,12 +29,12 @@ async function Guarded({
 }) {
   await requirePageActor("admin", locale);
   const { id } = await params;
-  const printLocale = parsePrintLocale((await searchParams).locale, locale);
+  const printLocale = parseSheetLocale((await searchParams).locale);
   const tour = await tourPrintQuery(id);
   if (!tour) notFound();
   const t = await getTranslations({ locale, namespace: "admin.tours.print" });
   return (
-    <div className="load-sheet-page min-h-dvh bg-neutral-200 py-4 text-black print:bg-white print:py-0">
+    <div className="load-sheet-page min-h-dvh bg-muted py-4 print:bg-white print:py-0">
       <style>{"@page { size: A4; margin: 12mm; }"}</style>
       <LoadSheetToolbar
         tourId={tour.id}

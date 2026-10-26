@@ -110,7 +110,7 @@ async function fixture() {
 
 test.describe.configure({ mode: "serial" });
 
-test("load sheet: totals, reverse order, 4 locales, A4 print, warning, authorization", async ({
+test("load sheet: totals, reverse order, Deutsch + 中文, A4 print, warning, authorization", async ({
   page,
   browser,
 }, testInfo) => {
@@ -187,96 +187,116 @@ test("load sheet: totals, reverse order, 4 locales, A4 print, warning, authoriza
     await expect(tid(page, "load-sheet-outdated")).toHaveCount(0);
     await expect(tid(page, "load-sheet-outdated-screen")).toHaveCount(0);
 
-    // Four locales: labels, html lang of the sheet, German name next to the Chinese one, A4 PDF.
-    const labels: Record<string, { title: string; firstSection: string }> = {
+    // Two printout languages (NUD-134): Deutsch by default, 中文 prints the simplified sheet.
+    const texts = {
       de: { title: "Ladeliste", firstSection: "1. Gesamtmenge pro Produkt" },
       "zh-Hans": { title: "装车单", firstSection: "1. 各产品总数量" },
-      "zh-Hant-HK": { title: "裝車單", firstSection: "1. 各產品總數量" },
-      "zh-Hant-TW": { title: "裝車單", firstSection: "1. 各產品總數量" },
     };
     const germanFirst = f.products[0]!.name.de;
-    const pages: Record<string, number> = {};
-    for (const [locale, text] of Object.entries(labels)) {
-      await page.goto(`/de/admin/tours/${f.tourId}/print?locale=${locale}`);
-      await expect(sheet).toHaveAttribute("lang", locale);
-      await expect(tid(page, "load-sheet-title")).toHaveText(text.title);
-      await expect(sheet).toContainText(text.firstSection);
-      await expect(sheet).toContainText(germanFirst);
-      await expect(tid(page, `load-sheet-locale-${locale}`)).toHaveAttribute(
-        "aria-current",
-        "true",
-      );
-      await page.screenshot({ path: `${OUT}/screen-${locale}.png`, fullPage: true });
+    await page.goto(`/de/admin/tours/${f.tourId}/print`);
+    await expect(sheet).toHaveAttribute("lang", "de");
+    await expect(sheet).toHaveAttribute("data-locale", "de");
+    await expect(tid(page, "load-sheet-title")).toHaveText(texts.de.title);
+    await expect(sheet).toContainText(texts.de.firstSection);
+    await expect(sheet).toContainText(germanFirst);
+    // The picker offers exactly the two options, labelled in their own script; the current one is
+    // marked, the other one is not.
+    await expect(tid(page, "load-sheet-locale-de")).toHaveText("Deutsch");
+    await expect(tid(page, "load-sheet-locale-zh-Hans")).toHaveText("中文");
+    await expect(tid(page, "load-sheet-locale-de")).toHaveAttribute("aria-current", "true");
+    await expect(tid(page, "load-sheet-locale-zh-Hans")).not.toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(page.locator('[data-testid^="load-sheet-locale-"]:visible')).toHaveCount(2);
+    await page.screenshot({ path: `${OUT}/screen-de.png`, fullPage: true });
 
-      // print layout: A4 content width (210mm - 2 x 12mm = 186mm = 703px), nothing cut off
-      await page.emulateMedia({ media: "print" });
-      await page.setViewportSize({ width: 703, height: 1000 });
-      const overflow = await page.evaluate(() => {
-        const root = document.querySelector('[data-testid="load-sheet"]')!;
-        const right = root.getBoundingClientRect().right;
-        const bad: string[] = [];
-        for (const el of root.querySelectorAll("th,td")) {
-          if (el.scrollWidth > el.clientWidth + 1)
-            bad.push(`scroll:${el.textContent?.slice(0, 30)}`);
-          if (el.getBoundingClientRect().right > right + 1)
-            bad.push(`out:${el.textContent?.slice(0, 30)}`);
-        }
-        return {
-          bad,
-          docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          toolbar: getComputedStyle(document.querySelector('[data-testid="load-sheet-toolbar"]')!)
-            .display,
-        };
-      });
-      expect(overflow).toEqual({ bad: [], docOverflow: false, toolbar: "none" });
-
-      const pdf = await page.pdf({ format: "A4", preferCSSPageSize: true, printBackground: true });
-      const file = `${OUT}/load-sheet-${locale}.pdf`;
-      writeFileSync(file, pdf);
-      if (hasPoppler) {
-        const info = execFileSync("pdfinfo", [file]).toString();
-        pages[locale] = Number(/Pages:\s+(\d+)/.exec(info)![1]);
-        expect(info).toMatch(/Page size:\s+59[45]\.\d+ x 841\.\d+ pts \(A4\)/);
-        // the PDF is not blank: title, the first section and a customer of the last page are in it
-        const pdfText = execFileSync("pdftotext", ["-layout", file, "-"]).toString();
-        const squash = (value: string) => value.replace(/\s+/g, "");
-        expect(squash(pdfText)).toContain(squash(text.title));
-        expect(squash(pdfText)).toContain(squash(text.firstSection));
-        expect(pdfText).toContain(`${f.tag}-1`);
-        expect(pdfText).toContain(`${f.tag}-${STOPS}`);
+    // print layout: A4 content width (210mm - 2 x 12mm = 186mm = 703px), nothing cut off
+    await page.emulateMedia({ media: "print" });
+    await page.setViewportSize({ width: 703, height: 1000 });
+    const overflow = await page.evaluate(() => {
+      const root = document.querySelector('[data-testid="load-sheet"]')!;
+      const right = root.getBoundingClientRect().right;
+      const bad: string[] = [];
+      for (const el of root.querySelectorAll("th,td")) {
+        if (el.scrollWidth > el.clientWidth + 1) bad.push(`scroll:${el.textContent?.slice(0, 30)}`);
+        if (el.getBoundingClientRect().right > right + 1)
+          bad.push(`out:${el.textContent?.slice(0, 30)}`);
       }
-      await page.emulateMedia({ media: "screen" });
-      await page.setViewportSize({ width: 1280, height: 800 });
+      return {
+        bad,
+        docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        toolbar: getComputedStyle(document.querySelector('[data-testid="load-sheet-toolbar"]')!)
+          .display,
+      };
+    });
+    expect(overflow).toEqual({ bad: [], docOverflow: false, toolbar: "none" });
+
+    let pdfPages = 0;
+    const pdf = await page.pdf({ format: "A4", preferCSSPageSize: true, printBackground: true });
+    const file = `${OUT}/load-sheet-de.pdf`;
+    writeFileSync(file, pdf);
+    if (hasPoppler) {
+      const info = execFileSync("pdfinfo", [file]).toString();
+      pdfPages = Number(/Pages:\s+(\d+)/.exec(info)![1]);
+      expect(info).toMatch(/Page size:\s+59[45]\.\d+ x 841\.\d+ pts \(A4\)/);
+      // the PDF is not blank: title, the first section and a customer of the last page are in it
+      const pdfText = execFileSync("pdftotext", ["-layout", file, "-"]).toString();
+      const squash = (value: string) => value.replace(/\s+/g, "");
+      expect(squash(pdfText)).toContain(squash(texts.de.title));
+      expect(squash(pdfText)).toContain(squash(texts.de.firstSection));
+      expect(pdfText).toContain(`${f.tag}-1`);
+      expect(pdfText).toContain(`${f.tag}-${STOPS}`);
     }
+    await page.emulateMedia({ media: "screen" });
+    await page.setViewportSize({ width: 1280, height: 800 });
     // 30 stops need more than one page, but not an absurd number
     if (hasPoppler) {
-      for (const n of Object.values(pages)) {
-        expect(n).toBeGreaterThanOrEqual(2);
-        expect(n).toBeLessThanOrEqual(8);
-      }
+      expect(pdfPages).toBeGreaterThanOrEqual(2);
+      expect(pdfPages).toBeLessThanOrEqual(8);
     }
-    writeFileSync(`${OUT}/pages.json`, JSON.stringify(pages));
+    writeFileSync(`${OUT}/pages.json`, JSON.stringify({ de: pdfPages }));
 
-    // Invalid locale falls back to the UI locale of the page.
-    for (const bad of ["en", "", "ZH-HANS", "zh"]) {
-      await page.goto(`/zh-Hans/admin/tours/${f.tourId}/print?locale=${bad}`);
+    // 中文: the single Chinese option prints the simplified sheet, with the German name in small type.
+    await page.goto(`/zh-Hans/admin/tours/${f.tourId}/print?locale=zh-Hans`);
+    await expect(sheet).toHaveAttribute("lang", "zh-Hans");
+    await expect(sheet).toHaveAttribute("data-locale", "zh-Hans");
+    await expect(tid(page, "load-sheet-title")).toHaveText(texts["zh-Hans"].title);
+    await expect(sheet).toContainText(texts["zh-Hans"].firstSection);
+    await expect(sheet).toContainText(germanFirst);
+    await expect(tid(page, "load-sheet-locale-zh-Hans")).toHaveAttribute("aria-current", "true");
+    await expect(tid(page, "load-sheet-locale-de")).not.toHaveAttribute("aria-current", "true");
+    await page.screenshot({ path: `${OUT}/screen-zh-Hans.png`, fullPage: true });
+
+    // The regional Hant variants (and a bare `zh`) fold onto that same simplified sheet.
+    for (const folded of ["zh", "zh-Hant-HK", "zh-Hant-TW"]) {
+      await page.goto(`/de/admin/tours/${f.tourId}/print?locale=${folded}`);
       await expect(sheet).toHaveAttribute("data-locale", "zh-Hans");
+      await expect(tid(page, "load-sheet-title")).toHaveText(texts["zh-Hans"].title);
+      await expect(tid(page, "load-sheet-locale-zh-Hans")).toHaveAttribute("aria-current", "true");
     }
-    await page.goto(`/de/admin/tours/${f.tourId}/print`);
-    await expect(sheet).toHaveAttribute("data-locale", "de");
+
+    // Anything unknown is German, regardless of the admin UI language.
+    for (const bad of ["en", "", "ZH-HANS"]) {
+      await page.goto(`/zh-Hans/admin/tours/${f.tourId}/print?locale=${bad}`);
+      await expect(sheet).toHaveAttribute("lang", "de");
+      await expect(sheet).toHaveAttribute("data-locale", "de");
+      await expect(tid(page, "load-sheet-title")).toHaveText(texts.de.title);
+      await expect(tid(page, "load-sheet-locale-de")).toHaveAttribute("aria-current", "true");
+    }
 
     // Unknown tour: the localized not-found page (the status is 200 because the page streams).
     await page.goto(`/de/admin/tours/nope-${f.tourId}/print`);
     await expect(tid(page, "not-found")).toBeVisible();
     await expect(tid(page, "load-sheet")).toHaveCount(0);
 
-    // Outdated tour: loud warning on screen (UI language) and on paper (print language),
+    // Outdated tour: loud warning on screen (UI language) and on paper (German, NUD-134),
     // quantities stay the tour's quantities.
     await f.client.query(`UPDATE "Tour" SET "isOutdated"=true WHERE "id"=$1`, [f.tourId]);
-    await page.goto(`/de/admin/tours/${f.tourId}/print?locale=zh-Hans`);
+    await page.goto(`/de/admin/tours/${f.tourId}/print`);
     await expect(tid(page, "load-sheet-outdated-screen")).toBeVisible();
     await expect(tid(page, "load-sheet-outdated-screen")).toContainText("Bestellungen");
-    await expect(tid(page, "load-sheet-outdated")).toContainText("注意");
+    await expect(tid(page, "load-sheet-outdated")).toContainText("ACHTUNG");
     await page.screenshot({ path: `${OUT}/screen-outdated.png` });
     await page.emulateMedia({ media: "print" });
     await expect(tid(page, "load-sheet-outdated-screen")).toBeHidden();

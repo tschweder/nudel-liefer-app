@@ -359,13 +359,20 @@ export function TourPlanner({
 
   const printLink = (
     <Button asChild variant={editable ? "outline" : "primary"}>
-      <a
-        href={`/${locale}/admin/tours/${encodeURIComponent(tour.id)}/print?locale=${locale}`}
+      {/*
+       * next-intl's `Link`, not a raw <a>: a root-absolute href is missing the deployment's base path
+       * (/delivery-app), which is why "Ladeliste drucken" 404'd on the server (NUD-134). Opens in a new
+       * tab so the planner stays where it was (owner request).
+       */}
+      <Link
+        href={{ pathname: `/admin/tours/${tour.id}/print`, query: { locale } }}
+        target="_blank"
+        rel="noopener noreferrer"
         data-testid="tour-print-link"
       >
         <PrinterIcon aria-hidden />
         {t("print.open")}
-      </a>
+      </Link>
     </Button>
   );
 
