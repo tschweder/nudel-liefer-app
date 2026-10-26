@@ -143,9 +143,10 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name });
     await expect(row).toBeVisible();
     await expect(row.getByTestId("order-item")).toHaveCount(3);
-    await expect(row).toContainText("2,5 Packung · Spaghetti 5 kg");
-    await expect(row).toContainText("3,25 Packung · Penne 5 kg");
-    await expect(row).toContainText("10 Packung · Fusilli 5 kg");
+    // Unit labels are ICU plurals (re-design.md §9.3, `driver.units`): "2,5 Packungen", not "2,5 Packung".
+    await expect(row).toContainText("2,5 Packungen · Spaghetti 5 kg");
+    await expect(row).toContainText("3,25 Packungen · Penne 5 kg");
+    await expect(row).toContainText("10 Packungen · Fusilli 5 kg");
     await expect(row.getByTestId("order-status")).toHaveText("Bestätigt");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-list.png") });
@@ -242,7 +243,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name }).last();
     await expect(row.getByTestId("order-status")).toHaveText("Entwurf");
     await expect(row.getByTestId("order-item")).toHaveCount(1);
-    await expect(row).toContainText("3,5 Packung · Spaghetti 5 kg");
+    await expect(row).toContainText("3,5 Packungen · Spaghetti 5 kg");
     const items = await f.client.query<{ status: string; quantity: string }>(
       `SELECT o."status"::text AS status, i."quantity"::text AS quantity
        FROM "Order" o JOIN "OrderItem" i ON i."orderId"=o."id"
