@@ -219,7 +219,8 @@ model OrderItem {
   id        String  @id @default(cuid())
   orderId   String
   productId String
-  quantity  Decimal @db.Decimal(10, 2)
+  /// Whole number of units (D23, NUD-137): Beutel, Karton or pieces; never a fraction.
+  quantity  Int
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -274,7 +275,7 @@ model Stop {
   problemNote       Json?
   completedAt       DateTime?
   clientMutationId  String?        @unique
-  /// Quantities the office released for this stop, `[{productId, quantityCents}]` (NUD-043). The driver
+  /// Quantities the office released for this stop, `[{productId, quantity}]` (NUD-043). The driver
   /// sees this snapshot, never the live order lines, so an order edited after release shows up only via re-release.
   items             Json           @default("[]")
   /// Quantities before the last re-release that changed this stop (null otherwise).

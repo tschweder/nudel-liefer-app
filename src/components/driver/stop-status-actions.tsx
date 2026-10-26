@@ -276,7 +276,10 @@ export function StopStatusActions({
                 aria-hidden
               />
             ) : (
-              <AlertTriangleIcon className="size-5 shrink-0 text-warning-soft-foreground" aria-hidden />
+              <AlertTriangleIcon
+                className="size-5 shrink-0 text-warning-soft-foreground"
+                aria-hidden
+              />
             )}
             <span data-testid="stop-strip">
               {delivered

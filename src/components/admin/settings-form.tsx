@@ -150,7 +150,10 @@ export function SettingsForm({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6 pb-24" noValidate>
       <div className="flex flex-col gap-1">
-        <h1 className="hyphens-auto text-2xl font-semibold text-balance" data-testid="section-title">
+        <h1
+          className="hyphens-auto text-2xl font-semibold text-balance"
+          data-testid="section-title"
+        >
           {t("title")}
         </h1>
         <p className="max-w-prose text-base text-muted-foreground">{t("description")}</p>
@@ -158,10 +161,7 @@ export function SettingsForm({
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         {/* Left: in-page anchor nav, sticky under the 56 px top bar on wide screens. */}
-        <nav
-          aria-label={t("sectionsLabel")}
-          className="lg:sticky lg:top-20 lg:w-56 lg:shrink-0"
-        >
+        <nav aria-label={t("sectionsLabel")} className="lg:sticky lg:top-20 lg:w-56 lg:shrink-0">
           <ul className="flex flex-wrap gap-1 lg:flex-col">
             {sections.map((section) => (
               <li key={section.id}>
@@ -384,10 +384,7 @@ export function SettingsForm({
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <span
                 aria-hidden
-                className={cn(
-                  "size-2 rounded-full",
-                  dirty ? "bg-warning" : "bg-success",
-                )}
+                className={cn("size-2 rounded-full", dirty ? "bg-warning" : "bg-success")}
               />
               {dirty ? t("unsaved") : t("saved-state")}
             </p>

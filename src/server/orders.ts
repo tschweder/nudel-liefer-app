@@ -1,20 +1,13 @@
 import { z } from "zod";
 
-import { diffOrderUpdate, type LineChange } from "@/domain/audit";
+import { diffOrderUpdate, type LineChange, toAuditQuantity } from "@/domain/audit";
 import {
-  centsToDecimal,
   formatCalendarDate,
   isPastDeliveryDate,
   orderInputSchema,
   parseCalendarDate,
-  parseQuantityCents,
 } from "@/domain/order";
-import {
-  aggregateTotalsByDate,
-  isOrderEditable,
-  type OrderFilters,
-  totalToDecimal,
-} from "@/domain/order-overview";
+import { aggregateTotalsByDate, isOrderEditable, type OrderFilters } from "@/domain/order-overview";
 import { calendarDayIn } from "@/domain/settings";
 import { type OrderState, outdatedTourDates } from "@/domain/tour-diff";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -134,7 +127,7 @@ export async function createOrder(
         items: {
           create: v.lines.map((l) => ({
             productId: l.productId,
-            quantity: centsToDecimal(l.quantityCents),
+            quantity: l.quantity,
           })),
         },
       },
@@ -154,7 +147,7 @@ export async function createOrder(
         lines: v.lines.map((l): LineChange => ({
           productId: l.productId,
           before: null,
-          after: l.quantityCents,
+          after: toAuditQuantity(l.quantity),
         })),
       },
     });
@@ -164,7 +157,7 @@ export async function createOrder(
       deliveryDate: v.deliveryDate,
       items: v.lines.map((l) => ({
         productId: l.productId,
-        quantity: centsToDecimal(l.quantityCents),
+        quantity: l.quantity,
       })),
     });
     return created;
@@ -229,7 +222,7 @@ export type OrderOverviewRow = {
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
   source: "MANUAL" | "SCREENSHOT";
   customer: { id: string; customerNumber: string; name: string };
-  items: Array<{ id: string; productName: unknown; unit: string; quantity: string }>;
+  items: Array<{ id: string; productName: unknown; unit: string; quantity: number }>;
   /** The tour this order is part of (through its stop), or `null` while no tour contains it. */
   tour: { tourId: string; stopId: string } | null;
   /**
@@ -283,7 +276,7 @@ export async function listOrderOverview(
         id: i.id,
         productName: i.product.name,
         unit: i.product.unit,
-        quantity: i.quantity.toString(),
+        quantity: i.quantity,
       })),
       tour: o.stopOrders[0]
         ? { tourId: o.stopOrders[0].stop.tourId, stopId: o.stopOrders[0].stop.id }
@@ -301,8 +294,8 @@ export type DateTotalsView = {
     productName: unknown;
     sku: string;
     unit: string;
-    /** Exact sum as a plain decimal string, e.g. `"12.50"`. */
-    quantity: string;
+    /** Sum of whole-number quantities. */
+    quantity: number;
   }>;
 };
 
@@ -341,8 +334,7 @@ export async function getDateTotals(
     status: o.status,
     items: o.items.flatMap((i) => {
       products.set(i.productId, i.product);
-      const cents = parseQuantityCents(i.quantity.toString());
-      return cents === null ? [] : [{ productId: i.productId, quantityCents: cents }];
+      return [{ productId: i.productId, quantity: i.quantity }];
     }),
   }));
   return aggregateTotalsByDate(parsed).map((day) => ({
@@ -357,7 +349,7 @@ export async function getDateTotals(
         productName: p.info.name,
         sku: p.info.sku,
         unit: p.info.unit,
-        quantity: totalToDecimal(p.quantityCents),
+        quantity: p.quantity,
       })),
   }));
 }
@@ -438,7 +430,7 @@ export type OrderDetail = {
     sku: string;
     productName: unknown;
     unit: string;
-    quantity: string;
+    quantity: number;
   }>;
   /** Open order of today or a later day: it can be edited and cancelled. */
   editable: boolean;
@@ -499,7 +491,7 @@ export async function getOrderDetail(
       sku: i.product.sku,
       productName: i.product.name,
       unit: i.product.unit,
-      quantity: i.quantity.toString(),
+      quantity: i.quantity,
     })),
     editable: isOrderEditable(o, today),
     tour: o.stopOrders[0]
@@ -613,7 +605,7 @@ export async function updateOrder(
           deleteMany: {},
           create: v.lines.map((l) => ({
             productId: l.productId,
-            quantity: centsToDecimal(l.quantityCents),
+            quantity: l.quantity,
           })),
         },
       },
@@ -633,7 +625,7 @@ export async function updateOrder(
         internalNote: v.internalNote ?? null,
         items: v.lines.map((l) => ({
           productId: l.productId,
-          quantity: centsToDecimal(l.quantityCents),
+          quantity: l.quantity,
         })),
       },
     );
@@ -652,7 +644,7 @@ export async function updateOrder(
       deliveryDate: v.deliveryDate,
       items: v.lines.map((l) => ({
         productId: l.productId,
-        quantity: centsToDecimal(l.quantityCents),
+        quantity: l.quantity,
       })),
     });
     return true;
@@ -760,7 +752,7 @@ export async function duplicateOrder(
         items: {
           create: source.items.map((i) => ({
             productId: i.productId,
-            quantity: i.quantity.toString(),
+            quantity: i.quantity,
           })),
         },
       },
@@ -780,7 +772,7 @@ export async function duplicateOrder(
         lines: source.items.map((i): LineChange => ({
           productId: i.productId,
           before: null,
-          after: parseQuantityCents(i.quantity.toString()) ?? 0,
+          after: toAuditQuantity(i.quantity),
         })),
       },
     });

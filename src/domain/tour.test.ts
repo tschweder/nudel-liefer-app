@@ -6,23 +6,7 @@ import {
   departureInstant,
   mergeLockedOrder,
   partitionByPin,
-  quantityToCents,
 } from "./tour";
-
-describe("quantityToCents", () => {
-  it("reads Decimal(10,2) strings, numbers and Decimal-like values exactly", () => {
-    expect(quantityToCents("2.50")).toBe(250);
-    expect(quantityToCents("5")).toBe(500);
-    expect(quantityToCents(0.1)).toBe(10);
-    expect(quantityToCents({ toString: () => "12.05" })).toBe(1205);
-    expect(quantityToCents("0.30")).toBe(30);
-  });
-
-  it("rejects what is not a quantity with at most 2 decimals", () => {
-    expect(() => quantityToCents("abc")).toThrow();
-    expect(() => quantityToCents("1.005")).toThrow();
-  });
-});
 
 describe("buildStops", () => {
   const orders = [
@@ -30,17 +14,17 @@ describe("buildStops", () => {
       id: "o1",
       customerId: "c1",
       items: [
-        { productId: "p1", quantity: "2.50" },
-        { productId: "p2", quantity: "1" },
+        { productId: "p1", quantity: 3 },
+        { productId: "p2", quantity: 1 },
       ],
     },
-    { id: "o2", customerId: "c2", items: [{ productId: "p1", quantity: "4" }] },
+    { id: "o2", customerId: "c2", items: [{ productId: "p1", quantity: 4 }] },
     {
       id: "o3",
       customerId: "c1",
       items: [
-        { productId: "p1", quantity: "0.30" },
-        { productId: "p3", quantity: "6" },
+        { productId: "p1", quantity: 2 },
+        { productId: "p3", quantity: 6 },
       ],
     },
   ];
@@ -52,15 +36,15 @@ describe("buildStops", () => {
       customerId: "c1",
       orderIds: ["o1", "o3"],
       items: [
-        { productId: "p1", quantityCents: 280 },
-        { productId: "p2", quantityCents: 100 },
-        { productId: "p3", quantityCents: 600 },
+        { productId: "p1", quantity: 5 },
+        { productId: "p2", quantity: 1 },
+        { productId: "p3", quantity: 6 },
       ],
     });
     expect(stops[1]).toEqual({
       customerId: "c2",
       orderIds: ["o2"],
-      items: [{ productId: "p1", quantityCents: 400 }],
+      items: [{ productId: "p1", quantity: 4 }],
     });
   });
 

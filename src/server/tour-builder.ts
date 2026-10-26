@@ -307,7 +307,7 @@ export async function generateTourWith(
           // What the office releases for this stop; the driver sees this snapshot (NUD-043).
           items: stop.items.map((i) => ({
             productId: i.productId,
-            quantityCents: i.quantityCents,
+            quantity: i.quantity,
           })),
         };
         const orderLinks = stop.orderIds.map((orderId) => ({ orderId }));

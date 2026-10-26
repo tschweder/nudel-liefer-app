@@ -41,8 +41,6 @@ import { StopStatusActions } from "./stop-status-actions";
 
 type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
 
-const cents = (value: number) => value / 100;
-
 const subscribeNothing = () => () => {};
 /** True on iPhone / iPad (detected in the browser; false during server rendering). */
 function useIsIos(): boolean {
@@ -136,7 +134,10 @@ export function StopDetail({
             label={t("today.stopLabel", { number: stop.sequence })}
             data-testid="stop-number"
           />
-          <h1 className="min-w-0 text-2xl leading-tight font-bold text-balance break-words" data-testid="stop-name">
+          <h1
+            className="min-w-0 text-2xl leading-tight font-bold text-balance break-words"
+            data-testid="stop-name"
+          >
             {stop.customerName}
           </h1>
         </div>
@@ -148,7 +149,9 @@ export function StopDetail({
             <ClockIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
             <span className="min-w-0 break-words">
               {stop.etaAt ? (
-                <span data-testid="stop-eta">{t("today.eta", { time: fmtTime(new Date(stop.etaAt)) })}</span>
+                <span data-testid="stop-eta">
+                  {t("today.eta", { time: fmtTime(new Date(stop.etaAt)) })}
+                </span>
               ) : null}
               {stop.etaAt && hours ? <span aria-hidden> · </span> : null}
               {hours ? <span data-testid="stop-hours">{hours}</span> : null}
@@ -157,11 +160,7 @@ export function StopDetail({
         ) : null}
 
         <div data-testid="stop-status" data-status={stop.status}>
-          <StatusBadge
-            tone={stopTone(stop.status)}
-            icon={stopIcon(stop.status)}
-            size="lg"
-          >
+          <StatusBadge tone={stopTone(stop.status)} icon={stopIcon(stop.status)} size="lg">
             {stop.status === "DELIVERED"
               ? stop.completedAt
                 ? stopText(tStop, locale, "statusDeliveredAt", {
@@ -199,7 +198,9 @@ export function StopDetail({
                 href={googleMapsNavigationUrl(stop.lat!, stop.lng!)}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })}
+                onClick={() =>
+                  toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })
+                }
                 data-testid="navigate"
               >
                 <NavigationIcon className="size-6" aria-hidden />
@@ -212,7 +213,9 @@ export function StopDetail({
                   href={appleMapsNavigationUrl(stop.lat!, stop.lng!)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })}
+                  onClick={() =>
+                    toast(stopText(tStop, locale, "navigateStarting"), { duration: 2000 })
+                  }
                   data-testid="navigate-apple"
                 >
                   <NavigationIcon className="size-5" aria-hidden />
@@ -268,7 +271,7 @@ function ItemRow({
   unitLabel: (unit: string, count: number) => string;
   fmt: AppFormatters;
 }) {
-  const quantity = cents(item.quantityCents);
+  const quantity = item.quantity;
   return (
     <li className="flex items-start justify-between gap-3 px-4 py-3" data-testid="stop-item">
       <div className="min-w-0">
@@ -328,17 +331,19 @@ function DeliveryCard({
           className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t px-4 py-3 text-base font-semibold"
           data-testid="summary-total"
         >
-          <span>{totals.length > 1 ? tStop("summaryTotalMixed") : stopText(tStop, locale, "summaryTotal")}</span>
+          <span>
+            {totals.length > 1
+              ? tStop("summaryTotalMixed")
+              : stopText(tStop, locale, "summaryTotal")}
+          </span>
           <span className="flex flex-wrap items-baseline justify-end gap-x-2 text-end">
             {totals.map((total, index) => (
               <span key={total.unit} className="whitespace-nowrap" data-unit={total.unit}>
                 {index > 0 ? <span aria-hidden>· </span> : null}
                 <strong className="font-sans text-3xl font-bold tabular-nums">
-                  {fmt.quantity(cents(total.quantityCents))}
+                  {fmt.quantity(total.quantity)}
                 </strong>{" "}
-                <span className="text-base">
-                  {unitLabel(total.unit, cents(total.quantityCents))}
-                </span>
+                <span className="text-base">{unitLabel(total.unit, total.quantity)}</span>
               </span>
             ))}
           </span>

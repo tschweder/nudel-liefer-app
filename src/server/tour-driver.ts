@@ -29,9 +29,9 @@ export type DriverStopItem = {
   /** `LocalizedText` JSON; pick the driver's locale with `pick`. */
   name: unknown;
   unit: string;
-  quantityCents: number;
+  quantity: number;
   /** Quantity before the last change of this stop (`null` when the stop is new or unchanged). */
-  previousQuantityCents: number | null;
+  previousQuantity: number | null;
 };
 
 export type DriverStop = {
@@ -115,7 +115,7 @@ export async function getDriverTour(
     removedCustomers: removed.success ? removed.data.removed : [],
     stops: snapshots.map(({ stop, items }) => {
       const previous = new Map(
-        readStopItems(stop.previousItems).map((i) => [i.productId, i.quantityCents]),
+        readStopItems(stop.previousItems).map((i) => [i.productId, i.quantity]),
       );
       return {
         id: stop.id,
@@ -133,9 +133,8 @@ export async function getDriverTour(
           sku: products.get(i.productId)?.sku ?? "",
           name: products.get(i.productId)?.name ?? null,
           unit: products.get(i.productId)?.unit ?? "PACK",
-          quantityCents: i.quantityCents,
-          previousQuantityCents:
-            stop.changeKind === "CHANGED" ? (previous.get(i.productId) ?? 0) : null,
+          quantity: i.quantity,
+          previousQuantity: stop.changeKind === "CHANGED" ? (previous.get(i.productId) ?? 0) : null,
         })),
       };
     }),

@@ -82,10 +82,10 @@ async function fixture() {
     const picks = products.filter((_, k) => (i + k) % 2 === 0 || k === 0);
     const items = picks.map((p, k) => ({
       productId: p.id,
-      quantityCents: 100 * ((i % 5) + 1) + (k === 1 ? 50 : 0),
+      quantity: 100 * ((i % 5) + 1) + (k === 1 ? 50 : 0),
     }));
     for (const it of items) {
-      expected.set(it.productId, (expected.get(it.productId) ?? 0) + it.quantityCents);
+      expected.set(it.productId, (expected.get(it.productId) ?? 0) + it.quantity);
     }
     await client.query(
       `INSERT INTO "Stop" ("id","tourId","customerId","sequence","items") VALUES ($1,$2,$3,$4,$5)`,

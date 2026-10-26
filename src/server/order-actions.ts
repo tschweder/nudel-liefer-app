@@ -52,13 +52,7 @@ export async function updateOrderAction(id: unknown, input: unknown): Promise<Or
 /** Cancels an open order (status CANCELLED, never deleted). */
 export async function cancelOrderAction(id: unknown): Promise<OrderCancelResult> {
   const actor = await requireRole("ADMIN");
-  return cancelOrder(
-    getDb(),
-    actor.id,
-    id,
-    todayIn(await getFactoryTimezone()),
-    getTourService(),
-  );
+  return cancelOrder(getDb(), actor.id, id, todayIn(await getFactoryTimezone()), getTourService());
 }
 
 /** Copies an order to another delivery day as a new draft. */

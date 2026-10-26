@@ -90,16 +90,16 @@ const detail = (extra: Partial<DriverStopDetail> = {}): DriverStopDetail => ({
         name: "Spaghetti",
         germanName: "Spaghetti lose",
         unit: "KG",
-        quantityCents: 1250,
-        previousQuantityCents: null,
+        quantity: 13,
+        previousQuantity: null,
       },
       {
         productId: "p2",
         name: "Penne",
         germanName: "Penne",
         unit: "PACK",
-        quantityCents: 300,
-        previousQuantityCents: null,
+        quantity: 3,
+        previousQuantity: null,
       },
     ],
   },
@@ -145,11 +145,12 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("item-name")).toHaveTextContent("Spaghetti");
     expect(within(rows[0]).getByTestId("item-name-de")).toHaveTextContent("Spaghetti lose");
-    expect(within(rows[0]).getByTestId("item-quantity")).toHaveTextContent(/12[.,]5/);
+    expect(within(rows[0]).getByTestId("item-quantity")).toHaveTextContent("13");
     expect(within(rows[1]).queryByTestId("item-name-de")).toBeNull(); // same as the shown name
     // The delivery hours live on the merged ETA line in the header. Weekdays and the "Uhr" suffix
     // follow the locale (run 3 review point 3), the rest of the free text stays as stored.
-    const hours = locale === "de" ? "Mo-Fr 8-11" : locale === "zh-Hans" ? "周一-周五 8-11" : "週一-週五 8-11";
+    const hours =
+      locale === "de" ? "Mo-Fr 8-11" : locale === "zh-Hans" ? "周一-周五 8-11" : "週一-週五 8-11";
     expect(screen.getByTestId("stop-hours")).toHaveTextContent(hours);
     expect(screen.getByTestId("stop-eta")).toHaveTextContent(/\d{1,2}[:.]\d{2}/);
     expect(screen.getByTestId("stop-status")).toHaveAttribute("data-status", "PENDING");

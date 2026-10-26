@@ -119,7 +119,8 @@ function SyncChip({ onClick, className }: { onClick: () => void; className?: str
   if (failure && pending > 0) state = "error";
   else if (pending > 0) state = "pending";
   else if (!online) state = "offline";
-  else if (status.syncing || (status.savedAt === null && status.phase === "idle")) state = "preparing";
+  else if (status.syncing || (status.savedAt === null && status.phase === "idle"))
+    state = "preparing";
   else state = "online";
 
   // Full sentence = accessible name; `short` is what fits next to the date.
@@ -194,7 +195,13 @@ function SyncChip({ onClick, className }: { onClick: () => void; className?: str
 }
 
 /** The Outbox sheet: a pure view over the existing store, no retry logic is invented here. */
-function OutboxSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function OutboxSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useTranslations("driver.sync");
   const online = useOnline();
   const formatter = useFormatter();

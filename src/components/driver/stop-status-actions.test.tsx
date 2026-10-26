@@ -218,9 +218,14 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
   });
 
   it("links back to the tour when nothing is pending any more", () => {
-    renderIn(locale, { ...pendingStop, status: "DELIVERED", completedAt: "2099-07-02T08:00:00Z" }, "RELEASED", {
-      tourStops: tourOf("DELIVERED", "DELIVERED"),
-    });
+    renderIn(
+      locale,
+      { ...pendingStop, status: "DELIVERED", completedAt: "2099-07-02T08:00:00Z" },
+      "RELEASED",
+      {
+        tourStops: tourOf("DELIVERED", "DELIVERED"),
+      },
+    );
     expect(screen.getByTestId("back-to-tour-action")).toHaveAttribute("href", "/driver");
     expect(screen.queryByTestId("next-stop-action")).toBeNull();
   });

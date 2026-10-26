@@ -48,12 +48,10 @@ const segmentTone: Record<Tone, string> = {
 export function ProgressBar(props: ProgressBarProps) {
   const { total, label, valueText, className } = props;
   const { segments } = props;
-  const resolved: ProgressSegment[] =
-    segments ??
-    [
-      { value: props.delivered, tone: "success" },
-      { value: props.problems, tone: "warning" },
-    ];
+  const resolved: ProgressSegment[] = segments ?? [
+    { value: props.delivered, tone: "success" },
+    { value: props.problems, tone: "warning" },
+  ];
   const done = resolved.reduce((sum, segment) => sum + segment.value, 0);
   const pct = (n: number) => (total === 0 ? 0 : (n / total) * 100);
 

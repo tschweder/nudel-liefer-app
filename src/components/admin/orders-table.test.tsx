@@ -35,7 +35,11 @@ const localized = (de: string, hans: string) => ({
   meta: { source: "de" as const, machine: {}, updatedAt: "2099-01-01T00:00:00.000Z" },
 });
 
-const row = (id: string, date: string, overrides: Partial<OrderOverviewRow> = {}): OrderOverviewRow => ({
+const row = (
+  id: string,
+  date: string,
+  overrides: Partial<OrderOverviewRow> = {},
+): OrderOverviewRow => ({
   id,
   deliveryDate: new Date(`${date}T00:00:00.000Z`),
   status: "CONFIRMED",
@@ -46,13 +50,13 @@ const row = (id: string, date: string, overrides: Partial<OrderOverviewRow> = {}
       id: `i-${id}-1`,
       productName: localized("Spaghetti 5 kg", "意大利面 5 公斤"),
       unit: "PACK",
-      quantity: "2.5",
+      quantity: 3,
     },
     {
       id: `i-${id}-2`,
       productName: localized("Penne 5 kg", "通心粉 5 公斤"),
       unit: "PACK",
-      quantity: "1",
+      quantity: 1,
     },
   ],
   tour: null,
@@ -118,10 +122,7 @@ describe.each(Object.keys(LOCALES))("OrdersTable (%s)", (locale) => {
     );
     expect(within(first).getByTestId("order-source")).toHaveAttribute("data-source", "SCREENSHOT");
     expect(within(first).getByTestId("order-in-tour")).toHaveAttribute("data-tour-id", "tour-1");
-    expect(within(first).getByTestId("order-open")).toHaveAttribute(
-      "href",
-      "/admin/orders/a",
-    );
+    expect(within(first).getByTestId("order-open")).toHaveAttribute("href", "/admin/orders/a");
   });
 
   it("opens the right drawer with the order when the row is clicked", () => {

@@ -11,12 +11,12 @@ export const LOAD_SHEET_UNIT_ORDER = ["KG", "PACK", "CRATE", "PIECE"] as const;
 export type LoadSheetStopInput = {
   id: string;
   sequence: number;
-  items: ReadonlyArray<{ productId: string; quantityCents: number }>;
+  items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
 
 export type LoadSheetProduct = { id: string; sku: string; unit: string; sortOrder: number };
 
-export type LoadSheetTotal = { productId: string; unit: string; quantityCents: number };
+export type LoadSheetTotal = { productId: string; unit: string; quantity: number };
 
 const unitRank = (unit: string) => {
   const index = (LOAD_SHEET_UNIT_ORDER as readonly string[]).indexOf(unit);
@@ -37,14 +37,14 @@ export function loadSheetTotals(
     stop.items.map((item) => ({
       productId: item.productId,
       unit: byId.get(item.productId)?.unit ?? "",
-      quantityCents: item.quantityCents,
+      quantity: item.quantity,
     })),
   );
   return sumQuantities(lines)
     .map((sum) => ({
       productId: sum.productId,
       unit: sum.unit ?? "",
-      quantityCents: sum.quantityCents,
+      quantity: sum.quantity,
     }))
     .sort((a, b) => {
       const pa = byId.get(a.productId);

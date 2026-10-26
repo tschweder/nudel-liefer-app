@@ -126,24 +126,24 @@ describe("deliveredStopConflicts", () => {
     id: "s1",
     customerId: "c1",
     orderIds: ["o1"],
-    items: [{ productId: "p1", quantityCents: 500 }],
+    items: [{ productId: "p1", quantity: 5 }],
   };
-  const order = (qty: string) => ({
+  const order = (qty: number) => ({
     id: "o1",
     customerId: "c1",
     items: [{ productId: "p1", quantity: qty }],
   });
 
   it("is empty when the linked orders still match what was delivered", () => {
-    expect(deliveredStopConflicts([stop], [order("5")])).toEqual([]);
+    expect(deliveredStopConflicts([stop], [order(5)])).toEqual([]);
   });
 
   it("reports an increased quantity on a delivered stop", () => {
-    expect(deliveredStopConflicts([stop], [order("7.5")])).toEqual([
+    expect(deliveredStopConflicts([stop], [order(8)])).toEqual([
       {
         stopId: "s1",
         customerId: "c1",
-        items: [{ productId: "p1", beforeCents: 500, afterCents: 750 }],
+        items: [{ productId: "p1", before: 5, after: 8 }],
       },
     ]);
   });
@@ -153,13 +153,13 @@ describe("deliveredStopConflicts", () => {
       {
         stopId: "s1",
         customerId: "c1",
-        items: [{ productId: "p1", beforeCents: 500, afterCents: 0 }],
+        items: [{ productId: "p1", before: 5, after: 0 }],
       },
     ]);
   });
 
   it("ignores orders that are not linked to the stop (they are late orders, not conflicts)", () => {
-    const late = { id: "o9", customerId: "c1", items: [{ productId: "p1", quantity: "3" }] };
-    expect(deliveredStopConflicts([stop], [order("5"), late])).toEqual([]);
+    const late = { id: "o9", customerId: "c1", items: [{ productId: "p1", quantity: 3 }] };
+    expect(deliveredStopConflicts([stop], [order(5), late])).toEqual([]);
   });
 });

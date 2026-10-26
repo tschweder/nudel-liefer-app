@@ -96,7 +96,7 @@ test.beforeAll(async () => {
         customerId,
         i + 1,
         new Date(row.d.getTime() + (8 + i) * 3600_000),
-        JSON.stringify([{ productId: kg, quantityCents: 1250 + i * 100 }]),
+        JSON.stringify([{ productId: kg, quantity: 1250 + i * 100 }]),
       ],
     );
   }

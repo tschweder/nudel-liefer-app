@@ -125,11 +125,11 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantityCents: 1250 },
-      { productId: pack, quantityCents: 400 },
+      { productId: kg, quantity: 1250 },
+      { productId: pack, quantity: 400 },
     ],
-    [{ productId: kg, quantityCents: 2700 }],
-    [{ productId: pack, quantityCents: 100 }],
+    [{ productId: kg, quantity: 2700 }],
+    [{ productId: pack, quantity: 100 }],
   ];
   for (let i = 0; i < 3; i++) {
     const customerId = `cust-${i}-${tag}`;

@@ -21,7 +21,7 @@ export type TourPrintStop = {
   street: string;
   postalCode: string;
   city: string;
-  items: Array<{ productId: string; quantityCents: number }>;
+  items: Array<{ productId: string; quantity: number }>;
 };
 
 export type TourPrintProduct = {
@@ -93,7 +93,7 @@ export async function getTourPrint(db: PrismaClient, rawId: unknown): Promise<To
     city: s.customer.city,
     items: readStopItems(s.items).map((i) => ({
       productId: i.productId,
-      quantityCents: i.quantityCents,
+      quantity: i.quantity,
     })),
   }));
   const productIds = [...new Set(stops.flatMap((s) => s.items.map((i) => i.productId)))];

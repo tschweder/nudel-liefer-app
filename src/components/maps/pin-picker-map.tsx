@@ -94,9 +94,7 @@ export function PinPickerMap({
   /** "48.2082, 16.3738" — the pin is stored with 6 decimals, the announcement stays readable. */
   const speak = useCallback(
     (point: LatLng) =>
-      setAnnouncement(
-        t("pinMoved", { lat: point.lat.toFixed(4), lng: point.lng.toFixed(4) }),
-      ),
+      setAnnouncement(t("pinMoved", { lat: point.lat.toFixed(4), lng: point.lng.toFixed(4) })),
     [t],
   );
 

@@ -53,24 +53,26 @@ async function evaluateAcrossNavigations(
 
 /** Resolves true when the browser fires the event itself, false when it stays silent. */
 async function watchForEvent(page: Page, name: "online" | "offline"): Promise<boolean> {
-  return page
-    .evaluate(
-      (eventName) =>
-        new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => resolve(false), 1500);
-          window.addEventListener(
-            eventName,
-            () => {
-              clearTimeout(timer);
-              resolve(true);
-            },
-            { once: true },
-          );
-        }),
-      name,
-    )
-    // The document went away while waiting, which only happens because the event arrived.
-    .catch(() => true);
+  return (
+    page
+      .evaluate(
+        (eventName) =>
+          new Promise<boolean>((resolve) => {
+            const timer = setTimeout(() => resolve(false), 1500);
+            window.addEventListener(
+              eventName,
+              () => {
+                clearTimeout(timer);
+                resolve(true);
+              },
+              { once: true },
+            );
+          }),
+        name,
+      )
+      // The document went away while waiting, which only happens because the event arrived.
+      .catch(() => true)
+  );
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -47,7 +47,10 @@ function merge(base: Tree, extra: Tree): Tree {
   return out;
 }
 
-const MESSAGES = merge(de as unknown as Tree, fragment.de as unknown as Tree) as AbstractIntlMessages;
+const MESSAGES = merge(
+  de as unknown as Tree,
+  fragment.de as unknown as Tree,
+) as AbstractIntlMessages;
 const MESSAGES_HANS = merge(
   zhHans as unknown as Tree,
   fragment["zh-Hans"] as unknown as Tree,
@@ -75,7 +78,11 @@ function renderForm(initial: SettingsFormValues = INITIAL) {
         throw error;
       }}
     >
-      <SettingsForm initial={initial} timezones={["Europe/Vienna", "Europe/Berlin"]} tiles={TILES} />
+      <SettingsForm
+        initial={initial}
+        timezones={["Europe/Vienna", "Europe/Berlin"]}
+        tiles={TILES}
+      />
     </NextIntlClientProvider>,
   );
 }

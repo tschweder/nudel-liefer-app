@@ -43,7 +43,11 @@ function merge(base: Tree, extra: Tree): Tree {
   for (const [key, value] of Object.entries(extra)) {
     const current = out[key];
     out[key] =
-      value && typeof value === "object" && !Array.isArray(value) && current && typeof current === "object"
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      current &&
+      typeof current === "object"
         ? merge(current as Tree, value as Tree)
         : value;
   }
@@ -53,7 +57,10 @@ function merge(base: Tree, extra: Tree): Tree {
 // The fragment is merged by the orchestrator; the test does the same so keys resolve here.
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de: merge(de as unknown as Tree, fragment.de as unknown as Tree) as AbstractIntlMessages,
-  "zh-Hans": merge(zhHans as unknown as Tree, fragment["zh-Hans"] as unknown as Tree) as AbstractIntlMessages,
+  "zh-Hans": merge(
+    zhHans as unknown as Tree,
+    fragment["zh-Hans"] as unknown as Tree,
+  ) as AbstractIntlMessages,
 };
 
 const rows: ProductRow[] = [

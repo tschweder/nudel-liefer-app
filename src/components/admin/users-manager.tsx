@@ -441,17 +441,17 @@ export function UsersManager({
               <EmptyState title={t("admins.emptyTitle")} description={t("admins.empty")} />
             ) : (
               <Table data-testid="admins-table" containerClassName="overscroll-x-contain">
-              <TableHeader data-sticky>
-                <TableRow>
-                  <TableHead>{t("columns.name")}</TableHead>
-                  <TableHead>{t("admins.email")}</TableHead>
-                  <TableHead>{t("columns.status")}</TableHead>
-                  <TableHead>{t("columns.lastLogin")}</TableHead>
-                  <TableHead className="text-end">{t("columns.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>{renderRows(admins, "admin")}</TableBody>
-            </Table>
+                <TableHeader data-sticky>
+                  <TableRow>
+                    <TableHead>{t("columns.name")}</TableHead>
+                    <TableHead>{t("admins.email")}</TableHead>
+                    <TableHead>{t("columns.status")}</TableHead>
+                    <TableHead>{t("columns.lastLogin")}</TableHead>
+                    <TableHead className="text-end">{t("columns.actions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>{renderRows(admins, "admin")}</TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -482,7 +482,13 @@ export function UsersManager({
               onSubmit={(event) => onCreate(createOpen, event)}
             >
               <FormField label={t("form.displayName")} htmlFor="displayName" required>
-                <Input id="displayName" name="displayName" required maxLength={80} autoComplete="off" />
+                <Input
+                  id="displayName"
+                  name="displayName"
+                  required
+                  maxLength={80}
+                  autoComplete="off"
+                />
               </FormField>
               {createOpen === "driver" ? (
                 <>

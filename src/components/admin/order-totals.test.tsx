@@ -3,7 +3,7 @@ import { type AbstractIntlMessages, NextIntlClientProvider, useTranslations } fr
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { aggregateTotalsByDate, type TotalsOrder, totalToDecimal } from "@/domain/order-overview";
+import { aggregateTotalsByDate, type TotalsOrder } from "@/domain/order-overview";
 import type { DateTotalsView, OrderOverviewRow } from "@/server/orders";
 
 import fragment from "../../../messages/_fragments/A2.json";
@@ -66,14 +66,14 @@ const orders: TotalsOrder[] = [
     deliveryDate: D1,
     status: "CONFIRMED",
     items: [
-      { productId: SPAG, quantityCents: 250 },
-      { productId: PENN, quantityCents: 100 },
+      { productId: SPAG, quantity: 3 },
+      { productId: PENN, quantity: 1 },
     ],
   },
-  { deliveryDate: D1, status: "CONFIRMED", items: [{ productId: SPAG, quantityCents: 400 }] },
-  { deliveryDate: D1, status: "DRAFT", items: [{ productId: SPAG, quantityCents: 7700 }] },
-  { deliveryDate: D1, status: "CANCELLED", items: [{ productId: SPAG, quantityCents: 9900 }] },
-  { deliveryDate: D2, status: "CONFIRMED", items: [{ productId: PENN, quantityCents: 600 }] },
+  { deliveryDate: D1, status: "CONFIRMED", items: [{ productId: SPAG, quantity: 4 }] },
+  { deliveryDate: D1, status: "DRAFT", items: [{ productId: SPAG, quantity: 77 }] },
+  { deliveryDate: D1, status: "CANCELLED", items: [{ productId: SPAG, quantity: 99 }] },
+  { deliveryDate: D2, status: "CONFIRMED", items: [{ productId: PENN, quantity: 6 }] },
 ];
 
 const NAMES: Record<string, ProductName> = {
@@ -96,7 +96,7 @@ const totals: DateTotalsView[] = aggregateTotalsByDate(orders).map((day) => ({
     productName: localized(NAMES[p.productId]),
     sku: p.productId,
     unit: "PACK",
-    quantity: totalToDecimal(p.quantityCents),
+    quantity: p.quantity,
   })),
 }));
 
@@ -113,18 +113,18 @@ const rows: OrderOverviewRow[] = [
 ];
 
 const number = (locale: string, value: number) =>
-  new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(
-    value,
-  );
+  new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value);
 
 /**
  * The unit label the card must render for a quantity. The ICU plural lives once, under
- * `driver.units` ("6,5 Packungen", "1 Packung"); the card reuses it, so the expectation is
+ * `driver.units` ("7 Packungen", "1 Packung"); the card reuses it, so the expectation is
  * resolved through the same catalog instead of hard-coding "Packung".
  */
 function unitLabel(locale: string, count: number): string {
   function Probe() {
-    return <span data-testid="unit-probe">{useTranslations("driver.units")("PACK", { count })}</span>;
+    return (
+      <span data-testid="unit-probe">{useTranslations("driver.units")("PACK", { count })}</span>
+    );
   }
   const view = render(
     <NextIntlClientProvider
@@ -176,11 +176,11 @@ describe("the aggregate behind the totals card", () => {
         date: D1,
         orderCount: 2,
         products: [
-          { productId: PENN, quantityCents: 100 },
-          { productId: SPAG, quantityCents: 650 },
+          { productId: PENN, quantity: 1 },
+          { productId: SPAG, quantity: 7 },
         ],
       },
-      { date: D2, orderCount: 1, products: [{ productId: PENN, quantityCents: 600 }] },
+      { date: D2, orderCount: 1, products: [{ productId: PENN, quantity: 6 }] },
     ]);
   });
 });
@@ -195,11 +195,11 @@ describe.each(Object.keys(LOCALES))("OrderTotals (%s)", (locale) => {
     expect(days[1]).toHaveAttribute("data-date", D2);
     expect(days[0].textContent).toContain(calendarDate(locale, D1));
 
-    const unit = unitLabel(locale, 6.5);
-    // The aggregate says 6,5 / 1 / 6 — never the draft (77) or the cancelled order (99).
+    const unit = unitLabel(locale, 7);
+    // The aggregate says 7 / 1 / 6 — never the draft (77) or the cancelled order (99).
     expect(rowCells(days[0], NAMES[SPAG][locale as "de"])).toEqual([
       NAMES[SPAG][locale as "de"],
-      `${number(locale, 6.5)} ${unit}`,
+      `${number(locale, 7)} ${unit}`,
     ]);
     expect(rowCells(days[0], NAMES[PENN][locale as "de"])).toEqual([
       NAMES[PENN][locale as "de"],

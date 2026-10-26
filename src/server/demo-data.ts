@@ -239,17 +239,17 @@ export const DEMO_PRODUCT_SKUS = [
 
 /**
  * Deterministic order lines for the customer at `index` (0-based): 1-3 distinct products.
- * Kilogram products get half-kilo quantities (2.5, 5, 7.5, 10), all others whole numbers 1-6.
+ * Quantities are whole numbers (D23): kilogram products 2, 5, 8 or 10, all others 1-6.
  */
 export function demoOrderLines(
   index: number,
   unitOf: (sku: string) => string,
-): { sku: string; quantity: string }[] {
+): { sku: string; quantity: number }[] {
   const count = 1 + (index % 3);
   return Array.from({ length: count }, (_, k) => {
     const sku = DEMO_PRODUCT_SKUS[(index * 3 + k * 2) % DEMO_PRODUCT_SKUS.length]!;
     const quantity =
-      unitOf(sku) === "KG" ? [2.5, 5, 7.5, 10][(index + k) % 4]! : ((index + k * 2) % 6) + 1;
-    return { sku, quantity: String(quantity) };
+      unitOf(sku) === "KG" ? [2, 5, 8, 10][(index + k) % 4]! : ((index + k * 2) % 6) + 1;
+    return { sku, quantity };
   });
 }

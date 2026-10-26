@@ -25,7 +25,14 @@ const SAMPLE_STOPS: TourMapStop[] = [
  * e2e specs keep seeing the three numbered markers of the sample tour.
  */
 const OVERLAP_STOPS: TourMapStop[] = [
-  { id: "s4", sequence: 4, lat: 48.22062, lng: 16.39692, label: "Bar Venezia", status: "DELIVERED" },
+  {
+    id: "s4",
+    sequence: 4,
+    lat: 48.22062,
+    lng: 16.39692,
+    label: "Bar Venezia",
+    status: "DELIVERED",
+  },
   { id: "s5", sequence: 5, lat: 48.22058, lng: 16.39688, label: "Caffè Milano" },
 ];
 const SAMPLE_GEOMETRY: Array<[number, number]> = [

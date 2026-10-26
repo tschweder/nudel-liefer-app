@@ -46,16 +46,16 @@ function stop(n: number, extra: Record<string, unknown> = {}) {
         sku: "SPAG",
         name: text("Spaghetti", "意大利面"),
         unit: "KG",
-        quantityCents: 1500,
-        previousQuantityCents: 1000,
+        quantity: 15,
+        previousQuantity: 10,
       },
       {
         productId: "p2",
         sku: "PENN",
         name: null,
         unit: "PACK",
-        quantityCents: 300,
-        previousQuantityCents: null,
+        quantity: 3,
+        previousQuantity: null,
       },
     ],
     ...extra,
@@ -122,7 +122,7 @@ describe("driver tour model", () => {
     });
     const changed = today.stops.find((s) => s.id === "s2")!;
     expect(changed).toMatchObject({ change: "CHANGED", changedInRevision: 3 });
-    expect(changed.items[0]).toMatchObject({ quantityCents: 1500, previousQuantityCents: 1000 });
+    expect(changed.items[0]).toMatchObject({ quantity: 15, previousQuantity: 10 });
   });
 
   it("never translates customer names and addresses", () => {

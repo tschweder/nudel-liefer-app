@@ -91,7 +91,7 @@ test.beforeAll(async () => {
         customerId,
         i + 1,
         new Date(today.getTime() + (8 + i) * 3600_000),
-        JSON.stringify([{ productId: kg, quantityCents: 500 + i * 100 }]),
+        JSON.stringify([{ productId: kg, quantity: 500 + i * 100 }]),
       ],
     );
   }
@@ -388,7 +388,7 @@ test("conflict: the office changed the stop after the offline tap, the server st
   // The office re-releases the tour with a new quantity for this stop while the driver is offline.
   await page.waitForTimeout(1_200);
   await db.query(
-    `UPDATE "Stop" SET "items"=jsonb_set("items",'{0,quantityCents}','999'), "adminChangedAt"=now(), "changeKind"='CHANGED', "changedInRevision"=2 WHERE "id"=$1`,
+    `UPDATE "Stop" SET "items"=jsonb_set("items",'{0,quantity}','999'), "adminChangedAt"=now(), "changeKind"='CHANGED', "changedInRevision"=2 WHERE "id"=$1`,
     [stopIds[4]],
   );
   await db.query(`UPDATE "Tour" SET "releaseRevision"=2, "reReleasedAt"=now() WHERE "id"=$1`, [

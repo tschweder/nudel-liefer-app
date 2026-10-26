@@ -52,8 +52,7 @@ export function clusterIcon(count: number, touch: boolean): L.DivIcon {
   const box = touch ? MARKER_TOUCH_BOX : MARKER_SIZE;
   return L.divIcon({
     className: "nudel-map-icon nudel-map-icon-center",
-    html:
-      `<span class="nudel-cluster" data-testid="stop-cluster" aria-hidden="true">${count}</span>`,
+    html: `<span class="nudel-cluster" data-testid="stop-cluster" aria-hidden="true">${count}</span>`,
     iconSize: [box, box],
     iconAnchor: [box / 2, box / 2],
   });

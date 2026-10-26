@@ -74,7 +74,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       .then((c) => c.id);
   const order = (
     customerId: string,
-    lines: Array<[string, string]>,
+    lines: Array<[string, number]>,
     extra: { status?: "DRAFT" | "CONFIRMED" | "CANCELLED"; date?: Date } = {},
   ) =>
     t.prisma.order
@@ -129,13 +129,13 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     const far = await customer("C3", 0.3);
     const near = await customer("C1", 0.1);
     const mid = await customer("C2", 0.2);
-    await order(far, [[p1, "1"]]);
+    await order(far, [[p1, 1]]);
     await order(near, [
-      [p1, "2.5"],
-      [p2, "1"],
+      [p1, 3],
+      [p2, 1],
     ]);
-    await order(near, [[p1, "0.30"]]);
-    await order(mid, [[p2, "4"]]);
+    await order(near, [[p1, 1]]);
+    await order(mid, [[p2, 4]]);
 
     const result = await generate();
     expect(result).toMatchObject({ ok: true, mode: "created", stopCount: 3, approximate: true });
@@ -180,10 +180,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
   it("merges quantities per product through the StopOrder links (nothing stored twice)", async () => {
     const c = await customer("C1", 0.1);
     const o1 = await order(c, [
-      [p1, "2.5"],
-      [p2, "1"],
+      [p1, 3],
+      [p2, 1],
     ]);
-    const o2 = await order(c, [[p1, "0.30"]]);
+    const o2 = await order(c, [[p1, 1]]);
     const result = await generate();
     if (!result.ok) throw new Error("expected ok");
     const stop = await t.prisma.stop.findFirstOrThrow({
@@ -195,16 +195,16 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       .flatMap((l) => l.order.items)
       .filter((i) => i.productId === p1)
       .reduce((s, i) => s + Number(i.quantity), 0);
-    expect(sum).toBeCloseTo(2.8, 2);
+    expect(sum).toBe(4);
   });
 
   it("reports customers without a confirmed pin instead of dropping them silently", async () => {
     const ok = await customer("C1", 0.1);
     const unconfirmed = await customer("C2", 0.2, { pinConfirmed: false });
     const noCoords = await customer("C3", 0.3, { lat: null, lng: null });
-    await order(ok, [[p1, "1"]]);
-    const o2 = await order(unconfirmed, [[p1, "1"]]);
-    await order(noCoords, [[p1, "1"]]);
+    await order(ok, [[p1, 1]]);
+    const o2 = await order(unconfirmed, [[p1, 1]]);
+    await order(noCoords, [[p1, 1]]);
 
     const result = await generate();
     expect(result).toMatchObject({ ok: true, stopCount: 1 });
@@ -222,7 +222,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
 
   it("returns the warnings together with no_stops when nothing is routable", async () => {
     const unconfirmed = await customer("C2", 0.2, { pinConfirmed: false });
-    await order(unconfirmed, [[p1, "1"]]);
+    await order(unconfirmed, [[p1, 1]]);
     const result = await generate();
     expect(result).toMatchObject({ ok: false, error: "no_stops" });
     expect(result.warnings).toHaveLength(1);
@@ -233,17 +233,17 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     const c1 = await customer("C1", 0.1);
     const c2 = await customer("C2", 0.2);
     const c3 = await customer("C3", 0.3);
-    await order(c1, [[p1, "1"]]);
-    await order(c2, [[p1, "1"]], { status: "DRAFT" });
-    await order(c2, [[p1, "1"]], { status: "CANCELLED" });
-    await order(c3, [[p1, "1"]], { date: new Date("2099-07-02T00:00:00Z") });
+    await order(c1, [[p1, 1]]);
+    await order(c2, [[p1, 1]], { status: "DRAFT" });
+    await order(c2, [[p1, 1]], { status: "CANCELLED" });
+    await order(c3, [[p1, 1]], { date: new Date("2099-07-02T00:00:00Z") });
     const result = await generate();
     expect(result).toMatchObject({ ok: true, stopCount: 1 });
   });
 
   it("refuses without a confirmed depot and creates nothing", async () => {
     const c = await customer("C1", 0.1);
-    await order(c, [[p1, "1"]]);
+    await order(c, [[p1, 1]]);
     depotConfirmed = false;
     const result = await generate();
     expect(result).toEqual({ ok: false, error: "depot_not_set", warnings: [] });
@@ -270,7 +270,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     }));
     await t.prisma.customer.createMany({ data: rows });
     const all = await t.prisma.customer.findMany({ select: { id: true } });
-    for (const c of all) await order(c.id, [[p1, "1"]]);
+    for (const c of all) await order(c.id, [[p1, 1]]);
     const result = await generate();
     expect(result).toMatchObject({ ok: false, error: "too_many_stops", maxStops: 50 });
     expect(await t.prisma.tour.count()).toBe(0);
@@ -287,12 +287,12 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     it("replaces the stops of an unreleased tour and clears the outdated flag", async () => {
       const c1 = await customer("C1", 0.1);
       const c2 = await customer("C2", 0.2);
-      const o1 = await order(c1, [[p1, "1"]]);
+      const o1 = await order(c1, [[p1, 1]]);
       const first = await generate();
       if (!first.ok) throw new Error("expected ok");
       const firstStop = await t.prisma.stop.findFirstOrThrow({ where: { tourId: first.tourId } });
 
-      await order(c2, [[p1, "3"]]);
+      await order(c2, [[p1, 3]]);
       await t.prisma.order.update({ where: { id: o1 }, data: { status: "CANCELLED" } });
       await createTourService(t.prisma).markOutdatedForDate(DAY);
       expect(
@@ -319,7 +319,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
 
     it("keeps the assigned driver and turns a DRAFT tour into OPTIMIZED", async () => {
       const c1 = await customer("C1", 0.1);
-      await order(c1, [[p1, "1"]]);
+      await order(c1, [[p1, 1]]);
       const tour = await t.prisma.tour.create({
         data: { date: DAY, status: "DRAFT", depotSnapshot: {}, driverId },
       });
@@ -333,7 +333,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
 
     it("drops an unreleased tour's last stops when nothing is left to deliver", async () => {
       const c1 = await customer("C1", 0.1);
-      const o = await order(c1, [[p1, "1"]]);
+      const o = await order(c1, [[p1, 1]]);
       const first = await generate();
       if (!first.ok) throw new Error("expected ok");
       await t.prisma.order.update({ where: { id: o }, data: { status: "CANCELLED" } });
@@ -348,7 +348,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       "refuses a %s tour and leaves it untouched",
       async (status) => {
         const c1 = await customer("C1", 0.1);
-        await order(c1, [[p1, "1"]]);
+        await order(c1, [[p1, 1]]);
         const tour = await t.prisma.tour.create({ data: { date: DAY, status, depotSnapshot: {} } });
         expect(await generate()).toMatchObject({ ok: false, error: "tour_not_editable" });
         expect(await t.prisma.stop.count({ where: { tourId: tour.id } })).toBe(0);
@@ -362,9 +362,9 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       const a = await customer("CA", 0.1);
       const b = await customer("CB", 0.2);
       const c = await customer("CC", 0.3);
-      const oa = await order(a, [[p1, "1"]]);
-      await order(b, [[p1, "1"]]);
-      await order(c, [[p1, "1"]]);
+      const oa = await order(a, [[p1, 1]]);
+      await order(b, [[p1, 1]]);
+      await order(c, [[p1, 1]]);
       const first = await generate();
       if (!first.ok) throw new Error("expected ok");
       // Office reorders to c, a, b and locks the tour.
@@ -390,8 +390,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       // New customer far to the WEST (the optimizer would not put it last), new order for b,
       // and a's only order is cancelled.
       const d = await customer("CD", -0.4);
-      await order(d, [[p2, "2"]]);
-      const ob2 = await order(b, [[p2, "5"]]);
+      await order(d, [[p2, 2]]);
+      const ob2 = await order(b, [[p2, 5]]);
       await t.prisma.order.update({ where: { id: oa }, data: { status: "CANCELLED" } });
 
       const result = await generate();
@@ -426,12 +426,12 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
 
   it("reports a conflict instead of storing a stale tour when orders change while routing", async () => {
     const c1 = await customer("C1", 0.1);
-    await order(c1, [[p1, "1"]]);
+    await order(c1, [[p1, 1]]);
     const slow = {
       optimize: async (input: Parameters<typeof provider.optimize>[0]) => {
         const out = await provider.optimize(input);
         const c2 = await customer("C2", 0.2);
-        await order(c2, [[p1, "1"]]);
+        await order(c2, [[p1, 1]]);
         return out;
       },
       route: provider.route.bind(provider),
@@ -473,7 +473,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
 
       await t.prisma.settings.create({ data: { id: 1, ...SETTINGS, depotPinConfirmed: true } });
       const c1 = await customer("C1", 0.1);
-      await order(c1, [[p1, "1"]]);
+      await order(c1, [[p1, 1]]);
       const result = await generateTourAction({ date: "2099-07-01" });
       expect(result).toMatchObject({ ok: true, mode: "created", stopCount: 1 });
       await t.prisma.settings.deleteMany();

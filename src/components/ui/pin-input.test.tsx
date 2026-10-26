@@ -90,9 +90,7 @@ describe("PinInput", () => {
   });
 
   it("forwards aria-invalid and aria-describedby for the form wrapper", () => {
-    render(
-      <Host name="pin" aria-label="PIN" invalid aria-describedby="pin-error" />,
-    );
+    render(<Host name="pin" aria-label="PIN" invalid aria-describedby="pin-error" />);
     expect(input()).toHaveAttribute("aria-invalid", "true");
     expect(input()).toHaveAttribute("aria-describedby", "pin-error");
     expect(document.querySelector("[data-slot=pin-cell]")).toHaveClass("border-destructive");

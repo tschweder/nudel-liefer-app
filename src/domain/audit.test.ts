@@ -53,22 +53,22 @@ describe("sanitizeAuditDiff", () => {
 });
 
 describe("order diffs", () => {
-  it("reports changed, added and removed lines in hundredths", () => {
+  it("reports changed, added and removed lines in the audit encoding (hundredths)", () => {
     expect(
       diffOrderLines(
         [
-          { productId: "a", quantity: "2.5" },
-          { productId: "b", quantity: "1" },
-          { productId: "c", quantity: "4.00" },
+          { productId: "a", quantity: 3 },
+          { productId: "b", quantity: 1 },
+          { productId: "c", quantity: 4 },
         ],
         [
-          { productId: "a", quantity: "9.00" },
-          { productId: "c", quantity: "4" },
-          { productId: "d", quantity: "3" },
+          { productId: "a", quantity: 9 },
+          { productId: "c", quantity: 4 },
+          { productId: "d", quantity: 3 },
         ],
       ),
     ).toEqual([
-      { productId: "a", before: 250, after: 900 },
+      { productId: "a", before: 300, after: 900 },
       { productId: "d", before: null, after: 300 },
       { productId: "b", before: 100, after: null },
     ]);
@@ -78,7 +78,7 @@ describe("order diffs", () => {
     status: "CONFIRMED",
     deliveryDate: "2099-06-15",
     internalNote: null,
-    items: [{ productId: "a", quantity: "2.50" }],
+    items: [{ productId: "a", quantity: 2 }],
   };
 
   it("returns null when nothing changed", () => {
@@ -91,12 +91,12 @@ describe("order diffs", () => {
         ...base,
         status: "DRAFT",
         internalNote: "x",
-        items: [{ productId: "a", quantity: "3" }],
+        items: [{ productId: "a", quantity: 3 }],
       }),
     ).toEqual({
       status: { from: "CONFIRMED", to: "DRAFT" },
       internalNote: { from: null, to: "x" },
-      lines: [{ productId: "a", before: 250, after: 300 }],
+      lines: [{ productId: "a", before: 200, after: 300 }],
     });
   });
 });

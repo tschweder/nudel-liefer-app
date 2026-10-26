@@ -1,30 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  centsToDecimal,
   formatCalendarDate,
   hasDuplicateProducts,
   isPastDeliveryDate,
+  MAX_QUANTITY,
   mergeOrderLines,
   orderInputSchema,
   orderWarnings,
   parseCalendarDate,
   parseQuantity,
-  parseQuantityCents,
 } from "./order";
 import { nextDeliveryDate } from "./settings";
 
-describe("parseQuantity", () => {
+describe("parseQuantity (whole numbers only, NUD-137)", () => {
   it.each([
     ["5", 5],
-    ["2,5", 2.5],
-    ["2.5", 2.5],
-    ["  0,25 ", 0.25],
-    ["0.05", 0.05],
-    ["12,50", 12.5],
-    ["99999999.99", 99_999_999.99],
+    ["  12 ", 12],
+    ["99999", 99_999],
     [3, 3],
-    [2.5, 2.5],
   ])("accepts %j as %d", (input, expected) => {
     expect(parseQuantity(input)).toBe(expected);
   });
@@ -33,41 +27,25 @@ describe("parseQuantity", () => {
     "",
     " ",
     "0",
-    "0,00",
+    "00",
     "-1",
-    "-2,5",
+    "2,5", // no halves of a Beutel or Karton
+    "2.5",
+    "3.0",
+    "3,00",
     "abc",
     "1,2,3",
     "1.000", // ambiguous thousands separator: rejected, not guessed
-    "2,555",
-    ",5",
-    "5,",
     "1e3",
     "1 000",
-    "100000000",
+    "100000",
     NaN,
     Infinity,
     -3,
     0,
+    2.5,
   ])("rejects %j", (input) => {
     expect(parseQuantity(input as string | number)).toBeNull();
-  });
-
-  it("keeps exact hundredths (no float drift)", () => {
-    expect(parseQuantityCents("0.1")).toBe(10);
-    expect(parseQuantityCents("1,15")).toBe(115);
-    expect(parseQuantityCents("0")).toBe(0);
-  });
-});
-
-describe("centsToDecimal", () => {
-  it.each([
-    [250, "2.50"],
-    [5, "0.05"],
-    [500, "5.00"],
-    [9_999_999_999, "99999999.99"],
-  ])("%d -> %s", (cents, expected) => {
-    expect(centsToDecimal(cents)).toBe(expected);
   });
 });
 
@@ -75,21 +53,21 @@ describe("mergeOrderLines (decision: same product twice is merged)", () => {
   it("adds quantities and keeps first-appearance order", () => {
     expect(
       mergeOrderLines([
-        { productId: "a", quantityCents: 100 },
-        { productId: "b", quantityCents: 250 },
-        { productId: "a", quantityCents: 50 },
+        { productId: "a", quantity: 1 },
+        { productId: "b", quantity: 25 },
+        { productId: "a", quantity: 5 },
       ]),
     ).toEqual([
-      { productId: "a", quantityCents: 150 },
-      { productId: "b", quantityCents: 250 },
+      { productId: "a", quantity: 6 },
+      { productId: "b", quantity: 25 },
     ]);
   });
 
-  it("returns null when the sum no longer fits Decimal(10,2)", () => {
+  it("returns null when the sum exceeds the maximum quantity", () => {
     expect(
       mergeOrderLines([
-        { productId: "a", quantityCents: 9_999_999_999 },
-        { productId: "a", quantityCents: 1 },
+        { productId: "a", quantity: MAX_QUANTITY },
+        { productId: "a", quantity: 1 },
       ]),
     ).toBeNull();
   });
@@ -124,33 +102,33 @@ describe("orderInputSchema", () => {
   const base = {
     customerId: "c1",
     deliveryDate: "2026-10-19",
-    lines: [{ productId: "p1", quantity: "2,5" }],
+    lines: [{ productId: "p1", quantity: "3" }],
   };
 
-  it("accepts a valid order, defaults to CONFIRMED and normalises quantities", () => {
+  it("accepts a valid order, defaults to CONFIRMED and reads quantities as integers", () => {
     const parsed = orderInputSchema.parse(base);
     expect(parsed.status).toBe("CONFIRMED");
     expect(parsed.internalNote).toBeNull();
     expect(parsed.deliveryDate.toISOString()).toBe("2026-10-19T00:00:00.000Z");
-    expect(parsed.lines).toEqual([{ productId: "p1", quantityCents: 250 }]);
+    expect(parsed.lines).toEqual([{ productId: "p1", quantity: 3 }]);
   });
 
-  it("accepts comma and dot decimals in the same order and merges the same product", () => {
+  it("accepts digit strings and numbers in the same order and merges the same product", () => {
     const parsed = orderInputSchema.parse({
       ...base,
       status: "DRAFT",
       internalNote: "  Anruf 14 Uhr  ",
       lines: [
-        { productId: "p1", quantity: "2,5" },
+        { productId: "p1", quantity: "2" },
         { productId: "p2", quantity: 3 },
-        { productId: "p1", quantity: "0.25" },
+        { productId: "p1", quantity: "4" },
       ],
     });
     expect(parsed.status).toBe("DRAFT");
     expect(parsed.internalNote).toBe("Anruf 14 Uhr");
     expect(parsed.lines).toEqual([
-      { productId: "p1", quantityCents: 275 },
-      { productId: "p2", quantityCents: 300 },
+      { productId: "p1", quantity: 6 },
+      { productId: "p2", quantity: 3 },
     ]);
   });
 
@@ -162,17 +140,19 @@ describe("orderInputSchema", () => {
   it.each([
     ["no lines", { lines: [] }],
     ["missing lines", { lines: undefined }],
-    ["zero quantity", { lines: [{ productId: "p1", quantity: "0" }] }],
+    ["zero quantity", { lines: [{ productId: "p1", quantity: 0 }] }],
     ["negative quantity", { lines: [{ productId: "p1", quantity: "-1" }] }],
     ["text quantity", { lines: [{ productId: "p1", quantity: "viel" }] }],
-    ["three decimals", { lines: [{ productId: "p1", quantity: "1,234" }] }],
-    ["empty product", { lines: [{ productId: " ", quantity: "1" }] }],
+    ["decimal with comma", { lines: [{ productId: "p1", quantity: "2,5" }] }],
+    ["decimal with point", { lines: [{ productId: "p1", quantity: "2.5" }] }],
+    ["fractional number", { lines: [{ productId: "p1", quantity: 2.5 }] }],
+    ["empty product", { lines: [{ productId: " ", quantity: 1 }] }],
     [
       "one bad line among good ones",
       {
         lines: [
-          { productId: "p1", quantity: "1" },
-          { productId: "p2", quantity: "0" },
+          { productId: "p1", quantity: 1 },
+          { productId: "p2", quantity: 0 },
         ],
       },
     ],
@@ -180,14 +160,14 @@ describe("orderInputSchema", () => {
       "merged sum too large",
       {
         lines: [
-          { productId: "p1", quantity: "99999999.99" },
-          { productId: "p1", quantity: "1" },
+          { productId: "p1", quantity: 99_999 },
+          { productId: "p1", quantity: 1 },
         ],
       },
     ],
     [
       "too many lines",
-      { lines: Array.from({ length: 101 }, (_, i) => ({ productId: `p${i}`, quantity: "1" })) },
+      { lines: Array.from({ length: 101 }, (_, i) => ({ productId: `p${i}`, quantity: 1 })) },
     ],
     ["no customer", { customerId: "" }],
     ["bad date", { deliveryDate: "2026-02-30" }],
@@ -236,7 +216,7 @@ describe("default delivery date of the order form", () => {
       orderInputSchema.safeParse({
         customerId: "c",
         deliveryDate: formatted,
-        lines: [{ productId: "p", quantity: "1" }],
+        lines: [{ productId: "p", quantity: 1 }],
       }).success,
     ).toBe(true);
   });
@@ -246,7 +226,7 @@ describe("orderInputSchema screenshotKey (NUD-031)", () => {
   const base = {
     customerId: "c1",
     deliveryDate: "2026-10-19",
-    lines: [{ productId: "p1", quantity: "1" }],
+    lines: [{ productId: "p1", quantity: 1 }],
   };
   const key = "screenshots/3f2504e0-4f89-41d3-9a0c-0305e82c3301.jpg";
 

@@ -1,11 +1,12 @@
 ---
 covers:
-- prisma/**
-- src/server/db.ts
+  - prisma/**
+  - src/server/db.ts
 stamp: 2e767538e56f55123ef88644411cd9133890e106643f72672603b78106039e8b
 status: fresh
 stale_since: null
 ---
+
 # Data model, migrations and the database client
 
 This module owns the persistence layer of the app: the Prisma schema that defines the PostgreSQL
@@ -20,19 +21,19 @@ The provider is `postgresql`; the generated client is emitted to
 
 ### Enums
 
-| Enum | Values |
-| --- | --- |
-| `Role` | `ADMIN`, `DRIVER` |
-| `Locale` | `de`, `zh_Hans` (`@map("zh-Hans")`), `zh_Hant_HK` (`@map("zh-Hant-HK")`), `zh_Hant_TW` (`@map("zh-Hant-TW")`) — BCP-47 tags |
-| `Unit` | `KG`, `PACK`, `CRATE`, `PIECE` |
-| `PhotoKind` | `STORE`, `PARKING` |
-| `OrderSource` | `MANUAL`, `SCREENSHOT` |
-| `OrderStatus` | `DRAFT`, `CONFIRMED`, `CANCELLED` |
-| `TourStatus` | `DRAFT`, `OPTIMIZED`, `RELEASED`, `IN_PROGRESS`, `COMPLETED` |
-| `StopChange` | `ADDED`, `CHANGED` |
-| `StopStatus` | `PENDING`, `DELIVERED`, `PROBLEM` |
-| `ProblemReason` | `CLOSED`, `NOBODY_THERE`, `NO_PARKING`, `WRONG_QUANTITY`, `REFUSED`, `ADDRESS_NOT_FOUND`, `OTHER` |
-| `StopMutationKind` | `COMPLETE`, `UNDO` |
+| Enum               | Values                                                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `Role`             | `ADMIN`, `DRIVER`                                                                                                           |
+| `Locale`           | `de`, `zh_Hans` (`@map("zh-Hans")`), `zh_Hant_HK` (`@map("zh-Hant-HK")`), `zh_Hant_TW` (`@map("zh-Hant-TW")`) — BCP-47 tags |
+| `Unit`             | `KG`, `PACK`, `CRATE`, `PIECE`                                                                                              |
+| `PhotoKind`        | `STORE`, `PARKING`                                                                                                          |
+| `OrderSource`      | `MANUAL`, `SCREENSHOT`                                                                                                      |
+| `OrderStatus`      | `DRAFT`, `CONFIRMED`, `CANCELLED`                                                                                           |
+| `TourStatus`       | `DRAFT`, `OPTIMIZED`, `RELEASED`, `IN_PROGRESS`, `COMPLETED`                                                                |
+| `StopChange`       | `ADDED`, `CHANGED`                                                                                                          |
+| `StopStatus`       | `PENDING`, `DELIVERED`, `PROBLEM`                                                                                           |
+| `ProblemReason`    | `CLOSED`, `NOBODY_THERE`, `NO_PARKING`, `WRONG_QUANTITY`, `REFUSED`, `ADDRESS_NOT_FOUND`, `OTHER`                           |
+| `StopMutationKind` | `COMPLETE`, `UNDO`                                                                                                          |
 
 ### Models
 
@@ -61,7 +62,7 @@ The provider is `postgresql`; the generated client is emitted to
   `status`, `source` (manual or from screenshot), optional `screenshotId` (`onDelete: SetNull`),
   `internalNote`, and the creating user (`Restrict`). Indexed on `(deliveryDate, status)` and
   `(customerId, deliveryDate)`.
-- **`OrderItem`** — one order line: product, quantity (`Decimal(10,2)`). Cascades with its order,
+- **`OrderItem`** — one order line: product, quantity (`Int`, whole numbers since NUD-137). Cascades with its order,
   restricts product deletion.
 - **`Tour`** — a route for `date` (no unique constraint: several tours per date are allowed),
   optional `driverId` (`Restrict`), `status`, `isOutdated`, `locked`, `depotSnapshot` JSON,
@@ -73,7 +74,7 @@ The provider is `postgresql`; the generated client is emitted to
 - **`Stop`** — one delivery stop in a tour: `sequence`, `status`, `etaAt`,
   `legDistanceM`/`legDurationS`, `problemReason`/`problemNote` (LocalizedText), `completedAt`,
   optional `clientMutationId` (unique, the driver's idempotency key), and the release snapshot
-  `items` (`[{productId, quantityCents}]`) that the driver sees — never the live order lines.
+  `items` (`[{productId, quantity}]`) that the driver sees — never the live order lines.
   On a re-release that changes the stop, `previousItems`, `changeKind` (`StopChange`) and
   `changedInRevision` are set; `adminChangedAt` records when the office last changed the stop and
   wins over an older driver mutation in offline sync (NUD-082). Cascade-deletes with its tour;
@@ -120,7 +121,7 @@ plain DDL are:
 - `20261026160000_customer_company_billing` — adds the five office columns and extends the search
   trigger with `companyName` and `vatId` (NUD-136).
 - `20261017180000_tour_release_revision` — adds the NUD-043 columns and backfills: existing stops
-  get an `items` snapshot from their linked order lines (quantities in cents), and tours already
+  get an `items` snapshot from their linked order lines (whole-number quantities; NUD-137 rewrote the old `quantityCents` JSON to `quantity`), and tours already
   `RELEASED`/`IN_PROGRESS`/`COMPLETED` get `releaseRevision = 1`.
 - `20261018120000_audit_log` — creates `AuditLog` plus the `audit_log_append_only` trigger that
   rejects UPDATE/DELETE.

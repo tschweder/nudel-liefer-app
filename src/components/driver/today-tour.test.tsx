@@ -83,16 +83,16 @@ const stop = (sequence: number, extra: Partial<TodayStop> = {}): TodayStop => ({
       name: "Spaghetti",
       germanName: null,
       unit: "KG",
-      quantityCents: 1250,
-      previousQuantityCents: null,
+      quantity: 13,
+      previousQuantity: null,
     },
     {
       productId: "b",
       name: "Penne",
       germanName: null,
       unit: "PACK",
-      quantityCents: 400,
-      previousQuantityCents: null,
+      quantity: 4,
+      previousQuantity: null,
     },
   ],
   ...extra,
@@ -136,7 +136,7 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.getByTestId("progress-count")).toHaveTextContent("2 / 4");
     const totals = within(next).getAllByTestId("summary-total");
     expect(totals.map((el) => el.dataset.unit)).toEqual(["KG", "PACK"]);
-    expect(totals[0]).toHaveTextContent(/12[.,]5/);
+    expect(totals[0]).toHaveTextContent("13");
     expect(within(next).getByTestId("navigate")).toHaveAttribute(
       "href",
       "https://www.google.com/maps/dir/?api=1&destination=48.2,16.33&travelmode=driving",
@@ -187,8 +187,8 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
           name: "Spaghetti",
           germanName: null,
           unit: "KG",
-          quantityCents: 500,
-          previousQuantityCents: 300,
+          quantity: 5,
+          previousQuantity: 3,
         },
       ],
     });

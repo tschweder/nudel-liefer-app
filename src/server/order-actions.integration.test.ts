@@ -127,7 +127,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
   const input = (extra: Record<string, unknown> = {}) => ({
     customerId,
     deliveryDate: FUTURE,
-    lines: [{ productId: p1, quantity: "2,5" }],
+    lines: [{ productId: p1, quantity: "3" }],
     ...extra,
   });
 
@@ -157,15 +157,15 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     expect(await t.prisma.order.count()).toBe(0);
   });
 
-  it("saves an order with three lines (comma and dot decimals) as CONFIRMED / MANUAL", async () => {
+  it("saves an order with three lines (digit strings and numbers) as CONFIRMED / MANUAL", async () => {
     asAdmin();
     const result = await createOrderAction(
       input({
         internalNote: "  per Telefon  ",
         lines: [
-          { productId: p1, quantity: "2,5" },
-          { productId: p2, quantity: "10" },
-          { productId: p3, quantity: "0.25" },
+          { productId: p1, quantity: "3" },
+          { productId: p2, quantity: 10 },
+          { productId: p3, quantity: "1" },
         ],
       }),
     );
@@ -182,10 +182,10 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       screenshotId: null,
     });
     expect(order.deliveryDate.toISOString()).toBe(FUTURE_DATE.toISOString());
-    expect(order.items.map((i) => [i.productId, i.quantity.toString()])).toEqual([
-      [p2, "10"],
-      [p1, "2.5"],
-      [p3, "0.25"],
+    expect(order.items.map((i) => [i.productId, i.quantity])).toEqual([
+      [p2, 10],
+      [p1, 3],
+      [p3, 1],
     ]);
   });
 
@@ -203,37 +203,39 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     const result = await createOrderAction(
       input({
         lines: [
-          { productId: p1, quantity: "2,5" },
-          { productId: p2, quantity: "1" },
-          { productId: p1, quantity: "0.5" },
+          { productId: p1, quantity: "2" },
+          { productId: p2, quantity: 1 },
+          { productId: p1, quantity: "1" },
         ],
       }),
     );
     expect(result.ok).toBe(true);
     const items = await t.prisma.orderItem.findMany({ orderBy: { productId: "asc" } });
     expect(items).toHaveLength(2);
-    expect(items.find((i) => i.productId === p1)?.quantity.toString()).toBe("3");
-    expect(items.find((i) => i.productId === p2)?.quantity.toString()).toBe("1");
+    expect(items.find((i) => i.productId === p1)?.quantity).toBe(3);
+    expect(items.find((i) => i.productId === p2)?.quantity).toBe(1);
   });
 
   it("rejects invalid input and writes nothing", async () => {
     asAdmin();
     const bad: Array<Record<string, unknown>> = [
       { lines: [] },
-      { lines: [{ productId: p1, quantity: "0" }] },
+      { lines: [{ productId: p1, quantity: 0 }] },
       { lines: [{ productId: p1, quantity: "-3" }] },
       { lines: [{ productId: p1, quantity: "abc" }] },
-      { lines: [{ productId: p1, quantity: "1,555" }] },
+      { lines: [{ productId: p1, quantity: "2,5" }] },
+      { lines: [{ productId: p1, quantity: "2.5" }] },
+      { lines: [{ productId: p1, quantity: 2.5 }] },
       {
         lines: [
-          { productId: p1, quantity: "1" },
-          { productId: p2, quantity: "0" },
+          { productId: p1, quantity: 1 },
+          { productId: p2, quantity: 0 },
         ],
       },
       {
         lines: [
-          { productId: p1, quantity: "99999999.99" },
-          { productId: p1, quantity: "1" },
+          { productId: p1, quantity: 99_999 },
+          { productId: p1, quantity: 1 },
         ],
       },
       { lines: "nonsense" },
@@ -265,11 +267,11 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       error: "customer_not_found",
     });
     expect(
-      await createOrderAction(input({ lines: [{ productId: inactiveProduct, quantity: "1" }] })),
+      await createOrderAction(input({ lines: [{ productId: inactiveProduct, quantity: 1 }] })),
     ).toEqual({ ok: false, error: "product_inactive" });
-    expect(
-      await createOrderAction(input({ lines: [{ productId: "nope", quantity: "1" }] })),
-    ).toEqual({ ok: false, error: "product_not_found" });
+    expect(await createOrderAction(input({ lines: [{ productId: "nope", quantity: 1 }] }))).toEqual(
+      { ok: false, error: "product_not_found" },
+    );
     expect(await t.prisma.order.count()).toBe(0);
   });
 
@@ -309,7 +311,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
 
   it("lists the orders of the filtered days with items, not other days", async () => {
     asAdmin();
-    await createOrderAction(input({ lines: [{ productId: p1, quantity: "4" }] }));
+    await createOrderAction(input({ lines: [{ productId: p1, quantity: 4 }] }));
     // A past order can only exist from before (e.g. imported); insert directly.
     await t.prisma.order.create({
       data: {
@@ -328,7 +330,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       tour: null,
     });
     expect(rows[0]?.items).toHaveLength(1);
-    expect(rows[0]?.items[0]?.quantity).toBe("4");
+    expect(rows[0]?.items[0]?.quantity).toBe(4);
     expect((await orderOverviewQuery({ from: "2020-01-01", to: "2020-01-01" })).rows).toHaveLength(
       1,
     );
@@ -444,7 +446,7 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       asAdmin();
       const key = uploadedScreenshot();
       const result = await createOrderAction(
-        input({ screenshotKey: key, lines: [{ productId: p1, quantity: "0" }] }),
+        input({ screenshotKey: key, lines: [{ productId: p1, quantity: 0 }] }),
       );
       expect(result).toEqual({ ok: false, error: "invalid" });
       expect(

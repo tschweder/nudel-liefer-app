@@ -114,18 +114,22 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     };
     await pickProduct(0, "SPAG");
     await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Packung");
-    await lines.nth(0).getByTestId("line-quantity").fill("2,5");
+    await lines.nth(0).getByTestId("line-quantity").fill("3");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
     await expect(lines.nth(1).getByRole("combobox")).toBeFocused();
 
-    // Line 2 with a dot decimal; Enter on an invalid quantity does not add a line.
+    // Line 2: Enter on an invalid quantity (0, or a decimal such as 2,5) does not add a line.
     await pickProduct(1, "PENN");
     await lines.nth(1).getByTestId("line-quantity").fill("0");
     await lines.nth(1).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
     await expect(lines.nth(1).getByTestId("error-line")).toBeVisible();
-    await lines.nth(1).getByTestId("line-quantity").fill("3.25");
+    await lines.nth(1).getByTestId("line-quantity").fill("2,5");
+    await lines.nth(1).getByTestId("line-quantity").press("Enter");
+    await expect(lines).toHaveCount(2);
+    await expect(lines.nth(1).getByTestId("error-line")).toBeVisible();
+    await lines.nth(1).getByTestId("line-quantity").fill("4");
     await lines.nth(1).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(3);
     await expect(lines.nth(1).getByTestId("error-line")).toHaveCount(0);
@@ -143,9 +147,9 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name });
     await expect(row).toBeVisible();
     await expect(row.getByTestId("order-item")).toHaveCount(3);
-    // Unit labels are ICU plurals (re-design.md §9.3, `driver.units`): "2,5 Packungen", not "2,5 Packung".
-    await expect(row).toContainText("2,5 Packungen · Spaghetti 5 kg");
-    await expect(row).toContainText("3,25 Packungen · Penne 5 kg");
+    // Unit labels are ICU plurals (re-design.md §9.3, `driver.units`): "3 Packungen", not "3 Packung".
+    await expect(row).toContainText("3 Packungen · Spaghetti 5 kg");
+    await expect(row).toContainText("4 Packungen · Penne 5 kg");
     await expect(row).toContainText("10 Packungen · Fusilli 5 kg");
     await expect(row.getByTestId("order-status")).toHaveText("Bestätigt");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
@@ -171,7 +175,7 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
       source: "MANUAL",
       internalNote: "Anruf am Vormittag",
       date: "2099-03-02",
-      qty: ["2.50", "3.25", "10.00"].sort((a, b) => Number(a) - Number(b)),
+      qty: ["3", "4", "10"].sort((a, b) => Number(a) - Number(b)),
     });
   } finally {
     await f.cleanup();
@@ -232,7 +236,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     await expect(page).toHaveURL(/\/admin\/orders\/new$/);
 
     // The same product twice is merged on save (quantities added); save as draft.
-    await lines.nth(0).getByTestId("line-quantity").fill("1,5");
+    await lines.nth(0).getByTestId("line-quantity").fill("2");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await pickProduct(1, "SPAG");
     await lines.nth(1).getByTestId("line-quantity").fill("2");
@@ -243,14 +247,14 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name }).last();
     await expect(row.getByTestId("order-status")).toHaveText("Entwurf");
     await expect(row.getByTestId("order-item")).toHaveCount(1);
-    await expect(row).toContainText("3,5 Packungen · Spaghetti 5 kg");
+    await expect(row).toContainText("4 Packungen · Spaghetti 5 kg");
     const items = await f.client.query<{ status: string; quantity: string }>(
       `SELECT o."status"::text AS status, i."quantity"::text AS quantity
        FROM "Order" o JOIN "OrderItem" i ON i."orderId"=o."id"
        WHERE o."customerId"=$1 AND o."deliveryDate"='2099-04-02'`,
       [f.confirmed.id],
     );
-    expect(items.rows).toEqual([{ status: "DRAFT", quantity: "3.50" }]);
+    expect(items.rows).toEqual([{ status: "DRAFT", quantity: "4" }]);
   } finally {
     await f.cleanup();
   }

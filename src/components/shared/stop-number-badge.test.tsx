@@ -7,7 +7,9 @@ describe("StopNumberBadge", () => {
   afterEach(cleanup);
 
   it("uses the label as the accessible name, not the bare digit", () => {
-    render(<StopNumberBadge number={13} label="Stopp 13: Cucina Bella Napoli" data-testid="badge" />);
+    render(
+      <StopNumberBadge number={13} label="Stopp 13: Cucina Bella Napoli" data-testid="badge" />,
+    );
     const badge = screen.getByLabelText("Stopp 13: Cucina Bella Napoli");
     expect(badge).toHaveAttribute("data-tone", "neutral");
     expect(badge).toHaveClass("border-2");

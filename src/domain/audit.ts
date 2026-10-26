@@ -1,9 +1,7 @@
-import { parseQuantityCents } from "./order";
-
 /**
  * Audit log vocabulary and pure helpers (NUD-092). Pure: no framework or database imports.
  *
- * What an entry stores: ids, enum values, dates and quantities in hundredths ("cents") only.
+ * What an entry stores: ids, enum values, dates and quantities only (in hundredths, see `toAuditQuantity`).
  * Names (customers, products, drivers) are resolved when the history is read, so a renamed
  * product shows its current name and the log never holds a copy of personal data. Free text
  * (internal order notes, driver problem notes) is truncated to `AUDIT_TEXT_MAX` characters.
@@ -88,7 +86,7 @@ export type OrderSnapshot = {
   /** `YYYY-MM-DD` */
   deliveryDate: string;
   internalNote: string | null;
-  items: ReadonlyArray<{ productId: string; quantity: string | number | { toString(): string } }>;
+  items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
 
 export type LineChange = {
@@ -98,8 +96,12 @@ export type LineChange = {
   after: number | null;
 };
 
-function toCents(quantity: { toString(): string } | string | number): number {
-  return parseQuantityCents(typeof quantity === "number" ? quantity : quantity.toString()) ?? 0;
+/**
+ * Quantities are whole numbers since NUD-137, but the audit log is append-only and its older rows
+ * hold hundredths. New entries keep that encoding so one reader (`audit-timeline`) handles both.
+ */
+export function toAuditQuantity(quantity: number): number {
+  return quantity * 100;
 }
 
 /** Quantity changes between two item lists: only products whose quantity differs, added or removed. */
@@ -107,15 +109,15 @@ export function diffOrderLines(
   before: OrderSnapshot["items"],
   after: OrderSnapshot["items"],
 ): LineChange[] {
-  const b = new Map(before.map((i) => [i.productId, toCents(i.quantity)]));
-  const a = new Map(after.map((i) => [i.productId, toCents(i.quantity)]));
+  const b = new Map(before.map((i) => [i.productId, toAuditQuantity(i.quantity)]));
+  const a = new Map(after.map((i) => [i.productId, toAuditQuantity(i.quantity)]));
   const changes: LineChange[] = [];
-  for (const [productId, cents] of a) {
+  for (const [productId, stored] of a) {
     const was = b.get(productId);
-    if (was !== cents) changes.push({ productId, before: was ?? null, after: cents });
+    if (was !== stored) changes.push({ productId, before: was ?? null, after: stored });
   }
-  for (const [productId, cents] of b) {
-    if (!a.has(productId)) changes.push({ productId, before: cents, after: null });
+  for (const [productId, stored] of b) {
+    if (!a.has(productId)) changes.push({ productId, before: stored, after: null });
   }
   return changes;
 }

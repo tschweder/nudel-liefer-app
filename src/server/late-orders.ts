@@ -1,5 +1,5 @@
 import { canCreateFollowUp, deliveredStopConflicts, findLateOrderIds } from "@/domain/day-tours";
-import { hasConfirmedPin, quantityToCents } from "@/domain/tour";
+import { hasConfirmedPin } from "@/domain/tour";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 import type { DiffStopView } from "./tour-rerelease";
@@ -116,16 +116,16 @@ export async function getLateOrdersView(db: Db, date: Date): Promise<LateOrdersV
       })
     ).map((p) => [p.id, p]),
   );
-  const line = (productId: string, beforeCents: number, afterCents: number) => ({
+  const line = (productId: string, before: number, after: number) => ({
     productId,
-    beforeCents,
-    afterCents,
+    before,
+    after,
     sku: products.get(productId)?.sku ?? "",
     name: products.get(productId)?.name ?? null,
     unit: products.get(productId)?.unit ?? "PACK",
   });
 
-  // One entry per customer, quantities merged exactly in hundredths.
+  // One entry per customer, quantities merged.
   const perCustomer = new Map<string, LateOrderView>();
   for (const order of lateOrders) {
     const c = customers.get(order.customerId);
@@ -144,10 +144,10 @@ export async function getLateOrdersView(db: Db, date: Date): Promise<LateOrdersV
     }
     entry.orderIds.push(order.id);
     for (const item of order.items) {
-      const cents = quantityToCents(item.quantity);
+      const added = item.quantity;
       const existing = entry.items.find((i) => i.productId === item.productId);
-      if (existing) existing.afterCents += cents;
-      else entry.items.push(line(item.productId, 0, cents));
+      if (existing) existing.after += added;
+      else entry.items.push(line(item.productId, 0, added));
     }
   }
   const lateViews = [...perCustomer.values()];
@@ -162,7 +162,7 @@ export async function getLateOrdersView(db: Db, date: Date): Promise<LateOrdersV
         customerId: c.customerId,
         customerNumber: customer?.customerNumber ?? "",
         name: customer?.name ?? "",
-        items: c.items.map((i) => line(i.productId, i.beforeCents, i.afterCents)),
+        items: c.items.map((i) => line(i.productId, i.before, i.after)),
       };
     }),
     canCreateFollowUp: canCreateFollowUp(tours, lateViews.filter((v) => v.routable).length),

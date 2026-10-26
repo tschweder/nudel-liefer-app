@@ -16,19 +16,19 @@ const order = (
 ): TotalsOrder => ({
   deliveryDate,
   status,
-  items: items.map(([productId, quantityCents]) => ({ productId, quantityCents })),
+  items: items.map(([productId, quantity]) => ({ productId, quantity })),
 });
 
 describe("aggregateTotalsByDate", () => {
   it("sums the products of all confirmed orders of a date exactly", () => {
     const totals = aggregateTotalsByDate([
       order("2026-11-02", "CONFIRMED", [
-        ["a", 250],
-        ["b", 100],
+        ["a", 3],
+        ["b", 1],
       ]),
       order("2026-11-02", "CONFIRMED", [
-        ["a", 325],
-        ["c", 1000],
+        ["a", 4],
+        ["c", 10],
       ]),
       order("2026-11-02", "CONFIRMED", [["a", 10]]),
     ]);
@@ -37,9 +37,9 @@ describe("aggregateTotalsByDate", () => {
         date: "2026-11-02",
         orderCount: 3,
         products: [
-          { productId: "a", quantityCents: 585 },
-          { productId: "b", quantityCents: 100 },
-          { productId: "c", quantityCents: 1000 },
+          { productId: "a", quantity: 17 },
+          { productId: "b", quantity: 1 },
+          { productId: "c", quantity: 10 },
         ],
       },
     ]);
@@ -50,30 +50,30 @@ describe("aggregateTotalsByDate", () => {
       order("2026-11-02", "CONFIRMED", [["a", 10]]),
       order("2026-11-02", "CONFIRMED", [["a", 20]]),
     ]);
-    expect(totals[0]?.products[0]?.quantityCents).toBe(30);
+    expect(totals[0]?.products[0]?.quantity).toBe(30);
   });
 
   it("excludes cancelled orders and drafts", () => {
     const totals = aggregateTotalsByDate([
-      order("2026-11-02", "CONFIRMED", [["a", 100]]),
-      order("2026-11-02", "CANCELLED", [["a", 5000]]),
-      order("2026-11-02", "DRAFT", [["a", 700]]),
+      order("2026-11-02", "CONFIRMED", [["a", 1]]),
+      order("2026-11-02", "CANCELLED", [["a", 50]]),
+      order("2026-11-02", "DRAFT", [["a", 7]]),
       order("2026-11-03", "CANCELLED", [["a", 1]]),
     ]);
     expect(totals).toEqual([
-      { date: "2026-11-02", orderCount: 1, products: [{ productId: "a", quantityCents: 100 }] },
+      { date: "2026-11-02", orderCount: 1, products: [{ productId: "a", quantity: 1 }] },
     ]);
   });
 
   it("keeps dates apart, sorted ascending, and omits dates without confirmed orders", () => {
     const totals = aggregateTotalsByDate([
-      order("2026-11-05", "CONFIRMED", [["a", 100]]),
-      order("2026-11-02", "CONFIRMED", [["a", 200]]),
-      order("2026-11-03", "DRAFT", [["a", 300]]),
+      order("2026-11-05", "CONFIRMED", [["a", 1]]),
+      order("2026-11-02", "CONFIRMED", [["a", 2]]),
+      order("2026-11-03", "DRAFT", [["a", 3]]),
     ]);
-    expect(totals.map((t) => [t.date, t.products[0]?.quantityCents])).toEqual([
-      ["2026-11-02", 200],
-      ["2026-11-05", 100],
+    expect(totals.map((t) => [t.date, t.products[0]?.quantity])).toEqual([
+      ["2026-11-02", 2],
+      ["2026-11-05", 1],
     ]);
   });
 

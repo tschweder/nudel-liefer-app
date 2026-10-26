@@ -79,11 +79,11 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantityCents: 1250 },
-      { productId: pack, quantityCents: 400 },
+      { productId: kg, quantity: 1250 },
+      { productId: pack, quantity: 400 },
     ],
-    [{ productId: kg, quantityCents: 2700 }],
-    [{ productId: pack, quantityCents: 100 }],
+    [{ productId: kg, quantity: 2700 }],
+    [{ productId: pack, quantity: 100 }],
   ];
 
   const s3 = new S3Client({
@@ -189,7 +189,7 @@ type IdbRecord = {
     schemaVersion: number;
     tour: {
       id: string;
-      stops: Array<{ items: Array<{ quantityCents: number; name: unknown }> }>;
+      stops: Array<{ items: Array<{ quantity: number; name: unknown }> }>;
     };
   };
 };
@@ -431,7 +431,7 @@ test("a changed tour is refreshed in the background when the connection returns"
   await expect(page.getByTestId("offline-bar")).toBeVisible();
   // Office change while the driver is offline: quantity of stop 3 (snapshot, as after a re-release).
   await db.query(
-    `UPDATE "Stop" SET "items"='[{"productId":"prod-pack-${tag}","quantityCents":900}]'::jsonb WHERE "id"=$1`,
+    `UPDATE "Stop" SET "items"='[{"productId":"prod-pack-${tag}","quantity":900}]'::jsonb WHERE "id"=$1`,
     [stopIds[2]],
   );
   await setOnline(context, page, true);
@@ -439,9 +439,9 @@ test("a changed tour is refreshed in the background when the connection returns"
     .poll(async () => (await idbRecords(page))[0]?.savedAt as string, { timeout: 30_000 })
     .not.toBe(before);
   const records = await idbRecords(page);
-  expect(records[0]!.data.tour.stops[2].items[0].quantityCents).toBe(900);
+  expect(records[0]!.data.tour.stops[2].items[0].quantity).toBe(900);
   await db.query(
-    `UPDATE "Stop" SET "items"='[{"productId":"prod-pack-${tag}","quantityCents":100}]'::jsonb WHERE "id"=$1`,
+    `UPDATE "Stop" SET "items"='[{"productId":"prod-pack-${tag}","quantity":100}]'::jsonb WHERE "id"=$1`,
     [stopIds[2]],
   );
 });

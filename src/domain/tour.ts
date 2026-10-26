@@ -6,10 +6,10 @@
 export type StopOrderInput = {
   id: string;
   customerId: string;
-  items: ReadonlyArray<{ productId: string; quantity: string | number | { toString(): string } }>;
+  items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
 
-export type StopItem = { productId: string; quantityCents: number };
+export type StopItem = { productId: string; quantity: number };
 
 export type PlannedStop = {
   customerId: string;
@@ -19,21 +19,9 @@ export type PlannedStop = {
   items: StopItem[];
 };
 
-/** `Decimal(10,2)` value (string, number or Prisma `Decimal`) as exact hundredths. */
-export function quantityToCents(value: string | number | { toString(): string }): number {
-  const text = typeof value === "string" ? value : String(value.toString());
-  const match = /^(-?)(\d+)(?:\.(\d*))?$/.exec(text.trim());
-  if (!match) throw new Error(`Invalid quantity "${text}"`);
-  const fraction = (match[3] ?? "").padEnd(2, "0");
-  if (/[1-9]/.test(fraction.slice(2)))
-    throw new Error(`Quantity "${text}" has more than 2 decimals`);
-  const cents = Number(match[2]) * 100 + Number(fraction.slice(0, 2));
-  return match[1] ? -cents : cents;
-}
-
 /**
  * One stop per customer: all given (confirmed) orders of a customer are merged, quantities are
- * summed per product (exact, in hundredths) and every order stays linked. Stops are returned in
+ * summed per product (whole numbers) and every order stays linked. Stops are returned in
  * order of the customer's first order. The caller passes only CONFIRMED orders of one day.
  */
 export function buildStops(orders: readonly StopOrderInput[]): PlannedStop[] {
@@ -46,10 +34,9 @@ export function buildStops(orders: readonly StopOrderInput[]): PlannedStop[] {
     }
     stop.orderIds.push(order.id);
     for (const item of order.items) {
-      const cents = quantityToCents(item.quantity);
       const line = stop.items.find((i) => i.productId === item.productId);
-      if (line) line.quantityCents += cents;
-      else stop.items.push({ productId: item.productId, quantityCents: cents });
+      if (line) line.quantity += item.quantity;
+      else stop.items.push({ productId: item.productId, quantity: item.quantity });
     }
   }
   return [...stops.values()];

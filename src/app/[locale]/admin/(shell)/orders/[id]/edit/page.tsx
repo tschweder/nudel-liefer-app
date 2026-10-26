@@ -74,7 +74,7 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
           date: formatCalendarDate(order.deliveryDate),
           status,
           note: order.internalNote ?? "",
-          lines: order.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          lines: order.items.map((i) => ({ productId: i.productId, quantity: String(i.quantity) })),
           screenshotUrl: order.screenshot?.url ?? null,
         }}
       />

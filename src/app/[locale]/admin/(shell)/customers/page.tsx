@@ -37,7 +37,11 @@ async function Guarded({
         title={t("title")}
         description={
           <>
-            <span className="text-foreground tabular-nums" data-testid="customer-count" aria-live="polite">
+            <span
+              className="text-foreground tabular-nums"
+              data-testid="customer-count"
+              aria-live="polite"
+            >
               {tc("itemsCount", { count: result.total })}
             </span>
             {" · "}

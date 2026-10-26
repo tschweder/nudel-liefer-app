@@ -264,8 +264,7 @@ export function TourPlanner({
   // "Gesamtdauer 0 Min." next to "Strecke —" claimed a value the routing data does not have (the
   // round-3 review: the tour was released without any routing result). Without a duration the tile
   // says so, exactly like the distance tile next to it.
-  const durationText =
-    tour.totalDurationS === null ? "–" : t("summary.durationValue", duration);
+  const durationText = tour.totalDurationS === null ? "–" : t("summary.durationValue", duration);
   const currentStep = stepIndex(tour.status);
   const hasStops = tour.stops.length > 0;
 
@@ -733,7 +732,10 @@ export function TourPlanner({
 
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate font-medium" data-testid="stop-name">
+                        <span
+                          className="min-w-0 flex-1 truncate font-medium"
+                          data-testid="stop-name"
+                        >
                           {stop.name}
                         </span>
                         {results ? (
@@ -869,7 +871,9 @@ export function TourPlanner({
             </DialogHeader>
             {tour.diff ? (
               <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-base">
-                <dt className="text-muted-foreground">{t("change.sections.added", { count: 0 })}</dt>
+                <dt className="text-muted-foreground">
+                  {t("change.sections.added", { count: 0 })}
+                </dt>
                 <dd className="font-medium" data-testid="rerelease-added">
                   {tour.diff.added.length}
                 </dd>

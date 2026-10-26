@@ -14,7 +14,12 @@ describe("SegmentedControl", () => {
 
   it("renders every option and marks the current one as selected", () => {
     render(
-      <SegmentedControl value="list" onValueChange={() => {}} options={options} ariaLabel="Ansicht" />,
+      <SegmentedControl
+        value="list"
+        onValueChange={() => {}}
+        options={options}
+        ariaLabel="Ansicht"
+      />,
     );
     const list = screen.getByTestId("segment-list");
     const map = screen.getByTestId("segment-map");
@@ -29,7 +34,12 @@ describe("SegmentedControl", () => {
 
   it("exposes the group through its accessible name", () => {
     render(
-      <SegmentedControl value="list" onValueChange={() => {}} options={options} ariaLabel="Ansicht" />,
+      <SegmentedControl
+        value="list"
+        onValueChange={() => {}}
+        options={options}
+        ariaLabel="Ansicht"
+      />,
     );
     expect(screen.getByRole("group", { name: "Ansicht" })).toBeInTheDocument();
   });

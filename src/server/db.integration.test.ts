@@ -53,7 +53,7 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
         deliveryDate: new Date("2026-11-03"),
         status: "CONFIRMED",
         createdById: user.id,
-        items: { create: [{ productId: product.id, quantity: "2.5" }] },
+        items: { create: [{ productId: product.id, quantity: 3 }] },
       },
     });
 
@@ -65,7 +65,7 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     expect(read.deliveryDate.toISOString().slice(0, 10)).toBe("2026-11-03");
     expect(read.source).toBe("MANUAL");
     expect(read.items).toHaveLength(1);
-    expect(read.items[0].quantity.toString()).toBe("2.5");
+    expect(read.items[0].quantity).toBe(3);
     expect(read.items[0].product.id).toBe(product.id);
   });
 

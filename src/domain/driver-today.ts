@@ -18,21 +18,21 @@ export function progressOf(stops: readonly StopLike[]): { done: number; total: n
   return { done: stops.filter((s) => s.status !== "PENDING").length, total: stops.length };
 }
 
-export type SummaryTotal = { unit: string; quantityCents: number };
+export type SummaryTotal = { unit: string; quantity: number };
 
 /**
  * "N varieties and X per unit": the number of distinct products plus one total PER UNIT. Different
  * units are never added together (5 packs + 2 kg is not 7 of anything).
  */
 export function summarizeItems(
-  items: ReadonlyArray<{ productId: string; unit: string; quantityCents: number }>,
+  items: ReadonlyArray<{ productId: string; unit: string; quantity: number }>,
 ): {
   kinds: number;
   totals: SummaryTotal[];
 } {
   const byUnit = new Map<string, number>();
   for (const item of items) {
-    byUnit.set(item.unit, (byUnit.get(item.unit) ?? 0) + item.quantityCents);
+    byUnit.set(item.unit, (byUnit.get(item.unit) ?? 0) + item.quantity);
   }
   const rank = (unit: string) => {
     const index = (UNIT_ORDER as readonly string[]).indexOf(unit);
@@ -41,7 +41,7 @@ export function summarizeItems(
   return {
     kinds: new Set(items.map((i) => i.productId)).size,
     totals: [...byUnit]
-      .map(([unit, quantityCents]) => ({ unit, quantityCents }))
+      .map(([unit, quantity]) => ({ unit, quantity }))
       .sort((a, b) => rank(a.unit) - rank(b.unit) || a.unit.localeCompare(b.unit)),
   };
 }

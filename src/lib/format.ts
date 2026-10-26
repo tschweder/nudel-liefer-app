@@ -11,9 +11,9 @@ export const DEFAULT_TIMEZONE = "Europe/Vienna";
  */
 export function createAppFormatters(format: Formatter, timeZone: string = DEFAULT_TIMEZONE) {
   return {
-    /** Quantities: `Decimal(10,2)` shown without trailing zeros (`5`, `2.5`). */
+    /** Quantities are whole numbers (D23, NUD-137): `5`, `1,200` in en. */
     quantity: (value: number | string) =>
-      format.number(Number(value), { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+      format.number(Number(value), { maximumFractionDigits: 0 }),
     /** A moment in time, shown in the factory time zone, e.g. "Mo., 17. Okt.". */
     dateShort: (value: Date) =>
       format.dateTime(value, { weekday: "short", day: "numeric", month: "short", timeZone }),

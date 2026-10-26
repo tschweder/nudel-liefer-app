@@ -3,9 +3,9 @@
  * shown to the office, the plan a re-release applies, and the rule which order changes make a
  * tour outdated. Pure functions, no framework imports.
  */
-import { buildStops, quantityToCents, type StopItem, type StopOrderInput } from "./tour";
+import { buildStops, type StopItem, type StopOrderInput } from "./tour";
 
-export type ItemChange = { productId: string; beforeCents: number; afterCents: number };
+export type ItemChange = { productId: string; before: number; after: number };
 
 export type TourDiff = {
   /** Customers that get a new stop. */
@@ -44,9 +44,9 @@ export type SnapshotStop = {
 function toMap(items: readonly StopItem[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const item of items) {
-    map.set(item.productId, (map.get(item.productId) ?? 0) + item.quantityCents);
+    map.set(item.productId, (map.get(item.productId) ?? 0) + item.quantity);
   }
-  for (const [productId, cents] of map) if (cents === 0) map.delete(productId);
+  for (const [productId, quantity] of map) if (quantity === 0) map.delete(productId);
   return map;
 }
 
@@ -55,7 +55,7 @@ export function sameItems(a: readonly StopItem[], b: readonly StopItem[]): boole
   const left = toMap(a);
   const right = toMap(b);
   if (left.size !== right.size) return false;
-  for (const [productId, cents] of left) if (right.get(productId) !== cents) return false;
+  for (const [productId, quantity] of left) if (right.get(productId) !== quantity) return false;
   return true;
 }
 
@@ -67,10 +67,10 @@ export function itemChanges(before: readonly StopItem[], after: readonly StopIte
   return ids
     .map((productId) => ({
       productId,
-      beforeCents: left.get(productId) ?? 0,
-      afterCents: right.get(productId) ?? 0,
+      before: left.get(productId) ?? 0,
+      after: right.get(productId) ?? 0,
     }))
-    .filter((c) => c.beforeCents !== c.afterCents);
+    .filter((c) => c.before !== c.after);
 }
 
 export type PlannedEntry =
@@ -173,7 +173,7 @@ export function planReRelease(
 }
 
 function toItems(items: readonly StopItem[]): StopItem[] {
-  return items.map((i) => ({ productId: i.productId, quantityCents: i.quantityCents }));
+  return items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
 }
 
 export type OrderState = {
@@ -181,14 +181,11 @@ export type OrderState = {
   customerId: string;
   /** `DATE` value (UTC midnight). */
   deliveryDate: Date;
-  items: ReadonlyArray<{ productId: string; quantity: string | number | { toString(): string } }>;
+  items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
 
 function itemsOf(state: OrderState): StopItem[] {
-  return state.items.map((i) => ({
-    productId: i.productId,
-    quantityCents: quantityToCents(i.quantity),
-  }));
+  return state.items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
 }
 
 /**

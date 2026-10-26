@@ -157,7 +157,9 @@ export function CustomerFilters({ values }: { values: CustomerFilterValues }) {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => push({ q: "", status: "active", photosMissing: false, pinUnconfirmed: false })}
+            onClick={() =>
+              push({ q: "", status: "active", photosMissing: false, pinUnconfirmed: false })
+            }
             data-testid="reset-filters"
           >
             <RotateCcwIcon aria-hidden />

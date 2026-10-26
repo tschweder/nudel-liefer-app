@@ -119,10 +119,7 @@ const GEOMETRY: Array<[number, number]> = [
 ];
 const TILES = { url: "https://t.example/{z}/{x}/{y}.png", attribution: "© Example" };
 
-function renderMap(
-  locale: string,
-  overrides: Partial<Parameters<typeof TourMap>[0]> = {},
-) {
+function renderMap(locale: string, overrides: Partial<Parameters<typeof TourMap>[0]> = {}) {
   return render(
     <NextIntlClientProvider
       locale={locale}

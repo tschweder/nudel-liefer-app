@@ -263,10 +263,7 @@ function OrderRow({
               </Tooltip>
             </TooltipProvider>
           ) : (
-            <ul
-              className="flex min-w-0 flex-wrap items-center gap-1.5"
-              data-testid="order-items"
-            >
+            <ul className="flex min-w-0 flex-wrap items-center gap-1.5" data-testid="order-items">
               {order.items.map((item) => (
                 <li
                   key={item.id}

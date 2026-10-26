@@ -1,4 +1,4 @@
-import { type AuditPurgeReport,purgeExpiredAuditEntries } from "./audit-retention";
+import { type AuditPurgeReport, purgeExpiredAuditEntries } from "./audit-retention";
 import { isCronAuthorized } from "./cron-auth";
 import { getDb } from "./db";
 

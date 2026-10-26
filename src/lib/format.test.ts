@@ -6,12 +6,11 @@ import { createAppFormatters } from "./format";
 const f = (locale: string) => createAppFormatters(createFormatter({ locale }));
 
 describe("createAppFormatters", () => {
-  it("shows quantities without trailing zeros, per locale", () => {
+  it("shows quantities as whole numbers, per locale", () => {
     expect(f("de").quantity(5)).toBe("5");
-    expect(f("de").quantity("5.00")).toBe("5");
-    expect(f("de").quantity("2.50")).toBe("2,5");
-    expect(f("zh-Hans").quantity("2.50")).toBe("2.5");
-    expect(f("de").quantity(0.125)).toBe("0,13");
+    expect(f("de").quantity("5")).toBe("5");
+    expect(f("de").quantity(1200)).toBe("1.200");
+    expect(f("zh-Hans").quantity(1200)).toBe("1,200");
   });
 
   it("formats calendar dates without shifting the day", () => {

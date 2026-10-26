@@ -78,9 +78,9 @@ async function fixture(projectName: string) {
     }
     return id;
   };
-  // D1: A confirmed (SPAG 2.5 + PENN 1), B confirmed (SPAG 4), A cancelled (SPAG 99), B draft (SPAG 77)
+  // D1: A confirmed (SPAG 3 + PENN 1), B confirmed (SPAG 4), A cancelled (SPAG 99), B draft (SPAG 77)
   const a1 = await order("a1", a.id, D1, "CONFIRMED", "MANUAL", [
-    [spag, "2.5"],
+    [spag, "3"],
     [penn, "1"],
   ]);
   const b1 = await order("b1", b.id, D1, "CONFIRMED", "SCREENSHOT", [[spag, "4"]]);
@@ -157,7 +157,7 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     if ((await totalsToggle.count()) > 0) await totalsToggle.first().click();
     const day1 = page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible`);
     await expect(day1).toContainText("2 bestätigte Bestellungen");
-    await expect(day1.locator("tr", { hasText: "Spaghetti 5 kg" })).toContainText("6,5 Packung");
+    await expect(day1.locator("tr", { hasText: "Spaghetti 5 kg" })).toContainText("7 Packung");
     await expect(day1.locator("tr", { hasText: "Penne 5 kg" })).toContainText("1 Packung");
     const day2 = page.locator(`[data-testid="totals-day"][data-date="${D2}"]:visible`);
     await expect(day2).toContainText("1 bestätigte Bestellung");
@@ -240,7 +240,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await expect(tid(page, "customer-fixed")).toBeVisible();
     const lines = tid(page, "order-line");
     await expect(lines).toHaveCount(2);
-    await expect(lines.nth(0).getByTestId("line-quantity")).toHaveValue("2.5");
+    await expect(lines.nth(0).getByTestId("line-quantity")).toHaveValue("3");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-edit.png") });
 
@@ -250,15 +250,15 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await expect(page).toHaveURL(/\/edit$/);
     expect(await outdated()).toBe(false);
 
-    await lines.nth(0).getByTestId("line-quantity").fill("3,75");
+    await lines.nth(0).getByTestId("line-quantity").fill("5");
     await tid(page, "order-save").click();
     await expect(page).toHaveURL(new RegExp(`/admin/orders/${f.ids.a1}$`));
-    await expect(tid(page, "detail-items")).toContainText("3,75 Packung · Spaghetti 5 kg");
+    await expect(tid(page, "detail-items")).toContainText("5 Packungen · Spaghetti 5 kg");
     const stored = await f.client.query<{ quantity: string }>(
       `SELECT "quantity"::text FROM "OrderItem" WHERE "orderId"=$1 ORDER BY "quantity"`,
       [f.ids.a1],
     );
-    expect(stored.rows.map((r) => r.quantity)).toEqual(["1.00", "3.75"]);
+    expect(stored.rows.map((r) => r.quantity)).toEqual(["1", "5"]);
     // NUD-092: the history timeline shows exactly one entry for the save, with before -> after.
     const entries = tid(page, "audit-entry");
     await expect(entries).toHaveCount(1);
@@ -266,7 +266,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await expect(entries.first().getByTestId("audit-action")).toHaveText("Bestellung geändert");
     await expect(entries.first().getByTestId("audit-meta")).toContainText("Admin (Büro)");
     await expect(entries.first().getByTestId("audit-line")).toHaveText(
-      "Spaghetti 5 kg: 2,5 → 3,75 Packung",
+      "Spaghetti 5 kg: 3 → 5 Packungen",
     );
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-history.png"), fullPage: true });
@@ -279,7 +279,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
       page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible tr`, {
         hasText: "Spaghetti 5 kg",
       }),
-    ).toContainText("7,75 Packung");
+    ).toContainText("9 Packung");
 
     // Duplicate order b1 to D3: a draft copy, the original stays.
     await page.goto(`/de/admin/orders/${f.ids.b1}`);

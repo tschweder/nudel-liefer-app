@@ -41,15 +41,15 @@ describe("progressOf", () => {
 describe("summarizeItems", () => {
   it("never adds different units together", () => {
     const summary = summarizeItems([
-      { productId: "a", unit: "KG", quantityCents: 1000 },
-      { productId: "b", unit: "PACK", quantityCents: 500 },
-      { productId: "c", unit: "KG", quantityCents: 1750 },
+      { productId: "a", unit: "KG", quantity: 10 },
+      { productId: "b", unit: "PACK", quantity: 5 },
+      { productId: "c", unit: "KG", quantity: 18 },
     ]);
     expect(summary).toEqual({
       kinds: 3,
       totals: [
-        { unit: "KG", quantityCents: 2750 },
-        { unit: "PACK", quantityCents: 500 },
+        { unit: "KG", quantity: 28 },
+        { unit: "PACK", quantity: 5 },
       ],
     });
   });
@@ -61,7 +61,7 @@ describe("summarizeItems", () => {
       ["PIECE", "CRATE", "PACK", "KG"].map((unit, i) => ({
         productId: String(i),
         unit,
-        quantityCents: 100,
+        quantity: 1,
       })),
     ).totals.map((t) => t.unit);
     expect(units).toEqual(["KG", "PACK", "CRATE", "PIECE"]);

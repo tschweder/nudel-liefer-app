@@ -1,14 +1,15 @@
 ---
 covers:
-- src/server/audit*.ts
-- src/server/data-retention*.ts
-- src/server/retention-cron.ts
-- src/server/orphan-cleanup*.ts
-- src/domain/audit.ts
+  - src/server/audit*.ts
+  - src/server/data-retention*.ts
+  - src/server/retention-cron.ts
+  - src/server/orphan-cleanup*.ts
+  - src/domain/audit.ts
 stamp: a1ab25f494ba40358e45fd286c03e2be2979c4ac35064a4dc2b9c0a5a044ae4b
 status: fresh
 stale_since: null
 ---
+
 # Audit and retention
 
 This module covers the append-only audit log (NUD-092) and the background jobs
@@ -18,20 +19,20 @@ orphaned storage-object cleanup (NUD-094).
 
 ## Files
 
-| File | What it is |
-| --- | --- |
-| `src/domain/audit.ts` | Audit vocabulary, diff sanitizer and pure diff builders. No framework or database imports. |
-| `src/server/audit.ts` | `recordAudit`: the only code that creates `AuditLog` rows. |
-| `src/server/audit-history.ts` | Read side: turns stored entries into history timelines for the order and tour pages. |
-| `src/server/audit-queries.ts` | Admin-only read endpoints (`orderHistoryQuery`, `tourHistoryQuery`). |
-| `src/server/audit-retention.ts` | `purgeExpiredAuditEntries`: the only delete path of `AuditLog`. |
-| `src/server/audit-retention-cron.ts` | Cron handler `GET /api/cron/audit-retention`. |
-| `src/server/data-retention.ts` | `scrubExpiredDriverTexts`: scrubs `Stop.problemNote`. |
-| `src/server/data-retention-cron.ts` | Cron handler `GET /api/cron/data-retention`. |
-| `src/server/retention-cron.ts` | Cron handler `GET /api/cron/retention`: screenshots and failed-login rows. |
-| `src/server/orphan-cleanup.ts` | `cleanupOrphanedObjects`: deletes uploaded-but-unattached storage objects. |
-| `src/server/orphan-cleanup-cron.ts` | Cron handler `GET /api/cron/orphan-cleanup`. |
-| `*.test.ts` next to these | Unit and integration tests (see "Tests"). |
+| File                                 | What it is                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `src/domain/audit.ts`                | Audit vocabulary, diff sanitizer and pure diff builders. No framework or database imports. |
+| `src/server/audit.ts`                | `recordAudit`: the only code that creates `AuditLog` rows.                                 |
+| `src/server/audit-history.ts`        | Read side: turns stored entries into history timelines for the order and tour pages.       |
+| `src/server/audit-queries.ts`        | Admin-only read endpoints (`orderHistoryQuery`, `tourHistoryQuery`).                       |
+| `src/server/audit-retention.ts`      | `purgeExpiredAuditEntries`: the only delete path of `AuditLog`.                            |
+| `src/server/audit-retention-cron.ts` | Cron handler `GET /api/cron/audit-retention`.                                              |
+| `src/server/data-retention.ts`       | `scrubExpiredDriverTexts`: scrubs `Stop.problemNote`.                                      |
+| `src/server/data-retention-cron.ts`  | Cron handler `GET /api/cron/data-retention`.                                               |
+| `src/server/retention-cron.ts`       | Cron handler `GET /api/cron/retention`: screenshots and failed-login rows.                 |
+| `src/server/orphan-cleanup.ts`       | `cleanupOrphanedObjects`: deletes uploaded-but-unattached storage objects.                 |
+| `src/server/orphan-cleanup-cron.ts`  | Cron handler `GET /api/cron/orphan-cleanup`.                                               |
+| `*.test.ts` next to these            | Unit and integration tests (see "Tests").                                                  |
 
 ## Audit log
 
@@ -43,12 +44,12 @@ orphaned storage-object cleanup (NUD-094).
   `tour.reorder`, `tour.lock`, `tour.unlock`, `tour.assign_driver`,
   `tour.release`, `tour.rerelease`, `stop.delivered`, `stop.problem`,
   `stop.undo`, `photo.add`, `photo.replace`); `isAuditAction` validates.
-- Entries store ids, enum values, dates and quantities in hundredths only —
+- Entries store ids, enum values, dates and quantities only (quantities stay in hundredths, `toAuditQuantity`, because the log is append-only and older rows hold hundredths; NUD-137) —
   never names (they are resolved at read time, so renamed products show their
   current name and the log holds no copy of personal data) and never secrets.
 - `sanitizeAuditDiff` is the second line of defence applied to every diff: it
   drops keys matching `pass|hash|secret|token|signature|signedurl|credential|
-  cookie|^url$|Url$`, drops `undefined` and non-finite numbers, converts dates
+cookie|^url$|Url$`, drops `undefined` and non-finite numbers, converts dates
   to ISO strings, truncates strings to `AUDIT_TEXT_MAX` (200 chars, ellipsis
   appended) and lists to `AUDIT_LIST_MAX` (200 entries), and caps nesting at
   depth 6.
@@ -165,14 +166,14 @@ irreversible, so the job is deliberately cautious:
 
 ## Environment variables
 
-| Variable | Meaning | Default / fallback |
-| --- | --- | --- |
-| `CRON_SECRET` | Bearer secret for all `/api/cron/*` routes | none; routes fail closed without it |
-| `AUDIT_RETENTION_DAYS` | Audit entry retention, 90..36500 | 730 on unset/invalid |
-| `DATA_RETENTION_MODE` | `off` \| `dry-run` \| `delete` | `dry-run` |
-| `DRIVER_TEXT_RETENTION_DAYS` | Driver text retention, 30..3650 | 365 on unset/invalid |
-| `ORPHAN_CLEANUP_MODE` | `off` \| `dry-run` \| `delete` | `dry-run` |
-| `ORPHAN_CLEANUP_GRACE_DAYS` | Orphan grace period, 7..365 | 14 on unset/invalid |
+| Variable                     | Meaning                                    | Default / fallback                  |
+| ---------------------------- | ------------------------------------------ | ----------------------------------- |
+| `CRON_SECRET`                | Bearer secret for all `/api/cron/*` routes | none; routes fail closed without it |
+| `AUDIT_RETENTION_DAYS`       | Audit entry retention, 90..36500           | 730 on unset/invalid                |
+| `DATA_RETENTION_MODE`        | `off` \| `dry-run` \| `delete`             | `dry-run`                           |
+| `DRIVER_TEXT_RETENTION_DAYS` | Driver text retention, 30..3650            | 365 on unset/invalid                |
+| `ORPHAN_CLEANUP_MODE`        | `off` \| `dry-run` \| `delete`             | `dry-run`                           |
+| `ORPHAN_CLEANUP_GRACE_DAYS`  | Orphan grace period, 7..365                | 14 on unset/invalid                 |
 
 ## Tests
 

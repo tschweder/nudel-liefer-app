@@ -126,7 +126,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
           />
         </FormField>
         {error === "skuTaken" ? (
-          <p className="-mt-2 max-w-xs text-sm text-destructive" role="alert" data-testid="sku-taken">
+          <p
+            className="-mt-2 max-w-xs text-sm text-destructive"
+            role="alert"
+            data-testid="sku-taken"
+          >
             {t("skuTaken")}
           </p>
         ) : (
@@ -138,7 +142,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
           className="max-w-xs"
           description={unitLocked ? t("unitLocked") : undefined}
         >
-          <Select value={unit} disabled={unitLocked} onValueChange={(v) => setUnit(v as typeof unit)}>
+          <Select
+            value={unit}
+            disabled={unitLocked}
+            onValueChange={(v) => setUnit(v as typeof unit)}
+          >
             <SelectTrigger id="prod-unit" data-testid="product-unit" aria-label={t("unit")}>
               <SelectValue />
             </SelectTrigger>
@@ -183,7 +191,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
           />
         </FormField>
         {hansMissing ? (
-          <p className="-mt-2 max-w-xl text-sm text-destructive" role="alert" data-testid="hans-required">
+          <p
+            className="-mt-2 max-w-xl text-sm text-destructive"
+            role="alert"
+            data-testid="hans-required"
+          >
             {t("hansRequired")}
           </p>
         ) : null}

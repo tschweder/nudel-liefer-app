@@ -47,10 +47,7 @@ function CardHeader({
   return (
     <div
       data-slot="card-header"
-      className={cn(
-        "flex flex-wrap items-start justify-between gap-3 px-5",
-        className,
-      )}
+      className={cn("flex flex-wrap items-start justify-between gap-3 px-5", className)}
       {...props}
     >
       <div className="flex min-w-0 flex-col gap-1.5">{children}</div>

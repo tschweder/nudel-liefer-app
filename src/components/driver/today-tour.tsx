@@ -50,8 +50,6 @@ import { useSeenRevision } from "./seen-revision";
 
 type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
 
-const cents = (value: number) => value / 100;
-
 /**
  * Quantities of a stop, as one wrapped line ("5 × Tomatensauce Kisten · 12,5 × Spaghetti lose kg")
  * with the last chip-style fallback for long lists. re-design.md §7.2.2 asks for a compact,
@@ -94,15 +92,15 @@ function ItemSummary({ items }: { items: TodayItem[] }) {
             >
               {separator}
               <strong className="font-sans text-3xl font-bold tabular-nums">
-                {fmt.quantity(cents(total.quantityCents))}
+                {fmt.quantity(total.quantity)}
               </strong>{" "}
-              <span>{t(`units.${total.unit as UnitKey}`, { count: cents(total.quantityCents) })}</span>
+              <span>{t(`units.${total.unit as UnitKey}`, { count: total.quantity })}</span>
             </span>
           ))}
         </>
       ) : (
         items.map((item, index) => {
-          const quantity = cents(item.quantityCents);
+          const quantity = item.quantity;
           return (
             // The separator belongs to the *following* item, so a wrapped line never ends with a
             // dangling "·".
@@ -156,9 +154,14 @@ function RowSummary({ items }: { items: TodayItem[] }) {
       data-testid="item-summary"
     >
       {totals.map((total) => {
-        const quantity = cents(total.quantityCents);
+        const quantity = total.quantity;
         return (
-          <span key={total.unit} className="whitespace-nowrap" data-testid="summary-total" data-unit={total.unit}>
+          <span
+            key={total.unit}
+            className="whitespace-nowrap"
+            data-testid="summary-total"
+            data-unit={total.unit}
+          >
             {/* Same ICU plural form as the hero chip: "5 Kisten", not "5 Kiste" (run 3 review). */}
             {fmt.quantity(quantity)} {t(`unitsShort.${total.unit as UnitKey}`, { count: quantity })}
           </span>
@@ -194,7 +197,7 @@ function ChangeHighlight({ stop }: { stop: TodayStop }) {
   const fmt = createAppFormatters(useFormatter());
   const added = stop.change === "ADDED";
   const changedItems = stop.items.filter(
-    (i) => i.previousQuantityCents !== null && i.previousQuantityCents !== i.quantityCents,
+    (i) => i.previousQuantity !== null && i.previousQuantity !== i.quantity,
   );
   return (
     <div
@@ -217,11 +220,11 @@ function ChangeHighlight({ stop }: { stop: TodayStop }) {
               <span className="block text-base">{item.name}</span>
               <span className="text-2xl font-bold tabular-nums">
                 <span className="text-muted-foreground line-through decoration-2">
-                  {fmt.quantity(cents(item.previousQuantityCents ?? 0))}
+                  {fmt.quantity(item.previousQuantity ?? 0)}
                 </span>{" "}
-                <span aria-hidden>→</span> {fmt.quantity(cents(item.quantityCents))}{" "}
+                <span aria-hidden>→</span> {fmt.quantity(item.quantity)}{" "}
                 <span className="text-base font-medium">
-                  {t(`units.${item.unit as UnitKey}`, { count: cents(item.quantityCents) })}
+                  {t(`units.${item.unit as UnitKey}`, { count: item.quantity })}
                 </span>
               </span>
             </li>
@@ -386,14 +389,27 @@ function StopRow({
     <>
       <StopNumberBadge
         number={stop.sequence}
-        tone={isNext ? "primary" : problem ? "warning" : stop.status === "DELIVERED" ? "success" : "neutral"}
+        tone={
+          isNext
+            ? "primary"
+            : problem
+              ? "warning"
+              : stop.status === "DELIVERED"
+                ? "success"
+                : "neutral"
+        }
         size={40}
         isNext={isNext}
         done={stop.status === "DELIVERED"}
         label={t("stopLabel", { number: stop.sequence })}
         className="relative z-10 shrink-0"
       />
-      <span className={cn("flex min-w-0 flex-1 flex-col gap-0.5", stop.status === "DELIVERED" && "opacity-70")}>
+      <span
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-0.5",
+          stop.status === "DELIVERED" && "opacity-70",
+        )}
+      >
         <span className="flex items-center gap-1.5">
           <span
             className="min-w-0 truncate text-[17px] leading-tight font-semibold"
@@ -485,7 +501,10 @@ function DoneGroup({
       >
         <summary className="flex min-h-[52px] cursor-pointer list-none items-center gap-2 px-1 py-2 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           <ChevronRightIcon
-            className={cn("size-5 shrink-0 transition-transform motion-reduce:transition-none", open && "rotate-90")}
+            className={cn(
+              "size-5 shrink-0 transition-transform motion-reduce:transition-none",
+              open && "rotate-90",
+            )}
             aria-hidden
           />
           {open ? t("doneGroup", { count: stops.length }) : t("doneGroup", { count: stops.length })}
@@ -593,7 +612,8 @@ export function TodayTour({
   const lastEta = [...open].reverse().find((s) => s.etaAt)?.etaAt ?? null;
   const endAt = lastEta ? new Date(new Date(lastEta).getTime() + remaining * 60_000) : null;
   const totalSeconds = stops.reduce(
-    (sum, s) => sum + (s.status === "PENDING" ? (s.legDurationS ?? 0) + today.serviceSecondsPerStop : 0),
+    (sum, s) =>
+      sum + (s.status === "PENDING" ? (s.legDurationS ?? 0) + today.serviceSecondsPerStop : 0),
     0,
   );
   const elapsed = roundedMinutes(totalSeconds);
@@ -728,7 +748,12 @@ export function TodayTour({
                   className="[&_circle:last-child]:stroke-success"
                 />
                 {problems > 0 ? (
-                  <ProblemArc delivered={done - problems} problems={problems} total={total} size={64} />
+                  <ProblemArc
+                    delivered={done - problems}
+                    problems={problems}
+                    total={total}
+                    size={64}
+                  />
                 ) : null}
               </div>
               <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
@@ -795,7 +820,11 @@ export function TodayTour({
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="back-to-depot"
-                  className={buttonVariants({ size: "xl", variant: "success", className: "w-full" })}
+                  className={buttonVariants({
+                    size: "xl",
+                    variant: "success",
+                    className: "w-full",
+                  })}
                 >
                   <NavigationIcon className="size-6" aria-hidden />
                   {t("backToDepot")}
@@ -873,7 +902,10 @@ export function TodayTour({
         /* The stop-list sheet of §7.2(5): a drag handle and "3 offene Stopps" peek 72 px into the
            viewport, expanding to 60 % of it. Every row focuses its stop on the map (`onFocus`),
            which is the list -> map direction of the same entry point. */
-        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-xl" data-testid="map-sheet">
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-xl"
+          data-testid="map-sheet"
+        >
           <div className="flex flex-col rounded-t-xl border-t bg-card shadow-lg">
             <button
               type="button"

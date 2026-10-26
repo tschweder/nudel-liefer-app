@@ -36,15 +36,36 @@ export const payloadPhotoSchema = z.object({
 });
 export type PayloadPhoto = z.infer<typeof payloadPhotoSchema>;
 
-export const payloadItemSchema = z.object({
-  productId: idSchema,
-  sku: z.string(),
-  /** `null` when the product has no (valid) name; the SKU is shown instead. */
-  name: localizedTextSchema.nullable(),
-  unit: z.string(),
-  quantityCents: z.number().int(),
-  previousQuantityCents: z.number().int().nullable(),
-});
+/**
+ * Payloads cached by a phone before NUD-137 carry hundredths as `quantityCents` /
+ * `previousQuantityCents`. Read them as whole numbers so an installed app keeps working offline
+ * until the next successful refresh replaces the cache.
+ */
+function upgradeLegacyItem(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const item = value as Record<string, unknown>;
+  if (typeof item.quantityCents !== "number" || "quantity" in item) return value;
+  const { quantityCents, previousQuantityCents, ...rest } = item;
+  return {
+    ...rest,
+    quantity: Math.round((quantityCents as number) / 100),
+    previousQuantity:
+      typeof previousQuantityCents === "number" ? Math.round(previousQuantityCents / 100) : null,
+  };
+}
+
+export const payloadItemSchema = z.preprocess(
+  upgradeLegacyItem,
+  z.object({
+    productId: idSchema,
+    sku: z.string(),
+    /** `null` when the product has no (valid) name; the SKU is shown instead. */
+    name: localizedTextSchema.nullable(),
+    unit: z.string(),
+    quantity: z.number().int(),
+    previousQuantity: z.number().int().nullable(),
+  }),
+);
 
 export const payloadStopSchema = z.object({
   id: idSchema,
@@ -120,8 +141,8 @@ export type TodayItem = {
   /** German product name (matches the box labels); `null` when the product has none. */
   germanName: string | null;
   unit: string;
-  quantityCents: number;
-  previousQuantityCents: number | null;
+  quantity: number;
+  previousQuantity: number | null;
 };
 
 export type TodayStop = {
@@ -228,8 +249,8 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
       name: pickName(item.name, item.sku, locale),
       germanName: item.name?.de?.trim() ? item.name.de : null,
       unit: item.unit,
-      quantityCents: item.quantityCents,
-      previousQuantityCents: item.previousQuantityCents,
+      quantity: item.quantity,
+      previousQuantity: item.previousQuantity,
     })),
   };
 }

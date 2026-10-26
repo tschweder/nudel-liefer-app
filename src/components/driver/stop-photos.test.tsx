@@ -102,7 +102,9 @@ describe.each(Object.keys(LOCALES))("StopPhotos in %s", (locale) => {
     expect(within(card).getByTestId("photo-store")).toBeVisible();
     expect(within(card).getByTestId("photo-parking")).toBeVisible();
     expect(within(card).getByTestId("photo-label-store")).toHaveTextContent(WORDS[locale]!.store);
-    expect(within(card).getByTestId("photo-label-parking")).toHaveTextContent(WORDS[locale]!.parking);
+    expect(within(card).getByTestId("photo-label-parking")).toHaveTextContent(
+      WORDS[locale]!.parking,
+    );
     // No photo in PARKING -> placeholder with its own "take photo" button.
     expect(within(card).getByTestId("photo-take-parking")).toBeVisible();
     expect(within(card).queryByTestId("photo-open-parking")).toBeNull();

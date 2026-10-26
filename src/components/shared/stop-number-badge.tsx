@@ -1,6 +1,6 @@
 import { CheckIcon } from "lucide-react";
 
-import { type Tone,toneClasses } from "@/components/shared/status";
+import { type Tone, toneClasses } from "@/components/shared/status";
 import { cn } from "@/lib/utils";
 
 /**

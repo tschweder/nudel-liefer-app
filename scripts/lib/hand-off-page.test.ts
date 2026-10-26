@@ -18,7 +18,11 @@ const topic = (extra: Partial<HandOffTopic> = {}): HandOffTopic => ({
   search: { de: ["waren typ hinzufügen"], zh: ["添加产品"] },
   steps: [
     { text: { de: "Produkte öffnen.", zh: "打开产品。" }, label: "Produkte" },
-    { text: { de: "Neues Produkt anlegen.", zh: "新建产品。" }, label: "Neues Produkt", result: "Produkt angelegt." },
+    {
+      text: { de: "Neues Produkt anlegen.", zh: "新建产品。" },
+      label: "Neues Produkt",
+      result: "Produkt angelegt.",
+    },
   ],
   after: { de: "Danach ist es sofort bestellbar.", zh: "之后即可下单。" },
   route: "/de/admin/products/new",

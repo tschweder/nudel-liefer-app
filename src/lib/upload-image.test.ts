@@ -14,7 +14,8 @@ import { JPEG_QUALITY, type UploadGrant } from "./uploads";
 
 const grant: UploadGrant = {
   storageKey: "customers/6f1e6a2c-0000-4000-8000-000000000000.jpg",
-  uploadUrl: "https://s3.test/nudel-photos/customers/6f1e6a2c-0000-4000-8000-000000000000.jpg?sig=x",
+  uploadUrl:
+    "https://s3.test/nudel-photos/customers/6f1e6a2c-0000-4000-8000-000000000000.jpg?sig=x",
   method: "PUT",
   headers: { "Content-Type": "image/jpeg" },
   expiresAt: "2099-07-02T08:05:00.000Z",
@@ -63,9 +64,9 @@ describe("resizeImage", () => {
 
   it("refuses a file that is not an image at all", async () => {
     stubCanvas();
-    await expect(resizeImage(new Blob(["%PDF"], { type: "application/pdf" }))).rejects.toMatchObject(
-      { code: "NOT_AN_IMAGE" },
-    );
+    await expect(
+      resizeImage(new Blob(["%PDF"], { type: "application/pdf" })),
+    ).rejects.toMatchObject({ code: "NOT_AN_IMAGE" });
   });
 
   it("names HEIC as a limitation instead of a generic decode failure", async () => {
@@ -102,7 +103,12 @@ describe("requestUploadGrant", () => {
   const fetchWith = (response: Response) => vi.fn(async () => response) as unknown as typeof fetch;
 
   it("returns the grant the server issued", async () => {
-    const result = await requestUploadGrant("customer-photo", blob, undefined, fetchWith(json(grant)));
+    const result = await requestUploadGrant(
+      "customer-photo",
+      blob,
+      undefined,
+      fetchWith(json(grant)),
+    );
     expect(result).toMatchObject({ storageKey: grant.storageKey, uploadUrl: grant.uploadUrl });
   });
 
@@ -127,9 +133,9 @@ describe("requestUploadGrant", () => {
     const failing = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     }) as unknown as typeof fetch;
-    await expect(requestUploadGrant("customer-photo", blob, undefined, failing)).rejects.toMatchObject(
-      { code: "REQUEST_FAILED" },
-    );
+    await expect(
+      requestUploadGrant("customer-photo", blob, undefined, failing),
+    ).rejects.toMatchObject({ code: "REQUEST_FAILED" });
 
     const controller = new AbortController();
     controller.abort();
@@ -178,7 +184,10 @@ class FakeXhr {
 describe("uploadImage", () => {
   it("resizes, asks for a grant, PUTs the blob and returns the storage key", async () => {
     stubCanvas();
-    vi.stubGlobal("fetch", vi.fn(async () => json(grant)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(grant)),
+    );
     const xhrs: FakeXhr[] = [];
     vi.stubGlobal(
       "XMLHttpRequest",
@@ -204,7 +213,10 @@ describe("uploadImage", () => {
 
   it("never reports success when the PUT is rejected", async () => {
     stubCanvas();
-    vi.stubGlobal("fetch", vi.fn(async () => json(grant)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(grant)),
+    );
     vi.stubGlobal(
       "XMLHttpRequest",
       class extends FakeXhr {

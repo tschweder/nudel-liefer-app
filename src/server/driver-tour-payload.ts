@@ -147,8 +147,8 @@ export async function getDriverTourResponse(
           sku: item.sku,
           name: name.success ? name.data : null,
           unit: item.unit,
-          quantityCents: item.quantityCents,
-          previousQuantityCents: item.previousQuantityCents,
+          quantity: item.quantity,
+          previousQuantity: item.previousQuantity,
         };
       }),
     };

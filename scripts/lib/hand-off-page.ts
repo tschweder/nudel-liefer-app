@@ -11,7 +11,12 @@
  *   JavaScript; the search box and the language switch are the only enhancements.
  * - German UI labels are never translated: they are shown verbatim in a code span.
  */
-import type { HandOffArea, HandOffContent, HandOffText, HandOffTopic } from "../../content/hand-off/types";
+import type {
+  HandOffArea,
+  HandOffContent,
+  HandOffText,
+  HandOffTopic,
+} from "../../content/hand-off/types";
 
 export const HAND_OFF_AREAS: { id: HandOffArea; de: string; zh: string }[] = [
   { id: "buero", de: "Büro (Admin)", zh: "办公室（管理端）" },
@@ -22,11 +27,7 @@ export const HAND_OFF_AREAS: { id: HandOffArea; de: string; zh: string }[] = [
 ];
 
 const esc = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const text = (value: HandOffText, lang: "de" | "zh") => (lang === "de" ? value.de : value.zh);
 
@@ -56,19 +57,21 @@ export function handOffProblems(content: HandOffContent): string[] {
       problems.push(`${where}: unknown area "${topic.area}"`);
   }
   const matches = content.topics.filter((topic) =>
-    [...topic.search.de, ...topic.search.zh].some((term) => term.toLowerCase() === "waren typ hinzufügen"),
+    [...topic.search.de, ...topic.search.zh].some(
+      (term) => term.toLowerCase() === "waren typ hinzufügen",
+    ),
   );
   if (matches.length !== 1)
-    problems.push(`"waren typ hinzufügen" must resolve to exactly one topic (got ${matches.length})`);
+    problems.push(
+      `"waren typ hinzufügen" must resolve to exactly one topic (got ${matches.length})`,
+    );
   return problems;
 }
 
 const stepHtml = (topic: HandOffTopic, lang: "de" | "zh") =>
   topic.steps
     .map((step) => {
-      const label = step.label
-        ? ` <span class="label">«${esc(step.label)}»</span>`
-        : "";
+      const label = step.label ? ` <span class="label">«${esc(step.label)}»</span>` : "";
       const result = step.result ? ` <span class="result">→ ${esc(step.result)}</span>` : "";
       return `<li>${esc(text(step.text, lang))}${label}${result}</li>`;
     })

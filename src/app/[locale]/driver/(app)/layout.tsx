@@ -8,13 +8,7 @@ import { createAppFormatters } from "@/lib/format";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { getFactoryTimezone } from "@/server/settings";
 
-async function Gate({
-  locale,
-  children,
-}: {
-  locale: string;
-  children: ReactNode;
-}) {
+async function Gate({ locale, children }: { locale: string; children: ReactNode }) {
   // Everything in this route group (not the login page) needs a driver or an admin (support view).
   const actor = await requirePageActor("driver", locale);
   const formatters = createAppFormatters(

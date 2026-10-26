@@ -21,12 +21,9 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
   const tu = await getTranslations({ locale, namespace: "driver.units" });
   const format = await getFormatter({ locale });
 
-  const quantity = (cents: number) =>
-    format.number(cents / 100, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const unitText = (unit: string, countCents: number) =>
-    isUnit(unit)
-      ? tu(unit as "KG" | "PACK" | "CRATE" | "PIECE", { count: countCents / 100 })
-      : "";
+  const quantity = (value: number) => format.number(value, { maximumFractionDigits: 0 });
+  const unitText = (unit: string, count: number) =>
+    isUnit(unit) ? tu(unit as "KG" | "PACK" | "CRATE" | "PIECE", { count }) : "";
   const products = new Map(tour.products.map((p) => [p.id, p]));
   const label = (productId: string) => {
     const p = products.get(productId);
@@ -122,9 +119,9 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                   >
                     <td className="break-words py-1 pe-2">{renderName(row.productId)}</td>
                     <td className="py-1 text-end text-lg font-bold whitespace-nowrap">
-                      <span data-testid="load-sheet-total-qty">{quantity(row.quantityCents)}</span>{" "}
+                      <span data-testid="load-sheet-total-qty">{quantity(row.quantity)}</span>{" "}
                       <span className="text-[0.85em] font-semibold">
-                        {unitText(row.unit, row.quantityCents)}
+                        {unitText(row.unit, row.quantity)}
                       </span>
                     </td>
                   </tr>
@@ -188,9 +185,9 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
                                   {renderName(item.productId)}
                                 </span>
                                 <span className="shrink-0 font-bold whitespace-nowrap">
-                                  {quantity(item.quantityCents)}{" "}
+                                  {quantity(item.quantity)}{" "}
                                   <span className="text-[0.85em] font-semibold">
-                                    {unitText(unit, item.quantityCents)}
+                                    {unitText(unit, item.quantity)}
                                   </span>
                                 </span>
                               </li>

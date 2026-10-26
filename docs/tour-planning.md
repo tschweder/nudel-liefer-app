@@ -1,15 +1,16 @@
 ---
 covers:
-- src/server/tour-*.ts
-- src/server/tours.ts
-- src/domain/tour*.ts
-- src/domain/day-tours.ts
-- src/domain/routing.ts
-- src/domain/load-sheet.ts
+  - src/server/tour-*.ts
+  - src/server/tours.ts
+  - src/domain/tour*.ts
+  - src/domain/day-tours.ts
+  - src/domain/routing.ts
+  - src/domain/load-sheet.ts
 stamp: 9a6e423cf24ebe1ac3bcf106a4e7027506c1c9da42cacbb2181c18cdc3b57755
 status: fresh
 stale_since: null
 ---
+
 # Tour planning
 
 The tour-planning module turns a day's **CONFIRMED orders** into tours, releases them to drivers,
@@ -25,8 +26,8 @@ These are pure TypeScript modules with no framework or database imports.
 
 - `StopOrderInput` is one confirmed order: `id`, `customerId`, `items`. `PlannedStop` merges every
   order of a customer into one stop, keeping `orderIds` and summing quantities per product.
-- `quantityToCents` parses a `Decimal(10,2)` value (string, number or Prisma `Decimal`) into exact
-  hundredths; it throws on invalid or more-than-2-decimal quantities.
+- Quantities are whole numbers (NUD-137): `StopOrderInput.items[].quantity` is an `Int` and
+  `buildStops` sums them per product.
 - `buildStops(orders)` produces one stop per customer (input order of first appearance); the caller
   passes only CONFIRMED orders of one day.
 - `hasConfirmedPin` / `partitionByPin`: a customer can be routed only when the admin confirmed the

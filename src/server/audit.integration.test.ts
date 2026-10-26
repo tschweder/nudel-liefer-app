@@ -182,7 +182,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
 
   describe("orders", () => {
     it("writes one entry per create, with the lines", async () => {
-      const id = await newOrder(c1, [[p1, "2,5"]]);
+      const id = await newOrder(c1, [[p1, "3"]]);
       const rows = await entries({ entity: "Order", entityId: id });
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ actorId: adminId, action: "order.create" });
@@ -190,28 +190,28 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         customerId: c1,
         status: "CONFIRMED",
         deliveryDate: DAY_TEXT,
-        lines: [{ productId: p1, before: null, after: 250 }],
+        lines: [{ productId: p1, before: null, after: 300 }],
       });
     });
 
     it("changing a quantity creates exactly one entry with before and after", async () => {
       const id = await newOrder(c1, [
-        [p1, "2.5"],
+        [p1, "3"],
         [p2, "1"],
       ]);
       const res = await orderActions.updateOrderAction(id, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
         lines: [
-          { productId: p1, quantity: "9" },
-          { productId: p2, quantity: "1" },
+          { productId: p1, quantity: 9 },
+          { productId: p2, quantity: 1 },
         ],
       });
       expect(res.ok).toBe(true);
       const rows = await entries({ entity: "Order", entityId: id, action: "order.update" });
       expect(rows).toHaveLength(1);
       expect(rows[0]!.actorId).toBe(adminId);
-      expect(rows[0]!.diff).toEqual({ lines: [{ productId: p1, before: 250, after: 900 }] });
+      expect(rows[0]!.diff).toEqual({ lines: [{ productId: p1, before: 300, after: 900 }] });
     });
 
     it("a save that changes nothing writes no entry", async () => {
@@ -219,7 +219,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
       await orderActions.updateOrderAction(id, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
-        lines: [{ productId: p1, quantity: "2.00" }],
+        lines: [{ productId: p1, quantity: 2 }],
       });
       expect(await actions({ entityId: id })).toEqual(["order.create"]);
     });
@@ -230,7 +230,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         deliveryDate: "2099-07-02",
         status: "DRAFT",
         internalNote: "x".repeat(500),
-        lines: [{ productId: p2, quantity: "4" }],
+        lines: [{ productId: p2, quantity: 4 }],
       });
       const [, update] = await entries({ entityId: id });
       const diff = update!.diff as Record<string, unknown>;
@@ -261,7 +261,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         createOrder(
           t.prisma,
           adminId,
-          { customerId: c1, deliveryDate: DAY_TEXT, lines: [{ productId: p1, quantity: "1" }] },
+          { customerId: c1, deliveryDate: DAY_TEXT, lines: [{ productId: p1, quantity: 1 }] },
           new Date("2099-01-01T00:00:00Z"),
           storage,
           boom,
@@ -320,7 +320,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
       await orderActions.updateOrderAction(o1, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
-        lines: [{ productId: p1, quantity: "7" }],
+        lines: [{ productId: p1, quantity: 7 }],
       });
       const tour = await t.prisma.tour.findUniqueOrThrow({ where: { id: tourId } });
       const res = await tourActions.reReleaseTourAction({
@@ -482,11 +482,11 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
 
   describe("history reads", () => {
     it("shows the order history with product names, newest first, to admins only", async () => {
-      const id = await newOrder(c1, [[p1, "2.5"]]);
+      const id = await newOrder(c1, [[p1, "3"]]);
       await orderActions.updateOrderAction(id, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
-        lines: [{ productId: p1, quantity: "9" }],
+        lines: [{ productId: p1, quantity: 9 }],
       });
       const history = await orderHistoryQuery(id);
       expect(history.map((h) => h.action)).toEqual(["order.update", "order.create"]);
@@ -496,7 +496,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
           kind: "line",
           sku: "P1",
           productName: expect.objectContaining({ de: "Spaghetti" }),
-          before: 250,
+          before: 300,
           after: 900,
         }),
       ]);

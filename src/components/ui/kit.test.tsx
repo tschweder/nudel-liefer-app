@@ -144,12 +144,7 @@ describe("FormField", () => {
 
   it("keeps an appending aria-describedby from the caller", () => {
     render(
-      <FormField
-        id="email"
-        label="E-Mail"
-        description="Dienstliche Adresse"
-        error="Pflichtfeld"
-      >
+      <FormField id="email" label="E-Mail" description="Dienstliche Adresse" error="Pflichtfeld">
         <input aria-describedby="external-hint" />
       </FormField>,
     );

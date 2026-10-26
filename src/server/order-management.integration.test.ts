@@ -109,7 +109,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     const result = await createOrderAction({
       customerId,
       deliveryDate: D1,
-      lines: [{ productId: p1, quantity: "2,5" }],
+      lines: [{ productId: p1, quantity: "3" }],
       ...extra,
     });
     if (!result.ok) throw new Error(`create failed: ${result.error}`);
@@ -119,7 +119,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     updateOrderAction(id, {
       deliveryDate: D1,
       status: "CONFIRMED",
-      lines: [{ productId: p1, quantity: "2,5" }],
+      lines: [{ productId: p1, quantity: "3" }],
       ...extra,
     });
   const load = (id: string) =>
@@ -150,7 +150,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       [{ user: { id: inactiveAdmin.id } }, "UNAUTHENTICATED"],
     ];
     const calls: Array<() => Promise<unknown>> = [
-      () => updateOrderAction(id, { deliveryDate: D2, lines: [{ productId: p1, quantity: "99" }] }),
+      () => updateOrderAction(id, { deliveryDate: D2, lines: [{ productId: p1, quantity: 99 }] }),
       () => cancelOrderAction(id),
       () => duplicateOrderAction(id, D2),
     ];
@@ -163,7 +163,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     const order = await load(id);
     expect(order.status).toBe("CONFIRMED");
     expect(order.deliveryDate).toEqual(date(D1));
-    expect(await quantities(id)).toEqual(["p1=2.5"]);
+    expect(await quantities(id)).toEqual(["p1=3"]);
     expect(await t.prisma.order.count()).toBe(1);
   });
 
@@ -175,15 +175,15 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         status: "DRAFT",
         internalNote: "neu",
         lines: [
-          { productId: p1, quantity: "3.25" },
-          { productId: p2, quantity: "10" },
+          { productId: p1, quantity: "4" },
+          { productId: p2, quantity: 10 },
         ],
       });
       expect(result).toEqual({ ok: true, id, status: "DRAFT" });
       const order = await load(id);
       expect(order).toMatchObject({ status: "DRAFT", internalNote: "neu", customerId });
       expect(order.deliveryDate).toEqual(date(D2));
-      expect(await quantities(id)).toEqual(["p1=3.25", "p2=10"]);
+      expect(await quantities(id)).toEqual(["p1=4", "p2=10"]);
       // Replacing the lines leaves no orphans.
       expect(await t.prisma.orderItem.count()).toBe(2);
     });
@@ -191,9 +191,11 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     it("validates quantities exactly like order entry and changes nothing on failure", async () => {
       const id = await create();
       const bad: Array<Record<string, unknown>> = [
-        { lines: [{ productId: p1, quantity: "0" }] },
+        { lines: [{ productId: p1, quantity: 0 }] },
         { lines: [{ productId: p1, quantity: "-1" }] },
         { lines: [{ productId: p1, quantity: "1.000" }] },
+        { lines: [{ productId: p1, quantity: "2,5" }] },
+        { lines: [{ productId: p1, quantity: 2.5 }] },
         { lines: [{ productId: p1, quantity: "abc" }] },
         { lines: [{ productId: p1, quantity: "" }] },
         { lines: [] },
@@ -210,19 +212,19 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       }
       expect(await updateOrderAction(id, "nonsense")).toEqual({ ok: false, error: "invalid" });
       expect(await updateOrderAction(id, null)).toEqual({ ok: false, error: "invalid" });
-      expect(await quantities(id)).toEqual(["p1=2.5"]);
+      expect(await quantities(id)).toEqual(["p1=3"]);
       expect((await load(id)).deliveryDate).toEqual(date(D1));
     });
 
-    it("merges a product entered twice and accepts both decimal separators", async () => {
+    it("merges a product entered twice (digit strings add up)", async () => {
       const id = await create();
       await edit(id, {
         lines: [
-          { productId: p1, quantity: "1,5" },
-          { productId: p1, quantity: "2.25" },
+          { productId: p1, quantity: "2" },
+          { productId: p1, quantity: "3" },
         ],
       });
-      expect(await quantities(id)).toEqual(["p1=3.75"]);
+      expect(await quantities(id)).toEqual(["p1=5"]);
     });
 
     it("never changes the customer or the screenshot, whatever the client sends", async () => {
@@ -261,24 +263,22 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     });
 
     it("a deactivated product may stay in the order but cannot be added", async () => {
-      const id = await create({ lines: [{ productId: inactiveProduct, quantity: "2" }] });
+      const id = await create({ lines: [{ productId: inactiveProduct, quantity: 2 }] });
       await t.prisma.product.update({ where: { id: inactiveProduct }, data: { active: false } });
       expect(
         await edit(id, {
           lines: [
-            { productId: inactiveProduct, quantity: "5" },
-            { productId: p1, quantity: "1" },
+            { productId: inactiveProduct, quantity: 5 },
+            { productId: p1, quantity: 1 },
           ],
         }),
       ).toMatchObject({ ok: true });
       const other = await create({ customerId: otherCustomerId });
-      expect(await edit(other, { lines: [{ productId: inactiveProduct, quantity: "1" }] })).toEqual(
-        {
-          ok: false,
-          error: "product_inactive",
-        },
-      );
-      expect(await edit(other, { lines: [{ productId: "nope", quantity: "1" }] })).toEqual({
+      expect(await edit(other, { lines: [{ productId: inactiveProduct, quantity: 1 }] })).toEqual({
+        ok: false,
+        error: "product_inactive",
+      });
+      expect(await edit(other, { lines: [{ productId: "nope", quantity: 1 }] })).toEqual({
         ok: false,
         error: "product_not_found",
       });
@@ -325,14 +325,14 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     });
 
     it("cancelled and draft orders leave the totals and are never offered to a tour", async () => {
-      const keep = await create({ lines: [{ productId: p1, quantity: "2" }] });
-      const gone = await create({ lines: [{ productId: p1, quantity: "50" }] });
-      await create({ status: "DRAFT", lines: [{ productId: p1, quantity: "70" }] });
+      const keep = await create({ lines: [{ productId: p1, quantity: 2 }] });
+      const gone = await create({ lines: [{ productId: p1, quantity: 50 }] });
+      await create({ status: "DRAFT", lines: [{ productId: p1, quantity: 70 }] });
       await cancelOrderAction(gone);
       const { totals } = await orderOverviewQuery({ from: D1, to: D1 });
       expect(totals).toHaveLength(1);
       expect(totals[0]).toMatchObject({ date: D1, orderCount: 1 });
-      expect(totals[0]?.products.map((p) => [p.sku, p.quantity])).toEqual([["P1", "2.00"]]);
+      expect(totals[0]?.products.map((p) => [p.sku, p.quantity])).toEqual([["P1", 2]]);
       const forTour = await listConfirmedOrdersForDate(t.prisma, date(D1));
       expect(forTour.map((o) => o.id)).toEqual([keep]);
     });
@@ -348,8 +348,8 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         screenshotKey: key,
         internalNote: "Hinterhof",
         lines: [
-          { productId: p1, quantity: "2,5" },
-          { productId: p2, quantity: "7" },
+          { productId: p1, quantity: "3" },
+          { productId: p2, quantity: 7 },
         ],
       });
       const result = await duplicateOrderAction(id, D3);
@@ -366,9 +366,9 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         createdById: adminId,
       });
       expect(copy.deliveryDate).toEqual(date(D3));
-      expect(await quantities(result.id)).toEqual(["p1=2.5", "p2=7"]);
+      expect(await quantities(result.id)).toEqual(["p1=3", "p2=7"]);
       // The original is untouched.
-      expect(await quantities(id)).toEqual(["p1=2.5", "p2=7"]);
+      expect(await quantities(id)).toEqual(["p1=3", "p2=7"]);
       expect((await load(id)).status).toBe("CONFIRMED");
     });
 
@@ -395,7 +395,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         error: "customer_inactive",
       });
 
-      const withProduct = await create({ lines: [{ productId: inactiveProduct, quantity: "1" }] });
+      const withProduct = await create({ lines: [{ productId: inactiveProduct, quantity: 1 }] });
       await t.prisma.product.update({ where: { id: inactiveProduct }, data: { active: false } });
       expect(await duplicateOrderAction(withProduct, D2)).toEqual({
         ok: false,
@@ -428,7 +428,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       ]);
 
       await reset();
-      await edit(id, { deliveryDate: D2, lines: [{ productId: p1, quantity: "9" }] });
+      await edit(id, { deliveryDate: D2, lines: [{ productId: p1, quantity: 9 }] });
       expect([await outdated(t1), await outdated(t2), await outdated(t3)]).toEqual([
         false,
         true,
@@ -462,7 +462,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       const t1 = await tour(D1);
       const draft = await create({ status: "DRAFT" });
       expect(await outdated(t1)).toBe(false);
-      await edit(draft, { status: "DRAFT", lines: [{ productId: p1, quantity: "7" }] });
+      await edit(draft, { status: "DRAFT", lines: [{ productId: p1, quantity: 7 }] });
       await cancelOrderAction(draft);
       expect(await outdated(t1)).toBe(false);
 
@@ -470,9 +470,9 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       expect(await outdated(t1)).toBe(true);
       await t.prisma.tour.updateMany({ data: { isOutdated: false } });
       await edit(id, { internalNote: "only a note" }); // same customer, day and quantities
-      await edit(id, { lines: [{ productId: p1, quantity: "2.50" }] });
+      await edit(id, { lines: [{ productId: p1, quantity: "3" }] }); // same quantity as a string
       expect(await outdated(t1)).toBe(false);
-      await edit(id, { lines: [{ productId: p1, quantity: "3" }] }); // quantity changed
+      await edit(id, { lines: [{ productId: p1, quantity: 4 }] }); // quantity changed
       expect(await outdated(t1)).toBe(true);
     });
 
@@ -496,7 +496,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         createOrder(
           t.prisma,
           adminId,
-          { customerId, deliveryDate: D1, lines: [{ productId: p1, quantity: "1" }] },
+          { customerId, deliveryDate: D1, lines: [{ productId: p1, quantity: 1 }] },
           today,
           new FakeStorage(),
           boom,
@@ -512,13 +512,13 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
           {
             deliveryDate: D1,
             status: "CONFIRMED",
-            lines: [{ productId: p1, quantity: "9" }],
+            lines: [{ productId: p1, quantity: 9 }],
           },
           today,
           boom,
         ),
       ).rejects.toThrow("hook failed");
-      expect(await quantities(id)).toEqual(["p1=2.5"]);
+      expect(await quantities(id)).toEqual(["p1=3"]);
 
       await expect(cancelOrder(t.prisma, adminId, id, today, boom)).rejects.toThrow("hook failed");
       expect((await load(id)).status).toBe("CONFIRMED");
@@ -527,7 +527,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     it("a rejected change does not flag anything", async () => {
       const id = await create();
       const t1 = await tour(D1);
-      await edit(id, { lines: [{ productId: p1, quantity: "0" }] });
+      await edit(id, { lines: [{ productId: p1, quantity: 0 }] });
       await duplicateOrderAction(id, "2020-01-01");
       await cancelOrderAction("nope");
       expect(await outdated(t1)).toBe(false);
@@ -571,8 +571,8 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     it("shows rows with line counts, quantities and the tour link", async () => {
       const id = await create({
         lines: [
-          { productId: p1, quantity: "2,5" },
-          { productId: p2, quantity: "1" },
+          { productId: p1, quantity: "3" },
+          { productId: p2, quantity: 1 },
         ],
       });
       const other = await create({ customerId: otherCustomerId });
@@ -582,7 +582,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       });
       const { rows } = await orderOverviewQuery({ from: D1, to: D1 });
       const row = rows.find((r) => r.id === id);
-      expect(row?.items.map((i) => i.quantity)).toEqual(["2.5", "1"]);
+      expect(row?.items.map((i) => i.quantity)).toEqual([3, 1]);
       expect(row?.tour).toEqual({ tourId, stopId: stop.id });
       expect(rows.find((r) => r.id === other)?.tour).toBeNull();
       expect((await orderDetailQuery(id))?.tour).toEqual({ tourId, stopId: stop.id });
@@ -591,19 +591,19 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
     it("totals per date match the sum of the confirmed orders and ignore the other filters", async () => {
       await create({
         lines: [
-          { productId: p2, quantity: "1,25" },
-          { productId: p1, quantity: "2" },
+          { productId: p2, quantity: "1" },
+          { productId: p1, quantity: 2 },
         ],
       });
       await create({
         customerId: otherCustomerId,
         lines: [
-          { productId: p1, quantity: "0.5" },
-          { productId: p3, quantity: "10" },
+          { productId: p1, quantity: "1" },
+          { productId: p3, quantity: 10 },
         ],
       });
-      await create({ deliveryDate: D2, lines: [{ productId: p1, quantity: "4" }] });
-      await create({ status: "DRAFT", lines: [{ productId: p1, quantity: "100" }] });
+      await create({ deliveryDate: D2, lines: [{ productId: p1, quantity: 4 }] });
+      await create({ status: "DRAFT", lines: [{ productId: p1, quantity: 100 }] });
 
       const { totals } = await orderOverviewQuery({ from: D1, to: D2, customer: customerId });
       expect(totals.map((d) => [d.date, d.orderCount])).toEqual([
@@ -612,11 +612,11 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       ]);
       // Sorted by the product sort order; exact sums.
       expect(totals[0]?.products.map((p) => [p.sku, p.quantity])).toEqual([
-        ["P1", "2.50"],
-        ["P2", "1.25"],
-        ["P3", "10.00"],
+        ["P1", 3],
+        ["P2", 1],
+        ["P3", 10],
       ]);
-      expect(totals[1]?.products.map((p) => [p.sku, p.quantity])).toEqual([["P1", "4.00"]]);
+      expect(totals[1]?.products.map((p) => [p.sku, p.quantity])).toEqual([["P1", 4]]);
     });
 
     it("reports truncation instead of hiding rows silently", async () => {

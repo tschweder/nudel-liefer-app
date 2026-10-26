@@ -92,7 +92,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         })
         .then((c) => c.id);
     /** A confirmed order created through the real action (so the outdated hook runs). */
-    const lateOrder = async (customerId: string, quantity: string, productId = p1) => {
+    const lateOrder = async (customerId: string, quantity: number, productId = p1) => {
       state.session = { user: { id: adminId } };
       const result = await orderActions.createOrderAction({
         customerId,
@@ -102,7 +102,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       if (!result.ok) throw new Error(`create failed: ${result.error}`);
       return result.id;
     };
-    const seedOrder = (customerId: string, quantity: string, productId = p1) =>
+    const seedOrder = (customerId: string, quantity: number, productId = p1) =>
       t.prisma.order
         .create({
           data: {
@@ -144,8 +144,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
     async function completedDay() {
       const c1 = await customer("C1", 0.1);
       const c2 = await customer("C2", 0.2);
-      const o1 = await seedOrder(c1, "2");
-      const o2 = await seedOrder(c2, "4");
+      const o1 = await seedOrder(c1, 2);
+      const o2 = await seedOrder(c2, 4);
       const built = await generate();
       if (!built.ok) throw new Error(`generate failed: ${built.error}`);
       await release(built.tourId);
@@ -197,8 +197,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("flags nothing on the completed tour but reports the late orders to the office", async () => {
       const { c1, t1 } = await completedDay();
       const c3 = await customer("C3", 0.3);
-      await lateOrder(c1, "3"); // a delivered customer orders again
-      await lateOrder(c3, "5", p2); // a customer that was not on the tour
+      await lateOrder(c1, 3); // a delivered customer orders again
+      await lateOrder(c3, 5, p2); // a customer that was not on the tour
 
       // markOutdatedForDate leaves the completed tour alone (history).
       expect(await tourRow(t1)).toMatchObject({ status: "COMPLETED", isOutdated: false });
@@ -212,9 +212,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ["C1", true],
         ["C3", true],
       ]);
-      expect(p.late.lateOrders[0].items).toMatchObject([
-        { productId: p1, beforeCents: 0, afterCents: 300 },
-      ]);
+      expect(p.late.lateOrders[0].items).toMatchObject([{ productId: p1, before: 0, after: 3 }]);
       expect(p.late.conflicts).toEqual([]);
       // The ordinary builder still refuses a completed tour; it does not create the follow-up itself.
       expect(await generate()).toMatchObject({ ok: false, error: "tour_not_editable" });
@@ -223,7 +221,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("the overview marks late orders and the dashboard counts them", async () => {
       const { c1, o1 } = await completedDay();
-      const late = await lateOrder(c1, "3");
+      const late = await lateOrder(c1, 3);
       const overview = await orderOverviewQuery({ from: DAY_TEXT, to: DAY_TEXT });
       const flags = Object.fromEntries(overview.rows.map((r) => [r.id, r.late === true]));
       expect(flags).toMatchObject({ [late]: true, [o1]: false });
@@ -239,8 +237,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("creates a follow-up tour with only the unlinked orders and leaves the completed tour untouched", async () => {
       const { c1, o1, o2, t1 } = await completedDay();
       const c3 = await customer("C3", 0.3);
-      const late1 = await lateOrder(c1, "3");
-      const late3 = await lateOrder(c3, "5", p2);
+      const late1 = await lateOrder(c1, 3);
+      const late3 = await lateOrder(c3, 5, p2);
       const stopsBefore = await t.prisma.stop.findMany({
         where: { tourId: t1 },
         orderBy: { sequence: "asc" },
@@ -273,7 +271,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(linked).not.toContain(o1);
       expect(linked).not.toContain(o2);
       const c1Stop = t2.stops.find((s) => s.customerId === c1)!;
-      expect(c1Stop.items).toEqual([{ productId: p1, quantityCents: 300 }]); // 3, not 2 + 3
+      expect(c1Stop.items).toEqual([{ productId: p1, quantity: 3 }]); // 3, not 2 + 3
       expect(t2.stops).toHaveLength(2);
 
       // Both tours of the day are listed, the one that needs work is selected; no late orders left.
@@ -321,12 +319,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const { c1, t1 } = await completedDay();
       const c3 = await customer("C3", 0.3);
       const c4 = await customer("C4", 0.4);
-      await lateOrder(c1, "3");
-      await lateOrder(c3, "5");
+      await lateOrder(c1, 3);
+      await lateOrder(c3, 5);
       const first = await followUp();
       if (!first.ok) throw new Error(first.error);
 
-      await lateOrder(c4, "1");
+      await lateOrder(c4, 1);
       expect(await tourRow(t1)).toMatchObject({ isOutdated: false });
       expect(await tourRow(first.tourId)).toMatchObject({ isOutdated: true });
 
@@ -344,7 +342,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
       expect(stops.map((s) => s.customer.customerNumber).sort()).toEqual(["C1", "C3", "C4"]);
       expect(stops.find((s) => s.customerId === c1)!.items).toEqual([
-        { productId: p1, quantityCents: 300 },
+        { productId: p1, quantity: 3 },
       ]);
       expect(await t.prisma.tour.count()).toBe(2);
       expect(await tourRow(t1)).toMatchObject({ status: "COMPLETED" });
@@ -352,7 +350,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("the driver sees the follow-up tour once it is released and the completed one before", async () => {
       const { c1, t1 } = await completedDay();
-      await lateOrder(c1, "3");
+      await lateOrder(c1, 3);
       const result = await followUp();
       if (!result.ok) throw new Error(result.error);
 
@@ -362,7 +360,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await release(result.tourId);
       const driverTour = await getDriverTour(t.prisma, driverId, DAY_TEXT);
       expect(driverTour).toMatchObject({ id: result.tourId, status: "RELEASED", updated: false });
-      expect(driverTour?.stops.map((s) => s.items.map((i) => i.quantityCents))).toEqual([[300]]);
+      expect(driverTour?.stops.map((s) => s.items.map((i) => i.quantity))).toEqual([[3]]);
 
       // Delivering the follow-up stop completes that tour; the driver's choice is stable.
       await deliverAll(result.tourId);
@@ -371,7 +369,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       // Another late order: a third tour is possible (every tour of the day is completed again).
       const c5 = await customer("C5", 0.5);
-      await lateOrder(c5, "1");
+      await lateOrder(c5, 1);
       expect((await plan()).late.canCreateFollowUp).toBe(true);
       const third = await followUp();
       expect(third).toMatchObject({ ok: true, mode: "follow_up", stopCount: 1 });
@@ -380,9 +378,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("re-releasing the follow-up tour only diffs its own orders", async () => {
       const { c1, o1 } = await completedDay();
-      const late = await lateOrder(c1, "3");
+      const late = await lateOrder(c1, 3);
       const c3 = await customer("C3", 0.3);
-      await lateOrder(c3, "5");
+      await lateOrder(c3, 5);
       const result = await followUp();
       if (!result.ok) throw new Error(result.error);
       await release(result.tourId);
@@ -392,7 +390,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const edited = await orderActions.updateOrderAction(late, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
-        lines: [{ productId: p1, quantity: "4" }],
+        lines: [{ productId: p1, quantity: 4 }],
       });
       expect(edited.ok).toBe(true);
       const p = await plan();
@@ -401,12 +399,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(p.tour?.diff?.added).toEqual([]);
       expect(p.tour?.diff?.removed).toEqual([]);
       expect(
-        p.tour?.diff?.changed.map((s) => [
-          s.customerNumber,
-          s.items[0].beforeCents,
-          s.items[0].afterCents,
-        ]),
-      ).toEqual([["C1", 300, 400]]);
+        p.tour?.diff?.changed.map((s) => [s.customerNumber, s.items[0].before, s.items[0].after]),
+      ).toEqual([["C1", 3, 4]]);
 
       const tour = await tourRow(result.tourId);
       const rr = await reReleaseTourWith(reDeps(), {
@@ -427,7 +421,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const edited = await orderActions.updateOrderAction(o1, {
         deliveryDate: DAY_TEXT,
         status: "CONFIRMED",
-        lines: [{ productId: p1, quantity: "6" }],
+        lines: [{ productId: p1, quantity: 6 }],
       });
       expect(edited.ok).toBe(true);
       expect(await tourRow(t1)).toMatchObject({ status: "COMPLETED", isOutdated: false });
@@ -437,9 +431,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(p.late.canCreateFollowUp).toBe(false);
       expect(p.late.conflicts).toHaveLength(1);
       expect(p.late.conflicts[0]).toMatchObject({ customerId: c1, customerNumber: "C1" });
-      expect(p.late.conflicts[0].items).toMatchObject([
-        { productId: p1, beforeCents: 200, afterCents: 600 },
-      ]);
+      expect(p.late.conflicts[0].items).toMatchObject([{ productId: p1, before: 2, after: 6 }]);
       // Nothing to follow up: the changed quantity is not an unlinked order.
       expect(await followUp()).toMatchObject({ ok: false, error: "no_late_orders" });
       expect(await t.prisma.tour.count()).toBe(1);
@@ -448,14 +440,14 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const cancelled = await orderActions.cancelOrderAction(o1);
       expect(cancelled.ok).toBe(true);
       expect((await plan()).late.conflicts[0].items).toMatchObject([
-        { productId: p1, beforeCents: 200, afterCents: 0 },
+        { productId: p1, before: 2, after: 0 },
       ]);
     });
 
     it("reports nothing for days that are not finished, and refuses a follow-up there", async () => {
       // No tour at all.
       const c1 = await customer("C1", 0.1);
-      await seedOrder(c1, "2");
+      await seedOrder(c1, 2);
       expect((await plan()).late).toMatchObject({ lateOrderCount: 0, canCreateFollowUp: false });
       expect(await followUp()).toMatchObject({ ok: false, error: "follow_up_not_allowed" });
 
@@ -463,7 +455,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const built = await generate();
       if (!built.ok) throw new Error(built.error);
       const c2 = await customer("C2", 0.2);
-      await lateOrder(c2, "1");
+      await lateOrder(c2, 1);
       expect((await plan()).late).toMatchObject({ lateOrderCount: 0, canCreateFollowUp: false });
       expect(await tourRow(built.tourId)).toMatchObject({ isOutdated: true });
       expect(await followUp()).toMatchObject({ ok: false, error: "follow_up_not_allowed" });
@@ -475,7 +467,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // A released tour with a new order: still the re-release path, no late order.
       await release(built.tourId);
       const c3 = await customer("C3", 0.3);
-      await lateOrder(c3, "1");
+      await lateOrder(c3, 1);
       const p = await plan();
       expect(p.late.lateOrderCount).toBe(0);
       expect(p.tour?.diff?.added.map((s) => s.customerNumber)).toEqual(["C3"]);
@@ -484,7 +476,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("keeps customers without a confirmed pin out of the follow-up tour and says so", async () => {
       const { t1 } = await completedDay();
       const noPin = await customer("C8", 0.8, { pinConfirmed: false });
-      await lateOrder(noPin, "2");
+      await lateOrder(noPin, 2);
       let p = await plan();
       expect(p.late.lateOrders).toMatchObject([{ customerNumber: "C8", routable: false }]);
       expect(p.late.canCreateFollowUp).toBe(false);
@@ -497,7 +489,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await t.prisma.tour.count()).toBe(1);
 
       const c9 = await customer("C9", 0.9);
-      await lateOrder(c9, "1");
+      await lateOrder(c9, 1);
       expect(await followUp()).toMatchObject({
         ok: true,
         stopCount: 1,
@@ -522,7 +514,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     describe("createFollowUpTourAction", () => {
       it("rejects anonymous callers and drivers without writing anything", async () => {
         await completedDay();
-        await lateOrder(await customer("C3", 0.3), "1");
+        await lateOrder(await customer("C3", 0.3), 1);
         const tours = await t.prisma.tour.count();
         const audits = await t.prisma.auditLog.count();
         for (const [session, code] of [
@@ -540,7 +532,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       it("validates its input and builds the follow-up through the real entry for an admin", async () => {
         await completedDay();
-        await lateOrder(await customer("C3", 0.3), "1");
+        await lateOrder(await customer("C3", 0.3), 1);
         state.session = { user: { id: adminId } };
         for (const bad of [{}, { date: DAY_TEXT, extra: 1 }, DAY_TEXT, null]) {
           expect(await actions.createFollowUpTourAction(bad)).toMatchObject({

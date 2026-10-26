@@ -22,7 +22,13 @@ type Variant = "icon" | "row" | "labeled";
  * `icon`: admin header (40 px). `row`: driver overflow sheet (48 px, the driver touch floor).
  * `labeled`: login screens, where the theme should be reachable before signing in.
  */
-export function ThemeToggle({ variant = "icon", className }: { variant?: Variant; className?: string }) {
+export function ThemeToggle({
+  variant = "icon",
+  className,
+}: {
+  variant?: Variant;
+  className?: string;
+}) {
   const t = useTranslations("common.theme");
   const [pending, startTransition] = useTransition();
 

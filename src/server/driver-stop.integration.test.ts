@@ -105,7 +105,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     const order = (
       customerId: string,
       status: "CONFIRMED" | "DRAFT" | "CANCELLED",
-      lines: Array<[string, string]>,
+      lines: Array<[string, number]>,
     ) =>
       t.prisma.order.create({
         data: {
@@ -119,17 +119,17 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     // Customer 1: two confirmed orders for the same day are merged into one stop; a draft and a
     // cancelled order never count.
     await order(customerIds[0], "CONFIRMED", [
-      [spaghetti.id, "12.5"],
-      [penne.id, "2"],
+      [spaghetti.id, 13],
+      [penne.id, 2],
     ]);
     await order(customerIds[0], "CONFIRMED", [
-      [spaghetti.id, "2.5"],
-      [penne.id, "1"],
+      [spaghetti.id, 3],
+      [penne.id, 1],
     ]);
-    await order(customerIds[0], "DRAFT", [[spaghetti.id, "99"]]);
-    await order(customerIds[0], "CANCELLED", [[penne.id, "77"]]);
-    await order(customerIds[1], "CONFIRMED", [[spaghetti.id, "5"]]);
-    await order(customerIds[2], "CONFIRMED", [[penne.id, "4"]]);
+    await order(customerIds[0], "DRAFT", [[spaghetti.id, 99]]);
+    await order(customerIds[0], "CANCELLED", [[penne.id, 77]]);
+    await order(customerIds[1], "CONFIRMED", [[spaghetti.id, 5]]);
+    await order(customerIds[2], "CONFIRMED", [[penne.id, 4]]);
 
     const built = await generateTourWith(
       {
@@ -192,8 +192,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     expect(stop.customer.customerNumber).toBe("K1");
     const d = await detail(driverId, first, "de");
     expect(d?.stop.items).toMatchObject([
-      { name: "Spaghetti lose", germanName: "Spaghetti lose", unit: "KG", quantityCents: 1500 },
-      { name: "Penne", germanName: "Penne", unit: "PACK", quantityCents: 300 },
+      { name: "Spaghetti lose", germanName: "Spaghetti lose", unit: "KG", quantity: 16 },
+      { name: "Penne", germanName: "Penne", unit: "PACK", quantity: 3 },
     ]);
   });
 

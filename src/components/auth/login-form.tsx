@@ -17,7 +17,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { isAppLocale, LOCALE_LABELS } from "@/lib/locale-resolution";
 import { LOCALES } from "@/lib/localized-text";
 import { cn } from "@/lib/utils";
-import { adminLoginAction, driverLoginAction,type LoginState } from "@/server/auth/actions";
+import { adminLoginAction, driverLoginAction, type LoginState } from "@/server/auth/actions";
 import { setLocaleAction } from "@/server/locale-actions";
 
 /** Codes for the six-digit PIN; also drives the client-side pre-check (F1). */
@@ -71,7 +71,9 @@ function LanguagePills({ callbackUrl }: { callbackUrl?: string }) {
     if (!isAppLocale(next) || next === locale) return;
     startTransition(async () => {
       await setLocaleAction(next);
-      router.replace(callbackUrl ? { pathname, query: { callbackUrl } } : pathname, { locale: next });
+      router.replace(callbackUrl ? { pathname, query: { callbackUrl } } : pathname, {
+        locale: next,
+      });
     });
   };
 
@@ -148,7 +150,8 @@ function DriverLoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
   // The server's `invalid` code is the "wrong credentials" case: name the actual reason under the
   // field, while the spec-required banner keeps the generic `auth.errors.invalid` sentence.
-  const pinError = fieldErrors.pin ?? (state.error === "invalid" ? t("errors.credentials") : undefined);
+  const pinError =
+    fieldErrors.pin ?? (state.error === "invalid" ? t("errors.credentials") : undefined);
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-6">
@@ -212,7 +215,11 @@ function DriverLoginForm({ callbackUrl }: { callbackUrl?: string }) {
         </div>
 
         {state.error ? (
-          <p role="alert" className="text-base font-medium text-destructive" data-testid="login-error">
+          <p
+            role="alert"
+            className="text-base font-medium text-destructive"
+            data-testid="login-error"
+          >
             {t(`errors.${state.error}`)}
           </p>
         ) : null}
@@ -283,7 +290,9 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
     <main className="flex min-h-dvh w-full flex-1 flex-col lg:flex-row">
       <aside className="hidden flex-col justify-between gap-8 bg-gradient-to-br from-primary to-primary-hover p-12 text-primary-foreground lg:flex lg:w-[45%]">
         <BrandMark onPrimary />
-        <p className="max-w-md text-2xl leading-snug font-medium">{t("adminLogin.brandSentence")}</p>
+        <p className="max-w-md text-2xl leading-snug font-medium">
+          {t("adminLogin.brandSentence")}
+        </p>
         <p className="text-sm text-primary-foreground/80">{tCommon("appName")}</p>
       </aside>
 
@@ -367,10 +376,7 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
           </form>
         </Card>
 
-        <Link
-          href="/driver/login"
-          className={buttonVariants({ variant: "ghost", size: "lg" })}
-        >
+        <Link href="/driver/login" className={buttonVariants({ variant: "ghost", size: "lg" })}>
           {t("adminLogin.driverLink")}
         </Link>
       </div>

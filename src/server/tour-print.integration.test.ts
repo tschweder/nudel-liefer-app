@@ -72,8 +72,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
           createdById: adminId,
           items: {
             create: [
-              { productId: spag, quantity: `${(i % 4) + 1}` },
-              ...(i % 2 === 0 ? [{ productId: flour, quantity: "2.5" }] : []),
+              { productId: spag, quantity: (i % 4) + 1 },
+              ...(i % 2 === 0 ? [{ productId: flour, quantity: 3 }] : []),
             ],
           },
         },
@@ -155,17 +155,13 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
     expect(print.stops).toHaveLength(30);
     const totals = loadSheetTotals(print.stops, print.products);
     const sum = async (productId: string) =>
-      Math.round(
-        Number(
-          (await t.prisma.orderItem.aggregate({ where: { productId }, _sum: { quantity: true } }))
-            ._sum.quantity ?? 0,
-        ) * 100,
-      );
+      (await t.prisma.orderItem.aggregate({ where: { productId }, _sum: { quantity: true } }))._sum
+        .quantity ?? 0;
     expect(totals).toEqual([
-      { productId: flour, unit: "KG", quantityCents: await sum(flour) },
-      { productId: spag, unit: "PACK", quantityCents: await sum(spag) },
+      { productId: flour, unit: "KG", quantity: await sum(flour) },
+      { productId: spag, unit: "PACK", quantity: await sum(spag) },
     ]);
-    expect(totals[0]!.quantityCents).toBe(15 * 250);
+    expect(totals[0]!.quantity).toBe(15 * 3);
     // load order: the last stop first
     expect(loadOrder(print.stops).map((s) => s.sequence)).toEqual(
       Array.from({ length: 30 }, (_, i) => 30 - i),
@@ -177,17 +173,16 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
     const before = (await tourPrintQuery(tourId))!;
     const item = await t.prisma.orderItem.findFirstOrThrow({ where: { productId: spag } });
     await t.prisma.$transaction(async (tx) => {
-      await tx.orderItem.update({ where: { id: item.id }, data: { quantity: "99" } });
+      await tx.orderItem.update({ where: { id: item.id }, data: { quantity: 99 } });
       await createTourService(t.prisma).markOutdatedForDate(DAY, tx);
     });
     const after = (await tourPrintQuery(tourId))!;
     expect(after.isOutdated).toBe(true);
     expect(after.stops.map((s) => s.items)).toEqual(before.stops.map((s) => s.items));
     expect(
-      loadSheetTotals(after.stops, after.products).find((x) => x.productId === spag)!.quantityCents,
+      loadSheetTotals(after.stops, after.products).find((x) => x.productId === spag)!.quantity,
     ).toBe(
-      loadSheetTotals(before.stops, before.products).find((x) => x.productId === spag)!
-        .quantityCents,
+      loadSheetTotals(before.stops, before.products).find((x) => x.productId === spag)!.quantity,
     );
   });
 

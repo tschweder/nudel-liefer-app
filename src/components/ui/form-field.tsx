@@ -67,16 +67,15 @@ export function FormField({
     .filter(Boolean)
     .join(" ");
 
-  const control =
-    childElement
-      ? cloneElement(childElement as ReactElement<Record<string, unknown>>, {
-          // Keep the external `<Label htmlFor>` pointing at the real control, even when the caller
-          // did not set an id itself.
-          id: childId ?? ids.control,
-          "aria-describedby": describedBy || undefined,
-          "aria-invalid": error ? true : undefined,
-        })
-      : children;
+  const control = childElement
+    ? cloneElement(childElement as ReactElement<Record<string, unknown>>, {
+        // Keep the external `<Label htmlFor>` pointing at the real control, even when the caller
+        // did not set an id itself.
+        id: childId ?? ids.control,
+        "aria-describedby": describedBy || undefined,
+        "aria-invalid": error ? true : undefined,
+      })
+    : children;
 
   return (
     <div data-slot="form-field" className={cn("flex flex-col gap-1.5", className)}>

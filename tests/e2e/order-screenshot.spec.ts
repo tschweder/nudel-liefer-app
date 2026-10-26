@@ -37,7 +37,7 @@ const IMAGE_IN_PAGE = `
     ctx.fillStyle = "#000";
     ctx.font = "48px sans-serif";
     ctx.fillText("Bitte 10 kg Spaghetti", 60, 200);
-    ctx.fillText("und 2,5 Packungen Penne", 60, 300);
+    ctx.fillText("und 3 Packungen Penne", 60, 300);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const dt = new DataTransfer();
     dt.items.add(new File([blob], "whatsapp.png", { type: "image/png" }));
@@ -194,7 +194,7 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
     await lines.nth(0).getByTestId("line-quantity").fill("10");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await pickProduct(1, "PENN");
-    await lines.nth(1).getByTestId("line-quantity").fill("2,5");
+    await lines.nth(1).getByTestId("line-quantity").fill("3");
     await expect(pane).toBeVisible();
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("split-view-filled.png") });

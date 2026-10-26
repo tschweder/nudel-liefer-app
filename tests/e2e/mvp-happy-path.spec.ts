@@ -174,7 +174,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await admin.getByTestId("order-date").fill(today);
     const lines = admin.getByTestId("order-line");
     await pickProduct(admin, lines.nth(0), "SPAG");
-    await lines.nth(0).getByTestId("line-quantity").fill("2,5");
+    await lines.nth(0).getByTestId("line-quantity").fill("3");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
     await pickProduct(admin, lines.nth(1), "PENN");
@@ -189,7 +189,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
       [number],
     );
     expect(stored.rows).toEqual([
-      { status: "CONFIRMED", date: today, items: ["PENN-5=4.00", "SPAG-5=2.50"] },
+      { status: "CONFIRMED", date: today, items: ["PENN-5=4", "SPAG-5=3"] },
     ]);
 
     // ---------------------------------------------------------------- admin: generate + release

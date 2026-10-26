@@ -46,7 +46,10 @@ function merge(base: Tree, extra: Tree): Tree {
   return out;
 }
 
-const MESSAGES = merge(de as unknown as Tree, fragment.de as unknown as Tree) as AbstractIntlMessages;
+const MESSAGES = merge(
+  de as unknown as Tree,
+  fragment.de as unknown as Tree,
+) as AbstractIntlMessages;
 
 const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 

@@ -219,8 +219,8 @@ test("order quantity changed after release: banner with diff, re-release keeps d
       changeKind: "CHANGED",
       changedInRevision: 2,
     });
-    expect(byCustomer(f.b.id).items[0].quantityCents).toBe(500);
-    expect(byCustomer(f.c.id).items[0].quantityCents).toBe(400);
+    expect(byCustomer(f.b.id).items[0].quantity).toBe(500);
+    expect(byCustomer(f.c.id).items[0].quantity).toBe(400);
     const tour = (
       await f.client.query(
         `SELECT "status","isOutdated","releaseRevision","reReleasedAt" IS NOT NULL AS re FROM "Tour" WHERE "date"=$1`,

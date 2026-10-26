@@ -7,7 +7,7 @@ import path from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { type BackupConfig,backupFileName } from "../lib/backup";
+import { type BackupConfig, backupFileName } from "../lib/backup";
 import { countRows, run, runBackup, runRestoreVerify, tocDataTables } from "./core";
 import type { BackupObject, BackupStore } from "./store";
 

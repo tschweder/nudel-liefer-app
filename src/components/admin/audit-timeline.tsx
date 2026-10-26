@@ -117,11 +117,7 @@ export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
 
   if (entries.length === 0) {
     return (
-      <Card
-        className="gap-1 p-5"
-        aria-labelledby="audit-history"
-        data-testid="audit-timeline"
-      >
+      <Card className="gap-1 p-5" aria-labelledby="audit-history" data-testid="audit-timeline">
         {heading}
         <p className="text-base text-muted-foreground" data-testid="audit-empty">
           {t("empty")}

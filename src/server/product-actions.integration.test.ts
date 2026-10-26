@@ -258,7 +258,7 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
         deliveryDate: new Date("2026-11-02"),
         status: "CONFIRMED",
         createdById: adminId,
-        items: { create: [{ productId: b, quantity: "2.5" }] },
+        items: { create: [{ productId: b, quantity: 3 }] },
       },
     });
     expect((await activeProductsQuery()).map((p) => p.sku)).toEqual(["A", "B", "C"]);
@@ -292,7 +292,7 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
         customerId: customer.id,
         deliveryDate: new Date("2026-11-02"),
         createdById: adminId,
-        items: { create: [{ productId: id, quantity: "1" }] },
+        items: { create: [{ productId: id, quantity: 1 }] },
       },
     });
     expect(await updateProductAction(id, { ...valid, sku: "U1", unit: "CRATE" })).toEqual({

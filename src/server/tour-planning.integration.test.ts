@@ -78,7 +78,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
         },
       })
       .then((c) => c.id);
-  const order = (customerId: string, quantity = "1") =>
+  const order = (customerId: string, quantity = 1) =>
     t.prisma.order.create({
       data: {
         customerId,

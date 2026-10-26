@@ -93,10 +93,7 @@ export type ClusterGroup = { ids: string[]; x: number; y: number };
  * member within the threshold, which is what keeps a tight row of pins readable. Pure, so the
  * 28 px rule is testable without Leaflet.
  */
-export function clusterPoints(
-  points: MapPoint[],
-  threshold = STOP_OVERLAP_PX,
-): ClusterGroup[] {
+export function clusterPoints(points: MapPoint[], threshold = STOP_OVERLAP_PX): ClusterGroup[] {
   const groups: Array<{ ids: string[]; members: MapPoint[]; sumX: number; sumY: number }> = [];
   for (const point of points) {
     const group = groups.find((candidate) =>
@@ -163,13 +160,7 @@ function MapBridge({ onMap }: { onMap: (map: L.Map) => void }) {
   return null;
 }
 
-function FitBounds({
-  points,
-  enabled,
-}: {
-  points: Array<[number, number]>;
-  enabled: boolean;
-}) {
+function FitBounds({ points, enabled }: { points: Array<[number, number]>; enabled: boolean }) {
   const map = useMap();
   const key = points.map((p) => p.join(",")).join(";");
   useEffect(() => {
@@ -200,7 +191,11 @@ function ClusterWatcher({
       const point = map.latLngToContainerPoint([stop.lat, stop.lng]);
       return { id: stop.id, x: point.x, y: point.y };
     });
-    onClusters(clusterPoints(points).filter((group) => group.ids.length > 1).map((g) => g.ids));
+    onClusters(
+      clusterPoints(points)
+        .filter((group) => group.ids.length > 1)
+        .map((g) => g.ids),
+    );
   }, [map, stops, onClusters]);
   const eventHandlers = useMemo(() => ({ zoomend: measure, moveend: measure }), [measure]);
   useMapEvents(eventHandlers);
@@ -239,8 +234,7 @@ function StopMarker({
     }),
     [onSelect, onHover, stop.id],
   );
-  const cue =
-    stop.status === "DELIVERED" ? "✓" : stop.status === "PROBLEM" ? "!" : null;
+  const cue = stop.status === "DELIVERED" ? "✓" : stop.status === "PROBLEM" ? "!" : null;
   return (
     <>
       <Marker
@@ -299,11 +293,7 @@ function DepotMarker({ depot, box }: { depot: LatLng & { label?: string }; box: 
         {depot.label ? <Tooltip>{depot.label}</Tooltip> : null}
       </Marker>
       {createPortal(
-        <span
-          className="nudel-depot-marker"
-          data-testid="depot-marker"
-          aria-hidden="true"
-        >
+        <span className="nudel-depot-marker" data-testid="depot-marker" aria-hidden="true">
           <House className="size-5" aria-hidden />
         </span>,
         container,
@@ -338,10 +328,11 @@ function ClusterMarker({
   }, [key]);
 
   const zoomIn = useCallback(() => {
-    map.fitBounds(
-      L.latLngBounds(stops.map((stop) => [stop.lat, stop.lng] as [number, number])),
-      { padding: [48, 48], maxZoom: 18, animate: true },
-    );
+    map.fitBounds(L.latLngBounds(stops.map((stop) => [stop.lat, stop.lng] as [number, number])), {
+      padding: [48, 48],
+      maxZoom: 18,
+      animate: true,
+    });
   }, [map, stops]);
 
   const eventHandlers = useMemo(

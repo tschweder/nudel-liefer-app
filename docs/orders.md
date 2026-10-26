@@ -1,15 +1,16 @@
 ---
 covers:
-- src/server/orders.ts
-- src/server/order-*.ts
-- src/server/late-orders.ts
-- src/server/product-*.ts
-- src/server/products.ts
-- src/domain/order*.ts
+  - src/server/orders.ts
+  - src/server/order-*.ts
+  - src/server/late-orders.ts
+  - src/server/product-*.ts
+  - src/server/products.ts
+  - src/domain/order*.ts
 stamp: 03567253045f80f8a80d9b4d7ba496fceacd7ff821fd55212d7018f6f0221ebf
 status: fresh
 stale_since: null
 ---
+
 # Orders (and products)
 
 ## Purpose
@@ -23,28 +24,27 @@ database before reading the input.
 
 ## Files
 
-| File | Role |
-| --- | --- |
-| `src/domain/order.ts` | Pure order-entry rules and the input schema (no DB imports) |
-| `src/domain/order-overview.ts` | Pure overview rules: per-date totals, URL filters, editability (no DB imports) |
-| `src/server/orders.ts` | DB-facing order functions (`create/update/cancel/duplicate`, overview, detail, screenshots) |
-| `src/server/order-actions.ts` | `"use server"` mutations: `createOrderAction`, `updateOrderAction`, `cancelOrderAction`, `duplicateOrderAction`, `confirmedOrderCountAction`, `screenshotPreviewUrlAction` |
-| `src/server/order-queries.ts` | `"use server"` reads: `orderableCustomersQuery`, `orderOverviewQuery`, `orderDetailQuery` |
-| `src/server/late-orders.ts` | Read model for orders stranded after their tours completed |
-| `src/server/products.ts` | DB-facing product functions (`create/update/setActive/move/list/get`) |
-| `src/server/product-actions.ts` | `"use server"` product mutations plus OpenCC name derivation |
-| `src/server/product-queries.ts` | `"use server"` product reads |
+| File                            | Role                                                                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/domain/order.ts`           | Pure order-entry rules and the input schema (no DB imports)                                                                                                                |
+| `src/domain/order-overview.ts`  | Pure overview rules: per-date totals, URL filters, editability (no DB imports)                                                                                             |
+| `src/server/orders.ts`          | DB-facing order functions (`create/update/cancel/duplicate`, overview, detail, screenshots)                                                                                |
+| `src/server/order-actions.ts`   | `"use server"` mutations: `createOrderAction`, `updateOrderAction`, `cancelOrderAction`, `duplicateOrderAction`, `confirmedOrderCountAction`, `screenshotPreviewUrlAction` |
+| `src/server/order-queries.ts`   | `"use server"` reads: `orderableCustomersQuery`, `orderOverviewQuery`, `orderDetailQuery`                                                                                  |
+| `src/server/late-orders.ts`     | Read model for orders stranded after their tours completed                                                                                                                 |
+| `src/server/products.ts`        | DB-facing product functions (`create/update/setActive/move/list/get`)                                                                                                      |
+| `src/server/product-actions.ts` | `"use server"` product mutations plus OpenCC name derivation                                                                                                               |
+| `src/server/product-queries.ts` | `"use server"` product reads                                                                                                                                               |
 
 ## Entry and overview rules (domain)
 
 `src/domain/order.ts`:
 
-- **Quantities are hundredths ("cents").** `parseQuantityCents` accepts `,` or `.` as the
-  decimal separator and at most two decimals; a third decimal is rejected, not rounded or
-  guessed (a wrong delivery quantity is worse than a rejected input). Thousands separators
-  are not supported. `centsToDecimal` turns `250` into `"2.50"` (the stored `Decimal(10,2)`
-  string); `parseQuantity` returns the plain number or `null` when `<= 0`. Limits:
-  `MAX_QUANTITY_CENTS = 9_999_999_999`, `MAX_ORDER_LINES = 100`, `MAX_NOTE_LENGTH = 1000`.
+- **Quantities are whole numbers (D23, NUD-137).** `parseQuantity` accepts only digits
+  (`"3"`, `3`) and returns an integer `1..MAX_QUANTITY` or `null`; `2,5`, `2.5`, `0`, negative
+  numbers and thousands separators are rejected, not rounded or guessed (a wrong delivery
+  quantity is worse than a rejected input). The column is `OrderItem.quantity Int`. Limits:
+  `MAX_QUANTITY = 99_999`, `MAX_ORDER_LINES = 100`, `MAX_NOTE_LENGTH = 1000`.
 - **One product per order line is merged, not rejected**: `mergeOrderLines` adds duplicate
   quantities, keeps order of first appearance, and returns `null` if the sum overflows.
   `hasDuplicateProducts` is the non-blocking hint the form uses.
@@ -61,7 +61,7 @@ database before reading the input.
 
 `src/domain/order-overview.ts`:
 
-- `sumQuantities` is the shared aggregation: an exact sum in hundredths **per product AND
+- `sumQuantities` is the shared aggregation: a sum of whole numbers **per product AND
   unit** — 5 packs + 2 kg is not 7 of anything — sorted by productId then unit.
 - `aggregateTotalsByDate` sums per delivery date **from CONFIRMED orders only**; drafts and
   cancelled orders are neither produced nor delivered, so they never count.
@@ -121,8 +121,8 @@ role is checked by its callers (`tourPlanQuery`, `orderOverviewQuery`, `todayPro
   (stops of completed tours whose linked orders were edited or cancelled after the tour ran;
   the follow-up tour does not deliver the difference), and `canCreateFollowUp` (all tours of
   the day completed and at least one late order routable). Returns the `NO_LATE_ORDERS`
-  constant when there are no tours that day or nothing is late. Quantities are merged in
-  exact hundredths per customer.
+  constant when there are no tours that day or nothing is late. Quantities are merged
+  per customer.
 - `lateOrderIdsForRows(db, rows)` reports which overview rows are late (`CONFIRMED`, on no
   stop, all tours of their day `COMPLETED`) with one query across all involved dates.
 
@@ -164,5 +164,5 @@ reads. Both check `requireRole("ADMIN")` first.
   customers and inactive products remain visible on existing records.
 - Delivery dates must be today or later; overview totals and late-order maths count
   `CONFIRMED` orders only.
-- Quantities are aggregated in exact hundredths and never summed across units; a product's
+- Quantities are aggregated as whole numbers and never summed across units; a product's
   unit is locked once the product appears on an order.

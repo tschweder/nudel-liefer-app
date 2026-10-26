@@ -1,4 +1,4 @@
-import { centsToDecimal, formatCalendarDate, parseCalendarDate } from "./order";
+import { formatCalendarDate, parseCalendarDate } from "./order";
 
 /**
  * Pure rules of the order overview (NUD-032): per-date product totals and the URL filters.
@@ -19,7 +19,7 @@ export type TotalsOrder = {
   /** `YYYY-MM-DD` */
   deliveryDate: string;
   status: OrderStatusValue;
-  items: ReadonlyArray<{ productId: string; quantityCents: number }>;
+  items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
 
 export type DateTotals = {
@@ -27,16 +27,16 @@ export type DateTotals = {
   date: string;
   /** Number of CONFIRMED orders that make up the totals. */
   orderCount: number;
-  products: Array<{ productId: string; quantityCents: number }>;
+  products: Array<{ productId: string; quantity: number }>;
 };
 
-export type QuantityLine = { productId: string; unit?: string; quantityCents: number };
-export type QuantitySum = { productId: string; unit?: string; quantityCents: number };
+export type QuantityLine = { productId: string; unit?: string; quantity: number };
+export type QuantitySum = { productId: string; unit?: string; quantity: number };
 
 const compareStrings = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
- * THE shared aggregation (NUD-032, reused by the load sheet of NUD-091): exact sum in hundredths
+ * THE shared aggregation (NUD-032, reused by the load sheet of NUD-091): exact sum of whole numbers
  * per product AND unit. Lines of the same product with different units are never added together
  * (5 packs + 2 kg is not 7 of anything); lines without a unit form one group per product.
  * Sorted by product id, then unit.
@@ -46,12 +46,12 @@ export function sumQuantities(lines: Iterable<QuantityLine>): QuantitySum[] {
   for (const line of lines) {
     const key = `${line.productId}\u0000${line.unit ?? ""}`;
     const entry = sums.get(key);
-    if (entry) entry.quantityCents += line.quantityCents;
+    if (entry) entry.quantity += line.quantity;
     else
       sums.set(key, {
         productId: line.productId,
         ...(line.unit === undefined ? {} : { unit: line.unit }),
-        quantityCents: line.quantityCents,
+        quantity: line.quantity,
       });
   }
   return [...sums.values()].sort(
@@ -62,7 +62,7 @@ export function sumQuantities(lines: Iterable<QuantityLine>): QuantitySum[] {
 
 /**
  * Sum per product for each delivery date, from CONFIRMED orders only: drafts and cancelled orders
- * never count (they are neither produced nor delivered). Quantities are exact hundredths.
+ * never count (they are neither produced nor delivered). Quantities are whole numbers.
  * Dates ascending, products by id; dates without any confirmed order are omitted.
  */
 export function aggregateTotalsByDate(orders: readonly TotalsOrder[]): DateTotals[] {
@@ -79,15 +79,12 @@ export function aggregateTotalsByDate(orders: readonly TotalsOrder[]): DateTotal
     .map(([date, day]) => ({
       date,
       orderCount: day.orderCount,
-      products: sumQuantities(day.lines).map(({ productId, quantityCents }) => ({
+      products: sumQuantities(day.lines).map(({ productId, quantity }) => ({
         productId,
-        quantityCents,
+        quantity,
       })),
     }));
 }
-
-/** Total in hundredths to the plain string the formatters expect (`"12.50"`). */
-export const totalToDecimal = centsToDecimal;
 
 export type OrderFilters = {
   /** `YYYY-MM-DD`, inclusive */

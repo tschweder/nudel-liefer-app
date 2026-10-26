@@ -77,11 +77,7 @@ export function PinInput({
     } else if (event.key === "Delete") {
       event.preventDefault();
       const from = inputRef.current?.selectionStart ?? 0;
-      commit(
-        digits
-          .filter((_, index) => index !== from)
-          .join(""),
-      );
+      commit(digits.filter((_, index) => index !== from).join(""));
     }
   };
 

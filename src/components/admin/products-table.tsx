@@ -161,11 +161,16 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
 
                 <TableCell className="py-1.5">
                   {/* Artikelnr. */}
-                  <span className="font-mono text-sm text-muted-foreground tabular-nums">{p.sku}</span>
+                  <span className="font-mono text-sm text-muted-foreground tabular-nums">
+                    {p.sku}
+                  </span>
                 </TableCell>
 
                 <TableCell className="min-w-48 py-1.5">
-                  <span className="block text-sm leading-tight font-semibold text-foreground" lang="de">
+                  <span
+                    className="block text-sm leading-tight font-semibold text-foreground"
+                    lang="de"
+                  >
                     {p.name.de}
                   </span>
                   <span
@@ -238,7 +243,9 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {confirming ? t("confirm.deactivateTitle", { name: confirming.name.de ?? confirming.sku }) : null}
+              {confirming
+                ? t("confirm.deactivateTitle", { name: confirming.name.de ?? confirming.sku })
+                : null}
             </DialogTitle>
             <DialogDescription>{t("confirm.deactivateBody")}</DialogDescription>
           </DialogHeader>

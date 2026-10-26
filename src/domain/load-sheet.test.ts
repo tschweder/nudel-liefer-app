@@ -15,10 +15,10 @@ function thirtyStops() {
     id: `s${i + 1}`,
     sequence: i + 1,
     items: [
-      { productId: "p-spag", quantityCents: 100 * ((i % 5) + 1) },
-      { productId: "p-pen", quantityCents: 250 },
-      ...(i % 3 === 0 ? [{ productId: "p-flour", quantityCents: 1250 + i }] : []),
-      ...(i % 7 === 0 ? [{ productId: "p-crate", quantityCents: 100 }] : []),
+      { productId: "p-spag", quantity: (i % 5) + 1 },
+      { productId: "p-pen", quantity: 3 },
+      ...(i % 3 === 0 ? [{ productId: "p-flour", quantity: 13 + i }] : []),
+      ...(i % 7 === 0 ? [{ productId: "p-crate", quantity: 1 }] : []),
     ],
   }));
 }
@@ -31,47 +31,46 @@ describe("loadSheetTotals", () => {
       const expected = stops
         .flatMap((s) => s.items)
         .filter((i) => i.productId === total.productId)
-        .reduce((sum, i) => sum + i.quantityCents, 0);
-      expect(total.quantityCents).toBe(expected);
+        .reduce((sum, i) => sum + i.quantity, 0);
+      expect(total.quantity).toBe(expected);
     }
     // nothing lost, nothing invented: grand total over all lines is identical
-    const grand = (xs: Array<{ quantityCents: number }>) =>
-      xs.reduce((a, x) => a + x.quantityCents, 0);
+    const grand = (xs: Array<{ quantity: number }>) => xs.reduce((a, x) => a + x.quantity, 0);
     expect(grand(totals)).toBe(grand(stops.flatMap((s) => s.items)));
-    expect(totals.find((t) => t.productId === "p-pen")?.quantityCents).toBe(30 * 250);
+    expect(totals.find((t) => t.productId === "p-pen")?.quantity).toBe(30 * 3);
   });
 
   it("uses the same aggregation function as the order overview", () => {
     const stops = thirtyStops();
     const viaOverview = sumQuantities(stops.flatMap((s) => s.items)).map(
-      (s) => [s.productId, s.quantityCents] as const,
+      (s) => [s.productId, s.quantity] as const,
     );
     const viaSheet = loadSheetTotals(stops, products).map(
-      (t) => [t.productId, t.quantityCents] as const,
+      (t) => [t.productId, t.quantity] as const,
     );
     expect(new Map(viaSheet)).toEqual(new Map(viaOverview));
   });
 
-  it("is exact in hundredths (no float drift)", () => {
+  it("adds whole numbers exactly", () => {
     const stops = Array.from({ length: 10 }, (_, i) => ({
       id: `s${i}`,
       sequence: i + 1,
-      items: [{ productId: "p-flour", quantityCents: 10 }],
+      items: [{ productId: "p-flour", quantity: 10 }],
     }));
     expect(loadSheetTotals(stops, products)).toEqual([
-      { productId: "p-flour", unit: "KG", quantityCents: 100 },
+      { productId: "p-flour", unit: "KG", quantity: 100 },
     ]);
   });
 
   it("never adds different units together, even for one product id", () => {
     const sums = sumQuantities([
-      { productId: "p", unit: "PACK", quantityCents: 500 },
-      { productId: "p", unit: "KG", quantityCents: 200 },
-      { productId: "p", unit: "PACK", quantityCents: 100 },
+      { productId: "p", unit: "PACK", quantity: 5 },
+      { productId: "p", unit: "KG", quantity: 2 },
+      { productId: "p", unit: "PACK", quantity: 1 },
     ]);
     expect(sums).toEqual([
-      { productId: "p", unit: "KG", quantityCents: 200 },
-      { productId: "p", unit: "PACK", quantityCents: 600 },
+      { productId: "p", unit: "KG", quantity: 2 },
+      { productId: "p", unit: "PACK", quantity: 6 },
     ]);
   });
 
@@ -80,11 +79,11 @@ describe("loadSheetTotals", () => {
       [
         {
           items: [
-            { productId: "p-flour", quantityCents: 100 },
-            { productId: "p-spag", quantityCents: 100 },
-            { productId: "p-pen", quantityCents: 100 },
-            { productId: "p-crate", quantityCents: 100 },
-            { productId: "gone", quantityCents: 300 },
+            { productId: "p-flour", quantity: 1 },
+            { productId: "p-spag", quantity: 1 },
+            { productId: "p-pen", quantity: 1 },
+            { productId: "p-crate", quantity: 1 },
+            { productId: "gone", quantity: 3 },
           ],
         },
       ],
@@ -97,7 +96,7 @@ describe("loadSheetTotals", () => {
       "p-crate",
       "gone",
     ]);
-    expect(totals.at(-1)).toMatchObject({ unit: "", quantityCents: 300 });
+    expect(totals.at(-1)).toMatchObject({ unit: "", quantity: 3 });
   });
 
   it("returns nothing for a tour without items", () => {

@@ -96,16 +96,16 @@ describe.skipIf(!process.env.DATABASE_URL)("driver today screen data", { timeout
     tourId = tour.id;
     // Inserted out of order on purpose: the read model sorts by sequence.
     const rows = [
-      { c: customers[2], seq: 3, items: [{ productId: penne.id, quantityCents: 400 }] },
+      { c: customers[2], seq: 3, items: [{ productId: penne.id, quantity: 4 }] },
       {
         c: customers[0],
         seq: 1,
         items: [
-          { productId: spaghetti.id, quantityCents: 1250 },
-          { productId: penne.id, quantityCents: 200 },
+          { productId: spaghetti.id, quantity: 13 },
+          { productId: penne.id, quantity: 2 },
         ],
       },
-      { c: customers[1], seq: 2, items: [{ productId: spaghetti.id, quantityCents: 500 }] },
+      { c: customers[1], seq: 2, items: [{ productId: spaghetti.id, quantity: 5 }] },
     ];
     for (const r of rows) {
       await t.prisma.stop.create({
@@ -161,8 +161,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver today screen data", { timeout
       lat: 48.21,
       lng: 16.3,
       items: [
-        { name: "意大利面", unit: "KG", quantityCents: 1250 },
-        { name: "笔管面", unit: "PACK", quantityCents: 200 },
+        { name: "意大利面", unit: "KG", quantity: 13 },
+        { name: "笔管面", unit: "PACK", quantity: 2 },
       ],
     });
     expect(today?.depot).toEqual({ name: "Depot", lat: 48.2, lng: 16.3 });

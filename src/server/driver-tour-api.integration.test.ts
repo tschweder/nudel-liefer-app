@@ -138,8 +138,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver tour API (NUD-081)", { timeou
         tourId: tour.id,
         customerId: customers[1].id,
         sequence: 2,
-        items: [{ productId: spaghetti.id, quantityCents: 500 }],
-        previousItems: [{ productId: spaghetti.id, quantityCents: 300 }],
+        items: [{ productId: spaghetti.id, quantity: 5 }],
+        previousItems: [{ productId: spaghetti.id, quantity: 3 }],
         changeKind: "CHANGED",
         changedInRevision: 2,
       },
@@ -150,8 +150,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver tour API (NUD-081)", { timeou
         customerId: customers[0].id,
         sequence: 1,
         items: [
-          { productId: spaghetti.id, quantityCents: 1250 },
-          { productId: penne.id, quantityCents: 200 },
+          { productId: spaghetti.id, quantity: 13 },
+          { productId: penne.id, quantity: 2 },
         ],
         legDurationS: 600,
       },
@@ -216,7 +216,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver tour API (NUD-081)", { timeou
     });
     expect(first.notes).toMatchObject({ de: "Hintereingang", "zh-Hans": "后门" });
     expect(first.deliveryHoursInfo).toBe("Mo-Fr 8-11");
-    expect(first.items.map((i) => i.quantityCents)).toEqual([1250, 200]);
+    expect(first.items.map((i) => i.quantity)).toEqual([13, 2]);
   });
 
   it("keeps the updated-tour data of NUD-043 in the payload", async () => {
@@ -229,8 +229,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver tour API (NUD-081)", { timeou
     });
     expect(data.tour!.stops[1]).toMatchObject({ change: "CHANGED", changedInRevision: 2 });
     expect(data.tour!.stops[1]!.items[0]).toMatchObject({
-      quantityCents: 500,
-      previousQuantityCents: 300,
+      quantity: 5,
+      previousQuantity: 3,
     });
     expect(data.tour!.stops[0]).toMatchObject({ change: null, changedInRevision: null });
   });

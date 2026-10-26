@@ -418,7 +418,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
                       </Label>
                       <Input
                         id={`order-line-quantity-${line.key}`}
-                        inputMode="decimal"
+                        inputMode="numeric"
                         autoComplete="off"
                         value={line.quantity}
                         placeholder={t("quantity")}

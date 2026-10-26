@@ -74,11 +74,11 @@ export async function createDriverFixture(prefix: string, stopCount = 3) {
   );
   const items = [
     [
-      { productId: kg, quantityCents: 1250 },
-      { productId: pack, quantityCents: 400 },
+      { productId: kg, quantity: 13 },
+      { productId: pack, quantity: 4 },
     ],
-    [{ productId: kg, quantityCents: 2700 }],
-    [{ productId: pack, quantityCents: 100 }],
+    [{ productId: kg, quantity: 27 }],
+    [{ productId: pack, quantity: 1 }],
   ];
   const stopIds: string[] = [];
   const names = Array.from({ length: stopCount }, (_, n) => `Trattoria ${n + 1} ${tag}`);
@@ -131,7 +131,7 @@ export async function createDriverFixture(prefix: string, stopCount = 3) {
         customerId,
         i + 1,
         new Date(today.getTime() + (8 + i) * 3600_000),
-        JSON.stringify(items[i] ?? [{ productId: i % 2 ? kg : pack, quantityCents: 500 + i * 50 }]),
+        JSON.stringify(items[i] ?? [{ productId: i % 2 ? kg : pack, quantity: 5 + i }]),
       ],
     );
   }

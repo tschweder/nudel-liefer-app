@@ -80,15 +80,15 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantityCents: 1250 },
-      { productId: pack, quantityCents: 400 },
+      { productId: kg, quantity: 1250 },
+      { productId: pack, quantity: 400 },
     ],
-    [{ productId: kg, quantityCents: 2700 }],
+    [{ productId: kg, quantity: 2700 }],
     [
-      { productId: kg, quantityCents: 500 },
-      { productId: pack, quantityCents: 300 },
+      { productId: kg, quantity: 500 },
+      { productId: pack, quantity: 300 },
     ],
-    [{ productId: pack, quantityCents: 100 }],
+    [{ productId: pack, quantity: 100 }],
   ];
   for (let i = 0; i < 4; i++) {
     const customerId = `cust-${i}-${tag}`;
@@ -285,12 +285,12 @@ test("re-released tour: banner, changed-stop highlight, acknowledged once", asyn
     [
       stopIds[2],
       JSON.stringify([
-        { productId: kgId, quantityCents: 800 },
-        { productId: packId, quantityCents: 300 },
+        { productId: kgId, quantity: 800 },
+        { productId: packId, quantity: 300 },
       ]),
       JSON.stringify([
-        { productId: kgId, quantityCents: 500 },
-        { productId: packId, quantityCents: 300 },
+        { productId: kgId, quantity: 500 },
+        { productId: packId, quantity: 300 },
       ]),
     ],
   );

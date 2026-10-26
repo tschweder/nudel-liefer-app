@@ -373,7 +373,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       customerId: string,
       date: string,
       status: "DRAFT" | "CONFIRMED" | "CANCELLED",
-      qty: string,
+      qty: number,
     ) =>
       t.prisma.order.create({
         data: {
@@ -384,11 +384,11 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
           items: { create: [{ productId: product.id, quantity: qty }] },
         },
       });
-    await order(id, "2026-10-16", "CONFIRMED", "1"); // yesterday
-    await order(id, "2026-10-17", "CONFIRMED", "2.5"); // today
-    await order(id, "2026-10-20", "DRAFT", "4");
-    await order(id, "2026-10-21", "CANCELLED", "9");
-    await order(other.id, "2026-10-20", "CONFIRMED", "7");
+    await order(id, "2026-10-16", "CONFIRMED", 1); // yesterday
+    await order(id, "2026-10-17", "CONFIRMED", 3); // today
+    await order(id, "2026-10-20", "DRAFT", 4);
+    await order(id, "2026-10-21", "CANCELLED", 9);
+    await order(other.id, "2026-10-20", "CONFIRMED", 7);
 
     // 2026-10-17 01:30 in Vienna is still 16 October 23:30 UTC: the factory day decides.
     const now = new Date("2026-10-16T23:30:00Z");
@@ -397,7 +397,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       ["2026-10-17", "CONFIRMED"],
       ["2026-10-20", "DRAFT"],
     ]);
-    expect(orders[0]!.items).toMatchObject([{ quantity: "2.5", unit: "PACK" }]);
+    expect(orders[0]!.items).toMatchObject([{ quantity: 3, unit: "PACK" }]);
     // In UTC it is still 16 October, so yesterday's order is the first one.
     const utc = await listUpcomingOrders(t.prisma, id, "UTC", now);
     expect(utc).toHaveLength(3);

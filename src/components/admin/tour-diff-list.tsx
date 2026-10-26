@@ -67,14 +67,14 @@ export function TourDiffList({
                         {productName(item.name, item.sku, locale)}:{" "}
                         <span className="tabular-nums">
                           {section.key === "added"
-                            ? fmt.quantity(item.afterCents / 100)
+                            ? fmt.quantity(item.after)
                             : section.key === "removed"
-                              ? fmt.quantity(item.beforeCents / 100)
-                              : `${fmt.quantity(item.beforeCents / 100)} → ${fmt.quantity(item.afterCents / 100)}`}
+                              ? fmt.quantity(item.before)
+                              : `${fmt.quantity(item.before)} → ${fmt.quantity(item.after)}`}
                         </span>{" "}
                         {/* The unit belongs to the last quantity shown ("2,5 Packungen"). */}
                         {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
-                          count: (section.key === "removed" ? item.beforeCents : item.afterCents) / 100,
+                          count: section.key === "removed" ? item.before : item.after,
                         })}
                       </li>
                     ))}

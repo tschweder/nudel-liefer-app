@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { toAuditQuantity } from "@/domain/audit";
 import { computeSchedule, departureInstant, hasConfirmedPin, type StopItem } from "@/domain/tour";
 import {
   type ItemChange,
@@ -36,7 +37,7 @@ import type { PlanResult } from "./tour-planning";
 
 // unbounded-ok-start: Stop.items snapshot JSON written by the server
 const itemsSchema = z.array(
-  z.object({ productId: z.string(), quantityCents: z.number().int().nonnegative() }),
+  z.object({ productId: z.string(), quantity: z.number().int().nonnegative() }),
 );
 // unbounded-ok-end
 
@@ -154,8 +155,8 @@ export type DiffItemView = {
   /** `LocalizedText` JSON; the client picks the locale. */
   name: unknown;
   unit: string;
-  beforeCents: number;
-  afterCents: number;
+  before: number;
+  after: number;
 };
 export type DiffStopView = {
   stopId: string | null;
@@ -193,7 +194,7 @@ export async function getTourDiffView(db: ReleaseDb, tour: ReleaseTour): Promise
   const view = (
     stopId: string | null,
     customerId: string,
-    lines: Array<{ productId: string; beforeCents: number; afterCents: number }>,
+    lines: Array<{ productId: string; before: number; after: number }>,
   ): DiffStopView => {
     const c = customers.get(customerId);
     return {
@@ -210,9 +211,9 @@ export async function getTourDiffView(db: ReleaseDb, tour: ReleaseTour): Promise
     };
   };
   const asAdded = (items: StopItem[]) =>
-    items.map((i) => ({ productId: i.productId, beforeCents: 0, afterCents: i.quantityCents }));
+    items.map((i) => ({ productId: i.productId, before: 0, after: i.quantity }));
   const asRemoved = (items: StopItem[]) =>
-    items.map((i) => ({ productId: i.productId, beforeCents: i.quantityCents, afterCents: 0 }));
+    items.map((i) => ({ productId: i.productId, before: i.quantity, after: 0 }));
   return {
     added: d.added.map((e) => view(null, e.customerId, asAdded(e.items))),
     removed: d.removed.map((e) => view(e.stopId, e.customerId, asRemoved(e.items))),
@@ -258,14 +259,26 @@ const fail = (error: Extract<PlanResult, { ok: false }>["error"]) => ({
 
 const depotSchema = z.object({ lat: z.number(), lng: z.number() });
 
-/** The audit view of a diff: per customer the quantities before / after (ids only, hundredths). */
+/** The audit view of a diff: per customer the quantities before / after (ids only, quantities in the audit encoding). */
 function auditStops(diff: TourDiff) {
   const asAdded = (items: StopItem[]) =>
-    items.map((i) => ({ productId: i.productId, before: null, after: i.quantityCents }));
+    items.map((i) => ({
+      productId: i.productId,
+      before: null,
+      after: toAuditQuantity(i.quantity),
+    }));
   const asRemoved = (items: StopItem[]) =>
-    items.map((i) => ({ productId: i.productId, before: i.quantityCents, after: null }));
+    items.map((i) => ({
+      productId: i.productId,
+      before: toAuditQuantity(i.quantity),
+      after: null,
+    }));
   const asChanged = (items: ItemChange[]) =>
-    items.map((i) => ({ productId: i.productId, before: i.beforeCents, after: i.afterCents }));
+    items.map((i) => ({
+      productId: i.productId,
+      before: toAuditQuantity(i.before),
+      after: toAuditQuantity(i.after),
+    }));
   return [
     ...diff.added.map((e) => ({
       kind: "added",
@@ -486,7 +499,7 @@ export async function reReleaseTourWith(
             legDurationS: legs[index].durationS,
             items: entry.items.map((i) => ({
               productId: i.productId,
-              quantityCents: i.quantityCents,
+              quantity: i.quantity,
             })),
           };
           if (entry.kind === "existing") {

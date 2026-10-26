@@ -72,7 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           problemReason: completedDaysAgo === null ? null : "CLOSED",
           problemNote,
           completedAt: completedDaysAgo === null ? null : ago(completedDaysAgo),
-          items: [{ productId: "p", quantityCents: 500 }],
+          items: [{ productId: "p", quantity: 5 }],
           ...extra,
         },
       });

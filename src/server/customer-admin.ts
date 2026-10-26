@@ -275,7 +275,7 @@ export type UpcomingOrder = {
   /** `DATE` value as UTC midnight. */
   deliveryDate: Date;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
-  items: Array<{ id: string; productName: unknown; unit: string; quantity: string }>;
+  items: Array<{ id: string; productName: unknown; unit: string; quantity: number }>;
 };
 
 /**
@@ -315,7 +315,7 @@ export async function listUpcomingOrders(
       id: i.id,
       productName: i.product.name,
       unit: i.product.unit,
-      quantity: i.quantity.toString(),
+      quantity: i.quantity,
     })),
   }));
 }

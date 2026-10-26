@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { type Tone,toneClasses, toneDot } from "@/components/shared/status";
+import { type Tone, toneClasses, toneDot } from "@/components/shared/status";
 import { cn } from "@/lib/utils";
 
 /**

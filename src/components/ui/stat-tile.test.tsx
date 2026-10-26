@@ -15,7 +15,11 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 
 function renderTile(ui: ReactNode) {
-  return render(<NextIntlClientProvider locale="de" messages={{}}>{ui}</NextIntlClientProvider>);
+  return render(
+    <NextIntlClientProvider locale="de" messages={{}}>
+      {ui}
+    </NextIntlClientProvider>,
+  );
 }
 
 describe("StatTile", () => {

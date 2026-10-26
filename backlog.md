@@ -138,7 +138,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 - All server mutations: zod validation + role check on the server. Never trust the client.
 - Domain logic in `src/domain/` must be pure and unit-tested; providers (geocoder, routing, translator, storage) are injected via interfaces and have a **Fake** implementation used in tests and when the API key is missing (log a warning).
 - Dates: `deliveryDate` is a `DATE` column. "Today" is computed in the factory time zone (`Settings.timezone`, default `Europe/Vienna`).
-- Quantities: `Decimal(10,2)`. Display without trailing zeros (`5`, `2.5`).
+- Quantities: `Int` (whole numbers, D23). No decimals anywhere: no half Beutel, no half Karton.
 - Driver UI: touch targets ≥ 48 px, body text ≥ 16 px, quantities ≥ 28 px bold, icons alongside text so the screen is understandable even with an unexpected language.
 - Accessibility: WCAG AA contrast, keyboard-navigable admin.
 - Use soft delete (`active=false` / archive) for customers, products and users. Never hard-delete business data.
@@ -187,7 +187,7 @@ model Photo     { id, customerId, kind, storageKey, width, height, bytes, upload
 model Product   { id, sku(unique), name Json /*LocalizedText*/, unit, active, sortOrder, createdAt, updatedAt }
 model Screenshot{ id, storageKey, uploadedById, createdAt, extraction Json? /*M3*/ }
 model Order     { id, customerId, deliveryDate @db.Date, status, source, screenshotId?, internalNote?, createdById, createdAt, updatedAt, items OrderItem[] }
-model OrderItem { id, orderId, productId, quantity Decimal(10,2) }
+model OrderItem { id, orderId, productId, quantity Int }
 model Tour      { id, date @db.Date, driverId?, status, isOutdated Boolean, locked Boolean,
                   depotSnapshot Json, geometry Json?, totalDistanceM Int?, totalDurationS Int?,
                   optimizedAt?, releasedAt?, completedAt?, createdAt, updatedAt, stops Stop[] }
@@ -291,7 +291,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
 | NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
-| NUD-137 | Whole-number quantities | M2.6 | – | todo |
+| NUD-137 | Whole-number quantities | M2.6 | – | done |
 | NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | todo |
 | NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | todo |
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | todo |
@@ -2217,7 +2217,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-137 · Whole-number quantities
-**Status:** todo · **depends_on:** – · F13
+**Status:** done · **depends_on:** – · F13
 
 **Goal:** no halves exist (no half Beutel, no half Karton). Every quantity is a positive integer.
 
@@ -2229,8 +2229,17 @@ General rules for every ticket in this block:
 - §4.3 rule "Quantities: `Decimal(10,2)`" → "Quantities: `Int`".
 
 **Acceptance criteria**
-- [ ] Entering `2,5` or `2.5` is rejected with a localized message; `3` is accepted.
-- [ ] Migration committed; `pnpm db:seed` works on a fresh DB; totals / load sheet / driver tests pass.
+- [x] Entering `2,5` or `2.5` is rejected with a localized message; `3` is accepted. (Unit tests `order.test.ts`, integration tests in `order-actions` / `order-management`, e2e `orders.spec.ts`)
+- [x] Migration committed; `pnpm db:seed` works on a fresh DB; totals / load sheet / driver tests pass. (Migration `20261026170000_whole_number_quantities`; plain `pnpm db:seed` ran on a fresh DB; unit/integration suites green)
+
+**Implementation notes**
+- Migration `20261026170000_whole_number_quantities` (hand-written SQL, the Prisma schema engine cannot be downloaded in the sandbox): `OrderItem.quantity` → `INTEGER` (rounded half away from zero, never below 1; every non-integer row is reported as a `NOTICE` in the migration output, none on a fresh DB). The JSON snapshots `Stop.items`, `Stop.previousItems` and `Tour.lastChange` are rewritten from `quantityCents`/`beforeCents`/`afterCents` (hundredths) to `quantity`/`before`/`after` (whole numbers) by a temporary PL/pgSQL function.
+- Domain: `parseQuantity` is digits-only (1…`MAX_QUANTITY` = 99 999); `parseQuantityCents`, `centsToDecimal`, `quantityToCents`, `totalToDecimal` are gone; `quantityCents` → `quantity` and `beforeCents`/`afterCents` → `before`/`after` in all domain/server/UI types (48 files, mechanical rename). `createAppFormatters().quantity` formats integers.
+- The **audit log** is append-only and its older rows hold hundredths, so new entries keep that encoding via `toAuditQuantity()` (`src/domain/audit.ts`); `audit-timeline` is unchanged and reads both. Decision logged in §9.
+- Driver payload: `payloadItemSchema` accepts the pre-NUD-137 cached shape (`quantityCents`) so an installed phone keeps working offline until the next refresh.
+- Order form: `inputMode="numeric"`; the decimal hint is replaced by "Mit Enter kommt ein neues Produkt." and `quantityInvalid` says "ganze Zahl von 1 bis 99999" (de, zh-Hans; Hant regenerated). Demo seed data uses whole numbers.
+- Docs: `docs/orders.md`, `data-model.md`, `tour-planning.md`, `audit-and-retention.md`, `uat.md` O-40; backlog §4.3 and §6.
+- Tests: ~100 fixtures moved from decimals/hundredths to whole numbers; new rejection cases for `2,5`, `2.5`, `2.5` (number), `0`, `3.0`.
 
 ---
 
@@ -2867,6 +2876,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-126 | Combined navigation uses `travelmode=driving` for the whole route incl. Parkplatz → entrance | Google Maps URLs allow one travel mode; owner chose one button ("keep it simple") |
 | 2026-10-26 | NUD-152 | Skipped checklist → loading time = `Settings.defaultLoadingMinutes` | Utilization must include loading time (owner) and needs a value when no timestamp exists |
 | 2026-10-26 | NUD-150 | No WhatsApp/WeChat bots and no PWA share target; a pasted-text field + screenshot instead | Owner decision; WeChat has no official bot API for personal accounts |
+| 2026-10-26 | NUD-137 | Audit-log quantities stay in hundredths (`toAuditQuantity`) although order quantities are integers now | The log is append-only; old rows cannot be rewritten, so one encoding keeps one reader |
+| 2026-10-26 | NUD-137 | Existing fractional quantities are rounded half up and never below 1 in the migration; max quantity per line is 99 999 | Simplest integer rule consistent with D23; non-integer rows are reported as NOTICE |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
