@@ -12,7 +12,9 @@ export const CATALOG_PRODUCTS: readonly {
   weightKgPerUnit: number;
   de: string;
   hans: string;
-  hant: string;
+  en: string;
+  sr: string;
+  cs: string;
 }[] = [
   {
     sku: "NUDELN-BEUTEL",
@@ -20,7 +22,9 @@ export const CATALOG_PRODUCTS: readonly {
     weightKgPerUnit: 3,
     de: "Nudeln",
     hans: "面条",
-    hant: "麵條",
+    en: "Noodles",
+    sr: "Nudle",
+    cs: "Nudle",
   },
   {
     sku: "NUDELN-KARTON",
@@ -28,7 +32,9 @@ export const CATALOG_PRODUCTS: readonly {
     weightKgPerUnit: 10,
     de: "Nudeln",
     hans: "面条",
-    hant: "麵條",
+    en: "Noodles",
+    sr: "Nudle",
+    cs: "Nudle",
   },
   {
     sku: "WANTAN-TEIG",
@@ -36,7 +42,9 @@ export const CATALOG_PRODUCTS: readonly {
     weightKgPerUnit: 5,
     de: "Wantan-Teig",
     hans: "馄饨皮",
-    hant: "餛飩皮",
+    en: "Wonton wrappers",
+    sr: "Testo za vonton",
+    cs: "Těsto na wonton",
   },
 ];
 

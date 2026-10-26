@@ -69,6 +69,8 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
   beforeAll(async () => {
     t = await createTestDb();
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    // The migration leaves the catalog product names pending; settle them so only test data counts.
+    await retryPendingTranslations({ db: t.prisma, translator: new FakeTranslator() });
     tourId = (
       await t.prisma.tour.create({
         data: { date: new Date("2099-01-01"), depotSnapshot: {} },
@@ -83,8 +85,12 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
     await t.prisma.customer.deleteMany();
   });
 
-  it("registers both columns that store a LocalizedText", () => {
-    expect(PENDING_SOURCES.map((s) => s.name)).toEqual(["Customer.notes", "Stop.problemNote"]);
+  it("registers every column that stores a LocalizedText", () => {
+    expect(PENDING_SOURCES.map((s) => s.name)).toEqual([
+      "Customer.notes",
+      "Stop.problemNote",
+      "Product.name",
+    ]);
   });
 
   it("outage: the record is saved with the source only, a later run fills it in", async () => {
@@ -106,10 +112,16 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
     const done = await notes(id);
     expect(done.de).toBe(NOTE);
     expect(done["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
-    expect(done["zh-Hant-HK"]).toBe(`[zh-Hans] ${NOTE}`);
-    expect(done["zh-Hant-TW"]).toBe(`[zh-Hans] ${NOTE}`);
+    expect(done.en).toBe(`[en] ${NOTE}`);
+    expect(done["sr-Latn"]).toBe(`[sr-Latn] ${NOTE}`);
+    expect(done.cs).toBe(`[cs] ${NOTE}`);
     expect(done.meta.pendingTranslation).toBeUndefined();
-    expect(done.meta.machine).toEqual({ "zh-Hans": true, "zh-Hant-HK": true, "zh-Hant-TW": true });
+    expect(done.meta.machine).toEqual({
+      en: true,
+      "sr-Latn": true,
+      cs: true,
+      "zh-Hans": true,
+    });
     expect(done.meta.updatedAt).toBe(LATER.toISOString());
 
     // Nothing pending any more: the next run does not call the provider.
@@ -123,7 +135,7 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
       createLocalizedText({ de: NOTE }, "de", { now: NOW, pendingTranslation: true }),
     );
     const stopId = await makeStop(
-      createLocalizedText({ "zh-Hant-TW": "店沒開門" }, "zh-Hant-TW", {
+      createLocalizedText({ cs: "Obchod je zavřený" }, "cs", {
         now: NOW,
         pendingTranslation: true,
       }),
@@ -133,14 +145,16 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
     expect(report.sources).toEqual({
       "Customer.notes": { translated: 1, failed: 0, skipped: 0 },
       "Stop.problemNote": { translated: 1, failed: 0, skipped: 0 },
+      "Product.name": { translated: 0, failed: 0, skipped: 0 },
     });
     expect((await notes(customerId))["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
     const p = await problem(stopId);
-    expect(p.de).toBe("[de] 店沒開門");
-    expect(p["zh-Hans"]).toBe("店没开门");
-    expect(p["zh-Hant-HK"]).toBe("店沒開門");
-    expect(p.meta.source).toBe("zh-Hant-TW");
-    expect(p.meta.machine["zh-Hant-TW"]).toBeUndefined();
+    // Problem notes are only translated into German for the office (NUD-140).
+    expect(p.de).toBe("[de] Obchod je zavřený");
+    expect(p.en).toBeUndefined();
+    expect(p.meta.source).toBe("cs");
+    expect(p.meta.machine.cs).toBeUndefined();
+    expect(p.meta.machine.de).toBe(true);
     expect(p.meta.pendingTranslation).toBeUndefined();
   });
 
@@ -166,15 +180,15 @@ describe.skipIf(!process.env.DATABASE_URL)("translation retry job", { timeout: 6
 
   it("keeps a hand-written locale that was added while the text was pending", async () => {
     const id = await makeCustomer({
-      ...createLocalizedText({ de: NOTE, "zh-Hant-HK": "後門，十點後按鈴" }, "de", {
+      ...createLocalizedText({ de: NOTE, cs: "Zadní vchod, zvonit po 10. hodině" }, "de", {
         now: NOW,
         pendingTranslation: true,
       }),
     });
     await run(new FakeTranslator());
     const done = await notes(id);
-    expect(done["zh-Hant-HK"]).toBe("後門，十點後按鈴");
-    expect(done["zh-Hans"]).toBe("后门，十点后按铃");
+    expect(done.cs).toBe("Zadní vchod, zvonit po 10. hodině");
+    expect(done["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
     expect(done.meta.pendingTranslation).toBeUndefined();
   });
 

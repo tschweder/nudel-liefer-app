@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ShownPhoto } from "@/lib/offline/photo-outbox";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { StopPhotos } from "./stop-photos";
 
 vi.mock("@/lib/offline/photo-outbox-browser", () => ({ enqueuePhoto: vi.fn() }));
@@ -19,8 +20,9 @@ vi.mock("@/lib/upload-image", async (importOriginal) => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 const photo = (url: string): ShownPhoto => ({
@@ -51,19 +53,26 @@ const WORDS: Record<
     prev: "上一张照片",
     close: "关闭",
   },
-  "zh-Hant-HK": {
-    store: "入口",
-    parking: "停車",
-    next: "下一張照片",
-    prev: "上一張照片",
-    close: "關閉",
+  en: {
+    store: "Entrance",
+    parking: "Parking",
+    next: "Next photo",
+    prev: "Previous photo",
+    close: "Close",
   },
-  "zh-Hant-TW": {
-    store: "入口",
-    parking: "停車",
-    next: "下一張照片",
-    prev: "上一張照片",
-    close: "關閉",
+  "sr-Latn": {
+    store: "Ulaz",
+    parking: "Parking",
+    next: "Sledeća fotografija",
+    prev: "Prethodna fotografija",
+    close: "Zatvori",
+  },
+  cs: {
+    store: "Vchod",
+    parking: "Parkování",
+    next: "Další fotka",
+    prev: "Předchozí fotka",
+    close: "Zavřít",
   },
 };
 

@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
 // NUD-072. Needs DATABASE_URL and SEED_ADMIN_PASSWORD (seeded admin) and the Fake translator (no
-// DEEPL_API_KEY): translated text carries a "[de] " prefix. The spec inserts its own zh-Hant-HK
-// driver, customers and a released tour for TODAY, lets the driver report a problem with Chinese
+// DEEPL_API_KEY): translated text carries a "[de] " prefix. The spec inserts its own Czech
+// driver, customers and a released tour for TODAY, lets the driver report a problem with Czech
 // free text in the real driver UI and checks the German translation, the machine marker, the
 // original toggle and the "translation pending" state on the admin tour page. Run it alone: it
 // owns "today's tour" of the database.
@@ -32,7 +32,7 @@ test.beforeAll(async () => {
   userId = `id-${tag}`;
   await db.query(
     `INSERT INTO "User" ("id","role","username","passwordHash","locale","localeChosen","displayName","updatedAt")
-     VALUES ($1,'DRIVER',$2,$3,'zh-Hant-HK',true,'Translation Driver',now())`,
+     VALUES ($1,'DRIVER',$2,$3,'cs',true,'Translation Driver',now())`,
     [userId, username, hash],
   );
   const kg = `prod-kg-${tag}`;
@@ -44,8 +44,9 @@ test.beforeAll(async () => {
       JSON.stringify({
         de: "Spaghetti lose",
         "zh-Hans": "意大利面",
-        "zh-Hant-HK": "意大利麵",
-        "zh-Hant-TW": "義大利麵",
+        en: "Spaghetti lose (en)",
+        "sr-Latn": "Spaghetti lose (sr)",
+        cs: "Spaghetti lose (cs)",
         meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
       }),
     ],
@@ -123,7 +124,7 @@ const stubTiles = (page: Page) =>
 const noHorizontalScroll = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
-const NOTE_HK = "門口鎖住了，沒人應門";
+const NOTE_CS = "Dveře jsou zamčené, nikdo neotevírá";
 
 test("a Cantonese driver's problem text reaches the office as German with the original behind a toggle", async ({
   browser,
@@ -138,23 +139,23 @@ test("a Cantonese driver's problem text reaches the office as German with the or
   await visible(admin, "login-submit").click();
   await expect(admin).toHaveURL(/\/admin$/);
 
-  // The driver works in zh-Hant-HK on a phone and reports a problem with free text.
+  // The driver works in cs on a phone and reports a problem with free text.
   const driverCtx = await browser.newContext({
     viewport: { width: 375, height: 812 },
     hasTouch: true,
   });
   const driver = await driverCtx.newPage();
   await stubTiles(driver);
-  await driver.goto("/zh-Hant-HK/driver/login");
+  await driver.goto("/cs/driver/login");
   const form = driver.getByTestId("driver-login-form");
   await form.locator('input[name="username"]').fill(username);
   await form.locator('input[name="pin"]').fill(PIN);
   await driver.getByTestId("login-submit").click();
-  await expect(driver).toHaveURL(/\/zh-Hant-HK\/driver$/);
-  await driver.goto(`/zh-Hant-HK/driver/stops/${stopIds[0]}`);
+  await expect(driver).toHaveURL(/\/cs\/driver$/);
+  await driver.goto(`/cs/driver/stops/${stopIds[0]}`);
   await visible(driver, "btn-problem").click();
   await driver.getByTestId("reason-CLOSED").click();
-  await driver.getByTestId("problem-note").fill(NOTE_HK);
+  await driver.getByTestId("problem-note").fill(NOTE_CS);
   const submitted = Date.now();
   await driver.getByTestId("problem-submit").click();
   await expect
@@ -177,28 +178,25 @@ test("a Cantonese driver's problem text reaches the office as German with the or
           .problemNote?.de ?? null,
       { timeout: 20_000 },
     )
-    .toBe(`[de] ${NOTE_HK}`);
+    .toBe(`[de] ${NOTE_CS}`);
   const stored = (await db.query(`SELECT "problemNote" FROM "Stop" WHERE "id"=$1`, [stopIds[0]]))
     .rows[0].problemNote;
-  expect(stored["zh-Hant-HK"]).toBe(NOTE_HK);
+  expect(stored.cs).toBe(NOTE_CS);
   expect(stored.meta.pendingTranslation).toBeUndefined();
 
   // Admin tour page: German translation first (machine marker), original on demand.
   await admin.goto(`/de/admin/tours?date=${today}`);
   const row = admin.locator(`[data-stop-id="${stopIds[0]}"]:visible`);
   await expect(row.getByTestId("stop-problem-reason")).toContainText("Geschlossen");
-  await expect(row.getByTestId("stop-problem-german")).toContainText(`[de] ${NOTE_HK}`);
+  await expect(row.getByTestId("stop-problem-german")).toContainText(`[de] ${NOTE_CS}`);
   await expect(row.getByTestId("stop-problem-machine")).toHaveText("maschinell übersetzt");
   await expect(row.getByTestId("stop-problem-original")).toHaveCount(0);
   expect(await noHorizontalScroll(admin)).toBe(true);
   await admin.screenshot({ path: testInfo.outputPath("nud-072-tour-german.png"), fullPage: true });
 
   await row.getByTestId("stop-problem-toggle").click();
-  await expect(row.getByTestId("stop-problem-original")).toContainText(NOTE_HK);
-  await expect(row.getByTestId("stop-problem-original").locator("q")).toHaveAttribute(
-    "lang",
-    "zh-Hant-HK",
-  );
+  await expect(row.getByTestId("stop-problem-original")).toContainText(NOTE_CS);
+  await expect(row.getByTestId("stop-problem-original").locator("q")).toHaveAttribute("lang", "cs");
   await expect(row.getByTestId("stop-problem-original")).toContainText("Originaltext des Fahrers");
   await admin.screenshot({
     path: testInfo.outputPath("nud-072-tour-original.png"),
@@ -210,22 +208,20 @@ test("a Cantonese driver's problem text reaches the office as German with the or
   // Same data in the Chinese UI: strings exist, German text and original still reachable.
   await admin.goto(`/zh-Hans/admin/tours?date=${today}`);
   const rowZh = admin.locator(`[data-stop-id="${stopIds[0]}"]:visible`);
-  await expect(rowZh.getByTestId("stop-problem-german")).toContainText(`[de] ${NOTE_HK}`);
+  await expect(rowZh.getByTestId("stop-problem-german")).toContainText(`[de] ${NOTE_CS}`);
   await rowZh.getByTestId("stop-problem-toggle").click();
-  await expect(rowZh.getByTestId("stop-problem-original")).toContainText(NOTE_HK);
+  await expect(rowZh.getByTestId("stop-problem-original")).toContainText(NOTE_CS);
 
-  // Pending state: a Chinese note whose translation has not arrived yet.
+  // Pending state: a Czech note whose translation has not arrived yet.
   await db.query(
     `UPDATE "Stop" SET "status"='PROBLEM',"problemReason"='NOBODY_THERE',"completedAt"=now(),"problemNote"=$2::jsonb WHERE "id"=$1`,
     [
       stopIds[1],
       JSON.stringify({
-        "zh-Hans": "没人在",
-        "zh-Hant-HK": "沒人在",
-        "zh-Hant-TW": "沒人在",
+        cs: "Nikdo tam není",
         meta: {
-          source: "zh-Hant-HK",
-          machine: { "zh-Hans": true },
+          source: "cs",
+          machine: {},
           updatedAt: new Date().toISOString(),
           pendingTranslation: true,
         },
@@ -235,7 +231,7 @@ test("a Cantonese driver's problem text reaches the office as German with the or
   await admin.goto(`/de/admin/tours?date=${today}`);
   const row2 = admin.locator(`[data-stop-id="${stopIds[1]}"]:visible`);
   await expect(row2.getByTestId("stop-problem-pending")).toHaveText("Übersetzung folgt");
-  await expect(row2.getByTestId("stop-problem-original")).toContainText("沒人在");
+  await expect(row2.getByTestId("stop-problem-original")).toContainText("Nikdo tam není");
   await expect(row2.getByTestId("stop-problem-toggle")).toHaveCount(0);
   await admin.screenshot({ path: testInfo.outputPath("nud-072-tour-pending.png"), fullPage: true });
 

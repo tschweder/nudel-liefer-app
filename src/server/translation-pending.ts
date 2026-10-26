@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import type { LocalizedText } from "@/lib/localized-text";
+import type { AppLocale, LocalizedText } from "@/lib/localized-text";
 
 /**
  * Registry of the database columns that hold a `LocalizedText` which `localize()` may leave
@@ -12,6 +12,8 @@ import type { LocalizedText } from "@/lib/localized-text";
  */
 export type PendingSource = {
   name: string;
+  /** Locales the retry job fills (default: all). A driver's problem note only needs German. */
+  targets?: readonly AppLocale[];
   find(db: PrismaClient, limit: number): Promise<{ id: string; value: unknown }[]>;
   save(
     db: PrismaClient,
@@ -23,7 +25,7 @@ export type PendingSource = {
 
 const json = (text: LocalizedText) => text as unknown as Prisma.InputJsonValue;
 
-const stillPending = (column: "notes" | "problemNote", previous: LocalizedText) =>
+const stillPending = (column: "notes" | "problemNote" | "name", previous: LocalizedText) =>
   [
     { [column]: { path: ["meta", "pendingTranslation"], equals: true } },
     { [column]: { path: ["meta", "updatedAt"], equals: previous.meta.updatedAt } },
@@ -51,6 +53,7 @@ export const customerNotesSource: PendingSource = {
 
 export const stopProblemNoteSource: PendingSource = {
   name: "Stop.problemNote",
+  targets: ["de"],
   async find(db, limit) {
     const rows = await db.stop.findMany({
       where: { problemNote: { path: ["meta", "pendingTranslation"], equals: true } },
@@ -69,7 +72,28 @@ export const stopProblemNoteSource: PendingSource = {
   },
 };
 
+export const productNameSource: PendingSource = {
+  name: "Product.name",
+  async find(db, limit) {
+    const rows = await db.product.findMany({
+      where: { name: { path: ["meta", "pendingTranslation"], equals: true } },
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+      take: limit,
+    });
+    return rows.map((r) => ({ id: r.id, value: r.name }));
+  },
+  async save(db, id, previous, next) {
+    const { count } = await db.product.updateMany({
+      where: { id, AND: [...stillPending("name", previous)] },
+      data: { name: json(next) },
+    });
+    return count === 1;
+  },
+};
+
 export const PENDING_SOURCES: readonly PendingSource[] = [
   customerNotesSource,
   stopProblemNoteSource,
+  productNameSource,
 ];

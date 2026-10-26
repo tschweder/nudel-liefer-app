@@ -293,9 +293,6 @@ const MATRIX: Record<string, Row> = {
   "src/server/product-actions.ts#moveProductAction": adminAction("catalog", async () =>
     (await import("./product-actions")).moveProductAction("x", "up"),
   ),
-  "src/server/product-actions.ts#deriveHantAction": adminAction("catalog", async () =>
-    (await import("./product-actions")).deriveHantAction("测试"),
-  ),
 
   // ---- driver-only server actions
   "src/server/stop-status-actions.ts#stopStatusAction": driverAction(

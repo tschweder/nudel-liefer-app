@@ -13,7 +13,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 ## Conventions (backlog §4)
 
 - Stack: Next.js App Router, TypeScript strict, pnpm, Prisma + PostgreSQL, Tailwind + shadcn/ui, next-intl, zod, Auth.js v5, Vitest, Playwright.
-- Code, identifiers, comments, commits in English; all UI text through next-intl (4 locales: `de`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`). `zh-Hant-*` message files are generated, never hand-edited.
+- Code, identifiers, comments, commits in English; all UI text through next-intl (5 locales: `de`, `en`, `sr-Latn` (Serbian, Latin script), `cs`, `zh-Hans`). The office (admin) screens exist in `de`, `en`, `zh-Hans`; the driver screens in all five. `sr-Latn.json` and `cs.json` carry only the driver namespaces (`common`, `home`, `auth`, `driver`, `pwa`, `errorPages`, `maps`); `pnpm i18n:check` enforces that split and the CLDR plural categories (cs: one/few/many/other, sr: one/few/other). All message files are hand-written; `pnpm i18n:build` only refreshes `src/lib/fatal-messages.json`. Traditional Chinese and OpenCC are gone (D21).
 - Layout: `src/domain` (pure logic, no framework imports), `src/server` (db, services, providers), `src/components`, `src/lib`, `tests/e2e`, `docs`.
 - Server mutations: zod validation + server-side role check. Providers (geocoder, routing, translator, storage) behind interfaces with a Fake implementation.
 - Auth: every server action / route handler starts with `requireRole(...)` from `src/server/auth/guards.ts` (the proxy is not enough); driver mutations use `requireRole("DRIVER")`. A new server action (`"use server"` module export) or `route.ts` handler must get a row in `src/server/authz-matrix.test.ts` (the test enumerates the source tree and fails otherwise); state-changing route handlers call `rejectCrossOrigin` (`src/server/csrf.ts`), read bodies with `readTextLimited`, and every zod string/array on client input needs `.max()` (`input-limits.test.ts`). Security headers / CSP: `src/lib/security-headers.ts`, see `docs/deploy.md` section 11; personal data and retention: `docs/privacy.md`.
@@ -36,11 +36,6 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
-
-## OpenCC is server-only (NUD-098)
-
-- `opencc-js` ships ~1.2 MB of dictionaries. It is imported only by `src/lib/opencc.ts` and `src/lib/localized-text.server.ts` (`withDerivedHant`), which belong to server code, scripts and tests. `src/lib/localized-text.ts` is the client-safe half (types, schema, `LOCALES`, `pick`); never import OpenCC into it, into `src/components/**`, `src/domain/**` or `src/sw/**` (ESLint `no-restricted-imports` enforces this).
-- Backstop: `pnpm check:client-bundle` scans `.next/static` for OpenCC dictionary entries and fails the build if one is found (it runs at the end of `pnpm build` / `pnpm build:vercel`; `--report` prints the first-load JS of `/de/driver` and `/de/admin`). If it fails, find the client component that reaches OpenCC through a shared import and move the OpenCC use behind a server action or server module.
 
 ## Content-Security-Policy: no inline scripts (NUD-110)
 

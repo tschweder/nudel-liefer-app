@@ -28,7 +28,7 @@ const skuOrder = (page: Page) =>
     .getByTestId("product-row")
     .evaluateAll((rows) => rows.map((r) => r.getAttribute("data-sku")));
 
-test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reorder, deactivate", async ({
+test("product catalog: machine-translated names, auto markers, required zh-Hans, reorder, deactivate", async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -43,7 +43,7 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     await expect(page.getByTestId("section-title")).toHaveText("Produkte");
     await expect(page.getByTestId("product-row").first()).toBeVisible(); // seeded products
 
-    // New product: zh-Hans required, Hant fields start empty and "auto".
+    // New product: zh-Hans required, en / sr-Latn / cs start empty and "auto".
     await page.getByTestId("new-product").click();
     await expect(page).toHaveURL(/\/admin\/products\/new$/);
     await page.getByTestId("product-sku").fill(skuA);
@@ -61,20 +61,16 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     await expect(page.getByTestId("hans-required")).toBeVisible();
     await expect(page).toHaveURL(/\/admin\/products\/new$/);
 
-    // Live pre-fill from Simplified (OpenCC), both fields marked automatic.
+    // English, Serbian and Czech start empty and "auto": translated from German on save.
     await page.getByTestId("product-name-hans").fill("螺旋意面");
-    await expect(page.getByTestId("product-name-hk")).toHaveValue("螺旋意麪");
-    await expect(page.getByTestId("product-name-tw")).toHaveValue("螺旋意麵");
-    await expect(page.getByTestId("auto-badge")).toHaveCount(2);
-    await page.getByTestId("product-name-hans").fill("螺旋意面 5公斤");
-    await expect(page.getByTestId("product-name-tw")).toHaveValue("螺旋意麵 5公斤");
+    await expect(page.getByTestId("product-name-en")).toHaveValue("");
+    await expect(page.getByTestId("auto-badge")).toHaveCount(3);
+    await expect(page.getByTestId("product-name-sr")).toHaveAttribute("lang", "sr-Latn");
 
-    // Editing a Traditional field removes its marker and stops the live update for it.
-    await page.getByTestId("product-name-tw").fill("螺旋麵 (TW)");
-    await expect(page.getByTestId("auto-badge")).toHaveCount(1);
+    // Editing a field removes its marker; the other two stay automatic.
+    await page.getByTestId("product-name-sr").fill("Zavrnute nudle");
+    await expect(page.getByTestId("auto-badge")).toHaveCount(2);
     await page.getByTestId("product-name-hans").fill("螺旋意面 3公斤");
-    await expect(page.getByTestId("product-name-hk")).toHaveValue("螺旋意麪 3公斤");
-    await expect(page.getByTestId("product-name-tw")).toHaveValue("螺旋麵 (TW)");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
 
     await page.getByTestId("product-save").click();
@@ -88,10 +84,13 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     ).rows[0] as { name: Record<string, unknown>; unit: string; active: boolean };
     expect(stored.name).toMatchObject({
       "zh-Hans": "螺旋意面 3公斤",
-      "zh-Hant-HK": "螺旋意麪 3公斤",
-      "zh-Hant-TW": "螺旋麵 (TW)",
-      meta: { machine: { "zh-Hant-HK": true } },
+      de: `Schraubennudeln ${tag}`,
+      "sr-Latn": "Zavrnute nudle",
+      meta: { machine: { en: true, cs: true } },
     });
+    expect(stored.name["en"]).toEqual(expect.any(String));
+    expect(stored.name["cs"]).toEqual(expect.any(String));
+    expect((stored.name["meta"] as { machine: object }).machine).not.toHaveProperty("sr-Latn");
 
     // Duplicate SKU (case-insensitive) is rejected with a localized message.
     await page.getByTestId("new-product").click();
@@ -122,27 +121,32 @@ test("product catalog: live OpenCC pre-fill, auto markers, required zh-Hans, reo
     }
 
     // Edit keeps the auto marker of a machine-derived name; reactivation/deactivation is soft.
-    await rowA.getByTestId("product-edit").click();
+    await rowA.getByRole("button").last().click(); // row menu (portal)
+    await page.getByTestId("product-edit").click();
     await expect(page).toHaveURL(/\/edit$/);
     await expect(page.locator('[data-testid="product-name-hans"]:visible')).toHaveValue(
       "螺旋意面 3公斤",
     );
-    await expect(page.locator('[data-testid="auto-badge"]:visible')).toHaveCount(1); // HK auto, TW hand-edited
-    await page.locator('[data-testid="rederive-tw"]:visible').click();
-    await expect(page.locator('[data-testid="product-name-tw"]:visible')).toHaveValue(
-      "螺旋意麵 3公斤",
+    await expect(page.locator('[data-testid="auto-badge"]:visible')).toHaveCount(2); // en, cs auto; sr by hand
+    await expect(page.locator('[data-testid="product-name-sr"]:visible')).toHaveValue(
+      "Zavrnute nudle",
     );
+    await page.locator('[data-testid="rederive-sr"]:visible').click();
+    await expect(page.locator('[data-testid="auto-badge"]:visible')).toHaveCount(3);
     await page.locator('[data-testid="product-save"]:visible').click();
     await expect(page).toHaveURL(/\/admin\/products$/);
 
-    await rowA.getByTestId("product-deactivate").click();
+    await rowA.getByRole("button").last().click(); // row menu (portal)
+    await page.getByTestId("product-deactivate").click();
+    await page.getByTestId("confirm-submit").click();
     await expect(rowA.getByTestId("status-inactive")).toBeVisible();
     await page.reload();
     await expect(rowA.getByTestId("status-inactive")).toBeVisible();
     const inactive = await client.query(`SELECT "active" FROM "Product" WHERE "sku"=$1`, [skuA]);
     expect(inactive.rows[0]).toEqual({ active: false });
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
-    await rowA.getByTestId("product-activate").click();
+    await rowA.getByRole("button").last().click(); // row menu (portal)
+    await page.getByTestId("product-activate").click();
     await expect(rowA.getByTestId("status-active")).toBeVisible();
   } finally {
     await client.query(`DELETE FROM "Product" WHERE "sku" LIKE $1`, [`${tag}%`]);

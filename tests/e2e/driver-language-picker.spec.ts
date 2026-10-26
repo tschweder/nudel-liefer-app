@@ -42,7 +42,7 @@ async function login(page: Page) {
 const noHorizontalScroll = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
-test("login page offers the language switcher; first login -> picker -> zh-Hant-TW home; second login skips it", async ({
+test("login page offers the language switcher; first login -> picker -> cs home; second login skips it", async ({
   page,
   context,
 }, testInfo) => {
@@ -53,9 +53,10 @@ test("login page offers the language switcher; first login -> picker -> zh-Hant-
   expect((await switcher.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await expect(switcher.locator("option")).toHaveText([
     "Deutsch",
-    "简体中文",
-    "繁體中文（香港）",
-    "繁體中文（台灣）",
+    "English",
+    "Srpski",
+    "Čeština",
+    "中文",
   ]);
   await switcher.selectOption("zh-Hans");
   await expect(page).toHaveURL(/\/zh-Hans\/driver\/login$/);
@@ -69,14 +70,17 @@ test("login page offers the language switcher; first login -> picker -> zh-Hant-
   const picker = page.getByTestId("language-picker");
   await expect(picker).toBeVisible();
   const buttons = picker.getByRole("button");
-  await expect(buttons).toHaveText(["Deutsch", "简体中文", "繁體中文（香港）", "繁體中文（台灣）"]);
+  await expect(buttons).toHaveText(["Deutsch", "English", "Srpski", "Čeština", "中文"]);
   for (const button of await buttons.all()) {
     expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   }
-  await expect(picker.getByTestId("pick-zh-Hant-TW")).toHaveAttribute("lang", "zh-Hant-TW");
+  await expect(picker.getByTestId("pick-cs")).toHaveAttribute("lang", "cs");
   await expect(page.getByTestId("driver-shell")).toHaveCount(0);
   expect(await noHorizontalScroll(page)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("driver-picker-375.png") });
+  // Own-script labels keep their diacritics at 375 px.
+  await expect(picker.getByTestId("pick-sr-Latn")).toHaveText("Srpski");
+  await expect(picker.getByTestId("pick-cs")).toHaveText("Čeština");
 
   // The picker cannot be skipped by deep links.
   await page.goto("/de/driver");
@@ -87,24 +91,24 @@ test("login page offers the language switcher; first login -> picker -> zh-Hant-
     (await db.query(`SELECT "localeChosen" FROM "User" WHERE "id"=$1`, [userId])).rows[0],
   ).toEqual({ localeChosen: false });
 
-  // Choose 繁體中文（台灣）.
-  await page.getByTestId("pick-zh-Hant-TW").click();
-  await expect(page).toHaveURL(/\/zh-Hant-TW\/driver$/);
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-TW");
+  // Choose Čeština.
+  await page.getByTestId("pick-cs").click();
+  await expect(page).toHaveURL(/\/cs\/driver$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "cs");
   await expect(page.getByTestId("driver-shell")).toBeVisible();
   expect(await noHorizontalScroll(page)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("driver-home-zh-Hant-TW-375.png") });
+  await page.screenshot({ path: testInfo.outputPath("driver-home-cs-375.png") });
   expect(
     (await db.query(`SELECT "locale","localeChosen" FROM "User" WHERE "id"=$1`, [userId])).rows[0],
-  ).toEqual({ locale: "zh-Hant-TW", localeChosen: true });
+  ).toEqual({ locale: "cs", localeChosen: true });
 
-  // Second login (fresh session): straight to the home page in zh-Hant-TW, no picker.
+  // Second login (fresh session): straight to the home page in cs, no picker.
   await context.clearCookies();
   await login(page);
-  await expect(page).toHaveURL(/\/zh-Hant-TW\/driver$/);
+  await expect(page).toHaveURL(/\/cs\/driver$/);
   await expect(page.getByTestId("driver-shell")).toBeVisible();
-  await page.goto("/zh-Hant-TW/driver/start");
-  await expect(page).toHaveURL(/\/zh-Hant-TW\/driver$/);
+  await page.goto("/cs/driver/start");
+  await expect(page).toHaveURL(/\/cs\/driver$/);
 
   // Later changes use the language icon in the top bar and keep localeChosen.
   await page.getByTestId("language-switcher").selectOption("de");

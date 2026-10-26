@@ -18,8 +18,9 @@ const driverPin = process.env.SEED_DRIVER_PIN ?? "123456";
 
 const DRIVER_LOCALES = [
   { locale: "zh-Hans", username: "driver-hans" },
-  { locale: "zh-Hant-HK", username: "driver-hk" },
-  { locale: "zh-Hant-TW", username: "driver-tw" },
+  { locale: "en", username: "driver-en" },
+  { locale: "sr-Latn", username: "driver-sr" },
+  { locale: "cs", username: "driver-cs" },
   { locale: "de", username: "fahrer-de" },
 ] as const;
 

@@ -54,7 +54,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const result = await createDriver(t.prisma, {
         displayName: " Li Wei ",
         username: "Li.Wei",
-        locale: "zh-Hant-HK",
+        locale: "cs",
       });
       if (!result.ok) throw new Error("expected ok");
       expect(result.pin).toMatch(/^\d{6}$/);
@@ -63,7 +63,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         role: "DRIVER",
         username: "li.wei",
         displayName: "Li Wei",
-        locale: "zh_Hant_HK",
+        locale: "cs",
         active: true,
         lastLoginAt: null,
       });
@@ -175,9 +175,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
         locale: "de",
       });
       if (!created.ok) throw new Error("expected ok");
-      expect(await setDriverLocale(t.prisma, created.id, "zh-Hant-TW")).toEqual({ ok: true });
+      expect(await setDriverLocale(t.prisma, created.id, "sr-Latn")).toEqual({ ok: true });
       expect((await t.prisma.user.findUniqueOrThrow({ where: { id: created.id } })).locale).toBe(
-        "zh_Hant_TW",
+        "sr_Latn",
       );
       expect(await setDriverLocale(t.prisma, created.id, "xx")).toEqual({
         ok: false,

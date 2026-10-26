@@ -123,3 +123,21 @@ export async function setOnline(context: BrowserContext, page: Page, online: boo
     online,
   );
 }
+
+/**
+ * `page.goto` for a connection that is cut: the navigation may be aborted by one the app started
+ * itself (Next falls back to a browser navigation when an RSC fetch fails offline, the offline shell
+ * reloads), and the page then ends up on the other URL. Retries until the page really is on `url`.
+ */
+export async function gotoSettled(page: Page, url: string) {
+  const wanted = new URL(url, page.url() === "about:blank" ? "http://localhost" : page.url());
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.goto(url).catch(() => {});
+    await page.waitForLoadState("load").catch(() => {});
+    if (new URL(page.url()).pathname === wanted.pathname) {
+      // Give a late competing navigation the chance to show itself before the caller continues.
+      await page.waitForTimeout(300);
+      if (new URL(page.url()).pathname === wanted.pathname) return;
+    }
+  }
+}

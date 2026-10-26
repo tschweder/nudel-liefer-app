@@ -61,7 +61,7 @@ describe("loginKeys", () => {
   });
 
   it("uses the IP limit it is given, so the e2e suite can raise it without touching the user limit", () => {
-    const keys = loginKeys("driver", "driver-hk", "::1", MAX_FAILURES_PER_IP_CEILING);
+    const keys = loginKeys("driver", "driver-en", "::1", MAX_FAILURES_PER_IP_CEILING);
     expect(keys.find((k) => k.key.startsWith("ip:"))?.limit).toBe(MAX_FAILURES_PER_IP_CEILING);
     expect(keys.find((k) => k.key.startsWith("user:"))?.limit).toBe(MAX_FAILURES_PER_USER);
   });

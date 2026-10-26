@@ -399,7 +399,7 @@ export function StopStatusActions({
           {/*
            * The body is the only scrolling region (design review point 6). The sheet's `max-h`
            * comes from the viewport (`dvh`), so the seven reason chips, the textarea and the actions
-           * below all stay reachable at 375 x 667 — in German as well as in zh-Hant-TW.
+           * below all stay reachable at 375 x 667 — in German as well as in Czech or Chinese.
            */}
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-1">
             <div className="space-y-4">

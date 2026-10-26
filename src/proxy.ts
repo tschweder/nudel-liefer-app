@@ -5,7 +5,8 @@ import { decideAccess, splitLocalePath } from "@/lib/access";
 import { withBasePath } from "@/lib/base-path";
 import { parseScriptHashManifest, scriptHashesFor } from "@/lib/csp-script-hashes";
 import { localeRedirectPath } from "@/lib/locale-redirect";
-import { LOCALE_COOKIE } from "@/lib/locale-resolution";
+import { adminLocaleFor, isAdminLocale, LOCALE_COOKIE } from "@/lib/locale-resolution";
+import type { AppLocale } from "@/lib/localized-text";
 import { cspHeader } from "@/lib/security-headers";
 import { readProxySession } from "@/server/auth/proxy-session";
 
@@ -75,6 +76,12 @@ async function route(request: NextRequest): Promise<NextResponse> {
     if (decision.withCallback) url.searchParams.set("callbackUrl", `${pathname}${search}`);
     // `NextURL` keeps the base path it was parsed with and `formatPathname()` puts it back in front
     // of the pathname set here: the prefix is not lost and must not be added twice.
+    return NextResponse.redirect(url);
+  }
+  if ((rest === "/admin" || rest.startsWith("/admin/")) && !isAdminLocale(locale)) {
+    // Driver-only languages (sr-Latn, cs) have no office screens: show the page in German.
+    const url = request.nextUrl.clone();
+    url.pathname = `/${adminLocaleFor(locale as AppLocale)}${rest}`;
     return NextResponse.redirect(url);
   }
   return handleI18n(request);

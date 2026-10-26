@@ -13,7 +13,7 @@ import { png } from "./png";
  * Photo requests (signed URLs into the private bucket) and map tiles are answered by the test.
  */
 export const PIN = "482916";
-export const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+export const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 export type Locale = (typeof LOCALES)[number];
 
 const TILE = Buffer.from(
@@ -21,12 +21,13 @@ const TILE = Buffer.from(
   "base64",
 );
 
-const text = (de: string, hans: string, hk: string, tw: string) =>
+const text = (de: string, hans: string) =>
   JSON.stringify({
     de,
     "zh-Hans": hans,
-    "zh-Hant-HK": hk,
-    "zh-Hant-TW": tw,
+    en: `${de} (en)`,
+    "sr-Latn": `${de} (sr)`,
+    cs: `${de} (cs)`,
     meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
   });
 
@@ -50,10 +51,10 @@ export async function createDriverFixture(prefix: string, stopCount = 3) {
     [
       kg,
       `KG-${tag}`,
-      text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵"),
+      text("Spaghetti lose", "意大利面"),
       pack,
       `PK-${tag}`,
-      text("Penne", "笔管面", "筆管麵", "筆管麵"),
+      text("Penne", "笔管面"),
     ],
   );
   const tz =
@@ -93,14 +94,7 @@ export async function createDriverFixture(prefix: string, stopCount = 3) {
         names[i],
         Number((48.2 + i / 100).toFixed(2)),
         Number((16.37 + i / 100).toFixed(2)),
-        i === 0
-          ? text(
-              "Hintereingang benutzen, im Hof klingeln",
-              "请走后门，在院子里按铃",
-              "請走後門，在院子裡按鈴",
-              "請走後門，在院子裡按鈴",
-            )
-          : null,
+        i === 0 ? text("Hintereingang benutzen, im Hof klingeln", "请走后门，在院子里按铃") : null,
         i === 0 ? "Mo-Fr 8-11 Uhr" : null,
       ],
     );

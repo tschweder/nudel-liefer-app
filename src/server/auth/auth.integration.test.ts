@@ -33,10 +33,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
       driverId = (
         await mk({
           role: "DRIVER",
-          username: "hk-driver",
+          username: "zh-driver",
           passwordHash: pin,
-          displayName: "HK",
-          locale: "zh_Hant_HK",
+          displayName: "ZH",
+          locale: "zh_Hans",
         })
       ).id;
       inactiveId = (
@@ -75,10 +75,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
       it("logs in an admin (email case-insensitive) and a driver with their locale", async () => {
         const a = await run("admin", "boss@example.com", "correct horse");
         expect(a).toMatchObject({ ok: true, user: { id: adminId, role: "ADMIN", locale: "de" } });
-        const d = await run("driver", "HK-Driver", "123456");
+        const d = await run("driver", "ZH-Driver", "123456");
         expect(d).toMatchObject({
           ok: true,
-          user: { id: driverId, role: "DRIVER", locale: "zh-Hant-HK" },
+          user: { id: driverId, role: "DRIVER", locale: "zh-Hans" },
         });
       });
 
@@ -125,7 +125,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         });
         expect(sixth).toEqual({ ok: false, reason: "rate_limited" });
         // other users are unaffected
-        expect((await run("driver", "hk-driver", "123456", { now: t0 })).ok).toBe(true);
+        expect((await run("driver", "zh-driver", "123456", { now: t0 })).ok).toBe(true);
         // after the window the user can log in again
         const later = new Date(t0.getTime() + LOGIN_WINDOW_MS + 10_000);
         expect((await run("driver", "limited", "123456", { now: later })).ok).toBe(true);
@@ -154,12 +154,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
         for (let i = 0; i < 20; i++) {
           await run("driver", `u${i}`, "000000", { ip: "203.0.113.9", now: t0 });
         }
-        expect(await run("driver", "hk-driver", "123456", { ip: "203.0.113.9", now: t0 })).toEqual({
+        expect(await run("driver", "zh-driver", "123456", { ip: "203.0.113.9", now: t0 })).toEqual({
           ok: false,
           reason: "rate_limited",
         });
         expect(
-          (await run("driver", "hk-driver", "123456", { ip: "203.0.113.10", now: t0 })).ok,
+          (await run("driver", "zh-driver", "123456", { ip: "203.0.113.10", now: t0 })).ok,
         ).toBe(true);
       });
     });

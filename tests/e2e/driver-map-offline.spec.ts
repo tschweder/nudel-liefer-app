@@ -45,8 +45,9 @@ test.beforeAll(async () => {
       JSON.stringify({
         de: "Spaghetti lose",
         "zh-Hans": "意大利面",
-        "zh-Hant-HK": "意大利麵",
-        "zh-Hant-TW": "義大利麵",
+        en: "Spaghetti lose (en)",
+        "sr-Latn": "Spaghetti lose (sr)",
+        cs: "Spaghetti lose (cs)",
         meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
       }),
     ],

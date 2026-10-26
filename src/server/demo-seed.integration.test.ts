@@ -89,7 +89,7 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
     expect(products).toHaveLength(3);
     for (const p of products) {
       const name = p.name as Record<string, string>;
-      for (const l of ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) expect(name[l]).toBeTruthy();
+      for (const l of ["de", "zh-Hans"]) expect(name[l]).toBeTruthy();
     }
 
     const customers = await t.prisma.customer.findMany({ include: { photos: true } });

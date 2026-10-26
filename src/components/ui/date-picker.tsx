@@ -4,7 +4,7 @@ import { CalendarIcon } from "lucide-react";
 import { useLocale } from "next-intl";
 import * as React from "react";
 import type { Locale as DayPickerLocale } from "react-day-picker";
-import { de, zhCN, zhHK, zhTW } from "react-day-picker/locale";
+import { cs, de, enGB, srLatn, zhCN } from "react-day-picker/locale";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -13,9 +13,10 @@ import { cn } from "@/lib/utils";
 
 const DAY_PICKER_LOCALES: Record<string, DayPickerLocale> = {
   de,
+  en: enGB,
+  "sr-Latn": srLatn,
+  cs,
   "zh-Hans": zhCN,
-  "zh-Hant-HK": zhHK,
-  "zh-Hant-TW": zhTW,
 };
 
 type DatePickerProps = {

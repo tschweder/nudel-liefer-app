@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
-import { installNetworkEmulation, setOnline } from "./helpers/network";
+import { gotoSettled, installNetworkEmulation, setOnline } from "./helpers/network";
 import { png } from "./helpers/png";
 
 // NUD-083. Needs DATABASE_URL, SEED_ADMIN_PASSWORD (the office checks the customer profile), a
@@ -49,8 +49,9 @@ test.beforeAll(async () => {
       JSON.stringify({
         de: "Spaghetti lose",
         "zh-Hans": "意大利面",
-        "zh-Hant-HK": "意大利麵",
-        "zh-Hant-TW": "義大利麵",
+        en: "Spaghetti lose (en)",
+        "sr-Latn": "Spaghetti lose (sr)",
+        cs: "Spaghetti lose (cs)",
         meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
       }),
     ],
@@ -97,7 +98,7 @@ test.beforeAll(async () => {
         customerId,
         i + 1,
         new Date(today.getTime() + (8 + i) * 3600_000),
-        JSON.stringify([{ productId: kg, quantity: 500 + i * 100 }]),
+        JSON.stringify([{ productId: kg, quantity: 5 + i }]),
       ],
     );
   }
@@ -322,7 +323,7 @@ test("photo taken offline is kept on the phone, shown at once and appears on the
   });
 
   await setOnline(context, page, false);
-  await page.goto(`/de/driver/stops/${stopIds[1]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[1]}`);
   await expect(page.getByTestId("offline-bar")).toBeVisible();
   const slot = visible(page, "photo-parking");
   await expect(slot.getByTestId("photo-take-parking")).toBeVisible();
@@ -360,9 +361,9 @@ test("photo taken offline is kept on the phone, shown at once and appears on the
   expect(registerRequests).toHaveLength(0);
 
   // Still there after leaving the screen and coming back (offline), from the stored blob.
-  await page.goto("/de/driver").catch(() => {});
+  await gotoSettled(page, "/de/driver");
   await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
-  await page.goto(`/de/driver/stops/${stopIds[1]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[1]}`);
   await expect(visible(page, "photo-parking").getByTestId("photo-pending")).toBeVisible();
 
   // Reconnect: upload + registration, exactly one photo, queue empty.
@@ -475,7 +476,7 @@ test("retaking replaces the unsent photo of the slot; the registered one stays a
 }) => {
   await readyOffline(page);
   await setOnline(context, page, false);
-  await page.goto(`/de/driver/stops/${stopIds[0]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[0]}`);
   const slot = visible(page, "photo-store");
   await slot.getByTestId("photo-input-store").setInputFiles(shot(800, 600, [255, 0, 0]));
   await slot.getByTestId("photo-confirm").click();
@@ -514,18 +515,25 @@ test("the registration endpoint accepts nothing without a driver session", async
   await anon.dispose();
 });
 
-test("placeholder and capture buttons in Traditional Chinese (TW), 375 px", async ({
-  page,
-}, testInfo) => {
-  await login(page);
-  await page.goto(`/zh-Hant-TW/driver/stops/${stopIds[2]}`);
-  const slot = visible(page, "photo-store");
-  await expect(slot.getByTestId("photo-take-store")).toHaveText(/拍照/);
-  await slot.getByTestId("photo-input-store").setInputFiles(shot(600, 400, [10, 90, 200]));
-  await expect(slot.getByTestId("photo-confirm")).toHaveText(/使用此照片/);
-  expect(await noHorizontalScroll(page)).toBe(true);
-  await page.screenshot({
-    path: testInfo.outputPath("photo-preview-zh-hant-tw.png"),
-    fullPage: true,
+const CAPTURE_TEXTS = {
+  en: ["Take a photo", "Use photo"],
+  "sr-Latn": ["Snimi fotografiju", "Koristi fotografiju"],
+  cs: ["Pořídit fotku", "Použít fotku"],
+  "zh-Hans": ["拍照", "使用此照片"],
+} as const;
+
+for (const [locale, [take, use]] of Object.entries(CAPTURE_TEXTS)) {
+  test(`placeholder and capture buttons in ${locale}, 375 px`, async ({ page }, testInfo) => {
+    await login(page);
+    await page.goto(`/${locale}/driver/stops/${stopIds[2]}`);
+    const slot = visible(page, "photo-store");
+    await expect(slot.getByTestId("photo-take-store")).toHaveText(take);
+    await slot.getByTestId("photo-input-store").setInputFiles(shot(600, 400, [10, 90, 200]));
+    await expect(slot.getByTestId("photo-confirm")).toHaveText(use);
+    expect(await noHorizontalScroll(page)).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath(`photo-preview-${locale}.png`),
+      fullPage: true,
+    });
   });
-});
+}

@@ -7,13 +7,14 @@ const TILE_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
 );
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const SECTIONS = ["orders", "tours", "customers", "products", "drivers", "settings"] as const;
 const NOT_FOUND_TITLE: Record<(typeof LOCALES)[number], string> = {
   de: "Seite nicht gefunden",
+  en: "Page not found",
+  "sr-Latn": "Stranica nije pronađena",
+  cs: "Stránka nenalezena",
   "zh-Hans": "找不到页面",
-  "zh-Hant-HK": "找不到頁面",
-  "zh-Hant-TW": "找不到頁面",
 };
 
 async function loginAdmin(page: Page) {
@@ -86,7 +87,7 @@ test.describe("admin shell", () => {
     }
   });
 
-  for (const locale of LOCALES) {
+  for (const locale of ["de", "en", "zh-Hans"] as const) {
     test(`all placeholder pages render in ${locale} without console errors`, async ({ page }) => {
       test.setTimeout(90_000); // visits every section, including the map-heavy settings page
       const errors = collectErrors(page);
@@ -115,9 +116,12 @@ test.describe("admin shell", () => {
 
   test("the language switcher in the header changes the locale", async ({ page }) => {
     await loginAdmin(page);
-    await page.locator('[data-testid="language-switcher"]:visible').selectOption("zh-Hant-TW");
-    await expect(page).toHaveURL(/\/zh-Hant-TW\/admin$/);
-    await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-TW");
+    const switcher = page.locator('[data-testid="language-switcher"]:visible');
+    // Office screens offer exactly three languages (D21); sr-Latn and cs are driver-only.
+    await expect(switcher.locator("option")).toHaveText(["Deutsch", "English", "中文"]);
+    await switcher.selectOption("en");
+    await expect(page).toHaveURL(/\/en\/admin$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
     // The choice is stored on the user: switch back so other tests start from German.
     await page.locator('[data-testid="language-switcher"]:visible').selectOption("de");
     await expect(page).toHaveURL(/\/de\/admin$/);
@@ -144,6 +148,14 @@ test.describe("driver shell", () => {
       await expect(page.getByTestId("connection-indicator")).toBeVisible();
       await expect(page.getByTestId("empty-state")).toBeVisible();
       await expectNoHorizontalScroll(page);
+      // Drivers can pick all five languages (D21).
+      await expect(page.getByTestId("language-switcher").locator("option")).toHaveText([
+        "Deutsch",
+        "English",
+        "Srpski",
+        "Čeština",
+        "中文",
+      ]);
       // Touch targets >= 48 px (backlog 4.3): language picker and logout.
       for (const id of ["language-switcher", "logout"]) {
         const box = await page.getByTestId(id).boundingBox();

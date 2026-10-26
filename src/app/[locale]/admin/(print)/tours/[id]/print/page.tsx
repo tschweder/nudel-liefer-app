@@ -15,7 +15,7 @@ import { tourPrintQuery } from "@/server/tour-queries";
  *
  * `locale` is the language of the printout (labels, product names, units), independent of the
  * language of the admin UI. Two options only (NUD-134): Deutsch (`de`) and 中文 (`zh-Hans`, the
- * simplified sheet). A Chinese tag - including the Hant variants - folds onto the simplified sheet;
+ * simplified sheet). A Chinese tag (any `zh*`) folds onto the simplified sheet;
  * everything else (missing, `en`, junk) is German. Both cases are decided by `parseSheetLocale`.
  */
 async function Guarded({

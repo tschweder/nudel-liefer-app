@@ -17,9 +17,10 @@ enum Role {
 /// Mapped to BCP-47 tags in the database; see src/lib/localized-text.ts.
 enum Locale {
   de
-  zh_Hans    @map("zh-Hans")
-  zh_Hant_HK @map("zh-Hant-HK")
-  zh_Hant_TW @map("zh-Hant-TW")
+  en
+  sr_Latn @map("sr-Latn")
+  cs
+  zh_Hans @map("zh-Hans")
 }
 
 enum Unit {

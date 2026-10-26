@@ -25,7 +25,7 @@ describe("service worker rules", () => {
   });
 
   it("recognises driver pages in every locale", () => {
-    for (const p of ["/de/driver", "/zh-Hans/driver/stops/abc", "/zh-Hant-HK/driver/login"]) {
+    for (const p of ["/de/driver", "/zh-Hans/driver/stops/abc", "/cs/driver/login"]) {
       expect(isDriverPath(p)).toBe(true);
     }
   });
@@ -63,9 +63,7 @@ describe("service worker rules", () => {
 describe("service worker rules for the offline copy (NUD-081)", () => {
   it("serves the shell for the tour list and stop details only", () => {
     expect(offlineShellUrl("/de/driver")).toBe("/de/driver/offline-shell");
-    expect(offlineShellUrl("/zh-Hant-TW/driver/stops/abc")).toBe(
-      "/zh-Hant-TW/driver/offline-shell",
-    );
+    expect(offlineShellUrl("/sr-Latn/driver/stops/abc")).toBe("/sr-Latn/driver/offline-shell");
     expect(offlineShellUrl("/de/driver/")).toBe("/de/driver/offline-shell");
     for (const p of [
       "/de/driver/login",

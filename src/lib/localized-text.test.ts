@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_LOCALES,
   createLocalizedText,
   dbLocaleToTag,
   LOCALES,
@@ -22,21 +23,22 @@ describe("LocalizedText", () => {
   });
 
   it("returns the requested locale when present", () => {
-    const text = createLocalizedText({ de: "Nudeln", "zh-Hans": "面", "zh-Hant-TW": "麵" }, "de");
+    const text = createLocalizedText(
+      { de: "Nudeln", en: "Noodles", "sr-Latn": "Nudle", cs: "Nudle", "zh-Hans": "面" },
+      "de",
+    );
     expect(pick(text, "de")).toBe("Nudeln");
+    expect(pick(text, "en")).toBe("Noodles");
+    expect(pick(text, "sr-Latn")).toBe("Nudle");
     expect(pick(text, "zh-Hans")).toBe("面");
-    expect(pick(text, "zh-Hant-TW")).toBe("麵");
   });
 
-  it("falls back HK <-> TW, then Hans, then de, then source", () => {
-    const tw = createLocalizedText({ de: "Nudeln", "zh-Hant-TW": "麵", "zh-Hans": "面" }, "de");
-    expect(pick(tw, "zh-Hant-HK")).toBe("麵");
-    const hansOnly = createLocalizedText({ de: "Nudeln", "zh-Hans": "面" }, "de");
-    expect(pick(hansOnly, "zh-Hant-HK")).toBe("面");
-    const hk = createLocalizedText({ de: "Nudeln", "zh-Hant-HK": "麵" }, "de");
-    expect(pick(hk, "zh-Hans")).toBe("麵");
+  it("falls back to de, then the source locale", () => {
     const deOnly = createLocalizedText({ de: "Nudeln", "zh-Hans": "  " }, "de");
     expect(pick(deOnly, "zh-Hans")).toBe("Nudeln");
+    expect(pick(deOnly, "sr-Latn")).toBe("Nudeln");
+    const enMissing = createLocalizedText({ de: "Nudeln", cs: "Nudle" }, "de");
+    expect(pick(enMissing, "en")).toBe("Nudeln");
     const sourceOnly = createLocalizedText({ "zh-Hans": "面" }, "zh-Hans");
     expect(pick(sourceOnly, "de")).toBe("面");
     expect(pick(createLocalizedText({}, "de"), "de")).toBe("");
@@ -44,7 +46,13 @@ describe("LocalizedText", () => {
 
   it("maps Prisma enum names to BCP-47 tags and back", () => {
     for (const tag of LOCALES) expect(dbLocaleToTag(tagToDbLocale(tag))).toBe(tag);
-    expect(tagToDbLocale("zh-Hant-HK")).toBe("zh_Hant_HK");
+    expect(tagToDbLocale("sr-Latn")).toBe("sr_Latn");
+    expect(tagToDbLocale("zh-Hans")).toBe("zh_Hans");
+  });
+
+  it("has exactly the five languages of D21", () => {
+    expect([...LOCALES]).toEqual(["de", "en", "sr-Latn", "cs", "zh-Hans"]);
+    expect([...ADMIN_LOCALES]).toEqual(["de", "en", "zh-Hans"]);
   });
 });
 
@@ -55,9 +63,9 @@ describe("pickWithSource", () => {
       value: "Hallo",
       locale: "de",
     });
-    expect(pickWithSource({ ...base, de: "Hallo", "zh-Hant-TW": "你好" }, "zh-Hant-HK")).toEqual({
-      value: "你好",
-      locale: "zh-Hant-TW",
+    expect(pickWithSource({ ...base, de: "Hallo", cs: "Ahoj" }, "cs")).toEqual({
+      value: "Ahoj",
+      locale: "cs",
     });
   });
   it("is null when nothing is set", () => {

@@ -4,10 +4,11 @@ import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 
 const online = vi.hoisted(() => ({ value: true }));
 vi.mock("@/lib/use-online", () => ({ useOnline: () => online.value }));
@@ -76,7 +77,7 @@ import { clusterPoints, routeLegGroups, TourMap, type TourMapStop } from "./tour
 
 /**
  * The `maps.*` keys this component reads that live in `messages/_fragments/M1.json` until the
- * orchestrator merges it into `de.json` / `zh-Hans.json` (the generated `zh-Hant-*` files follow).
+ * orchestrator merges it into `de.json` / `zh-Hans.json`.
  */
 const M1_MAPS: Record<string, Record<string, string>> = {
   de: {
@@ -98,11 +99,12 @@ const M1_MAPS: Record<string, Record<string, string>> = {
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
-/** Real messages plus the fragment overrides (the Hant files are generated from zh-Hans). */
+/** Real messages plus the fragment overrides . */
 function messagesFor(locale: string): AbstractIntlMessages {
   const base = LOCALES[locale]!;
   const extra = M1_MAPS[locale] ?? M1_MAPS["zh-Hans"]!;
@@ -182,8 +184,9 @@ describe("TourMap without tiles (NUD-108)", () => {
   it.each([
     ["de", "Kartenhintergrund offline nicht verfügbar"],
     ["zh-Hans", "离线时无法显示地图背景"],
-    ["zh-Hant-HK", "離線時無法顯示地圖背景"],
-    ["zh-Hant-TW", "離線時無法顯示地圖背景"],
+    ["en", "Map background not available offline"],
+    ["sr-Latn", "Pozadina mape nije dostupna van mreže"],
+    ["cs", "Podkladová mapa není offline dostupná"],
   ])("offline in %s: notice, plain background, stops / depot / route stay", (locale, title) => {
     online.value = false;
     renderMap(locale);

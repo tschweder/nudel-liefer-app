@@ -38,6 +38,7 @@ export async function translateStopProblemNote(
         parsed.data,
         options.translator ?? getTranslator(),
         options.now,
+        stopProblemNoteSource.targets,
       );
       // Guarded on the version that was read: an undo or a new report in between wins.
       return (await stopProblemNoteSource.save(db, stopId, parsed.data, next))

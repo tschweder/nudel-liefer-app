@@ -7,7 +7,7 @@ import { LOCALE_LABELS } from "@/lib/locale-resolution";
 import { LOCALES } from "@/lib/localized-text";
 import { chooseDriverLocaleAction } from "@/server/driver-locale-actions";
 
-/** Full-screen first-start picker: four big buttons, each in its own script, no other text. */
+/** Full-screen first-start picker: five big buttons, each in its own script, no other text. */
 export function DriverLanguagePicker() {
   const [pending, startTransition] = useTransition();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function DriverLanguagePicker() {
           disabled={pending}
           aria-busy={pending && chosen === code}
           data-testid={`pick-${code}`}
-          className="min-h-24 rounded-xl border-2 border-foreground bg-background px-4 text-3xl font-semibold hover:bg-muted focus-visible:ring-4 focus-visible:ring-ring disabled:opacity-60"
+          className="min-h-20 rounded-xl border-2 border-foreground bg-background px-4 text-3xl font-semibold hover:bg-muted focus-visible:ring-4 focus-visible:ring-ring disabled:opacity-60"
           onClick={() => {
             setChosen(code);
             startTransition(async () => {

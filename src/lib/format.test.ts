@@ -16,7 +16,7 @@ describe("createAppFormatters", () => {
   it("formats calendar dates without shifting the day", () => {
     const deliveryDate = new Date("2026-10-17T00:00:00.000Z");
     expect(f("de").calendarDate(deliveryDate)).toBe("17.10.2026");
-    expect(f("zh-Hant-TW").calendarDate(deliveryDate)).toMatch(/2026/);
+    expect(f("sr-Latn").calendarDate(deliveryDate)).toMatch(/2026/);
   });
 
   it("formats moments in the factory time zone", () => {

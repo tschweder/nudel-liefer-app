@@ -1,7 +1,5 @@
 "use server";
 
-import { hansToHk, hansToTw } from "@/lib/opencc";
-
 import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
 import {
@@ -32,16 +30,4 @@ export async function setProductActiveAction(id: unknown, active: unknown) {
 export async function moveProductAction(id: unknown, direction: unknown) {
   await requireRole("ADMIN");
   return moveProduct(getDb(), id, direction);
-}
-
-/**
- * Live OpenCC pre-fill for the product form: Simplified -> Hong Kong and Taiwan Traditional.
- * Runs on the server so the multi-hundred-KB OpenCC dictionaries stay out of the browser bundle.
- */
-export async function deriveHantAction(
-  hans: unknown,
-): Promise<{ ok: true; hk: string; tw: string } | { ok: false }> {
-  await requireRole("ADMIN");
-  if (typeof hans !== "string" || hans.length > 160) return { ok: false };
-  return { ok: true, hk: hansToHk(hans), tw: hansToTw(hans) };
 }

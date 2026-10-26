@@ -108,7 +108,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
         saveNoteTranslationsAction({
           customerId: existing.id,
           baseUpdatedAt: "x",
-          values: { "zh-Hant-HK": "Hacked" },
+          values: { cs: "Hacked" },
         }),
       () => retranslateNoteAction(existing.id),
     ];
@@ -127,7 +127,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     const row = await t.prisma.customer.findUniqueOrThrow({ where: { id: existing.id } });
     expect(row.name).toBe("Trattoria Bella");
     expect(row.active).toBe(true);
-    expect(row.notes).not.toHaveProperty("zh-Hant-HK", "Hacked");
+    expect(row.notes).not.toHaveProperty("cs", "Hacked");
   });
 
   it("creates a normalized customer with a confirmed pin and German notes", async () => {
@@ -439,17 +439,19 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     beforeEach(() => setTranslatorForTests(new FakeTranslator()));
     afterAll(() => setTranslatorForTests(undefined));
 
-    it("localizes the German note on create; machine flags on the Chinese versions only", async () => {
+    it("localizes the German note on create; machine flags on the four translated versions only", async () => {
       const { id } = await create({ customerNumber: "TR-1", notes: NOTE });
       const notes = await notesOf(id);
       expect(notes.de).toBe(NOTE);
       expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
-      expect(notes["zh-Hant-HK"]).toEqual(expect.stringContaining(NOTE.slice(0, 4)));
-      expect(notes["zh-Hant-TW"]).toEqual(expect.any(String));
+      expect(notes.en).toBe(`[en] ${NOTE}`);
+      expect(notes["sr-Latn"]).toBe(`[sr-Latn] ${NOTE}`);
+      expect(notes.cs).toBe(`[cs] ${NOTE}`);
       expect(notes.meta.machine).toEqual({
+        en: true,
+        "sr-Latn": true,
+        cs: true,
         "zh-Hans": true,
-        "zh-Hant-HK": true,
-        "zh-Hant-TW": true,
       });
       expect(notes.meta.pendingTranslation).toBeUndefined();
     });
@@ -465,19 +467,19 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       expect(notes["zh-Hans"]).toBeUndefined();
     });
 
-    it("hand-written HK text survives a German source change and is flagged; machine ones follow", async () => {
+    it("hand-written Czech text survives a German source change and is flagged; machine ones follow", async () => {
       const { id } = await create({ customerNumber: "TR-3", notes: NOTE });
       const first = await noteTranslationsQuery(id);
       expect(first).not.toBeNull();
       const saved = await saveNoteTranslationsAction({
         customerId: id,
         baseUpdatedAt: first!.updatedAt,
-        values: { "zh-Hant-HK": "請用後門，十點後撳鐘" },
+        values: { cs: "Použijte zadní vchod, zvonit po desáté" },
       });
       expect(saved.ok).toBe(true);
       let notes = await notesOf(id);
-      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
-      expect(notes.meta.machine).toEqual({ "zh-Hans": true, "zh-Hant-TW": true });
+      expect(notes.cs).toBe("Použijte zadní vchod, zvonit po desáté");
+      expect(notes.meta.machine).toEqual({ en: true, "sr-Latn": true, "zh-Hans": true });
       expect(notes.meta.updatedAt).not.toBe(first!.updatedAt);
 
       const NEW = "Seiteneingang benutzen, ab 9 Uhr klingeln";
@@ -486,14 +488,14 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       ).toMatchObject({ ok: true });
       notes = await notesOf(id);
       expect(notes.de).toBe(NEW);
-      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
-      expect(notes.meta.stale).toEqual({ "zh-Hant-HK": true });
+      expect(notes.cs).toBe("Použijte zadní vchod, zvonit po desáté");
+      expect(notes.meta.stale).toEqual({ cs: true });
       expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NEW}`);
-      expect(notes["zh-Hant-TW"]).toEqual(expect.stringContaining("Seiteneingang"));
-      expect(notes.meta.machine).toEqual({ "zh-Hans": true, "zh-Hant-TW": true });
+      expect(notes["sr-Latn"]).toBe(`[sr-Latn] ${NEW}`);
+      expect(notes.meta.machine).toEqual({ en: true, "sr-Latn": true, "zh-Hans": true });
 
       const view = await noteTranslationsQuery(id);
-      expect(view?.rows.find((r) => r.locale === "zh-Hant-HK")).toMatchObject({
+      expect(view?.rows.find((r) => r.locale === "cs")).toMatchObject({
         kind: "manual",
         stale: true,
       });
@@ -502,12 +504,12 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
         customerId: id,
         baseUpdatedAt: view!.updatedAt,
         values: {},
-        reviewed: ["zh-Hant-HK"],
+        reviewed: ["cs"],
       });
       expect(checked.ok).toBe(true);
       notes = await notesOf(id);
       expect(notes.meta.stale).toBeUndefined();
-      expect(notes["zh-Hant-HK"]).toBe("請用後門，十點後撳鐘");
+      expect(notes.cs).toBe("Použijte zadní vchod, zvonit po desáté");
     });
 
     it("editing the German text in the tab re-translates machine versions only", async () => {
@@ -516,13 +518,13 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       const result = await saveNoteTranslationsAction({
         customerId: id,
         baseUpdatedAt: view!.updatedAt,
-        values: { de: "Klingeln", "zh-Hant-TW": "按鈴" },
+        values: { de: "Klingeln", "sr-Latn": "Zvonite" },
       });
       expect(result.ok).toBe(true);
       const notes = await notesOf(id);
       expect(notes.de).toBe("Klingeln");
       expect(notes["zh-Hans"]).toBe("[zh-Hans] Klingeln");
-      expect(notes["zh-Hant-TW"]).toBe("按鈴");
+      expect(notes["sr-Latn"]).toBe("Zvonite");
       expect(notes.meta.stale).toBeUndefined();
     });
 
@@ -576,9 +578,10 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       const notes = await notesOf(id);
       expect(notes["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
       expect(notes.meta.machine).toEqual({
+        en: true,
+        "sr-Latn": true,
+        cs: true,
         "zh-Hans": true,
-        "zh-Hant-HK": true,
-        "zh-Hant-TW": true,
       });
       expect(notes.meta.updatedAt).not.toBe(before.meta.updatedAt);
     });
@@ -589,7 +592,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       await saveNoteTranslationsAction({
         customerId: id,
         baseUpdatedAt: view!.updatedAt,
-        values: { "zh-Hant-HK": "手写港" },
+        values: { cs: "ručně" },
       });
       const { state, translator } = flaky();
       state.up = false;
@@ -597,8 +600,8 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       await updateCustomerAction(id, { ...valid, customerNumber: "TR-8", notes: "Neu" });
       const notes = await notesOf(id);
       expect(notes.de).toBe("Neu");
-      expect(notes["zh-Hant-HK"]).toBe("手写港");
-      expect(notes.meta.stale).toEqual({ "zh-Hant-HK": true });
+      expect(notes.cs).toBe("ručně");
+      expect(notes.meta.stale).toEqual({ cs: true });
       expect(notes["zh-Hans"]).toBeUndefined();
       expect(notes.meta.pendingTranslation).toBe(true);
     });

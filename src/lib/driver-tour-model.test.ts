@@ -103,11 +103,11 @@ describe("driver tour model", () => {
   it("picks the texts in the viewer's locale and keeps the German name for the box labels", () => {
     const de = toDriverToday(response(), "de")!;
     const hans = toDriverToday(response(), "zh-Hans")!;
-    const hk = toDriverToday(response(), "zh-Hant-HK")!;
+    const sr = toDriverToday(response(), "sr-Latn")!;
     expect(de.stops[0]!.items[0]).toMatchObject({ name: "Spaghetti", germanName: "Spaghetti" });
     expect(hans.stops[0]!.items[0]).toMatchObject({ name: "意大利面", germanName: "Spaghetti" });
-    // no HK text: closest Chinese variant (Hans) per the read rule
-    expect(hk.stops[0]!.items[0]!.name).toBe("意大利面");
+    // no Serbian text: German per the read rule
+    expect(sr.stops[0]!.items[0]!.name).toBe("Spaghetti");
     // a product without a name shows its SKU
     expect(de.stops[0]!.items[1]).toMatchObject({ name: "PENN", germanName: null });
   });

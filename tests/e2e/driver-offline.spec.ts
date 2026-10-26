@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
-import { installNetworkEmulation, setOnline } from "./helpers/network";
+import { gotoSettled, installNetworkEmulation, setOnline } from "./helpers/network";
 import { png } from "./helpers/png";
 
 // NUD-081. Needs DATABASE_URL, S3_* (the spec uploads its photos to the S3-compatible store; the
@@ -15,7 +15,7 @@ test.use({ viewport: { width: 375, height: 812 } });
 const PIN = "482916";
 const tag = `offl${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const TILE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -29,10 +29,12 @@ const stopIds: string[] = [];
 const names = [1, 2, 3].map((n) => `Trattoria ${n} ${tag}`);
 const photoKeys: string[] = [];
 
-const text = (de: string, hans?: string, hk?: string, tw?: string) =>
+const text = (de: string, hans?: string) =>
   JSON.stringify({
     de,
-    ...(hans ? { "zh-Hans": hans, "zh-Hant-HK": hk, "zh-Hant-TW": tw } : {}),
+    ...(hans
+      ? { "zh-Hans": hans, en: `${de} (en)`, "sr-Latn": `${de} (sr)`, cs: `${de} (cs)` }
+      : {}),
     meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
   });
 
@@ -54,10 +56,10 @@ test.beforeAll(async () => {
     [
       kg,
       `KG-${tag}`,
-      text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵"),
+      text("Spaghetti lose", "意大利面"),
       pack,
       `PK-${tag}`,
-      text("Penne", "笔管面", "筆管麵", "筆管麵"),
+      text("Penne", "笔管面"),
     ],
   );
   const settings = (await db.query(`SELECT "timezone" FROM "Settings"`)).rows[0] as {
@@ -79,11 +81,11 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantity: 1250 },
-      { productId: pack, quantity: 400 },
+      { productId: kg, quantity: 13 },
+      { productId: pack, quantity: 4 },
     ],
-    [{ productId: kg, quantity: 2700 }],
-    [{ productId: pack, quantity: 100 }],
+    [{ productId: kg, quantity: 27 }],
+    [{ productId: pack, quantity: 1 }],
   ];
 
   const s3 = new S3Client({
@@ -107,7 +109,7 @@ test.beforeAll(async () => {
         names[i],
         Number((48.2 + i / 100).toFixed(2)),
         Number((16.37 + i / 100).toFixed(2)),
-        i === 0 ? text("Hintereingang benutzen", "请走后门", "請走後門", "請走後門") : null,
+        i === 0 ? text("Hintereingang benutzen", "请走后门") : null,
         i === 0 ? "Mo-Fr 8-11 Uhr" : null,
       ],
     );
@@ -253,8 +255,9 @@ test("loads the tour into IndexedDB, prefetches the photos and says 'ready offli
   expect(records[0]!.data.tour.stops[0].items[0].name).toMatchObject({
     de: "Spaghetti lose",
     "zh-Hans": "意大利面",
-    "zh-Hant-HK": "意大利麵",
-    "zh-Hant-TW": "義大利麵",
+    en: "Spaghetti lose (en)",
+    "sr-Latn": "Spaghetti lose (sr)",
+    cs: "Spaghetti lose (cs)",
   });
   // Photos: three, keyed by stable photo URL (not by the signed storage URL).
   const keys = await photoCacheKeys(page);
@@ -274,7 +277,7 @@ test("loads the tour into IndexedDB, prefetches the photos and says 'ready offli
   });
   for (const u of stored) {
     expect(u, u).toMatch(
-      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
+      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|en|sr-Latn|cs|zh-Hans)\/driver\/offline-shell$)/,
     );
   }
   expect(stored.some((u) => u.includes("/api/"))).toBe(false);
@@ -289,7 +292,9 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
   page.on("pageerror", (e) => errors.push(e.message));
   await readyOffline(page);
 
-  // What the server rendered while online, to compare with the offline rendering.
+  // What the server rendered while online, to compare with the offline rendering. The list streams in
+  // behind a Suspense boundary: before it is swapped in, `innerText` of the hidden copy has no line breaks.
+  await expect(page.getByTestId("today-tour")).toBeVisible();
   const onlineList = await page.getByTestId("today-tour").innerText();
   await page.goto(`/de/driver/stops/${stopIds[0]}`);
   await expect(page.getByTestId("stop-detail")).toBeVisible();
@@ -305,7 +310,7 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
   await setOnline(context, page, false);
   try {
     // Cold navigation to the tour list while offline.
-    await page.goto("/de/driver").catch(() => {});
+    await gotoSettled(page, "/de/driver");
     await expect(page.getByTestId("offline-bar")).toBeVisible();
     await expect(page.getByTestId("offline-bar")).toHaveText(
       /Offline – zuletzt aktualisiert \d{1,2}:\d{2}/,
@@ -321,15 +326,21 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     await page.screenshot({ path: testInfo.outputPath("offline-list-de.png"), fullPage: true });
 
     // Open a stop by tapping it (Next falls back to a normal page load, the worker serves the shell).
-    await page.locator('[data-testid="stop-row"]:visible').first().getByRole("link").click();
-    await expect(page).toHaveURL(new RegExp(`/de/driver/stops/${stopIds[0]}$`));
+    // (the fallback navigation can lose against a pending one: retry the tap)
+    await expect(async () => {
+      if (!page.url().endsWith("/de/driver")) await gotoSettled(page, "/de/driver");
+      await page.locator('[data-testid="stop-row"]:visible').first().getByRole("link").click();
+      await expect(page).toHaveURL(new RegExp(`/de/driver/stops/${stopIds[0]}$`), {
+        timeout: 4_000,
+      });
+    }).toPass({ timeout: 25_000 });
     await expect(page.getByTestId("stop-detail")).toBeVisible();
     await expect(page.getByTestId("stop-name")).toHaveText(names[0]!);
     expect(await page.getByTestId("stop-header").innerText()).toBe(onlineDetail.header);
     expect(await page.getByTestId("stop-items").innerText()).toBe(onlineDetail.items);
     expect(await page.getByTestId("stop-info").innerText()).toBe(onlineDetail.info);
     await expect(page.getByTestId("stop-item").first().getByTestId("item-quantity")).toContainText(
-      /12[.,]5/,
+      /13/,
     );
     // Both photos are shown from the cache.
     for (const kind of ["store", "parking"]) {
@@ -350,20 +361,35 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     await page.screenshot({ path: testInfo.outputPath("offline-stop-de.png"), fullPage: true });
 
     // Next stop (shop photo only), then the stop without any photo; direct URL works as well.
-    await page.getByTestId("next-stop").click();
-    await expect(page).toHaveURL(new RegExp(`/stops/${stopIds[1]}$`));
+    await expect(async () => {
+      if (!page.url().endsWith(`/stops/${stopIds[0]}`)) {
+        await gotoSettled(page, `/de/driver/stops/${stopIds[0]}`);
+      }
+      await page.getByTestId("next-stop").click();
+      await expect(page).toHaveURL(new RegExp(`/stops/${stopIds[1]}$`), { timeout: 4_000 });
+    }).toPass({ timeout: 25_000 });
     await expect(page.getByTestId("stop-name")).toHaveText(names[1]!);
     await expect(page.getByTestId("photo-store").locator("img")).toBeVisible();
     await expect(page.getByTestId("photo-parking").getByTestId("photo-missing")).toBeVisible();
-    await page.goto(`/de/driver/stops/${stopIds[2]}`).catch(() => {});
-    await expect(page.getByTestId("stop-name")).toHaveText(names[2]!);
+    // The browser navigation Next falls back to may still be in flight: retry until stop 3 shows.
+    await expect(async () => {
+      await gotoSettled(page, `/de/driver/stops/${stopIds[2]}`);
+      await expect(page.getByTestId("stop-name")).toHaveText(names[2]!, { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.getByTestId("photo-missing")).toHaveCount(2);
 
     // A stop that is not in the cached tour.
-    await page.goto("/de/driver/stops/does-not-exist").catch(() => {});
+    await gotoSettled(page, "/de/driver/stops/does-not-exist");
     await expect(page.getByTestId("offline-stop-missing")).toBeVisible();
-    await page.getByRole("link", { name: "Zur Tour" }).click();
-    await expect(page.locator('[data-testid="stop-row"]:visible')).toHaveCount(3);
+    await expect(async () => {
+      if (!page.url().endsWith("/does-not-exist")) {
+        await gotoSettled(page, "/de/driver/stops/does-not-exist");
+      }
+      await page.getByRole("link", { name: "Zur Tour" }).click();
+      await expect(page.locator('[data-testid="stop-row"]:visible')).toHaveCount(3, {
+        timeout: 4_000,
+      });
+    }).toPass({ timeout: 25_000 });
     // Nothing leaks into the generic offline page: the only heading is the tour list's own (NUD-095).
     await expect(page.locator("h1:visible")).toHaveText("Heutige Tour");
   } finally {
@@ -380,18 +406,18 @@ for (const locale of LOCALES.slice(1)) {
     await readyOffline(page);
     await setOnline(context, page, false);
     try {
-      await page.goto(`/${locale}/driver/stops/${stopIds[0]}`).catch(() => {});
+      await gotoSettled(page, `/${locale}/driver/stops/${stopIds[0]}`);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
       await expect(page.getByTestId("stop-name")).toHaveText(names[0]!);
       await expect(page.getByTestId("offline-bar")).toBeVisible();
-      const expected =
-        locale === "zh-Hans" ? "意大利面" : locale === "zh-Hant-HK" ? "意大利麵" : "義大利麵";
+      const suffix = { en: "en", "sr-Latn": "sr", cs: "cs" }[locale as "en" | "sr-Latn" | "cs"];
+      const expected = locale === "zh-Hans" ? "意大利面" : `Spaghetti lose (${suffix})`;
       const first = page.getByTestId("stop-item").first();
       await expect(first.getByTestId("item-name")).toHaveText(expected);
       await expect(first.getByTestId("item-name-de")).toHaveText("Spaghetti lose");
-      // Customer note: the Chinese text exists, so no "DE" badge.
+      // Customer note: the translated text exists, so no "DE" badge.
       await expect(page.getByTestId("stop-notes")).toContainText(
-        locale === "zh-Hans" ? "请走后门" : "請走後門",
+        locale === "zh-Hans" ? "请走后门" : `Hintereingang benutzen (${suffix})`,
       );
       await expect(page.getByTestId("notes-lang")).toHaveCount(0);
       await expect(page.getByTestId("photo-store").locator("img")).toBeVisible();
@@ -412,7 +438,7 @@ test("back online: the shell leaves for the live page and the copy stays ready",
 }) => {
   await readyOffline(page);
   await setOnline(context, page, false);
-  await page.goto("/de/driver").catch(() => {});
+  await gotoSettled(page, "/de/driver");
   await expect(page.getByTestId("offline-bar")).toBeVisible();
   await setOnline(context, page, true);
   // The shell reloads itself; the server page (no offline bar, live data) takes over.
@@ -500,7 +526,7 @@ test("data of other users and of previous days is purged", async ({ page, contex
   });
   await setOnline(context, page, false);
   try {
-    await page.goto("/de/driver").catch(() => {});
+    await gotoSettled(page, "/de/driver");
     await expect(page.getByTestId("offline-empty")).toBeVisible();
     await expect(page.getByTestId("offline-empty")).toContainText("Keine gespeicherte Tour");
     await expect(page.locator("body")).not.toContainText(names[0]!);
@@ -515,6 +541,7 @@ test("logout removes the cached tour and the photos from the device", async ({ p
   expect(await idbRecords(page)).toHaveLength(1);
   expect(await photoCacheKeys(page)).toHaveLength(3);
 
+  await page.getByTestId("driver-menu").click();
   await page.getByTestId("logout").click();
   await expect(page).toHaveURL(/\/de\/driver\/login/);
   await expect.poll(() => idbRecords(page)).toEqual([]);
@@ -523,7 +550,7 @@ test("logout removes the cached tour and the photos from the device", async ({ p
   // Offline afterwards: no personal data anywhere, not even in the shell.
   await setOnline(context, page, false);
   try {
-    await page.goto("/de/driver").catch(() => {});
+    await gotoSettled(page, "/de/driver");
     await expect(page.getByTestId("offline-empty")).toBeVisible();
     await expect(page.locator("body")).not.toContainText(names[0]!);
     await expect(page.locator("body")).not.toContainText("Offline Driver");
@@ -536,6 +563,7 @@ test("a different driver signing in gets his own copy and none of the previous d
   page,
 }) => {
   await readyOffline(page);
+  await page.getByTestId("driver-menu").click();
   await page.getByTestId("logout").click();
   await expect(page).toHaveURL(/\/de\/driver\/login/);
   await login(page, `drv2-${tag}`);

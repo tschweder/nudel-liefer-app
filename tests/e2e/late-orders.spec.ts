@@ -425,7 +425,7 @@ test("all four languages render the late-order banner and the tabs without error
   ]);
   await order("2");
 
-  for (const locale of ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) {
+  for (const locale of ["de", "en", "zh-Hans"]) {
     await page.goto(`/${locale}/admin/tours?date=${today}`);
     await expect(visible(page, "late-orders-banner")).toBeVisible();
     await expect(visible(page, "create-follow-up")).toBeEnabled();
@@ -441,8 +441,8 @@ test("all four languages render the late-order banner and the tabs without error
       await page.screenshot({ path: testInfo.outputPath("nud-099-banner-zh-Hans-1280.png") });
     }
   }
-  // Create the follow-up in Chinese: the tabs render in zh-Hant-TW, too.
-  await page.goto(`/zh-Hant-TW/admin/tours?date=${today}`);
+  // Create the follow-up in English: the tabs render in every office language.
+  await page.goto(`/en/admin/tours?date=${today}`);
   await visible(page, "create-follow-up").click();
   await expect(visible(page, "tour-tab")).toHaveCount(2);
   expect(await noHorizontalScroll(page)).toBe(true);

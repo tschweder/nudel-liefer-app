@@ -13,7 +13,7 @@ const PIN = "482916";
 const tag = `stopd${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
 const otherUsername = `drv2-${tag}`;
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const TILE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -70,10 +70,12 @@ let tourId: string;
 const stopIds: string[] = [];
 const names = [1, 2, 3].map((n) => `Trattoria ${n} ${tag}`);
 
-const text = (de: string, hans?: string, hk?: string, tw?: string) =>
+const text = (de: string, hans?: string) =>
   JSON.stringify({
     de,
-    ...(hans ? { "zh-Hans": hans, "zh-Hant-HK": hk, "zh-Hant-TW": tw } : {}),
+    ...(hans
+      ? { "zh-Hans": hans, en: `${de} (en)`, "sr-Latn": `${de} (sr)`, cs: `${de} (cs)` }
+      : {}),
     meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
   });
 
@@ -100,10 +102,10 @@ test.beforeAll(async () => {
     [
       kg,
       `KG-${tag}`,
-      text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵"),
+      text("Spaghetti lose", "意大利面"),
       pack,
       `PK-${tag}`,
-      text("Penne", "笔管面", "筆管麵", "筆管麵"),
+      text("Penne", "笔管面"),
     ],
   );
   const settings = (await db.query(`SELECT "timezone" FROM "Settings"`)).rows[0] as {
@@ -125,11 +127,11 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantity: 1250 },
-      { productId: pack, quantity: 400 },
+      { productId: kg, quantity: 13 },
+      { productId: pack, quantity: 4 },
     ],
-    [{ productId: kg, quantity: 2700 }],
-    [{ productId: pack, quantity: 100 }],
+    [{ productId: kg, quantity: 27 }],
+    [{ productId: pack, quantity: 1 }],
   ];
   for (let i = 0; i < 3; i++) {
     const customerId = `cust-${i}-${tag}`;
@@ -263,15 +265,24 @@ for (const locale of LOCALES) {
       await expect(first.getByTestId("item-name")).toHaveText("Spaghetti lose");
       await expect(page.getByTestId("notes-lang")).toHaveCount(0);
     } else {
+      const suffix = { en: "en", "sr-Latn": "sr", cs: "cs" }[locale as "en" | "sr-Latn" | "cs"];
       await expect(first.getByTestId("item-name")).toHaveText(
-        locale === "zh-Hans" ? "意大利面" : locale === "zh-Hant-HK" ? "意大利麵" : "義大利麵",
+        locale === "zh-Hans" ? "意大利面" : `Spaghetti lose (${suffix})`,
       );
       await expect(first.getByTestId("item-name-de")).toHaveText("Spaghetti lose");
       await expect(page.getByTestId("notes-lang")).toHaveText("DE");
     }
-    await expect(first.getByTestId("item-quantity")).toContainText(/12[.,]5/);
+    await expect(first.getByTestId("item-quantity")).toContainText(/13/);
     await expect(page.getByTestId("stop-notes")).toContainText("Hintereingang benutzen");
-    await expect(page.getByTestId("stop-hours")).toContainText("Mo-Fr 8-11 Uhr");
+    // The weekday abbreviations and the clock word follow the locale (delivery-hours.ts).
+    const hoursText = {
+      de: "Mo-Fr 8-11 Uhr",
+      en: "Mon-Fri 8-11 h",
+      "sr-Latn": "pon-pet 8-11 č",
+      cs: "Po-Pá 8-11 hod.",
+      "zh-Hans": "周一-周五 8-11 时",
+    }[locale];
+    await expect(page.getByTestId("stop-hours")).toContainText(hoursText);
 
     // Driver UI rules.
     const quantity = await first
@@ -283,9 +294,12 @@ for (const locale of LOCALES) {
       });
     expect(quantity.size).toBeGreaterThanOrEqual(28);
     expect(quantity.weight).toBeGreaterThanOrEqual(700);
-    for (const id of ["back", "stop-address", "navigate", "next-stop"]) {
+    for (const id of ["back", "navigate", "next-stop"]) {
       expect((await box(page, id)).height, id).toBeGreaterThanOrEqual(48);
     }
+    // The address text is a span inside a 48 px row; the touch target is the copy button next to it.
+    const copy = await page.getByRole("button", { name: /^[^:]+: .*Hauptstraße 1/ }).boundingBox();
+    expect(copy!.height, "copy address").toBeGreaterThanOrEqual(48);
     expect(
       await page
         .getByTestId("stop-address")
@@ -308,7 +322,8 @@ for (const locale of LOCALES) {
     await page.goto(`/${locale}/driver/stops/${stopIds[2]}`);
     await expect(page.getByTestId("stop-name")).toHaveText(names[2]);
     await expect(page.getByTestId("photo-missing")).toHaveCount(2);
-    await expect(page.getByTestId("stop-info")).toHaveCount(0);
+    // No delivery hours: the (hidden, kept for the offline comparison) info container is empty.
+    await expect(page.getByTestId("stop-info")).toBeEmpty();
     await expect(page.getByTestId("next-stop")).toBeDisabled();
     await expect(page.getByTestId("prev-stop")).toHaveAttribute("href", /\/stops\//);
     const without = (await frame("photo-store"))!;
@@ -349,8 +364,8 @@ test("one photo missing, fullscreen pinch-zoom viewer, copy address, prev / next
   await page.keyboard.press("Escape");
   await expect(image).toHaveCount(0);
 
-  // Tap the address: copied to the clipboard.
-  await page.getByTestId("stop-address").click();
+  // Tap the copy-address button next to the address: copied to the clipboard.
+  await page.getByRole("button", { name: /Hauptstraße 1, 1010 Wien/ }).click();
   await expect(page.getByTestId("address-copied")).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   if (copied !== null) expect(copied).toBe("Hauptstraße 1, 1010 Wien");

@@ -33,7 +33,7 @@ database before reading the input.
 | `src/server/order-queries.ts`   | `"use server"` reads: `orderableCustomersQuery`, `orderOverviewQuery`, `orderDetailQuery`                                                                                  |
 | `src/server/late-orders.ts`     | Read model for orders stranded after their tours completed                                                                                                                 |
 | `src/server/products.ts`        | DB-facing product functions (`create/update/setActive/move/list/get`)                                                                                                      |
-| `src/server/product-actions.ts` | `"use server"` product mutations plus OpenCC name derivation                                                                                                               |
+| `src/server/product-actions.ts` | `"use server"` product mutations plus the automatic name translation                                                                                                               |
 | `src/server/product-queries.ts` | `"use server"` product reads                                                                                                                                               |
 
 ## Entry and overview rules (domain)
@@ -139,9 +139,10 @@ sums without a product name next to them use `driver.unitsTotal` ("3 Stück").
 
 - `productInputSchema`: `sku` (must match `[A-Za-z0-9][A-Za-z0-9._-]{0,31}`, uppercased),
   `unit` from `UNITS`, and a name with required `de` and `zh-Hans` (max 160 each) plus
-  optional `hk`/`tw`. `buildProductName` derives a `hk`/`tw` from `zh-Hans` on the server
-  with OpenCC when flagged `auto` (or empty), marking the stored value `machine`; a
-  non-auto, non-empty value is a hand-edited name. German is the source language.
+  optional `en`/`sr`/`cs` with `enAuto`/`srAuto`/`csAuto` flags. `buildProductName` translates
+  `en`/`sr-Latn`/`cs` from German on the server when flagged auto (or empty), marking the stored
+  value `machine`; a non-auto, non-empty value is a hand-edited name. A failed translation saves
+  the product anyway and flags the name `pendingTranslation` (retry job, `Product.name` source).
 - `createProduct` appends at the end (`sortOrder = max + 1`); `updateProduct` refuses a
   `sku` already taken (case-insensitive) and **locks the unit once the product is on any
   order** — changing it would silently change the meaning of old quantities. Errors:
@@ -154,10 +155,8 @@ sums without a product name next to them use `driver.unitsTotal` ("3 Stück").
   of NUD-030), `getProduct` (detail for the form plus `unitLocked` from the order-items
   count). Corrupt name JSON falls back to the `sku` so the list never crashes.
 
-`product-actions.ts` wraps the writes and adds `deriveHantAction`, which runs the
-multi-hundred-KB OpenCC dictionaries on the server (Simplified → HK and TW Traditional,
-max 160 chars) so they stay out of the browser bundle. `product-queries.ts` wraps the
-reads. Both check `requireRole("ADMIN")` first.
+`product-actions.ts` wraps the writes, `product-queries.ts` the reads. Both check
+`requireRole("ADMIN")` first.
 
 ## Invariants a caller must respect
 

@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ShownPhoto } from "@/lib/offline/photo-outbox";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { DriverPhotoSlot } from "./driver-photo-slot";
 
 const { enqueuePhoto, resizeImage } = vi.hoisted(() => ({
@@ -23,8 +24,9 @@ vi.mock("@/lib/upload-image", async (importOriginal) => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 const shown = (extra: Partial<ShownPhoto> = {}): ShownPhoto => ({

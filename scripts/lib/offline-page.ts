@@ -1,12 +1,12 @@
 /**
  * The generic offline page served by the service worker when a driver page cannot be loaded
- * (NUD-080). Static HTML with the texts of all four locales (from messages/*.json, key group
+ * (NUD-080). Static HTML with the texts of all five locales (from messages/*.json, key group
  * `pwa.offline`); a tiny script shows the language of the URL prefix. No personal data.
  */
 
 import { BASE_PATH, withBasePath } from "../../src/lib/base-path";
 
-export const OFFLINE_LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+export const OFFLINE_LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 export type OfflineLocale = (typeof OFFLINE_LOCALES)[number];
 export type OfflineTexts = { title: string; text: string; retry: string };
 
@@ -94,7 +94,7 @@ export function buildOfflineHtml(
       :root { color-scheme: light; }
       .dark { color-scheme: dark; }
       body { margin: 0; min-height: 100dvh; display: grid; place-items: end center; padding: 16px 16px 15vh; box-sizing: border-box;
-        font: 18px/1.5 system-ui, "PingFang SC", "PingFang HK", "PingFang TC", "Noto Sans SC", "Noto Sans HK", "Noto Sans TC", "Microsoft YaHei", "Microsoft JhengHei", sans-serif; }
+        font: 18px/1.5 system-ui, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; }
       main { max-width: 24rem; text-align: center; }
       .icon { display: block; margin: 0 auto 1rem; }
       h1 { font-size: 1.5rem; margin: 0 0 .5rem; }

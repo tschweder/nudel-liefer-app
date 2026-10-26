@@ -89,7 +89,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver offline sync", { timeout: 60_
       role: "DRIVER",
       username: "drv",
       displayName: "Driver",
-      locale: "zh_Hant_TW",
+      locale: "zh_Hans",
       localeChosen: true,
     });
     otherDriverId = await user({ role: "DRIVER", username: "drv2", displayName: "Other" });
@@ -294,15 +294,15 @@ describe.skipIf(!process.env.DATABASE_URL)("driver offline sync", { timeout: 60_
       db: TestDb["prisma"],
       result: Parameters<typeof scheduleProblemNoteTranslation>[1],
     ) => scheduleProblemNoteTranslation(db as never, result, spy);
-    const e = entry("problem", 0, at(1), { reason: "NO_PARKING", note: "地下停車場" });
-    const who = actor(driverId, "zh-Hant-TW");
+    const e = entry("problem", 0, at(1), { reason: "NO_PARKING", note: "地下停车场" });
+    const who = actor(driverId, "zh-Hans");
     await sync([e], who, SERVER_NOW, { afterApply });
     expect(spy).toHaveBeenCalledTimes(1);
     const row = await stopRow(0);
     expect(row.status).toBe("PROBLEM");
     expect(row.problemReason).toBe("NO_PARKING");
     expect(row.problemNote).toMatchObject({
-      meta: { source: "zh-Hant-TW", pendingTranslation: true },
+      meta: { source: "zh-Hans", pendingTranslation: true },
     });
     // A replay of the same batch must not schedule it again.
     await sync([e], who, SERVER_NOW, { afterApply });

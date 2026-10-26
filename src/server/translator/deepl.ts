@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-import { ChineseAwareTranslator, type CoreSource, type CoreTarget } from "./base";
+import type { AppLocale } from "@/lib/localized-text";
+
+import { isTrivial } from "./base";
 import { type Translator, TranslatorError } from "./types";
 
 export const DEEPL_FREE_URL = "https://api-free.deepl.com";
@@ -42,12 +44,25 @@ export type DeepLTranslatorOptions = {
   fetch?: typeof fetch;
 };
 
+/** DeepL language codes of the locales it handles. Serbian is not routed here (see `RoutedTranslator`). */
+const DEEPL_SOURCE: Partial<Record<AppLocale, string>> = {
+  de: "DE",
+  en: "EN",
+  cs: "CS",
+  "zh-Hans": "ZH",
+};
+const DEEPL_TARGET: Partial<Record<AppLocale, string>> = {
+  de: "DE",
+  en: "EN-GB",
+  cs: "CS",
+  "zh-Hans": "ZH-HANS",
+};
+
 /**
- * DeepL REST API v2. Only German <-> Simplified Chinese goes over the wire: target `ZH-HANS`,
- * source `ZH` (DeepL detects the script) and `DE`. The Traditional variants are derived with
- * OpenCC (see `ChineseAwareTranslator`). The key travels in the `Authorization` header only.
+ * DeepL REST API v2 for German, English, Czech and Simplified Chinese (source `ZH`, target
+ * `ZH-HANS`). The key travels in the `Authorization` header only.
  */
-export class DeepLTranslator extends ChineseAwareTranslator implements Translator {
+export class DeepLTranslator implements Translator {
   readonly kind = "deepl" as const;
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
@@ -55,7 +70,6 @@ export class DeepLTranslator extends ChineseAwareTranslator implements Translato
   private readonly fetchFn: typeof fetch;
 
   constructor(private readonly options: DeepLTranslatorOptions) {
-    super();
     const plan = options.plan ?? resolvePlan(options.apiKey, undefined);
     this.baseUrl = (options.baseUrl ?? (plan === "free" ? DEEPL_FREE_URL : DEEPL_PRO_URL)).replace(
       /\/+$/,
@@ -66,12 +80,14 @@ export class DeepLTranslator extends ChineseAwareTranslator implements Translato
     this.fetchFn = options.fetch ?? fetch;
   }
 
-  protected async call(text: string, from: CoreSource, to: CoreTarget): Promise<string> {
-    const body = JSON.stringify({
-      text: [text],
-      source_lang: from === "de" ? "DE" : "ZH",
-      target_lang: to === "de" ? "DE" : "ZH-HANS",
-    });
+  async translate(text: string, from: AppLocale, to: AppLocale): Promise<string> {
+    if (isTrivial(text, from, to)) return text;
+    const sourceLang = DEEPL_SOURCE[from];
+    const targetLang = DEEPL_TARGET[to];
+    if (!sourceLang || !targetLang) {
+      throw new TranslatorError(`DeepL does not translate ${from} -> ${to}`, "UNSUPPORTED");
+    }
+    const body = JSON.stringify({ text: [text], source_lang: sourceLang, target_lang: targetLang });
     return mapDeepLResponse(await this.post("/v2/translate", body));
   }
 

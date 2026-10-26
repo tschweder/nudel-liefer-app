@@ -464,7 +464,7 @@ Content location: `content/hand-off/` keeps non-code out of `src/` and out of th
 4. **Category list** under the search box: `Büro (Admin)` / `Fahrer (App)` / `Anmeldung & Konto` / `System & Einstellungen` / `Begriffe (Glossar)`. On an empty search the whole list shows, grouped.
 5. **Everything works offline and with JS disabled.** Without JS the page still renders every topic as HTML; the search box is the only enhancement. This also keeps it usable on the driver's phone.
 6. **Print-friendly:** `@media print` hides the search box (a driver may print the two driver pages).
-7. **Chinese:** Simplified Chinese (`zh-Hans`) is the primary Chinese variant, matching the app's own `zh-Hans` message file. Add a short note at the top of the Chinese version that the three Traditional variants are available inside the app (`繁體中文（香港）` / `繁體中文（台灣）`) and that German UI labels stay German.
+7. **Chinese:** Simplified Chinese (`zh-Hans`) is the primary Chinese variant, matching the app's own `zh-Hans` message file. Add a short note at the top of the Chinese version that the driver app is also available in English, Serbian (`Srpski`) and Czech (`Čeština`) and that German UI labels stay German.
 8. **Honesty banner** at the top: "Diese Hilfe beschreibt die App. Die chinesischen Texte werden noch von einem Muttersprachler geprüft." — because `docs/i18n.md` states the Chinese UI texts are agent-written and not native-reviewed. Do not present machine quality as final.
 
 ### 7.4 Style
@@ -492,7 +492,7 @@ Minimum coverage (one topic each; the labels are exact strings from `messages/de
 
 **Büro**
 1. Produkt anlegen (`Produkte` → `Neues Produkt`) — search: `waren typ hinzufügen`, `produkt anlegen`, `nudelsorte`, `neuer artikel`, `添加产品`, `新建产品`, `货号`, `sku`
-2. Produkt bearbeiten / Namen (vereinfachtes Chinesisch Pflicht, traditionell automatisch) / `Neu aus vereinfachtem Namen ableiten`
+2. Produkt bearbeiten / Namen (vereinfachtes Chinesisch Pflicht, Englisch, Serbisch, Tschechisch automatisch übersetzt) / `Neu aus dem deutschen Namen übersetzen`
 3. Produkt deaktivieren/aktivieren (`Deaktivieren`, `Aktivieren`) und Reihenfolge (`nach oben`/`nach unten`)
 4. Kunde anlegen (`Kunden` → `Neuer Kunde`) mit Adresse
 5. Adresspunkt setzen und bestätigen (`Auf Karte suchen`, `Adresspunkt geprüft: …`) — search: `adresspunkt`, `karte`, `adresse suchen`, `地址点`

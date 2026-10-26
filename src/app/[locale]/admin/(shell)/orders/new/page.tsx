@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
-import { type AppLocale, pick } from "@/lib/localized-text";
+import { type AppLocale, LOCALES, pick } from "@/lib/localized-text";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { orderableCustomersQuery } from "@/server/order-queries";
 import { activeProductsQuery } from "@/server/product-queries";
@@ -44,12 +44,7 @@ async function Guarded({ locale }: { locale: string }) {
         products={products.map((p) => ({
           value: p.id,
           label: `${pick(p.name, locale as AppLocale)} (${p.sku})`,
-          keywords: [
-            p.sku,
-            ...(["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const).flatMap((l) =>
-              p.name[l] ? [p.name[l]] : [],
-            ),
-          ],
+          keywords: [p.sku, ...LOCALES.flatMap((l) => (p.name[l] ? [p.name[l]] : []))],
           unit: p.unit,
         }))}
       />

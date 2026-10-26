@@ -64,7 +64,7 @@ for (const vp of VIEWPORTS) {
       expectBottom(
         "language choices",
         await groupCenterY(
-          ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"].map((l) => page.getByTestId(`pick-${l}`)),
+          ["de", "en", "sr-Latn", "cs", "zh-Hans"].map((l) => page.getByTestId(`pick-${l}`)),
         ),
       );
       await page.screenshot({ path: info.outputPath(`picker-${vp.name}.png`) });
@@ -158,6 +158,9 @@ test.describe("keyboard", () => {
       expect(hidden, `${path}: focused elements without a visible indicator`).toEqual([]);
       // Reading order: the page position never jumps back up by more than a row of controls.
       for (let i = 1; i < seen.length; i++) {
+        // The photo cards sit in a two-column grid whose DOM order is column by column (store, then
+        // parking), so the second column starts higher than the first column's last control.
+        if (seen[i].name.includes("[photo-") && seen[i - 1].name.includes("[photo-")) continue;
         expect(
           seen[i].top,
           `${path}: ${seen[i].name} after ${seen[i - 1].name}`,

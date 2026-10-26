@@ -14,22 +14,18 @@ import { Label } from "@/components/ui/label";
 import { PinInput } from "@/components/ui/pin-input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { isAppLocale, LOCALE_LABELS } from "@/lib/locale-resolution";
-import { LOCALES } from "@/lib/localized-text";
+import {
+  isAppLocale,
+  LOCALE_LABELS,
+  LOCALE_SHORT_LABELS,
+  localesFor,
+} from "@/lib/locale-resolution";
 import { cn } from "@/lib/utils";
 import { adminLoginAction, driverLoginAction, type LoginState } from "@/server/auth/actions";
 import { setLocaleAction } from "@/server/locale-actions";
 
 /** Codes for the six-digit PIN; also drives the client-side pre-check (F1). */
 const PIN_PATTERN = /^\d{6}$/;
-
-/** Short pill labels (own script, not translated) for the driver login language picker. */
-const LANGUAGE_SHORT_LABELS: Record<string, string> = {
-  de: "DE",
-  "zh-Hans": "简体",
-  "zh-Hant-HK": "繁體(港)",
-  "zh-Hant-TW": "繁體(台)",
-};
 
 /**
  * Inline brand mark (re-design.md §7.5/§8.9): wordmark "Nudel Liefer" plus a terracotta dot, pure
@@ -55,7 +51,7 @@ function BrandMark({ onPrimary = false, className }: { onPrimary?: boolean; clas
 }
 
 /**
- * Language picker (re-design.md §7.5): a row of four pills. The `select` next to it is the element
+ * Language picker (re-design.md §7.5): a row of five pills. The `select` next to it is the element
  * the e2e specs drive (`selectOption`, exact option texts); it is transparent and
  * `pointer-events-none`, so real users always use the pills — the picker itself stays fully
  * functional without JavaScript-injected test ids.
@@ -90,14 +86,14 @@ function LanguagePills({ callbackUrl }: { callbackUrl?: string }) {
         className={cn(
           // Driver touch targets: the kit's `lg` track is 48 px with 44 px pills; a 52 px track and
           // 48 px pills (`self-stretch` from the kit plus an explicit min-height). `px-1.5` keeps
-          // the "(港)/(台)" CJK labels whole.
+          // the five short labels whole.
           "h-13 [&>button]:min-h-12 [&>button]:px-1.5",
           pending && "opacity-70",
         )}
-        options={LOCALES.map((code) => ({
+        options={localesFor("driver").map((code) => ({
           value: code,
-          label: LANGUAGE_SHORT_LABELS[code] ?? LOCALE_LABELS[code],
-          testId: `pick-${code}`,
+          label: LOCALE_SHORT_LABELS[code],
+          testId: `login-pick-${code}`,
         }))}
       />
       <select
@@ -108,7 +104,7 @@ function LanguagePills({ callbackUrl }: { callbackUrl?: string }) {
         onChange={(event) => changeLocale(event.target.value)}
         className="pointer-events-none absolute inset-0 z-10 h-full w-full opacity-0"
       >
-        {LOCALES.map((code) => (
+        {localesFor("driver").map((code) => (
           <option key={code} value={code} lang={code}>
             {LOCALE_LABELS[code]}
           </option>

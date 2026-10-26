@@ -4,7 +4,7 @@ import { installNetworkEmulation, setOnline } from "./helpers/network";
 
 // NUD-094. Needs a seeded database and a server started with ENABLE_ERROR_TEST_PAGES=true (the
 // hidden pages /admin/dev/error and /driver/dev-error raise an error on purpose and are a 404
-// otherwise). Uses the seeded admin and the seeded driver `driver-hk`.
+// otherwise). Uses the seeded admin and the seeded driver `driver-sr`.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 
 async function loginAdmin(page: Page, locale = "de") {
@@ -20,10 +20,10 @@ async function loginAdmin(page: Page, locale = "de") {
 async function loginDriver(page: Page) {
   await page.goto("/de/driver/login");
   const form = page.getByTestId("driver-login-form");
-  await form.locator('input[name="username"]').fill("driver-hk");
+  await form.locator('input[name="username"]').fill("driver-sr");
   await form.locator('input[name="pin"]').fill("123456");
   await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
+  await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
 }
 
 const noHorizontalScroll = (page: Page) =>
@@ -58,11 +58,11 @@ test.describe("driver", () => {
   }) => {
     await installNetworkEmulation(context);
     await loginDriver(page);
-    await page.goto("/zh-Hant-HK/driver/dev-error");
+    await page.goto("/sr-Latn/driver/dev-error");
     const error = page.getByTestId("driver-error");
     await expect(error).toBeVisible();
     await expect(error).toHaveAttribute("data-connection", "online");
-    await expect(error).toContainText("出錯了");
+    await expect(error).toContainText("Nešto je pošlo naopako");
     await expect(error).not.toContainText("Forced test error");
     // The app shell with the connection indicator and the sync of queued taps stays mounted.
     await expect(page.getByTestId("driver-shell")).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("driver", () => {
     await page.getByTestId("driver-error-retry").click();
     await expect(error).toBeVisible();
     await error.getByRole("link").click();
-    await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
+    await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
   });
 
   test("offline: calm wording, no error message; reloads when the connection returns", async ({

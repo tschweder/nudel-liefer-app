@@ -6,7 +6,7 @@ const launch = { pathname: "/driver", search: "?source=pwa" };
 
 describe("localeRedirectPath (NUD-106: installed app start URL)", () => {
   it("sends the launch URL to the session locale, ignoring the locale the app was installed in", () => {
-    expect(localeRedirectPath({ ...launch, userLocale: "de", cookie: "zh-Hant-TW" })).toBe(
+    expect(localeRedirectPath({ ...launch, userLocale: "de", cookie: "cs" })).toBe(
       "/de/driver?source=pwa",
     );
     expect(localeRedirectPath({ ...launch, userLocale: "zh-Hans" })).toBe(
@@ -15,11 +15,11 @@ describe("localeRedirectPath (NUD-106: installed app start URL)", () => {
   });
 
   it("without a session uses the cookie, then Accept-Language, then German", () => {
-    expect(localeRedirectPath({ ...launch, cookie: "zh-Hant-HK", acceptLanguage: "de-AT" })).toBe(
-      "/zh-Hant-HK/driver?source=pwa",
+    expect(localeRedirectPath({ ...launch, cookie: "sr-Latn", acceptLanguage: "de-AT" })).toBe(
+      "/sr-Latn/driver?source=pwa",
     );
-    expect(localeRedirectPath({ ...launch, acceptLanguage: "zh-TW,zh;q=0.8" })).toBe(
-      "/zh-Hant-TW/driver?source=pwa",
+    expect(localeRedirectPath({ ...launch, acceptLanguage: "cs-CZ,cs;q=0.8" })).toBe(
+      "/cs/driver?source=pwa",
     );
     expect(localeRedirectPath({ ...launch })).toBe("/de/driver?source=pwa");
   });
@@ -29,6 +29,15 @@ describe("localeRedirectPath (NUD-106: installed app start URL)", () => {
       "/zh-Hans/driver?source=pwa",
     );
     expect(localeRedirectPath({ ...launch, cookie: "klingon" })).toBe("/de/driver?source=pwa");
+  });
+
+  it("sends a driver-only language opening an office page to the German page", () => {
+    expect(localeRedirectPath({ pathname: "/admin/orders", search: "", userLocale: "cs" })).toBe(
+      "/de/admin/orders",
+    );
+    expect(localeRedirectPath({ pathname: "/admin", search: "", userLocale: "en" })).toBe(
+      "/en/admin",
+    );
   });
 
   it("keeps deep paths and the root", () => {

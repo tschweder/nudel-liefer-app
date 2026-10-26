@@ -9,7 +9,7 @@ test.use({ viewport: { width: 375, height: 812 } });
 const PIN = "482916";
 const tag = `stat${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const TILE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -21,12 +21,13 @@ let tourId: string;
 const stopIds: string[] = [];
 const names = [1, 2, 3].map((n) => `Trattoria ${n} ${tag}`);
 
-const text = (de: string, hans: string, hk: string, tw: string) =>
+const text = (de: string, hans: string) =>
   JSON.stringify({
     de,
     "zh-Hans": hans,
-    "zh-Hant-HK": hk,
-    "zh-Hant-TW": tw,
+    en: `${de} (en)`,
+    "sr-Latn": `${de} (sr)`,
+    cs: `${de} (cs)`,
     meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
   });
 
@@ -43,7 +44,7 @@ test.beforeAll(async () => {
   const kg = `prod-kg-${tag}`;
   await db.query(
     `INSERT INTO "Product" ("id","sku","name","unit","weightKgPerUnit","updatedAt") VALUES ($1,$2,$3::jsonb,'KG',1,now())`,
-    [kg, `KG-${tag}`, text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵")],
+    [kg, `KG-${tag}`, text("Spaghetti lose", "意大利面")],
   );
   const settings = (await db.query(`SELECT "timezone" FROM "Settings"`)).rows[0] as {
     timezone: string;
@@ -86,7 +87,7 @@ test.beforeAll(async () => {
         customerId,
         i + 1,
         new Date(today.getTime() + (8 + i) * 3600_000),
-        JSON.stringify([{ productId: kg, quantity: 1250 + i * 100 }]),
+        JSON.stringify([{ productId: kg, quantity: 13 + i }]),
       ],
     );
   }
@@ -211,7 +212,8 @@ for (const locale of LOCALES) {
     await expect(toast).toBeVisible();
     await expect(toast).toContainText(names[0]);
     const toastUndo = toast.locator("[data-button]");
-    expect((await toastUndo.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+    // Rounded: sonner scales a toast by a hair while it animates in (47.999996 px measured).
+    expect(Math.round((await toastUndo.boundingBox())!.height)).toBeGreaterThanOrEqual(48);
     await page.screenshot({ path: testInfo.outputPath(`status-toast-${locale}.png`) });
 
     // Stop 2: problem with reason and free text, stored in the driver's locale.

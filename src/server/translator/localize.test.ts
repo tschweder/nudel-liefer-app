@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createLocalizedText, localizedTextSchema, pick } from "@/lib/localized-text";
 
+import { RoutedTranslator } from "./base";
 import { FakeTranslator } from "./fake";
 import { completeTranslation, localize } from "./localize";
 import { type Translator, TranslatorError } from "./types";
@@ -22,50 +23,50 @@ const failing = (
   },
 });
 
+/** DeepL without a Serbian provider: the production setup until NUD-150. */
+const withoutSerbian = (
+  inner: Translator = { kind: "deepl", translate: async (t, _f, to) => `${to}: ${t}` },
+) => new RoutedTranslator(inner, undefined);
+
 describe("localize", () => {
-  it("fills all four locales from a German source and flags machine output", async () => {
+  it("fills all five locales from a German source and flags machine output", async () => {
     const text = await localize(` ${NOTE} `, "de", { translator: new FakeTranslator(), now: NOW });
     expect(localizedTextSchema.safeParse(text).success).toBe(true);
     expect(text.de).toBe(NOTE);
+    expect(text.en).toBe(`[en] ${NOTE}`);
+    expect(text["sr-Latn"]).toBe(`[sr-Latn] ${NOTE}`);
+    expect(text.cs).toBe(`[cs] ${NOTE}`);
     expect(text["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
-    expect(text["zh-Hant-HK"]).toBe(`[zh-Hans] ${NOTE}`);
-    expect(text["zh-Hant-TW"]).toBe(`[zh-Hans] ${NOTE}`);
     expect(text.meta).toEqual({
       source: "de",
-      machine: { "zh-Hans": true, "zh-Hant-HK": true, "zh-Hant-TW": true },
+      machine: { en: true, "sr-Latn": true, cs: true, "zh-Hans": true },
       updatedAt: NOW.toISOString(),
     });
     expect(text.meta.pendingTranslation).toBeUndefined();
   });
 
-  it("converts Hant variants with OpenCC (one provider call)", async () => {
-    const translate = vi.fn(async () => "意大利面");
-    const t: Translator = { kind: "deepl", translate };
-    const text = await localize("Spaghetti", "de", { translator: t, now: NOW });
-    expect(translate).toHaveBeenCalledTimes(1);
+  it("asks the provider once per missing target language", async () => {
+    const translate = vi.fn(async (_t: string, _f: string, to: string) => `<${to}>`);
+    const text = await localize("Spaghetti", "de", {
+      translator: { kind: "deepl", translate } as Translator,
+      now: NOW,
+    });
+    expect(translate).toHaveBeenCalledTimes(4);
     expect(translate).toHaveBeenCalledWith("Spaghetti", "de", "zh-Hans");
-    expect(text["zh-Hans"]).toBe("意大利面");
-    expect(text["zh-Hant-HK"]).toBe("意大利麪");
-    expect(text["zh-Hant-TW"]).toBe("義大利麵");
+    expect(text.cs).toBe("<cs>");
   });
 
-  it("translates a Chinese source to German and derives the other Chinese variants", async () => {
-    const translate = vi.fn(async () => "Hintereingang");
+  it("translates a non-German source into all other languages and never flags the source", async () => {
+    const translate = vi.fn(async (_t: string, _f: string, to: string) => `<${to}>`);
     const t: Translator = { kind: "deepl", translate };
     const hans = await localize("意大利面", "zh-Hans", { translator: t, now: NOW });
     expect(translate).toHaveBeenCalledWith("意大利面", "zh-Hans", "de");
-    expect(hans.de).toBe("Hintereingang");
-    expect(hans["zh-Hant-TW"]).toBe("義大利麵");
-    expect(hans.meta.machine).toEqual({ de: true, "zh-Hant-HK": true, "zh-Hant-TW": true });
+    expect(hans.de).toBe("<de>");
+    expect(hans.cs).toBe("<cs>");
+    expect(hans["zh-Hans"]).toBe("意大利面");
+    expect(hans.meta.machine).toEqual({ de: true, en: true, "sr-Latn": true, cs: true });
     expect(hans.meta.source).toBe("zh-Hans");
-
-    const hk = await localize("意大利麪", "zh-Hant-HK", { translator: t, now: NOW });
-    expect(hk["zh-Hant-HK"]).toBe("意大利麪");
-    expect(hk["zh-Hans"]).toBe("意大利面");
-    expect(hk.de).toBe("Hintereingang");
-    // The source locale is never flagged as machine output.
-    expect(hk.meta.machine["zh-Hant-HK"]).toBeUndefined();
-    expect(pick(hk, "de")).toBe("Hintereingang");
+    expect(pick(hans, "de")).toBe("<de>");
   });
 
   it("never throws when the provider is down: stores the source and marks it pending", async () => {
@@ -74,22 +75,37 @@ describe("localize", () => {
     const text = await localize(NOTE, "de", { translator: t, now: NOW });
     expect(text.de).toBe(NOTE);
     expect(text["zh-Hans"]).toBeUndefined();
-    expect(text["zh-Hant-HK"]).toBeUndefined();
+    expect(text.cs).toBeUndefined();
     expect(text.meta.pendingTranslation).toBe(true);
     expect(text.meta.machine).toEqual({});
     expect(localizedTextSchema.safeParse(text).success).toBe(true);
     expect(pick(text, "zh-Hans")).toBe(NOTE); // read rule: falls back to German
   });
 
-  it("keeps the offline OpenCC variants of a Chinese source when only German is pending", async () => {
+  it("keeps the languages that worked and stays pending when only some fail", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const text = await localize("意大利面", "zh-Hans", {
-      translator: failing("TIMEOUT"),
-      now: NOW,
-    });
-    expect(text.de).toBeUndefined();
-    expect(text["zh-Hant-TW"]).toBe("義大利麵");
+    const t: Translator = {
+      kind: "deepl",
+      async translate(_t, _f, to) {
+        if (to === "cs") throw new TranslatorError("down", "HTTP", 503);
+        return `<${to}>`;
+      },
+    };
+    const text = await localize("Nudeln", "de", { translator: t, now: NOW });
+    expect(text.en).toBe("<en>");
+    expect(text.cs).toBeUndefined();
     expect(text.meta.pendingTranslation).toBe(true);
+    expect(text.meta.machine).toEqual({ en: true, "sr-Latn": true, "zh-Hans": true });
+  });
+
+  it("leaves Serbian empty (not pending) while no Serbian provider exists, other languages are filled", async () => {
+    const text = await localize("Nudeln", "de", { translator: withoutSerbian(), now: NOW });
+    expect(text.en).toBe("en: Nudeln");
+    expect(text.cs).toBe("cs: Nudeln");
+    expect(text["zh-Hans"]).toBe("zh-Hans: Nudeln");
+    expect(text["sr-Latn"]).toBeUndefined();
+    expect(text.meta.pendingTranslation).toBeUndefined();
+    expect(pick(text, "sr-Latn")).toBe("Nudeln"); // falls back to German
   });
 
   it("does not log the text when the provider fails", async () => {
@@ -126,19 +142,33 @@ describe("completeTranslation", () => {
     expect(done.meta.pendingTranslation).toBeUndefined();
     expect(done.meta.updatedAt).toBe(later.toISOString());
     expect(done["zh-Hans"]).toBe(`[zh-Hans] ${NOTE}`);
+    expect(done["sr-Latn"]).toBe(`[sr-Latn] ${NOTE}`);
   });
 
-  it("never overwrites a hand-written locale", async () => {
-    const t: Translator = { kind: "deepl", translate: vi.fn(async () => "机器翻译") };
-    const done = await completeTranslation(pending({ de: NOTE, "zh-Hant-HK": "手寫版本" }), t, NOW);
-    expect(done["zh-Hant-HK"]).toBe("手寫版本");
-    // Hans is derived from the existing Hant text, no provider call needed.
+  it("never overwrites a hand-written locale and only asks for the missing ones", async () => {
+    const translate = vi.fn(async (_t: string, _f: string, to: string) => `<${to}>`);
+    const t: Translator = { kind: "deepl", translate };
+    const done = await completeTranslation(pending({ de: NOTE, "zh-Hans": "手写版本" }), t, NOW);
     expect(done["zh-Hans"]).toBe("手写版本");
-    expect(t.translate).not.toHaveBeenCalled();
-    expect(done.meta.machine["zh-Hant-HK"]).toBeUndefined();
+    expect(translate).toHaveBeenCalledTimes(3);
+    expect(translate).not.toHaveBeenCalledWith(NOTE, "de", "zh-Hans");
+    expect(done.meta.machine["zh-Hans"]).toBeUndefined();
   });
 
-  it("propagates the provider error and leaves the input untouched", async () => {
+  it("can be limited to some target locales (a problem note only needs German)", async () => {
+    const translate = vi.fn(async () => "Deutsch");
+    const input = createLocalizedText({ "zh-Hans": "有问题" }, "zh-Hans", {
+      now: NOW,
+      pendingTranslation: true,
+    });
+    const done = await completeTranslation(input, { kind: "deepl", translate }, NOW, ["de"]);
+    expect(translate).toHaveBeenCalledTimes(1);
+    expect(done.de).toBe("Deutsch");
+    expect(done.en).toBeUndefined();
+    expect(done.meta.pendingTranslation).toBeUndefined();
+  });
+
+  it("propagates the provider error when nothing could be filled and leaves the input untouched", async () => {
     const input = pending({ de: NOTE });
     await expect(completeTranslation(input, failing(), NOW)).rejects.toBeInstanceOf(
       TranslatorError,

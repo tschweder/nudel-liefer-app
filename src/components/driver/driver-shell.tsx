@@ -44,7 +44,7 @@ import { setLocaleAction } from "@/server/locale-actions";
 /**
  * Language picker of the driver top bar (re-design.md §7.1). The redesign draws a bottom sheet; the
  * native `<select>` stays as the visible 48 px control because four driver e2e specs drive the
- * locale change through `selectOption("de" | "zh-Hans" | "zh-Hant-HK" | "zh-Hant-TW")` and read
+ * locale change through `selectOption("de" | "en" | "sr-Latn" | "cs" | "zh-Hans")` and read
  * `option` texts (`driver-language-picker`, `driver-usability`, `shells`, `pwa`). Its test ids and
  * behaviour are unchanged from `LanguageSwitcher variant="icon"`.
  */
@@ -142,6 +142,9 @@ function SyncChip({ onClick, className }: { onClick: () => void; className?: str
         : state === "pending"
           ? t("pendingShort", { count: pending })
           : label;
+  // WCAG 2.5.3: the visible text must be part of the accessible name (the short wording of the
+  // "preparing" / "error" chip is not part of the full sentence).
+  const accessibleName = label.includes(short) ? label : `${short}: ${label}`;
   const icon =
     state === "preparing" ? (
       <Loader2Icon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden />
@@ -171,7 +174,7 @@ function SyncChip({ onClick, className }: { onClick: () => void; className?: str
         onClick={onClick}
         data-testid="sync-chip"
         data-state={state}
-        aria-label={label}
+        aria-label={accessibleName}
         className={cn(
           // Driver rules: >= 48 px touch target and >= 16 px text. `max-w` keeps the chip from
           // eating the date; the pending count alone can be narrow, hence the `min-w`.

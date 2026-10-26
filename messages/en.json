@@ -1,0 +1,1543 @@
+{
+  "common": {
+    "appName": "Nudel Liefer App",
+    "language": "Language",
+    "notifications": "Notifications",
+    "theme": {
+      "day": "Day mode",
+      "night": "Night mode",
+      "toggleToNight": "Switch to night mode",
+      "toggleToDay": "Switch to day mode"
+    },
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "archive": "Archive",
+      "restore": "Restore",
+      "edit": "Edit",
+      "create": "Create",
+      "add": "Add",
+      "remove": "Remove",
+      "back": "Back",
+      "next": "Next",
+      "confirm": "Confirm",
+      "close": "Close",
+      "search": "Search",
+      "retry": "Try again",
+      "release": "Release",
+      "optimize": "Optimize",
+      "upload": "Upload",
+      "logout": "Log out",
+      "login": "Log in"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Bag",
+      "CRATE": "Carton",
+      "PIECE": "×"
+    },
+    "statuses": {
+      "order": {
+        "DRAFT": "Draft",
+        "CONFIRMED": "Confirmed",
+        "CANCELLED": "Cancelled"
+      },
+      "tour": {
+        "DRAFT": "Draft",
+        "OPTIMIZED": "Optimized",
+        "RELEASED": "Released",
+        "IN_PROGRESS": "On the road",
+        "COMPLETED": "Completed"
+      },
+      "stop": {
+        "PENDING": "Open",
+        "DELIVERED": "Delivered",
+        "PROBLEM": "Problem"
+      }
+    },
+    "problemReasons": {
+      "CLOSED": "Closed",
+      "NOBODY_THERE": "Nobody there",
+      "NO_PARKING": "No parking",
+      "WRONG_QUANTITY": "Wrong quantity",
+      "REFUSED": "Delivery refused",
+      "ADDRESS_NOT_FOUND": "Address not found",
+      "OTHER": "Other"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "notFound": "Page not found.",
+      "forbidden": "You do not have permission for this.",
+      "required": "Required field",
+      "invalid": "Invalid value",
+      "network": "No connection."
+    },
+    "itemsCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
+    "states": {
+      "emptyTitle": "Nothing here yet",
+      "comingSoon": "This area will be added soon.",
+      "errorTitle": "Something went wrong",
+      "loading": "Loading …"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "This page does not exist or has been moved.",
+      "home": "Go to the home page"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "description": "The page could not be displayed. Please try again."
+    },
+    "upload": {
+      "dropHere": "Drag an image here",
+      "choose": "Choose an image",
+      "camera": "Take a photo",
+      "pasteHint": "or paste an image from the clipboard (Ctrl+V)",
+      "uploading": "Uploading … {percent} %",
+      "done": "Uploaded",
+      "cancel": "Cancel",
+      "errors": {
+        "NOT_AN_IMAGE": "This is not an image file.",
+        "HEIC_UNSUPPORTED": "This browser does not support HEIC photos. Please save the photo as JPEG or PNG.",
+        "DECODE_FAILED": "The image could not be read.",
+        "TOO_LARGE": "The image is too large.",
+        "UNAUTHENTICATED": "Please log in again.",
+        "FORBIDDEN": "You do not have permission for this.",
+        "REQUEST_FAILED": "The upload could not be prepared. Please try again.",
+        "UPLOAD_FAILED": "The upload failed. Please try again.",
+        "ABORTED": "Upload cancelled."
+      },
+      "preview": {
+        "open": "Enlarge image",
+        "title": "Image view",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "reset": "Reset"
+      }
+    },
+    "unitNames": {
+      "KG": "kg",
+      "PACK": "Bag",
+      "CRATE": "Carton",
+      "PIECE": "Piece (N ×)"
+    }
+  },
+  "home": {
+    "title": "Nudel Liefer App",
+    "placeholder": "Placeholder"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "Office login",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "driverLink": "Driver login",
+      "brandSentence": "Office login for the Nudel Liefer App",
+      "showPassword": "Show",
+      "hidePassword": "Hide"
+    },
+    "driverLogin": {
+      "title": "Driver login",
+      "username": "Username",
+      "pin": "PIN (6 digits)",
+      "submit": "Log in",
+      "adminLink": "Office login"
+    },
+    "errors": {
+      "invalid": "Login failed. Please check your entries.",
+      "rateLimited": "Too many failed attempts. Please try again in 15 minutes.",
+      "generic": "Login is not possible. Please try again later.",
+      "pinLength": "The PIN must have 6 digits",
+      "usernameRequired": "Please enter your username",
+      "credentials": "Wrong username or PIN",
+      "emailRequired": "Please enter your email",
+      "passwordRequired": "Please enter your password"
+    },
+    "signedInAs": "Logged in as {name}",
+    "logout": "Log out",
+    "help": "Help"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Overview",
+      "welcome": "Welcome to the office area.",
+      "today": {
+        "title": "Today",
+        "noTour": "There is no tour for today.",
+        "notReleased": "Today’s tour has not been released yet.",
+        "progressLabel": "Progress of today’s tour",
+        "progress": "{done} of {total} stops done",
+        "percent": "({percent} %)",
+        "counts": "{delivered} delivered · {open} open",
+        "next": "Next stop",
+        "eta": "Arrival approx. {time}",
+        "allDone": "All stops are done.",
+        "problemsHeading": "Problems",
+        "problems": "{count, plural, =0 {No problems} one {# problem} other {# problems}}",
+        "driver": "Driver: {name}",
+        "openTour": "View tour",
+        "openPlanning": "Plan tour",
+        "lateOrders": "{count, plural, one {# order for today arrived after the tour was completed and is in no tour.} other {# orders for today arrived after the tour was completed and are in no tour.}} Please create a follow-up tour.",
+        "countsBreakdown": "{delivered} delivered · {problems, plural, =0 {no problems} one {# problem} other {# problems}} · {open} open"
+      },
+      "description": "Progress of today’s tour, what needs to be done and the latest changes.",
+      "tiles": {
+        "title": "Key figures",
+        "delivered": "Delivered today",
+        "problems": "Problems",
+        "problemsSub": "reported today",
+        "tour": "Tour today",
+        "noTour": "not created",
+        "tourSub": "No tour is planned for today.",
+        "done": "Done today"
+      },
+      "attention": {
+        "title": "To do",
+        "emptyTitle": "Nothing to do",
+        "emptyDescription": "No problems reported and no order without a tour.",
+        "reasonUnknown": "Problem reported",
+        "lateOrders": "{count, plural, one {# order without a tour} other {# orders without a tour}}",
+        "lateOrdersHint": "Received after the tour was completed.",
+        "missingPhotos": "{count, plural, one {# customer without photos} other {# customers without photos}}",
+        "missingPhotosHint": "Complete the master data.",
+        "pinUnconfirmed": "{count, plural, one {# customer with an unconfirmed address point} other {# customers with an unconfirmed address point}}",
+        "pinUnconfirmedHint": "Check the address point.",
+        "unconfirmedOrders": "{count, plural, one {# draft for the next delivery day} other {# drafts for the next delivery day}}",
+        "unconfirmedOrdersHint": "{date} · not yet confirmed",
+        "emptyDescriptionAll": "No problems reported, no order without a tour and all customer master data complete."
+      },
+      "activity": {
+        "title": "Recent activity",
+        "empty": "No entries yet today."
+      }
+    },
+    "shell": {
+      "mainNavigation": "Main navigation",
+      "openMenu": "Open menu",
+      "userMenu": "User menu",
+      "skipToContent": "Skip to content",
+      "breadcrumb": "Breadcrumb navigation",
+      "collapseSidebar": "Collapse sidebar",
+      "expandSidebar": "Expand sidebar"
+    },
+    "nav": {
+      "dashboard": "Overview",
+      "orders": "Orders",
+      "tours": "Tours",
+      "customers": "Customers",
+      "products": "Products",
+      "drivers": "Drivers",
+      "settings": "Settings",
+      "groups": {
+        "operations": "Operations",
+        "masterData": "Master data",
+        "system": "System"
+      }
+    },
+    "drivers": {
+      "title": "Drivers",
+      "description": "Manage driver accounts. Drivers log in with a username and a 6-digit PIN.",
+      "create": "Add driver",
+      "empty": "No drivers added yet.",
+      "columns": {
+        "name": "Name",
+        "username": "Username",
+        "language": "Language",
+        "status": "Status",
+        "lastLogin": "Last login",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Deactivated"
+      },
+      "neverLoggedIn": "Never",
+      "form": {
+        "title": "Add driver",
+        "displayName": "Display name",
+        "username": "Username",
+        "usernameHint": "3 to 32 characters: lowercase letters, digits, dot, hyphen, underscore.",
+        "locale": "Language",
+        "submit": "Create",
+        "localeHint": "The driver sees the app in this language."
+      },
+      "pin": {
+        "title": "PIN for {name}",
+        "warning": "This PIN is shown only once. Please write it down or print it now. It cannot be retrieved later, only generated again.",
+        "username": "Username",
+        "label": "PIN",
+        "copy": "Copy PIN",
+        "copied": "PIN copied.",
+        "print": "Print",
+        "done": "Done"
+      },
+      "actions": {
+        "resetPin": "Reset PIN",
+        "deactivate": "Deactivate",
+        "reactivate": "Reactivate",
+        "changeLanguage": "Change language of {name}",
+        "editLogin": "Edit language"
+      },
+      "confirm": {
+        "resetTitle": "Reset PIN of {name}?",
+        "resetBody": "The old PIN stops working immediately. The new PIN is shown once.",
+        "deactivateTitle": "Deactivate {name}?",
+        "deactivateBody": "The person is logged out on the next request and can no longer log in."
+      },
+      "toast": {
+        "activated": "{name} was reactivated.",
+        "deactivated": "{name} was deactivated.",
+        "localeChanged": "Language of {name} changed."
+      },
+      "errors": {
+        "invalid": "Please check your entries.",
+        "usernameTaken": "This username is already taken.",
+        "emailTaken": "This email address is already taken.",
+        "notFound": "User not found.",
+        "self": "You cannot deactivate your own account.",
+        "generic": "Action failed. Please try again."
+      },
+      "admins": {
+        "title": "Administrators",
+        "create": "Add admin",
+        "formTitle": "Add admin",
+        "email": "Email",
+        "password": "Password",
+        "passwordHint": "At least 10 characters.",
+        "you": "You",
+        "description": "Office accounts with email and password.",
+        "emptyTitle": "No administrators yet",
+        "empty": "No administrators have been added yet."
+      },
+      "emptyTitle": "No drivers yet",
+      "login": {
+        "title": "Language of {name}",
+        "description": "The driver sees the app in this language. The change applies immediately."
+      },
+      "rowMenu": {
+        "label": "Actions for {name}"
+      }
+    },
+    "customers": {
+      "title": "Customers",
+      "description": "Search the customer list. The search ignores case and accents.",
+      "new": "New customer",
+      "backToList": "Back to the customer list",
+      "search": {
+        "label": "Search",
+        "placeholder": "Number, name, street or city"
+      },
+      "filters": {
+        "photosMissing": "Photos missing",
+        "pinUnconfirmed": "Address point unconfirmed",
+        "status": "Show",
+        "statusActive": "Active",
+        "statusArchived": "Archived",
+        "statusAll": "All"
+      },
+      "columns": {
+        "number": "No.",
+        "name": "Name",
+        "city": "City",
+        "flags": "Flags",
+        "customer": "Customer",
+        "actions": "Actions"
+      },
+      "flags": {
+        "photosMissing": "Photos missing",
+        "pinUnconfirmed": "Address point unconfirmed",
+        "archived": "Archived",
+        "notes": "Has a note"
+      },
+      "emptyTitle": "No customers yet",
+      "empty": "No customers have been added yet.",
+      "emptyFilteredTitle": "No results",
+      "emptyFiltered": "No customer matches the search and filters.",
+      "resetFilters": "Reset filters",
+      "pagination": {
+        "label": "Pages",
+        "status": "Page {page} of {pageCount}"
+      },
+      "form": {
+        "dataHeading": "Master data",
+        "addressHeading": "Delivery address",
+        "pinHeading": "Address point on the map",
+        "extraHeading": "Delivery hours and notes",
+        "number": "Customer number",
+        "numberHintNew": "Suggestion: the next free number. The number must be unique.",
+        "numberHintEdit": "The number must be unique.",
+        "numberTaken": "This customer number is already taken.",
+        "name": "Name",
+        "nameHint": "Name of the shop as it appears on the sign. Not translated.",
+        "street": "Street and house number",
+        "postalCode": "Postal code",
+        "city": "City",
+        "country": "Country",
+        "countryHint": "2-letter country code, e.g. AT or DE.",
+        "pinHint": "Search for the address, choose the matching result and move the address point to the entrance or delivery spot if needed. Only after you confirm it does the address point count as checked.",
+        "find": "Search on the map",
+        "needAddress": "Please enter a street and city first.",
+        "candidatesHeading": "Address points found – please choose one",
+        "confirm": "Address point checked: it is at the right place of the delivery address.",
+        "confirmNeedsPin": "Set an address point first, then it can be confirmed.",
+        "confirmNeedsMove": "The address was changed. Please search for the address point again or move it, then confirm.",
+        "hours": "Delivery hours (information)",
+        "hoursHint": "Free text, for information only, e.g. “Mon–Fri 6–10 am”.",
+        "notes": "Notes for the driver",
+        "notesHint": "In German. The translation into the driver languages is created automatically.",
+        "create": "Add customer",
+        "saving": "Saving …",
+        "savedNew": "Customer added.",
+        "savedEdit": "Changes saved.",
+        "editTitle": "Edit customer",
+        "backToDetail": "Back to the customer",
+        "errors": {
+          "invalid": "Please check your entries: name, number, street, postal code and city are required, the country has 2 letters."
+        },
+        "pinSearchLabel": "Address for the map search",
+        "pinSearchPlaceholder": "Street, postal code or city",
+        "pinChecked": "Address point checked",
+        "saveBarLabel": "Form actions",
+        "discard": "Discard",
+        "unsaved": "Unsaved changes",
+        "photosHeading": "Photos",
+        "photosHint": "Entrance and parking – the same photos as in the customer profile.",
+        "createDescription": "Enter master data, delivery address and address point.",
+        "officeHeading": "Company & invoice",
+        "officeHint": "For the office only. The driver does not see this information. Fill in the billing address only if it differs from the delivery address.",
+        "office": {
+          "companyName": "Company",
+          "vatId": "VAT ID",
+          "billingStreet": "Billing address: street and house number",
+          "billingPostalCode": "Billing address: postal code",
+          "billingCity": "Billing address: city"
+        }
+      },
+      "detail": {
+        "number": "Customer number {number}",
+        "addressHeading": "Master data",
+        "address": "Delivery address",
+        "hours": "Delivery hours",
+        "notes": "Notes for the driver",
+        "none": "–",
+        "pin": "Address point",
+        "pinConfirmed": "Address point confirmed",
+        "pinUnconfirmed": "Address point not confirmed",
+        "pinNone": "No address point set yet",
+        "photosHeading": "Photos",
+        "storePhoto": "Shop / entrance",
+        "parkingPhoto": "Parking / unloading",
+        "photoPresent": "present",
+        "photoMissing": "missing",
+        "ordersHeading": "Upcoming orders",
+        "ordersEmpty": "No upcoming orders.",
+        "archiveTitle": "Archive customer?",
+        "archiveDescription": "The customer no longer appears in the default list. All data is kept and the customer can be restored at any time.",
+        "archived": "Customer archived.",
+        "restored": "Customer restored.",
+        "photoReplace": "Replace photo",
+        "photoSaved": "Photo saved.",
+        "photoErrors": {
+          "invalid": "The photo is invalid.",
+          "not_found": "Customer not found.",
+          "object_missing": "The uploaded image was not found. Please upload it again.",
+          "key_in_use": "This image has already been used. Please upload it again."
+        },
+        "archiveUpcoming": "{count, plural, one {Attention: this customer still has # upcoming order} other {Attention: this customer still has # upcoming orders}}. They remain but are not cancelled automatically. Please check them first.",
+        "photoByDriver": "Updated by driver {name} on {date}",
+        "photoAddHint": "Take or upload a photo.",
+        "billingAddress": "Billing address",
+        "billingSameAsDelivery": "same as delivery address"
+      },
+      "translations": {
+        "tabDetails": "Details",
+        "tabTranslations": "Translations",
+        "heading": "Note for the driver in all languages",
+        "intro": "The German text is the original. Drivers see the note in their language. Changed translations count as edited by hand and are not overwritten when the German text is changed later.",
+        "empty": "This customer has no note yet. The German note is entered when editing the customer.",
+        "addNote": "Add note",
+        "locales": {
+          "de": "German",
+          "en": "English",
+          "sr-Latn": "Serbian (Latin)",
+          "cs": "Czech",
+          "zh-Hans": "Chinese (simplified)"
+        },
+        "badges": {
+          "source": "Original",
+          "machine": "machine-translated",
+          "manual": "edited by hand",
+          "empty": "not translated yet",
+          "stale": "Original changed, check the translation"
+        },
+        "markChecked": "Mark as checked",
+        "pending": "The translation is still pending and will be added automatically.",
+        "save": "Save translations",
+        "saving": "Saving …",
+        "saved": "Translations saved.",
+        "retranslate": "Translate again",
+        "retranslateTitle": "Translate again?",
+        "retranslateDescription": "All four translations are replaced by a new machine translation of the German text.",
+        "retranslateWarning": "Attention: translations edited by hand are lost.",
+        "retranslateConfirm": "Yes, translate again",
+        "retranslated": "Translated again.",
+        "errors": {
+          "invalid": "The input is invalid. The German text must not be empty.",
+          "not_found": "Customer or note not found.",
+          "no_notes": "This customer has no note.",
+          "conflict": "The note was changed in the meantime. The page is reloaded, please repeat the change.",
+          "translation_failed": "The translation service is currently unreachable. Nothing was changed."
+        },
+        "sourceChangeHint": "If the German text is changed, only machine-translated versions are translated again on save. Versions edited by hand are kept and marked for checking."
+      },
+      "import": {
+        "link": "Import",
+        "title": "Import customers",
+        "description": "Read an existing customer list from a CSV or Excel (XLSX) file. Customers are matched by customer number, without a customer number by name. Known customers are updated, new ones are added.",
+        "steps": {
+          "upload": "File",
+          "mapping": "Columns",
+          "preview": "Preview",
+          "result": "Result"
+        },
+        "fields": {
+          "customerNumber": "Customer number",
+          "name": "Name",
+          "street": "Street and house number",
+          "postalCode": "Postal code",
+          "city": "City",
+          "country": "Country",
+          "deliveryHoursInfo": "Delivery hours",
+          "notes": "Notes for the driver",
+          "houseNumber": "House number",
+          "companyName": "Company",
+          "vatId": "VAT ID",
+          "deliveryAddress": "Different delivery address"
+        },
+        "upload": {
+          "heading": "1. Choose a file",
+          "hint": "CSV (comma, semicolon or tab) and XLSX are allowed, at most {size} MB and {rows} data rows. The first row must contain the column headings.",
+          "label": "File with customers",
+          "reading": "Reading the file …"
+        },
+        "errors": {
+          "too_large": "The file is larger than {size} MB.",
+          "empty": "The file contains no data. A header row and at least one data row are required.",
+          "unsupported_type": "Only CSV and XLSX files are supported (no old .xls).",
+          "too_many_rows": "The file has more than {rows} data rows. Please split it into several files.",
+          "too_many_columns": "The file has more than {columns} columns.",
+          "cell_too_long": "A cell is longer than {length} characters.",
+          "bad_csv": "The CSV file is damaged (a quotation mark was not closed).",
+          "bad_xlsx": "The Excel file could not be read.",
+          "zip_bomb": "The Excel file is unusually large when unpacked and is not processed.",
+          "invalid": "The file could not be processed.",
+          "generic": "That did not work. Please try again."
+        },
+        "mapping": {
+          "heading": "2. Assign columns",
+          "intro": "{file}: {rows, plural, one {# data row} other {# data rows}}. Assign the matching column of the file to each field. The assignment is remembered in this browser and suggested for the next import.",
+          "sheetNote": "The file has {count} sheets. Only the first one (“{name}”) is read.",
+          "field": "Field",
+          "column": "Column of the file",
+          "sample": "Examples from the file",
+          "required": "Required",
+          "notUsed": "– do not use –",
+          "emptyHeader": "no heading",
+          "optionalHint": "An empty cell does not change existing information.",
+          "problemMissing": "No column is chosen for “{field}”.",
+          "problemDuplicate": "Column {column} is assigned to several fields.",
+          "next": "Continue to the preview",
+          "otherFile": "Other file"
+        },
+        "preview": {
+          "heading": "3. Preview",
+          "checking": "Checking the rows …",
+          "summary": {
+            "create": "New",
+            "update": "Updated",
+            "unchanged": "Unchanged",
+            "error": "Faulty"
+          },
+          "errorsHint": "Faulty rows are not imported, all others are.",
+          "pinsReset": "{count, plural, one {For # customer the address changes: address point and confirmation are reset.} other {For # customers the address changes: address point and confirmation are reset.}}",
+          "archived": "{count, plural, one {# archived customer is updated and stays archived.} other {# archived customers are updated and stay archived.}}",
+          "filter": "Show",
+          "filterAll": "All rows",
+          "filterErrors": "Faulty only",
+          "filterChanges": "New and changed only",
+          "columns": {
+            "line": "Row",
+            "number": "No.",
+            "name": "Name",
+            "status": "Action",
+            "details": "Details"
+          },
+          "status": {
+            "create": "Create",
+            "update": "Update",
+            "unchanged": "Unchanged",
+            "error": "Error"
+          },
+          "changed": "Changed: {fields}",
+          "pinReset": "Address point will be reset",
+          "stayArchived": "archived, stays archived",
+          "shown": "{shown} of {total} rows shown.",
+          "none": "No rows for this filter.",
+          "back": "Back to the assignment",
+          "commit": "{count, plural, one {Import # row} other {Import # rows}}",
+          "nothingToDo": "There is nothing to import: no valid row is new or changed.",
+          "importing": "Importing …"
+        },
+        "result": {
+          "heading": "4. Result",
+          "created": "Created",
+          "updated": "Updated",
+          "unchanged": "Unchanged",
+          "failed": "Not imported",
+          "allOk": "All rows were processed.",
+          "pinsReset": "{count, plural, one {For # customer the address point and confirmation were reset because the address changed.} other {For # customers the address point and confirmation were reset because the address changed.}}",
+          "failedHeading": "Rows not imported",
+          "again": "Import another file",
+          "toList": "To the customer list"
+        },
+        "geocode": {
+          "heading": "Find address points",
+          "description": "For customers without an address point, the address is searched and an address point is suggested. It only counts as confirmed after you check it. The search is throttled and can take a few minutes.",
+          "start": "{count, plural, one {Find address point for # customer} other {Find address points for # customers}}",
+          "none": "All active customers already have an address point.",
+          "progressLabel": "Progress of the address search",
+          "progress": "{done} of {total} customers processed",
+          "cancel": "Cancel",
+          "cancelled": "Cancelled after {done} of {total} customers. The rest can be continued later.",
+          "finished": "Done: {found} address points found, {notFound} addresses not found, {failed} errors.",
+          "lowConfidence": "{count, plural, one {# result is uncertain and needs a particularly careful check.} other {# results are uncertain and need a particularly careful check.}}",
+          "rateLimited": "The address search has reached the provider’s limit. Please continue later.",
+          "unavailable": "The address search is currently unreachable. Address points can also be set by hand.",
+          "error": "The address search failed."
+        },
+        "issues": {
+          "required": "{field} is missing.",
+          "too_long": "{field} is too long (at most {max} characters).",
+          "formula": "{field} starts with = + - or @ and could be run as a formula in Excel.",
+          "bad_country": "Country not recognized. Please use a 2-letter code (e.g. AT, DE) or the country name.",
+          "duplicate_in_file": "{field} is already in row {line}. This row is skipped.",
+          "postal_padded": "Postal code padded with a leading 0.",
+          "invalid": "The information is invalid.",
+          "number_taken": "The customer number has been taken in the meantime.",
+          "changed_meanwhile": "The customer was changed during the import. Row not applied.",
+          "number_assigned": "No customer number in the file: next free number assigned.",
+          "name_ambiguous": "Several existing customers have this name. Please specify a customer number.",
+          "delivery_address_used": "Different delivery address: it is used for deliveries, the address columns are saved as the billing address.",
+          "delivery_postal_assumed": "The delivery address has no postal code: postal code and city of the billing address were used. Please check."
+        },
+        "reviewLink": "{count, plural, =0 {Check address points} other {Check address points ({count})}}"
+      },
+      "review": {
+        "title": "Check address points",
+        "description": "Go through the customers whose address point is not yet confirmed, one after the other: check the suggestion on the map, move it if needed and confirm.",
+        "backToImport": "Back to the import",
+        "emptyTitle": "Nothing to check",
+        "empty": "All active customers have a confirmed address point.",
+        "position": "Customer {current} of {total}",
+        "address": "Delivery address",
+        "candidate": "Suggested address point, not yet confirmed. Drag it to the entrance or delivery spot if needed.",
+        "noPin": "There is no address point for this address yet. Search for the address on the map or set the address point by clicking on the map.",
+        "search": "Search for the address on the map",
+        "candidatesHeading": "Address points found",
+        "confirm": "Confirm address point",
+        "saving": "Saving …",
+        "skip": "Skip",
+        "confirmed": "Address point confirmed.",
+        "conflict": "The customer was changed in the meantime. Please reload the list.",
+        "reload": "Reload list",
+        "failed": "The address point could not be saved.",
+        "doneTitle": "All reviewed",
+        "doneSummary": "{confirmed} confirmed, {skipped} skipped.",
+        "reviewSkipped": "Look at the skipped ones again",
+        "toList": "To the customer list",
+        "progressLabel": "Progress of the address point check"
+      },
+      "rowMenu": {
+        "label": "Actions for {name}"
+      },
+      "actions": {
+        "deactivate": "Deactivate",
+        "reactivate": "Restore"
+      }
+    },
+    "products": {
+      "title": "Products",
+      "description": "Manage pasta products. The order also applies in the product picker when entering an order.",
+      "new": "New product",
+      "editTitle": "Edit product",
+      "backToList": "Back to the product list",
+      "emptyTitle": "No products yet",
+      "empty": "No products have been added yet.",
+      "columns": {
+        "order": "Order",
+        "sku": "Item no.",
+        "nameDe": "Name (German)",
+        "nameHans": "Name (simplified)",
+        "unit": "Unit",
+        "status": "Status",
+        "actions": "Actions",
+        "name": "Name (German / simplified)",
+        "weight": "Weight per unit"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "deactivated": "Product deactivated. It no longer appears for new orders.",
+      "activated": "Product activated again.",
+      "form": {
+        "dataHeading": "Master data",
+        "namesHeading": "Names",
+        "sku": "Item number (SKU)",
+        "skuHint": "Letters, digits, dot, hyphen, underscore. Must be unique.",
+        "skuTaken": "This item number is already taken.",
+        "unit": "Unit",
+        "unitLocked": "The unit can no longer be changed because the product is already in orders.",
+        "unitLockedError": "The unit cannot be changed because the product is already in orders.",
+        "namesHint": "German and simplified Chinese are entered by hand. English, Serbian and Czech are translated automatically when you save and can be edited.",
+        "nameDe": "Name (German)",
+        "nameHans": "Name (simplified Chinese)",
+        "nameEn": "Name (English)",
+        "nameSr": "Name (Serbian, Latin)",
+        "nameCs": "Name (Czech)",
+        "hansRequired": "The name in simplified Chinese is required.",
+        "auto": "automatic",
+        "autoPlaceholder": "Translated automatically when you save",
+        "rederive": "Translate again from the German name",
+        "invalid": "Please check your entries.",
+        "generic": "Saving failed. Please try again.",
+        "savedNew": "Product added.",
+        "savedEdit": "Product saved.",
+        "weight": "Weight per unit (kg)",
+        "weightHint": "Used for vehicle load. For example 3 for a bag, 10 for a carton.",
+        "weightInvalid": "Please enter a weight greater than 0 kg (at most two decimal places)."
+      },
+      "toggleStatus": "Toggle status of {name}",
+      "rowMenu": {
+        "label": "Actions for {name}"
+      },
+      "confirm": {
+        "deactivateTitle": "Deactivate {name}?",
+        "deactivateBody": "The product stays saved but no longer appears in the product picker for new orders. Existing orders remain unchanged."
+      }
+    },
+    "maps": {
+      "locate": "Find address",
+      "locating": "Searching …",
+      "noAddress": "Please enter an address first.",
+      "notFound": "Address not found. Please set the address point on the map.",
+      "failed": "Address search failed. Please set the address point on the map.",
+      "lowConfidence": "Uncertain address point – please check it on the map.",
+      "coordinates": "Coordinates",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "coordinatesInvalid": "Invalid coordinates (latitude −90 to 90, longitude −180 to 180)."
+    },
+    "devMaps": {
+      "title": "Maps (development)",
+      "description": "Hidden developer page: building blocks for address point, depot and tour map.",
+      "pinPicker": "Address point picker",
+      "address": "Address",
+      "addressPlaceholder": "e.g. Graben 1, 1010 Vienna",
+      "noPin": "No address point set yet.",
+      "changes": "Changes: {count}",
+      "tourMap": "Tour map",
+      "sampleNote": "Sample data, no real deliveries.",
+      "showOverlap": "Show overlap",
+      "hideOverlap": "Hide overlap",
+      "clusterTitle": "{count} stops at this location",
+      "clusterClose": "Close",
+      "linkageTitle": "Select stop"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Depot and general planning values. All tours start and end at the depot.",
+      "depot": {
+        "heading": "Depot (factory)",
+        "status": {
+          "confirmed": "Location confirmed",
+          "unconfirmed": "Location not confirmed"
+        },
+        "unconfirmedNotice": "The depot location is not confirmed yet. Until it is, no tours can be created.",
+        "name": "Name",
+        "address": "Address",
+        "addressPlaceholder": "e.g. Graben 1, 1010 Vienna",
+        "pinHeading": "Location on the map",
+        "pinHint": "Click on the map, drag the location or enter the coordinates. The location must be exactly where the vehicles are loaded.",
+        "confirm": "I have checked that the location is in the right place."
+      },
+      "planning": {
+        "heading": "Planning",
+        "timezone": "Time zone",
+        "departureTime": "Default departure time",
+        "serviceMinutes": "Minutes per stop",
+        "serviceMinutesHint": "Planned time at each customer (0 to 180).",
+        "weekdays": "Delivery days",
+        "weekdaysHint": "Deliveries are made on these weekdays. New orders suggest the next delivery day."
+      },
+      "save": "Save",
+      "saving": "Saving …",
+      "saved": "Settings saved.",
+      "errors": {
+        "needPin": "Please set the depot location on the map first.",
+        "needConfirm": "Please confirm that the location is in the right place.",
+        "needWeekday": "Please choose at least one delivery day.",
+        "invalid": "Please check your entries (name, address, times).",
+        "generic": "Saving failed. Please try again.",
+        "depotNotSet": "A tour cannot be created: the depot location has not been set yet. Please set and confirm the depot location under Settings."
+      },
+      "sectionsLabel": "Settings sections",
+      "unsaved": "Unsaved changes",
+      "saved-state": "All changes saved",
+      "discard": "Discard"
+    },
+    "orders": {
+      "title": "Orders",
+      "description": "All orders by delivery date. The next delivery day is shown by default.",
+      "new": "New order",
+      "newTitle": "Enter a new order",
+      "backToList": "Back to the orders",
+      "emptyTitle": "No orders found",
+      "empty": {
+        "rangeTitle": "No orders for {date}",
+        "rangeTitleSpan": "No orders between {from} and {to}",
+        "lastKnown": "Latest orders: {date} ({count, plural, one {# order} other {# orders}})",
+        "goto": "Show {date}",
+        "hint": "There are no orders in the selected period. Widen the period — or enter a new order.",
+        "hintWeek": "There are no orders in the selected period. The week view shows the days from {from} to {to}.",
+        "widen": "Show this week"
+      },
+      "columns": {
+        "date": "Delivery date",
+        "customer": "Customer",
+        "items": "Products",
+        "status": "Status",
+        "source": "Source",
+        "lines": "Products",
+        "tour": "Tour",
+        "actions": "Actions"
+      },
+      "source": {
+        "MANUAL": "Manual",
+        "SCREENSHOT": "Screenshot"
+      },
+      "form": {
+        "customer": "Customer",
+        "customerPlaceholder": "Choose a customer",
+        "customerSearch": "Search by name or number",
+        "customerEmpty": "No customer found.",
+        "date": "Delivery date",
+        "linesHeading": "Products",
+        "product": "Product",
+        "productPlaceholder": "Choose a product",
+        "productSearch": "Search by name or item number",
+        "productEmpty": "No product found.",
+        "quantity": "Quantity",
+        "quantityHint": "Press Enter for a new product.",
+        "lineLabel": "Product {n}",
+        "addLine": "Add product",
+        "removeLine": "Remove product {n}",
+        "duplicateNotice": "A product appears more than once. The quantities are added up when you save.",
+        "internalNote": "Internal note",
+        "internalNoteHint": "For the office only, not shown to the driver.",
+        "saveConfirmed": "Save as confirmed",
+        "saveDraft": "Save as draft",
+        "warningCombined": "{count, plural, one {This customer already has # confirmed order on this day} other {This customer already has # confirmed orders on this day}}. All orders are combined into one stop.",
+        "warningPin": "This customer’s address point is not confirmed: the customer can only be added to a tour once the address point is confirmed.",
+        "openCustomer": "Open customer",
+        "errors": {
+          "customerRequired": "Please choose a customer.",
+          "dateInvalid": "Please enter a valid delivery date.",
+          "datePast": "The delivery date must not be in the past.",
+          "linesRequired": "At least one product with a quantity is required.",
+          "productRequired": "Please choose a product.",
+          "quantityInvalid": "The quantity must be a whole number from 1 to 99999.",
+          "invalid": "Please check your entries.",
+          "customerInactive": "This customer is archived and cannot get new orders.",
+          "customerNotFound": "The customer was not found.",
+          "productInactive": "A chosen product has been deactivated in the meantime. Please reload the page.",
+          "productNotFound": "A chosen product was not found. Please reload the page.",
+          "generic": "Saving failed. Please try again.",
+          "screenshotMissing": "The screenshot was not found. Please upload it again.",
+          "screenshotInUse": "This screenshot already belongs to another order.",
+          "notEditable": "This order can no longer be changed (cancelled or delivery day over).",
+          "notFound": "The order was not found."
+        },
+        "savedConfirmed": "Order saved.",
+        "savedDraft": "Draft saved.",
+        "screenshot": {
+          "heading": "Screenshot",
+          "hint": "Optional: upload the screenshot of the WhatsApp / WeChat message, drag it in or paste it with Ctrl+V. It is shown next to the form and saved with the order.",
+          "remove": "Remove screenshot",
+          "alt": "Screenshot of the order message",
+          "zoomHint": "Mouse wheel or plus/minus to zoom, drag to move, double-click to zoom in.",
+          "previewFailed": "The screenshot was uploaded but could not be displayed. Please try again."
+        },
+        "savedChanges": "Changes saved.",
+        "editTitle": "Edit order",
+        "customerFixed": "The customer cannot be changed afterwards. If the customer is wrong, cancel the order and enter it again."
+      },
+      "detail": {
+        "title": "Order",
+        "noNote": "No internal note.",
+        "noScreenshot": "This order has no screenshot.",
+        "screenshotAlt": "Screenshot of the order message",
+        "screenshotHint": "Click to enlarge.",
+        "edit": "Edit",
+        "cancel": "Cancel order",
+        "duplicate": "Copy to another date",
+        "inTour": "This order is part of a tour.",
+        "notInTour": "Not in a tour yet.",
+        "tourHeading": "Tour",
+        "readOnlyCancelled": "This order is cancelled and can no longer be changed.",
+        "readOnlyPast": "The delivery day is over: the order can no longer be changed. It can still be copied to another date.",
+        "cancelTitle": "Cancel the order?",
+        "cancelDescription": "The order stays saved as cancelled, but no longer counts in the totals and is not added to any tour. This cannot be undone.",
+        "cancelTourNote": "The order is already in a tour. The tour is marked as outdated and must be planned again.",
+        "cancelConfirm": "Yes, cancel",
+        "cancelled": "Order cancelled.",
+        "duplicateTitle": "Copy order",
+        "duplicateDescription": "A new draft with the same products and the same internal note is created. The screenshot is not copied.",
+        "duplicateDate": "New delivery date",
+        "duplicateConfirm": "Create copy",
+        "duplicated": "Copy created as a draft.",
+        "actionErrors": {
+          "invalid": "Please enter a valid date.",
+          "not_found": "The order was not found.",
+          "not_editable": "This order can no longer be changed.",
+          "date_in_past": "The delivery date must not be in the past.",
+          "customer_inactive": "This customer is archived and cannot get new orders.",
+          "product_not_found": "A product of the order was not found.",
+          "product_inactive": "A product of the order is deactivated. Copying is not possible.",
+          "generic": "Action failed. Please try again."
+        }
+      },
+      "inTour": "In tour",
+      "filters": {
+        "heading": "Filters",
+        "from": "From",
+        "to": "To",
+        "customer": "Customer",
+        "customerAll": "All customers",
+        "customerSearch": "Search by name or number",
+        "customerEmpty": "No customer found.",
+        "status": "Status",
+        "statusAll": "All statuses",
+        "source": "Source",
+        "sourceAll": "All sources",
+        "reset": "Reset",
+        "rangeLabel": "Period",
+        "statusLabel": "Filter by status",
+        "sourceLabel": "Filter by source",
+        "all": "All",
+        "quick": {
+          "next": "Next delivery day",
+          "today": "Today",
+          "week": "This week",
+          "custom": "Custom"
+        }
+      },
+      "truncated": "Only the first {count} orders are shown. Please narrow the period or the filters.",
+      "totals": {
+        "heading": "Totals per delivery day",
+        "description": "Total per product from all confirmed orders of the day. Drafts and cancelled orders do not count. The totals ignore the customer, status and source filters.",
+        "dateHeading": "{date} · {count, plural, one {# confirmed order} other {# confirmed orders}}",
+        "product": "Product",
+        "quantity": "Quantity",
+        "empty": "There are no confirmed orders in the selected period.",
+        "toggle": "Expand or collapse totals"
+      },
+      "late": {
+        "badge": "Late order – tour completed",
+        "title": "Orders after the tour was completed",
+        "body": "The tour for these days is already completed. The confirmed orders are in no tour. A follow-up tour can be created in the tour planning.",
+        "count": "{count, plural, one {# order} other {# orders}}"
+      },
+      "group": {
+        "label": "Delivery day {date}"
+      },
+      "header": {
+        "range": "Delivery day {date} · {count, plural, one {# order} other {# orders}}",
+        "rangeSpan": "{from} – {to} · {count, plural, one {# order} other {# orders}}"
+      },
+      "positions": {
+        "summary": "{count, plural, one {# product} other {# products}}",
+        "showAll": "Show all {count} products"
+      },
+      "openOrder": "Open order",
+      "openCustomer": "Open customer",
+      "rowMenu": {
+        "label": "Actions for the order of {customer}",
+        "details": "Show details",
+        "open": "Open order",
+        "edit": "Edit",
+        "customer": "Open customer"
+      },
+      "drawer": {
+        "title": "Order",
+        "description": "{customer} · {date}",
+        "positions": "Products",
+        "hint": "You will find the internal note and the screenshot in the detail view.",
+        "open": "Open order",
+        "edit": "Edit"
+      }
+    },
+    "tours": {
+      "title": "Tours",
+      "description": "Create, check, reorder and release a delivery day’s tour for the driver.",
+      "date": "Delivery date",
+      "datePrev": "Previous day",
+      "dateNext": "Next day",
+      "generate": "Create tour",
+      "generating": "Creating the tour …",
+      "reoptimize": "Optimize again",
+      "refreshLocked": "Update from orders",
+      "refreshLockedHint": "The tour is locked: the order stays, new customers go to the end.",
+      "reoptimizeHint": "Calculates the best order again and discards manual changes.",
+      "lock": "Lock order",
+      "unlock": "Remove lock",
+      "lockedBadge": "Locked",
+      "driver": "Driver",
+      "driverNone": "No driver chosen",
+      "driverInactive": "{name} (inactive)",
+      "release": "Release tour",
+      "releasedAt": "Released on {time}",
+      "releasedNotice": "This tour is released and can no longer be changed here.",
+      "approximate": "Approximate values",
+      "approximateHint": "The route was estimated (no routing service): times, distances and line are only approximate.",
+      "outdatedTitle": "Orders were changed",
+      "outdatedBody": "Orders have been changed since this tour was created. Please create the tour again before releasing it.",
+      "noTourTitle": "There is no tour for this day yet",
+      "noTourBody": "{count, plural, =0 {No confirmed orders for this date.} one {# confirmed order is waiting for a tour.} other {# confirmed orders are waiting for a tour.}}",
+      "warningsTitle": "Not in the tour: address point not confirmed",
+      "warningsBody": "These customers have confirmed orders but no confirmed address point. Please confirm the address point for the customer and create the tour again.",
+      "warningLink": "Open customer",
+      "stopsHeading": "Stops",
+      "mapLabel": "Map of the tour",
+      "stepper": {
+        "label": "Tour status",
+        "draft": "Draft",
+        "assigned": "Assigned",
+        "released": "Released",
+        "completed": "Completed"
+      },
+      "depotLabel": "Depot",
+      "summary": {
+        "stops": "{count, plural, one {# stop} other {# stops}}",
+        "duration": "Total duration",
+        "distance": "Distance",
+        "durationValue": "{hours, plural, =0 {} other {# h }}{minutes} min",
+        "distanceValue": "{km} km"
+      },
+      "stop": {
+        "eta": "Arrival",
+        "items": "{count, plural, one {# product} other {# products}}",
+        "missingStore": "Shop photo missing",
+        "missingParking": "Parking photo missing",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "drag": "Move {name} by dragging",
+        "recalculating": "Calculating …"
+      },
+      "dialog": {
+        "title": "Release the tour?",
+        "description": "The tour becomes visible to the driver. After that it can no longer be changed here.",
+        "stops": "Stops",
+        "duration": "Total duration",
+        "driver": "Driver",
+        "confirm": "Release now"
+      },
+      "toast": {
+        "generated": "Tour with {count, plural, one {# stop} other {# stops}} created.",
+        "generatedLocked": "Tour updated: {added} new, {removed} removed.",
+        "reordered": "Order saved, times recalculated.",
+        "locked": "Order locked.",
+        "unlocked": "Lock removed.",
+        "driverSet": "Driver assigned.",
+        "driverCleared": "Driver removed.",
+        "released": "Tour released."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "invalid_date": "Invalid date.",
+        "date_in_past": "No tour can be created for past days.",
+        "settingsLink": "To the settings",
+        "no_stops": "No stops: there are no confirmed orders with a confirmed address point for this date.",
+        "tour_not_editable": "This tour is already released and can no longer be changed.",
+        "too_many_stops": "Too many stops: a tour may have at most {max} stops.",
+        "conflict": "The tour or the orders were changed at the same time. Please reload the page and try again.",
+        "stops_changed": "The stops of the tour have changed. The page is reloaded.",
+        "pin_missing": "A customer no longer has an address point. Please check the address point.",
+        "not_found": "The tour was not found.",
+        "invalid": "Invalid input.",
+        "no_stops_release": "A tour without stops cannot be released.",
+        "driver_required": "Please assign a driver first.",
+        "driver_invalid": "This driver is not active. Please choose another driver.",
+        "outdated": "Orders were changed. Please create the tour again first.",
+        "not_released": "This tour has not been released yet.",
+        "follow_up_not_allowed": "A follow-up tour is only possible when all tours of this day are completed.",
+        "no_late_orders": "There is no late order with a confirmed address point that can go into a follow-up tour."
+      },
+      "change": {
+        "title": "Orders changed since the release – check and release again",
+        "body": "The driver is still working with the released quantities. After the new release the driver sees “Tour updated” and the changed stops.",
+        "noDifference": "Nothing changes for the driver any more: the changes cancelled each other out. Releasing again only removes this marker.",
+        "button": "Release again",
+        "reReleasedAt": "Updated on {time} (version {revision})",
+        "sections": {
+          "added": "{count, plural, =0 {New stops} one {# new stop} other {# new stops}}",
+          "removed": "{count, plural, =0 {Removed stops} one {# stop removed} other {# stops removed}}",
+          "changed": "{count, plural, =0 {Changed quantities} one {Quantities changed at # stop} other {Quantities changed at # stops}}",
+          "completedChanged": "{count, plural, one {# stop that was already done was changed afterwards (stays unchanged, is not planned again)} other {# stops that were already done were changed afterwards (stay unchanged, are not planned again)}}"
+        },
+        "stop": {
+          "ADDED": "New since release",
+          "CHANGED": "Quantity changed"
+        },
+        "dialog": {
+          "title": "Release the tour again?",
+          "description": "The open stops are adjusted to the current orders. Stops that are already done stay unchanged. The driver then sees “Tour updated”.",
+          "confirm": "Release again now"
+        },
+        "toast": {
+          "reReleased": "Tour released again (version {revision}).",
+          "nothingChanged": "Nothing changed for the driver; the marker was removed.",
+          "completedChanged": "{count, plural, one {# stop that was already done was changed after delivery and not planned again.} other {# stops that were already done were changed after delivery and not planned again.}}"
+        }
+      },
+      "progress": {
+        "label": "Progress of the tour",
+        "summary": "{done} of {total} stops done",
+        "problems": "{count, plural, =0 {no problems} one {# problem} other {# problems}}",
+        "next": "Next stop",
+        "completedAt": "Done at {time}",
+        "reason": "Reason: {reason}",
+        "reasonUnknown": "Reason: not given",
+        "originalNote": "Driver’s original text:",
+        "translatedNote": "German translation:",
+        "machineTranslated": "machine-translated",
+        "translationPending": "Translation to follow",
+        "showOriginal": "Show original",
+        "hideOriginal": "Hide original",
+        "shortLabel": "Progress"
+      },
+      "print": {
+        "open": "Print load sheet",
+        "back": "Back to the tour",
+        "printButton": "Print",
+        "languageLabel": "Language of the printout",
+        "outdatedScreen": "The orders have changed since this tour was created or released. The load sheet shows the quantities of the tour, not the current orders. Please check the tour and release it again before loading.",
+        "title": "Load sheet",
+        "date": "Delivery date",
+        "driver": "Driver",
+        "driverNone": "No driver assigned",
+        "depot": "Depot",
+        "stops": "Stops",
+        "version": "Release version {revision}",
+        "notReleased": "not released yet",
+        "outdated": "ATTENTION: orders were changed after this tour was released. This list shows the quantities of the tour, not the current orders. Do not load before the tour has been released again.",
+        "empty": "This tour has no stops.",
+        "totalsHeading": "1. Total quantity per product",
+        "product": "Product",
+        "quantity": "Quantity",
+        "stopsHeading": "2. Loading order",
+        "stopsHint": "The last stop is loaded first, the first stop last (so it lies on top).",
+        "loadPosition": "Load",
+        "stop": "Stop",
+        "customer": "Customer",
+        "items": "Products and quantities",
+        "noItems": "No products"
+      },
+      "late": {
+        "title": "Late order after the tour was completed",
+        "body": "{count, plural, one {# confirmed order arrived} other {# confirmed orders arrived}} only after this day’s tour was completed and {count, plural, one {is} other {are}} in no tour. A follow-up tour can still deliver {count, plural, one {it} other {them}}; the completed tour stays unchanged.",
+        "listHeading": "{count, plural, one {# customer for the follow-up tour} other {# customers for the follow-up tour}}",
+        "unrouted": "Not in the follow-up tour: address point not confirmed. Please confirm the address point for the customer:",
+        "create": "Create follow-up tour",
+        "creating": "Creating …",
+        "created": "Follow-up tour with {count, plural, one {# stop} other {# stops}} created. Please assign a driver and release it.",
+        "conflictTitle": "Orders changed after delivery",
+        "conflictBody": "For these stops the order was changed or cancelled after the tour was completed. The follow-up tour does not deliver the difference. Please clarify with the customer and the driver."
+      },
+      "tabs": {
+        "label": "Tours of this day",
+        "first": "Tour 1",
+        "followUp": "Tour {number} (follow-up tour)",
+        "stops": "{count, plural, one {# stop} other {# stops}}"
+      }
+    },
+    "history": {
+      "title": "History",
+      "description": "Who changed what and when. Entries cannot be changed or deleted.",
+      "empty": "No entries yet.",
+      "entriesCount": "{count, plural, one {# entry} other {# entries}}",
+      "by": "{name}",
+      "roles": {
+        "ADMIN": "Office",
+        "DRIVER": "Driver"
+      },
+      "actions": {
+        "order_create": "Order created",
+        "order_update": "Order changed",
+        "order_cancel": "Order cancelled",
+        "order_duplicate": "Created as a copy",
+        "tour_generate": "Tour created",
+        "tour_followup": "Follow-up tour created",
+        "tour_reoptimize": "Tour re-optimized",
+        "tour_reorder": "Order changed",
+        "tour_lock": "Order locked",
+        "tour_unlock": "Lock removed",
+        "tour_assign_driver": "Driver assigned",
+        "tour_release": "Tour released",
+        "tour_rerelease": "Tour released again",
+        "stop_delivered": "Marked as delivered",
+        "stop_problem": "Problem reported",
+        "stop_undo": "Status reverted",
+        "photo_add": "Photo added",
+        "photo_replace": "Photo replaced"
+      },
+      "fields": {
+        "status": "Status",
+        "deliveryDate": "Delivery date",
+        "internalNote": "Internal note",
+        "locked": "Lock",
+        "driver": "Driver",
+        "tourStatus": "Tour status"
+      },
+      "values": {
+        "none": "–",
+        "true": "locked",
+        "false": "not locked"
+      },
+      "change": "{before} → {after}",
+      "customer": "Customer: {name} ({number})",
+      "facts": {
+        "stopCount": "{value, plural, one {# stop} other {# stops}}",
+        "stopCountBefore": "before {value, plural, one {# stop} other {# stops}}",
+        "addedCount": "{value, plural, one {# customer added} other {# customers added}}",
+        "removedCount": "{value, plural, one {# customer removed} other {# customers removed}}",
+        "revision": "Release version {value}"
+      },
+      "stopGroup": {
+        "added": "New stop",
+        "removed": "Stop removed",
+        "changed": "Quantities changed",
+        "completed_changed": "Stop already done (order changed afterwards)"
+      },
+      "line": {
+        "added": "new",
+        "removed": "removed"
+      },
+      "sequence": "New order: {names}",
+      "reason": "Reason: {reason}",
+      "note": "Driver’s note: “{text}”",
+      "tapped": "Recorded on the device: {time}",
+      "photo": {
+        "STORE": "Photo of the shop entrance",
+        "PARKING": "Photo of the parking / unloading spot",
+        "via": {
+          "admin": "uploaded by the office",
+          "driver": "taken by the driver"
+        }
+      },
+      "unknownActor": "Unknown user"
+    }
+  },
+  "driver": {
+    "home": {
+      "title": "Today",
+      "welcome": "Welcome, {name}.",
+      "todayCount": "{open} open · {problems, plural, =0 {no problems} one {# problem} other {# problems}}",
+      "endTime": "Finish at approx. {time}",
+      "nextStop": "Next stop",
+      "nextStopEta": "Arrival approx. {time}",
+      "quantityChip": "{quantity} × {name}"
+    },
+    "shell": {
+      "connectionOnline": "Online",
+      "connectionOffline": "Offline",
+      "changeLanguage": "Change language",
+      "openOutbox": "Open transfer status and notices",
+      "language": "Change language",
+      "menu": "More options",
+      "logout": "Log out",
+      "currentLanguage": "Current language"
+    },
+    "today": {
+      "pageTitle": "Today’s tour",
+      "emptyTitle": "No tour today",
+      "emptyDescription": "As soon as the office releases a tour, it appears here.",
+      "progressLabel": "Progress",
+      "progress": "{done} / {total}",
+      "progressAria": "{done} of {total} stops done",
+      "remaining": "About {duration} left",
+      "durationMinutes": "{minutes} min",
+      "durationHours": "{hours} h {minutes} min",
+      "nextStop": "Next stop",
+      "allDoneTitle": "All stops done",
+      "allDoneDescription": "The tour is finished. Thank you!",
+      "eta": "Arrival approx. {time}",
+      "kinds": "{count, plural, one {# kind} other {# kinds}}",
+      "navigate": "Start navigation",
+      "details": "Details",
+      "noPin": "No address point – please ask the office",
+      "viewLabel": "View",
+      "viewList": "List",
+      "viewMap": "Map",
+      "listTitle": "All stops",
+      "mapLabel": "Map of the stops",
+      "statusPending": "Open",
+      "statusDelivered": "Delivered",
+      "statusProblem": "Problem",
+      "stopLabel": "Stop {number}",
+      "changeAdded": "New stop",
+      "changeChanged": "Quantity changed",
+      "updatedTitle": "Tour was updated",
+      "updatedDescription": "The office changed the tour. Please check the marked stops. The current quantities are always shown.",
+      "removedStops": "Removed stops",
+      "updatedConfirm": "Understood",
+      "finishedSummary": "{delivered} delivered · {problems, plural, =0 {no problem} one {# problem} other {# problems}}",
+      "openGroup": "Open ({count})",
+      "doneGroup": "Done ({count})",
+      "expandDone": "Show completed stops",
+      "collapseDone": "Hide completed stops",
+      "problemReason": "Problem: {reason}",
+      "noteLabel": "Note",
+      "waiting": "waiting",
+      "backToDepot": "Back to the depot",
+      "finishedElapsed": "Duration approx. {duration}",
+      "mapSheet": "Open stops ({count})",
+      "mapSheetHide": "Close stop list",
+      "progressDone": "done",
+      "mapSheetCount": "{count, plural, one {# open stop} other {# open stops}}",
+      "focusOnMap": "Show on the map"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Bag",
+      "CRATE": "Carton",
+      "PIECE": "×"
+    },
+    "stop": {
+      "back": "Back to the tour",
+      "position": "Stop {position} of {total}",
+      "copyAddress": "Copy address",
+      "copied": "Address copied",
+      "photoStore": "Entrance",
+      "photoParking": "Parking",
+      "noPhoto": "No photo yet",
+      "items": "Delivery",
+      "notes": "Note",
+      "notesGerman": "Text is only available in German",
+      "hours": "Delivery hours",
+      "appleMaps": "Apple Maps",
+      "stopNavigation": "Switch between stops",
+      "previous": "Back",
+      "next": "Next",
+      "takePhoto": "Take a photo",
+      "replacePhoto": "Replace photo",
+      "photoPreparing": "Preparing photo …",
+      "usePhoto": "Use photo",
+      "retakePhoto": "Retake",
+      "cancelPhoto": "Cancel",
+      "photoPending": "Waiting to be sent",
+      "photoSent": "Sent",
+      "photoNotSaved": "The photo could not be saved on this device. Please try again.",
+      "backToTour": "Back to the tour",
+      "photos": "Photos",
+      "summaryTotal": "Total",
+      "statusDeliveredAt": "Delivered {time}",
+      "statusProblem": "Problem: {reason}",
+      "navigateStarting": "Opening navigation …",
+      "deliveredStrip": "Delivered at {time}",
+      "problemStrip": "Problem reported",
+      "editAction": "Edit",
+      "nextStop": "Continue to stop {number}",
+      "backToTourAction": "To the tour",
+      "viewerTitle": "View photo",
+      "viewerPrev": "Previous photo",
+      "viewerNext": "Next photo",
+      "viewerClose": "Close",
+      "summaryTotalMixed": "Total per unit",
+      "weekdayMo": "Mon",
+      "weekdayTu": "Tue",
+      "weekdayWe": "Wed",
+      "weekdayTh": "Thu",
+      "weekdayFr": "Fri",
+      "weekdaySa": "Sat",
+      "weekdaySu": "Sun",
+      "clockSuffix": "h"
+    },
+    "status": {
+      "delivered": "Delivered",
+      "problem": "Problem",
+      "actionsLabel": "Complete stop",
+      "problemTitle": "What is the problem?",
+      "problemDescription": "Choose a reason. A text is optional.",
+      "noteLabel": "Comment (optional)",
+      "notePlaceholder": "e.g. the gate was closed",
+      "submit": "Report problem",
+      "cancel": "Cancel",
+      "undo": "Undo",
+      "undone": "Undone",
+      "deliveredToast": "Delivered: {name}",
+      "problemToast": "Problem reported: {name}",
+      "doneDelivered": "Delivered",
+      "doneProblem": "Problem: {reason}",
+      "doneAt": "at {time}",
+      "errors": {
+        "generic": "That did not work. Please try again.",
+        "network": "No connection. Please tap again.",
+        "already_completed": "This stop is already done.",
+        "not_completed": "This stop is not done.",
+        "undo_expired": "Undo only works in the first 5 minutes.",
+        "tour_completed": "The tour is finished, nothing can be changed any more.",
+        "tour_not_active": "This tour is not active.",
+        "not_found": "Stop not found.",
+        "mutation_conflict": "That did not work. Please try again.",
+        "invalid": "That did not work. Please try again.",
+        "forbidden": "You do not have permission for this.",
+        "storage": "Saving on the phone is not possible. Please try again.",
+        "changed_by_office": "The office changed this stop."
+      },
+      "offlineNotice": "Offline: your entry is saved on the phone and sent automatically as soon as the internet is back.",
+      "queuedHint": "Waiting to be sent"
+    },
+    "install": {
+      "title": "Install the app",
+      "androidText": "Install the app and it opens straight from the home screen.",
+      "installButton": "Install",
+      "iosText": "Add it to the home screen and the app opens directly.",
+      "howButton": "How to do it",
+      "notNow": "Not now",
+      "overlayTitle": "Add the app to the home screen",
+      "step1": "In Safari, tap “Share” at the bottom.",
+      "step2": "Choose “Add to Home Screen”.",
+      "step3": "Tap “Add” at the top right.",
+      "done": "Understood",
+      "illustrationLabel": "Illustration: Share icon in the Safari bar"
+    },
+    "offline": {
+      "bar": "Offline – last updated {time}",
+      "barNoData": "Offline – no saved tour",
+      "ready": "Offline ready ✓",
+      "partial": "Offline partly ready: {cached} of {total} photos",
+      "syncing": "Saving the tour for offline use …",
+      "error": "Offline not available",
+      "noDataTitle": "No saved tour",
+      "noDataDescription": "Without a connection no tour is saved for today. Please connect to the internet and reopen the app.",
+      "retry": "Try again",
+      "stopMissingTitle": "Stop not saved",
+      "stopMissingDescription": "This stop is not part of the saved tour.",
+      "backToTour": "To the tour"
+    },
+    "sync": {
+      "pending": "{count, plural, one {# entry is} other {# entries are}} waiting to be sent",
+      "willRetry": "Will be sent again later",
+      "dismiss": "Understood",
+      "notices": {
+        "changed_by_office": "{name}: the office changed this stop. Your entry was not applied; the current state applies.",
+        "not_found": "{name}: this stop was removed from the tour. Your entry was not applied.",
+        "already_completed": "{name}: this stop was already done. The saved state applies.",
+        "not_completed": "{name}: this stop was not done. The saved state applies.",
+        "undo_expired": "{name}: the undo came too late (only 5 minutes). The stop stays done.",
+        "tour_completed": "{name}: the tour is already finished. The saved state applies.",
+        "tour_not_active": "{name}: this tour is no longer active. Your entry was not applied.",
+        "generic": "{name}: the entry could not be applied. The saved state applies."
+      },
+      "photoNotices": {
+        "not_found": "{name}: this stop was removed from the tour. The photo was not applied.",
+        "tour_not_active": "{name}: this tour is no longer active. The photo was not applied.",
+        "upload_failed": "{name}: the photo could not be uploaded. Please take it again.",
+        "generic": "{name}: the photo could not be applied."
+      },
+      "outboxTitle": "Waiting to be sent",
+      "outboxEmpty": "Everything sent. Nothing is waiting.",
+      "outboxExplanation": "These entries are still on the device. They are sent as soon as you are online – nothing gets lost.",
+      "outboxOnlineExplanation": "These entries are being sent right now. You can keep working.",
+      "outboxRetry": "Send now",
+      "outboxWaiting": "waiting",
+      "mutationDelivered": "delivered",
+      "mutationProblem": "problem reported",
+      "mutationUndo": "undo",
+      "mutationPhoto": "photo",
+      "stopLine": "Stop {number}",
+      "noticesTitle": "Notices",
+      "cachedBadge": "Offline ready ✓",
+      "online": "Online",
+      "preparing": "Preparing …",
+      "offline": "Offline",
+      "pendingChip": "{count} waiting",
+      "error": "Sync error",
+      "outboxNothingPending": "Nothing to send. Everything is transferred.",
+      "outboxSending": "{count, plural, one {Sending # entry …} other {Sending # entries …}}",
+      "preparingShort": "Saving",
+      "errorShort": "Error",
+      "pendingShort": "{count}"
+    },
+    "unitsTotal": {
+      "KG": "kg",
+      "PACK": "Bag",
+      "CRATE": "Carton",
+      "PIECE": "Pieces"
+    }
+  },
+  "pwa": {
+    "name": "Nudel Liefer App",
+    "shortName": "Deliveries",
+    "description": "Daily tour, addresses and delivery quantities for drivers",
+    "offline": {
+      "title": "No connection",
+      "text": "The page cannot be loaded right now. Please check your connection.",
+      "retry": "Try again"
+    }
+  },
+  "errorPages": {
+    "driver": {
+      "title": "Something went wrong",
+      "description": "Your data is safe. Please try again.",
+      "retry": "Try again",
+      "home": "Go to the tour",
+      "offlineTitle": "No connection",
+      "offlineDescription": "Data you have already entered is saved on the phone and will be sent as soon as the connection is back.",
+      "offlineOpen": "Open the saved tour"
+    },
+    "admin": {
+      "title": "Something went wrong",
+      "description": "The page could not be loaded. Data that is already saved is not affected. Please try again.",
+      "retry": "Try again",
+      "home": "Go to the overview",
+      "reference": "Error ID: {digest}"
+    },
+    "fatal": {
+      "title": "Something went wrong",
+      "description": "Your data is safe. Please reload the page.",
+      "retry": "Reload"
+    }
+  },
+  "maps": {
+    "tilesOffline": "Map background not available offline",
+    "tilesFailed": "Map background not available",
+    "tilesHint": "Stops, depot and route are still shown.",
+    "stopMarker": "Stop {n}: {name}",
+    "stopMarkerPlain": "Stop {n}",
+    "depotMarker": "Depot: {name}",
+    "depotMarkerPlain": "Depot",
+    "pinMarker": "Delivery address: {place}",
+    "pinMoved": "Location: {lat}, {lng}",
+    "cluster": "{count, plural, one {# stop} other {# stops}}: {names}",
+    "clusterMore": "Tap again to zoom in",
+    "fitAll": "Show all stops"
+  }
+}

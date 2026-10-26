@@ -124,11 +124,12 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
       orderBy: { username: "asc" },
     });
     expect(drivers.map((d) => d.locale).sort()).toEqual([
+      "cs",
       "de",
       "de",
+      "en",
+      "sr_Latn",
       "zh_Hans",
-      "zh_Hant_HK",
-      "zh_Hant_TW",
     ]);
     // Only `driver-new` shows the first-start language picker (NUD-050).
     expect(drivers.filter((d) => !d.localeChosen).map((d) => d.username)).toEqual(["driver-new"]);

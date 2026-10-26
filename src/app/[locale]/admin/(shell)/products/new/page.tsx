@@ -31,10 +31,12 @@ async function Guarded({ locale }: { locale: string }) {
           weightKgPerUnit: "",
           de: "",
           hans: "",
-          hk: "",
-          tw: "",
-          hkAuto: true,
-          twAuto: true,
+          en: "",
+          sr: "",
+          cs: "",
+          enAuto: true,
+          srAuto: true,
+          csAuto: true,
         }}
       />
     </div>

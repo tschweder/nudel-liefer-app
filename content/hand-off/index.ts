@@ -94,8 +94,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Die beiden traditionellen Namen werden automatisch vorgeschlagen (Kennzeichnung «automatisch») und können von Hand geändert werden. Die App nennt die Sorte «Produkt» — einen «Waren-Typ» gibt es nicht.",
-        zh: "两种繁体名称会自动生成（标记为「自动」），也可以自行修改。应用里称它为「产品」，并没有「Waren-Typ」这个说法。",
+        de: "Die Namen auf Englisch, Serbisch und Tschechisch werden beim Speichern automatisch übersetzt (Kennzeichnung «automatisch») und können von Hand geändert werden. Die App nennt die Sorte «Produkt» — einen «Waren-Typ» gibt es nicht.",
+        zh: "英语、塞尔维亚语和捷克语名称会在保存时自动翻译（标记为「自动」），也可以自行修改。应用里称它为「产品」，并没有「Waren-Typ」这个说法。",
       },
       route: "/de/admin/products/new",
     },
@@ -104,8 +104,8 @@ export const HAND_OFF: HandOffContent = {
       area: "buero",
       title: { de: "Produkt bearbeiten und Namen pflegen", zh: "编辑产品并维护名称" },
       summary: {
-        de: "Ein Produkt öffnen, den Namen auf vereinfachtem Chinesisch ändern und die traditionellen Namen neu ableiten.",
-        zh: "打开产品，修改简体中文名称，并重新生成两种繁体名称。",
+        de: "Ein Produkt öffnen, den Namen auf vereinfachtem Chinesisch ändern und die übersetzten Namen neu erzeugen.",
+        zh: "打开产品，修改简体中文名称，并重新生成翻译后的名称。",
       },
       path: {
         de: "Seitenleiste → Stammdaten → Produkte → Zeile «Bearbeiten»",
@@ -115,13 +115,13 @@ export const HAND_OFF: HandOffContent = {
         de: [
           "produkt bearbeiten",
           "namen ändern",
-          "traditionelle namen",
-          "traditionell",
-          "neu ableiten",
+          "übersetzte namen",
+          "übersetzen",
+          "neu übersetzen",
           "vereinfachtes chinesisch",
           "produkt umbenennen",
         ],
-        zh: ["编辑产品", "修改名称", "繁体名称", "简体中文", "重新生成"],
+        zh: ["编辑产品", "修改名称", "翻译名称", "简体中文", "重新生成"],
       },
       steps: [
         {
@@ -140,17 +140,17 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Die beiden traditionellen Namen tragen die Kennzeichnung «automatisch».",
-            zh: "两种繁体名称带有「自动」标记。",
+            de: "Die Namen auf Englisch, Serbisch und Tschechisch tragen die Kennzeichnung «automatisch».",
+            zh: "英语、塞尔维亚语和捷克语名称带有「自动」标记。",
           },
           label: "automatisch",
         },
         {
           text: {
-            de: "Mit «Neu aus vereinfachtem Namen ableiten» die traditionellen Namen neu erzeugen.",
-            zh: "点击「根据简体名称重新生成」，重新生成繁体名称。",
+            de: "Mit «Neu aus dem deutschen Namen übersetzen» den Namen in dieser Sprache neu erzeugen.",
+            zh: "点击「根据德语名称重新翻译」，重新生成该语言的名称。",
           },
-          label: "Neu aus vereinfachtem Namen ableiten",
+          label: "Neu aus dem deutschen Namen übersetzen",
         },
         {
           text: {
@@ -162,8 +162,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Der Name auf vereinfachtem Chinesisch ist Pflicht; die traditionellen Namen sind Vorschläge und dürfen von Hand geändert werden.",
-        zh: "简体中文名称为必填；繁体名称只是建议，可以手动修改。",
+        de: "Der Name auf vereinfachtem Chinesisch ist Pflicht; die übersetzten Namen sind Vorschläge und dürfen von Hand geändert werden.",
+        zh: "简体中文名称为必填；翻译后的名称只是建议，可以手动修改。",
       },
       route: "/de/admin/products",
     },

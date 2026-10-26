@@ -8,7 +8,6 @@ import { describe, expect, it } from "vitest";
  * - "Pin" / "Kartenpunkt" (the map point is "Adresspunkt"; the driver login "PIN" is a different thing),
  * - "Position(en)" for order lines (they are "Produkte"),
  * - "Kiste" / "Packung" (units are Beutel and Karton).
- * zh-Hant files are generated from zh-Hans, so the sources are enough.
  */
 const FORBIDDEN: { word: RegExp; hint: string }[] = [
   { word: /\bPins?\b/, hint: '"Pin" (use Adresspunkt / Parkplatz / Standort)' },

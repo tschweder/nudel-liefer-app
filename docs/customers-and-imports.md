@@ -94,11 +94,12 @@ is `attachCustomerPhoto`, also used by the driver capture path. Rules:
 
 ## Customer notes (`customer-notes.ts`, `customer-actions.ts`)
 
-Notes are German source plus three Chinese versions (`zh-Hans`, `zh-Hant-HK`,
-`zh-Hant-TW`) stored as `LocalizedText` on the customer row; the pure merge rules
+Notes are German source plus four translated versions (`en`, `sr-Latn`, `cs`,
+`zh-Hans`) stored as `LocalizedText` on the customer row; the pure merge rules
 live in `src/domain/note-translations.ts` (not covered here). `freshTranslations`
-makes one provider call (Simplified), then derives the Traditional variants via
-OpenCC; a failed call returns `null` and the text is never logged.
+translates German into the four languages in parallel; a language the provider
+cannot do (Serbian before NUD-150) is simply missing, a total failure returns `null`
+and the text is never logged.
 
 - `prepareNotes` is used by the customer form: unchanged German keeps the stored
   JSON; changed German re-translates only the machine versions (hand-written ones

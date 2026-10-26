@@ -93,18 +93,16 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     it("saves locale and localeChosen for the logged-in driver, then opens his home", async () => {
       state.session = { user: { id: driverId } };
-      await expect(chooseDriverLocaleAction("zh-Hant-TW")).rejects.toThrow(
-        "REDIRECT:/zh-Hant-TW/driver",
-      );
+      await expect(chooseDriverLocaleAction("sr-Latn")).rejects.toThrow("REDIRECT:/sr-Latn/driver");
       const u = await userOf(driverId);
-      expect(u.locale).toBe("zh_Hant_TW");
+      expect(u.locale).toBe("sr_Latn");
       expect(u.localeChosen).toBe(true);
-      expect(cookieJar.get("NEXT_LOCALE")).toBe("zh-Hant-TW");
+      expect(cookieJar.get("NEXT_LOCALE")).toBe("sr-Latn");
     });
 
     it("rejects invalid locales and changes nothing", async () => {
       state.session = { user: { id: driverId } };
-      for (const bad of ["fr", "", "zh_Hant_TW", "../x"]) {
+      for (const bad of ["fr", "", "sr_Latn", "zh-Hant-TW", "../x"]) {
         await expect(chooseDriverLocaleAction(bad)).rejects.toThrow();
       }
       const u = await userOf(driverId);
@@ -136,9 +134,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       it("sends a driver without a chosen language to the picker from every driver page", async () => {
         state.session = { user: { id: driverId } };
         await expect(requirePageActor("driver", "de")).rejects.toThrow("REDIRECT:/de/driver/start");
-        await expect(requirePageActor("driver", "zh-Hant-HK")).rejects.toThrow(
-          "REDIRECT:/zh-Hant-HK/driver/start",
-        );
+        await expect(requirePageActor("driver", "cs")).rejects.toThrow("REDIRECT:/cs/driver/start");
       });
 
       it("lets the picker page itself through, and drivers who chose skip the picker", async () => {

@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import de from "../../../messages/de.json";
-import zhHantTw from "../../../messages/zh-Hant-TW.json";
+import zhHans from "../../../messages/zh-Hans.json";
 import { HomeContent } from "./home-content";
 
 vi.mock("@/server/locale-actions", () => ({ setLocaleAction: vi.fn() }));
@@ -25,14 +25,15 @@ describe("HomeContent", () => {
     expect(screen.getByText("Platzhalter")).toBeInTheDocument();
   });
 
-  it("renders Traditional Chinese (TW) messages and labels languages in their own script", () => {
+  it("renders Simplified Chinese messages and labels languages in their own script", () => {
     render(
-      <NextIntlClientProvider locale="zh-Hant-TW" messages={zhHantTw}>
+      <NextIntlClientProvider locale="zh-Hans" messages={zhHans}>
         <HomeContent />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByTestId("title")).toHaveTextContent("麵條配送應用");
-    expect(screen.getByRole("option", { name: "繁體中文（台灣）" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "中文" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Deutsch" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Srpski" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Čeština" })).toBeInTheDocument();
   });
 });

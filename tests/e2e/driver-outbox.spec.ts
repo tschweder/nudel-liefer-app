@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
-import { installNetworkEmulation, setOnline } from "./helpers/network";
+import { gotoSettled, installNetworkEmulation, setOnline } from "./helpers/network";
 
 // NUD-082. Needs DATABASE_URL and a PRODUCTION build (`pnpm build && pnpm start`, the service
 // worker only exists there; the build needs the S3_* variables like every spec that loads the
@@ -44,8 +44,9 @@ test.beforeAll(async () => {
       JSON.stringify({
         de: "Spaghetti lose",
         "zh-Hans": "意大利面",
-        "zh-Hant-HK": "意大利麵",
-        "zh-Hant-TW": "義大利麵",
+        en: "Spaghetti lose (en)",
+        "sr-Latn": "Spaghetti lose (sr)",
+        cs: "Spaghetti lose (cs)",
         meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
       }),
     ],
@@ -91,7 +92,7 @@ test.beforeAll(async () => {
         customerId,
         i + 1,
         new Date(today.getTime() + (8 + i) * 3600_000),
-        JSON.stringify([{ productId: kg, quantity: 500 + i * 100 }]),
+        JSON.stringify([{ productId: kg, quantity: 5 + i }]),
       ],
     );
   }
@@ -244,7 +245,7 @@ test("offline: three stops marked delivered are sent after reconnecting, exactly
 
   await setOnline(context, page, false);
   {
-    await page.goto(`/de/driver/stops/${stopIds[0]}`).catch(() => {});
+    await gotoSettled(page, `/de/driver/stops/${stopIds[0]}`);
     await expect(page.getByTestId("offline-bar")).toBeVisible();
     for (let i = 0; i < 3; i++) {
       await expect(page).toHaveURL(stopUrl(i));
@@ -265,8 +266,10 @@ test("offline: three stops marked delivered are sent after reconnecting, exactly
     // Nothing reached the server, but the tour screen already counts the three stops.
     expect(await statuses()).toEqual(Array(COUNT).fill("PENDING"));
     expect(await mutationRows()).toEqual([]);
-    await page.goto("/de/driver").catch(() => {});
-    await expect(visible(page, "progress-count")).toHaveText(/3\s*\/\s*5/);
+    await expect(async () => {
+      await gotoSettled(page, "/de/driver");
+      await expect(visible(page, "progress-count")).toHaveText(/3\s*\/\s*5/, { timeout: 3_000 });
+    }).toPass({ timeout: 20_000 });
     await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "3");
     expect(await outboxRows(page)).toHaveLength(3);
     expect(syncBodies.flatMap((b) => b.entries)).toEqual([]);
@@ -277,7 +280,7 @@ test("offline: three stops marked delivered are sent after reconnecting, exactly
     });
 
     // A stop that waits to be sent says so on its result card.
-    await page.goto(`/de/driver/stops/${stopIds[0]}`).catch(() => {});
+    await gotoSettled(page, `/de/driver/stops/${stopIds[0]}`);
     await expect(visible(page, "stop-result")).toHaveAttribute("data-status", "DELIVERED");
     await expect(visible(page, "stop-pending-sync")).toBeVisible();
   }
@@ -322,15 +325,18 @@ test("undo while offline removes the queued tap instead of sending two", async (
   await readyOffline(page);
   const syncBodies = watchSync(page);
   await setOnline(context, page, false);
-  await page.goto(`/de/driver/stops/${stopIds[3]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[3]}`);
   await expect(page).toHaveURL(stopUrl(3));
   await visible(page, "btn-delivered").click();
   await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
   expect(await outboxRows(page)).toHaveLength(1);
 
   // Back to the stop: the result card offers Undo for a tap that has not been sent.
-  await page.goto(`/de/driver/stops/${stopIds[3]}`).catch(() => {});
-  await expect(visible(page, "stop-result")).toBeVisible();
+  // (the app's own fallback navigation to the next stop may still be in flight: retry)
+  await expect(async () => {
+    await gotoSettled(page, `/de/driver/stops/${stopIds[3]}`);
+    await expect(visible(page, "stop-result")).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(visible(page, "stop-pending-sync")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("outbox-undo-offer.png") });
   await visible(page, "undo").click();
@@ -361,7 +367,7 @@ test("undo of a confirmed stop while offline is queued and applied after reconne
   await page.waitForTimeout(1_000);
 
   await setOnline(context, page, false);
-  await page.goto(`/de/driver/stops/${stopIds[4]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[4]}`);
   await expect(visible(page, "stop-result")).toHaveAttribute("data-status", "DELIVERED");
   await visible(page, "undo").click();
   await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
@@ -380,7 +386,7 @@ test("conflict: the office changed the stop after the offline tap, the server st
 }, testInfo) => {
   await readyOffline(page);
   await setOnline(context, page, false);
-  await page.goto(`/de/driver/stops/${stopIds[4]}`).catch(() => {});
+  await gotoSettled(page, `/de/driver/stops/${stopIds[4]}`);
   await expect(page).toHaveURL(stopUrl(4));
   await visible(page, "btn-delivered").click();
   await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
@@ -410,7 +416,7 @@ test("conflict: the office changed the stop after the offline tap, the server st
   expect(await mutationRows()).toEqual([]);
   await page.goto(`/de/driver/stops/${stopIds[4]}`);
   await expect(visible(page, "btn-delivered")).toBeVisible();
-  await expect(visible(page, "stop-items")).toContainText(/9[.,]99/);
+  await expect(visible(page, "stop-items")).toContainText(/999/);
   // The notice stays until it is acknowledged, also across a reload.
   await expect(page.getByTestId("sync-notice")).toBeVisible();
   await page.getByTestId("sync-notice-dismiss").click();

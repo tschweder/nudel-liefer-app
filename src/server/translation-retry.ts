@@ -56,7 +56,7 @@ export async function retryPendingTranslations(options: RetryOptions): Promise<R
         continue;
       }
       try {
-        const next = await completeTranslation(parsed.data, translator, now());
+        const next = await completeTranslation(parsed.data, translator, now(), source.targets);
         if (await source.save(db, row.id, parsed.data, next)) counts.translated++;
         else counts.skipped++;
       } catch (error) {

@@ -172,7 +172,7 @@ test("order quantity changed after release: banner with diff, re-release keeps d
     page.on("console", (m) => {
       if (m.type() === "error") consoleErrors.push(m.text());
     });
-    for (const locale of ["zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) {
+    for (const locale of ["en", "zh-Hans"]) {
       await page.goto(`/${locale}/admin/tours?date=${f.day}`);
       await expect(tid(page, "tour-changed-banner")).toBeVisible();
       await expect(tid(page, "diff-item")).toContainText("3 → 5");

@@ -125,14 +125,14 @@ export function OrderFilters({
       {/* Two rows: range + customer, then the status/source chips. Labels stay visible because the
           toolbar sticks and the chips alone do not say what they filter. */}
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 max-w-full flex-col gap-1">
           <span className="text-sm font-medium">{t("rangeLabel")}</span>
           <SegmentedControl
             value={quick}
             onValueChange={setQuick}
             ariaLabel={t("rangeLabel")}
             size="md"
-            className="w-auto shrink-0 [&_button]:flex-none"
+            className="w-auto max-w-full shrink-0 overflow-x-auto [&_button]:flex-none"
             options={[
               { value: "next", label: t("quick.next"), testId: "quick-next" },
               { value: "today", label: t("quick.today"), testId: "quick-today" },

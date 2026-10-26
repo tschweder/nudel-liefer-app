@@ -1,9 +1,10 @@
 import type { AppLocale } from "@/lib/localized-text";
 
 /**
- * Machine translation of user-generated text (D15). Implementations: DeepL (`DeepLTranslator`) and
- * a `FakeTranslator` for tests and for a missing API key. Chinese variants are derived with OpenCC
- * (Hans -> HK / TW); the provider only ever translates between German and Simplified Chinese.
+ * Machine translation of user-generated text (D15, D21). Implementations: DeepL (`DeepLTranslator`,
+ * German, English, Czech, Simplified Chinese) and a `FakeTranslator` for tests and for a missing API
+ * key. Serbian (Latin) sits behind a separate provider slot (`RoutedTranslator`): the real
+ * connection (OpenRouter) comes with NUD-150, until then `translate` throws `UNSUPPORTED` for it.
  */
 export interface Translator {
   /** `"deepl"` for a real provider, `"fake"` for the stand-in (output is NOT a real translation). */
@@ -13,7 +14,7 @@ export interface Translator {
 }
 
 export type TranslatorErrorCode =
-  "TIMEOUT" | "NETWORK" | "HTTP" | "QUOTA" | "BAD_RESPONSE" | "INVALID_INPUT";
+  "TIMEOUT" | "NETWORK" | "HTTP" | "QUOTA" | "BAD_RESPONSE" | "INVALID_INPUT" | "UNSUPPORTED";
 
 export class TranslatorError extends Error {
   constructor(

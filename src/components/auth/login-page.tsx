@@ -31,8 +31,8 @@ export function LoginPageContent(props: Parameters<typeof Body>[0]) {
         <Body {...props} />
       </Suspense>
       {/* Help page (NUD-127): reachable without a login, so it belongs on both login screens. */}
-      <p className="mt-4 text-center text-sm">
-        <HelpLink className="underline underline-offset-4" />
+      <p className="mt-4 text-center text-base">
+        <HelpLink className="inline-flex min-h-12 items-center px-3 underline underline-offset-4" />
       </p>
     </>
   );

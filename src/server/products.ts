@@ -3,8 +3,10 @@ import { z } from "zod";
 import { parseWeightKg } from "@/domain/weight";
 import { Prisma, type PrismaClient, type Unit } from "@/generated/prisma/client";
 import { createLocalizedText, type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
-import { hansToHk, hansToTw } from "@/lib/opencc";
 import { UNITS } from "@/lib/units";
+
+import { getTranslator } from "./translator";
+import type { Translator } from "./translator/types";
 
 type ProductDb = Pick<PrismaClient, "product" | "orderItem" | "$transaction">;
 
@@ -18,9 +20,10 @@ const optionalText = (max: number) =>
     .transform((v) => v);
 
 /**
- * Product form input. `de` and `zh-Hans` are required. A Traditional name that is flagged `auto`
- * (or left empty) is derived from `zh-Hans` on the server with OpenCC, so the stored value never
- * depends on what the client computed; a non-auto, non-empty value is a hand-edited name.
+ * Product form input. `de` and `zh-Hans` are required and written by hand. English, Serbian (Latin)
+ * and Czech names that are flagged `auto` (or left empty) are machine-translated from the German
+ * name on the server (D21), so the stored value never depends on what the client computed; a
+ * non-auto, non-empty value is a hand-edited name.
  */
 export const productInputSchema = z.object({
   sku: z
@@ -38,11 +41,13 @@ export const productInputSchema = z.object({
   name: z.object({
     de: requiredText(160),
     hans: requiredText(160),
-    hk: optionalText(160),
-    tw: optionalText(160),
+    en: optionalText(160),
+    sr: optionalText(160),
+    cs: optionalText(160),
   }),
-  hkAuto: z.boolean().default(false),
-  twAuto: z.boolean().default(false),
+  enAuto: z.boolean().default(false),
+  srAuto: z.boolean().default(false),
+  csAuto: z.boolean().default(false),
 });
 export type ProductInput = z.input<typeof productInputSchema>;
 
@@ -58,24 +63,57 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-/** Builds the stored LocalizedText from validated form values (source language: German). */
-export function buildProductName(v: z.output<typeof productInputSchema>): LocalizedText {
-  const machine: Partial<Record<"zh-Hant-HK" | "zh-Hant-TW", boolean>> = {};
-  let hk = v.name.hk;
-  let tw = v.name.tw;
-  if (v.hkAuto || hk === "") {
-    hk = hansToHk(v.name.hans);
-    machine["zh-Hant-HK"] = true;
-  }
-  if (v.twAuto || tw === "") {
-    tw = hansToTw(v.name.hans);
-    machine["zh-Hant-TW"] = true;
-  }
-  return createLocalizedText(
-    { de: v.name.de, "zh-Hans": v.name.hans, "zh-Hant-HK": hk, "zh-Hant-TW": tw },
-    "de",
-    { machine },
+type Machine = { translator?: Translator };
+
+/**
+ * Builds the stored LocalizedText from validated form values (source language: German). Auto or
+ * empty English/Serbian/Czech names are translated from German; a locale the provider could not
+ * do stays empty and the name is flagged `pendingTranslation` (the retry job fills it, readers fall
+ * back to German meanwhile). Never throws.
+ */
+export async function buildProductName(
+  v: z.output<typeof productInputSchema>,
+  options: Machine = {},
+): Promise<LocalizedText> {
+  const machine: Partial<Record<"en" | "sr-Latn" | "cs", boolean>> = {};
+  const values: Record<"en" | "sr-Latn" | "cs", string> = {
+    en: v.name.en,
+    "sr-Latn": v.name.sr,
+    cs: v.name.cs,
+  };
+  const auto = { en: v.enAuto, "sr-Latn": v.srAuto, cs: v.csAuto };
+  const todo = (["en", "sr-Latn", "cs"] as const).filter((l) => auto[l] || values[l] === "");
+  let pending = false;
+  const translator = options.translator ?? getTranslator();
+  const results = await Promise.allSettled(
+    todo.map((l) => translator.translate(v.name.de, "de", l)),
   );
+  results.forEach((result, index) => {
+    const locale = todo[index]!;
+    const text = result.status === "fulfilled" ? result.value.trim() : "";
+    if (text !== "") {
+      values[locale] = text;
+      machine[locale] = true;
+    } else {
+      values[locale] = "";
+      const unsupported =
+        result.status === "rejected" &&
+        (result.reason as { code?: unknown } | null)?.code === "UNSUPPORTED";
+      if (!unsupported) pending = true;
+    }
+  });
+  const text = createLocalizedText(
+    {
+      de: v.name.de,
+      "zh-Hans": v.name.hans,
+      ...(values.en ? { en: values.en } : {}),
+      ...(values["sr-Latn"] ? { "sr-Latn": values["sr-Latn"] } : {}),
+      ...(values.cs ? { cs: values.cs } : {}),
+    },
+    "de",
+    { machine, pendingTranslation: pending },
+  );
+  return text;
 }
 
 /** Name as the form needs it (strings per locale plus the "auto" flags). */
@@ -86,10 +124,12 @@ export type ProductFormValues = {
   weightKgPerUnit: string;
   de: string;
   hans: string;
-  hk: string;
-  tw: string;
-  hkAuto: boolean;
-  twAuto: boolean;
+  en: string;
+  sr: string;
+  cs: string;
+  enAuto: boolean;
+  srAuto: boolean;
+  csAuto: boolean;
 };
 
 export function toFormValues(row: {
@@ -106,10 +146,12 @@ export function toFormValues(row: {
     weightKgPerUnit: trimWeight(row.weightKgPerUnit.toString()),
     de: name?.de ?? "",
     hans: name?.["zh-Hans"] ?? "",
-    hk: name?.["zh-Hant-HK"] ?? "",
-    tw: name?.["zh-Hant-TW"] ?? "",
-    hkAuto: name?.meta.machine["zh-Hant-HK"] === true,
-    twAuto: name?.meta.machine["zh-Hant-TW"] === true,
+    en: name?.en ?? "",
+    sr: name?.["sr-Latn"] ?? "",
+    cs: name?.cs ?? "",
+    enAuto: name?.meta.machine.en === true,
+    srAuto: name?.meta.machine["sr-Latn"] === true,
+    csAuto: name?.meta.machine.cs === true,
   };
 }
 
@@ -132,7 +174,11 @@ async function skuTaken(db: ProductDb, sku: string, exceptId?: string): Promise<
 }
 
 /** Creates a product at the end of the list. The caller checked the role. */
-export async function createProduct(db: ProductDb, rawInput: unknown): Promise<ProductSaveResult> {
+export async function createProduct(
+  db: ProductDb,
+  rawInput: unknown,
+  options: Machine = {},
+): Promise<ProductSaveResult> {
   const parsed = productInputSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const v = parsed.data;
@@ -144,7 +190,7 @@ export async function createProduct(db: ProductDb, rawInput: unknown): Promise<P
         sku: v.sku,
         unit: v.unit,
         weightKgPerUnit: v.weightKgPerUnit,
-        name: asJson(buildProductName(v)),
+        name: asJson(await buildProductName(v, options)),
         sortOrder: (last._max.sortOrder ?? -1) + 1,
       },
       select: { id: true },
@@ -164,6 +210,7 @@ export async function updateProduct(
   db: ProductDb,
   rawId: unknown,
   rawInput: unknown,
+  options: Machine = {},
 ): Promise<ProductSaveResult> {
   const id = idSchema.safeParse(rawId);
   const parsed = productInputSchema.safeParse(rawInput);
@@ -183,7 +230,7 @@ export async function updateProduct(
         sku: v.sku,
         unit: v.unit,
         weightKgPerUnit: v.weightKgPerUnit,
-        name: asJson(buildProductName(v)),
+        name: asJson(await buildProductName(v, options)),
       },
     });
     return { ok: true, id: stored.id };

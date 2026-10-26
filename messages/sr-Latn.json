@@ -1,0 +1,448 @@
+{
+  "common": {
+    "appName": "Nudel Liefer App",
+    "language": "Jezik",
+    "notifications": "Obaveštenja",
+    "theme": {
+      "day": "Dnevni režim",
+      "night": "Noćni režim",
+      "toggleToNight": "Pređi na noćni režim",
+      "toggleToDay": "Pređi na dnevni režim"
+    },
+    "actions": {
+      "save": "Sačuvaj",
+      "cancel": "Otkaži",
+      "delete": "Obriši",
+      "archive": "Arhiviraj",
+      "restore": "Vrati",
+      "edit": "Uredi",
+      "create": "Kreiraj",
+      "add": "Dodaj",
+      "remove": "Ukloni",
+      "back": "Nazad",
+      "next": "Dalje",
+      "confirm": "Potvrdi",
+      "close": "Zatvori",
+      "search": "Traži",
+      "retry": "Pokušaj ponovo",
+      "release": "Objavi",
+      "optimize": "Optimizuj",
+      "upload": "Otpremi",
+      "logout": "Odjavi se",
+      "login": "Prijavi se"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Kesa",
+      "CRATE": "Karton",
+      "PIECE": "×"
+    },
+    "statuses": {
+      "order": {
+        "DRAFT": "Nacrt",
+        "CONFIRMED": "Potvrđena",
+        "CANCELLED": "Otkazana"
+      },
+      "tour": {
+        "DRAFT": "Nacrt",
+        "OPTIMIZED": "Optimizovana",
+        "RELEASED": "Objavljena",
+        "IN_PROGRESS": "Na putu",
+        "COMPLETED": "Završena"
+      },
+      "stop": {
+        "PENDING": "Na čekanju",
+        "DELIVERED": "Isporučena",
+        "PROBLEM": "Problem"
+      }
+    },
+    "problemReasons": {
+      "CLOSED": "Zatvoreno",
+      "NOBODY_THERE": "Nikog nema",
+      "NO_PARKING": "Nema parkinga",
+      "WRONG_QUANTITY": "Pogrešna količina",
+      "REFUSED": "Prijem odbijen",
+      "ADDRESS_NOT_FOUND": "Adresa nije pronađena",
+      "OTHER": "Ostalo"
+    },
+    "errors": {
+      "generic": "Nešto je pošlo naopako. Pokušajte ponovo.",
+      "notFound": "Stranica nije pronađena.",
+      "forbidden": "Nemate dozvolu za ovo.",
+      "required": "Obavezno polje",
+      "invalid": "Neispravna vrednost",
+      "network": "Nema veze."
+    },
+    "itemsCount": "{count, plural, =0 {Nema unosa} one {# unos} few {# unosa} other {# unosa}}",
+    "states": {
+      "emptyTitle": "Još nema ničega",
+      "comingSoon": "Ova oblast će uskoro biti dodata.",
+      "errorTitle": "Nešto je pošlo naopako",
+      "loading": "Učitavanje …"
+    },
+    "notFound": {
+      "title": "Stranica nije pronađena",
+      "description": "Ova stranica ne postoji ili je premeštena.",
+      "home": "Na početnu stranicu"
+    },
+    "error": {
+      "title": "Nešto je pošlo naopako",
+      "description": "Stranica se nije mogla prikazati. Pokušajte ponovo."
+    },
+    "upload": {
+      "dropHere": "Prevucite sliku ovde",
+      "choose": "Izaberite sliku",
+      "camera": "Snimi fotografiju",
+      "pasteHint": "ili nalepite sliku iz privremene memorije (Ctrl+V)",
+      "uploading": "Otpremanje … {percent} %",
+      "done": "Otpremljeno",
+      "cancel": "Otkaži",
+      "errors": {
+        "NOT_AN_IMAGE": "Ovo nije slikovna datoteka.",
+        "HEIC_UNSUPPORTED": "Ovaj pregledač ne podržava HEIC fotografije. Sačuvajte fotografiju kao JPEG ili PNG.",
+        "DECODE_FAILED": "Slika se nije mogla pročitati.",
+        "TOO_LARGE": "Slika je prevelika.",
+        "UNAUTHENTICATED": "Prijavite se ponovo.",
+        "FORBIDDEN": "Nemate dozvolu za ovo.",
+        "REQUEST_FAILED": "Otpremanje se nije moglo pripremiti. Pokušajte ponovo.",
+        "UPLOAD_FAILED": "Otpremanje nije uspelo. Pokušajte ponovo.",
+        "ABORTED": "Otpremanje je prekinuto."
+      },
+      "preview": {
+        "open": "Uvećaj sliku",
+        "title": "Prikaz slike",
+        "zoomIn": "Uvećaj",
+        "zoomOut": "Umanji",
+        "reset": "Vrati na početno"
+      }
+    },
+    "unitNames": {
+      "KG": "kg",
+      "PACK": "Kesa",
+      "CRATE": "Karton",
+      "PIECE": "Komad (N ×)"
+    }
+  },
+  "home": {
+    "title": "Nudel Liefer App",
+    "placeholder": "Rezervisano mesto"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "Prijava za kancelariju",
+      "email": "E-pošta",
+      "password": "Lozinka",
+      "submit": "Prijavi se",
+      "driverLink": "Prijava vozača",
+      "brandSentence": "Prijava za kancelariju – Nudel Liefer App",
+      "showPassword": "Prikaži",
+      "hidePassword": "Sakrij"
+    },
+    "driverLogin": {
+      "title": "Prijava vozača",
+      "username": "Korisničko ime",
+      "pin": "PIN (6 cifara)",
+      "submit": "Prijavi se",
+      "adminLink": "Prijava za kancelariju"
+    },
+    "errors": {
+      "invalid": "Prijava nije uspela. Proverite unos.",
+      "rateLimited": "Previše neuspelih pokušaja. Pokušajte ponovo za 15 minuta.",
+      "generic": "Prijava nije moguća. Pokušajte kasnije.",
+      "pinLength": "PIN mora imati 6 cifara",
+      "usernameRequired": "Unesite korisničko ime",
+      "credentials": "Pogrešno korisničko ime ili PIN",
+      "emailRequired": "Unesite e-adresu",
+      "passwordRequired": "Unesite lozinku"
+    },
+    "signedInAs": "Prijavljeni ste kao {name}",
+    "logout": "Odjavi se",
+    "help": "Pomoć"
+  },
+  "driver": {
+    "home": {
+      "title": "Danas",
+      "welcome": "Dobro došli, {name}.",
+      "todayCount": "{open} otvoreno · {problems, plural, =0 {nema problema} one {# problem} few {# problema} other {# problema}}",
+      "endTime": "Kraj oko {time}",
+      "nextStop": "Sledeća stanica",
+      "nextStopEta": "Dolazak oko {time}",
+      "quantityChip": "{quantity} × {name}"
+    },
+    "shell": {
+      "connectionOnline": "Na mreži",
+      "connectionOffline": "Van mreže",
+      "changeLanguage": "Promeni jezik",
+      "openOutbox": "Otvori status prenosa i obaveštenja",
+      "language": "Promeni jezik",
+      "menu": "Dodatne opcije",
+      "logout": "Odjavi se",
+      "currentLanguage": "Trenutni jezik"
+    },
+    "today": {
+      "pageTitle": "Današnja tura",
+      "emptyTitle": "Danas nema ture",
+      "emptyDescription": "Čim kancelarija objavi turu, pojaviće se ovde.",
+      "progressLabel": "Napredak",
+      "progress": "{done} / {total}",
+      "progressAria": "Završeno stanica: {done} od {total}",
+      "remaining": "Još oko {duration}",
+      "durationMinutes": "{minutes} min",
+      "durationHours": "{hours} č {minutes} min",
+      "nextStop": "Sledeća stanica",
+      "allDoneTitle": "Sve stanice su završene",
+      "allDoneDescription": "Tura je završena. Hvala!",
+      "eta": "Dolazak oko {time}",
+      "kinds": "{count, plural, one {# vrsta} few {# vrste} other {# vrsta}}",
+      "navigate": "Pokreni navigaciju",
+      "details": "Detalji",
+      "noPin": "Nema adresne tačke – pitajte kancelariju",
+      "viewLabel": "Prikaz",
+      "viewList": "Lista",
+      "viewMap": "Mapa",
+      "listTitle": "Sve stanice",
+      "mapLabel": "Mapa stanica",
+      "statusPending": "Na čekanju",
+      "statusDelivered": "Isporučeno",
+      "statusProblem": "Problem",
+      "stopLabel": "Stanica {number}",
+      "changeAdded": "Nova stanica",
+      "changeChanged": "Količina promenjena",
+      "updatedTitle": "Tura je ažurirana",
+      "updatedDescription": "Kancelarija je izmenila turu. Proverite označene stanice. Uvek se prikazuju aktuelne količine.",
+      "removedStops": "Uklonjene stanice",
+      "updatedConfirm": "Razumem",
+      "finishedSummary": "{delivered} isporučeno · {problems, plural, =0 {nema problema} one {# problem} few {# problema} other {# problema}}",
+      "openGroup": "Otvoreno ({count})",
+      "doneGroup": "Završeno ({count})",
+      "expandDone": "Prikaži završene stanice",
+      "collapseDone": "Sakrij završene stanice",
+      "problemReason": "Problem: {reason}",
+      "noteLabel": "Napomena",
+      "waiting": "čeka",
+      "backToDepot": "Nazad u depo",
+      "finishedElapsed": "Trajanje oko {duration}",
+      "mapSheet": "Otvorene stanice ({count})",
+      "mapSheetHide": "Zatvori listu stanica",
+      "progressDone": "završeno",
+      "mapSheetCount": "{count, plural, one {# otvorena stanica} few {# otvorene stanice} other {# otvorenih stanica}}",
+      "focusOnMap": "Prikaži na mapi"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Kesa",
+      "CRATE": "Karton",
+      "PIECE": "×"
+    },
+    "stop": {
+      "back": "Nazad na turu",
+      "position": "Stanica {position} od {total}",
+      "copyAddress": "Kopiraj adresu",
+      "copied": "Adresa je kopirana",
+      "photoStore": "Ulaz",
+      "photoParking": "Parking",
+      "noPhoto": "Još nema fotografije",
+      "items": "Isporuka",
+      "notes": "Napomena",
+      "notesGerman": "Tekst postoji samo na nemačkom",
+      "hours": "Vreme isporuke",
+      "appleMaps": "Apple mape",
+      "stopNavigation": "Prelazak između stanica",
+      "previous": "Nazad",
+      "next": "Dalje",
+      "takePhoto": "Snimi fotografiju",
+      "replacePhoto": "Zameni fotografiju",
+      "photoPreparing": "Fotografija se priprema …",
+      "usePhoto": "Koristi fotografiju",
+      "retakePhoto": "Snimi ponovo",
+      "cancelPhoto": "Otkaži",
+      "photoPending": "Čeka slanje",
+      "photoSent": "Poslato",
+      "photoNotSaved": "Fotografija se nije mogla sačuvati na uređaju. Pokušajte ponovo.",
+      "backToTour": "Nazad na turu",
+      "photos": "Fotografije",
+      "summaryTotal": "Ukupno",
+      "statusDeliveredAt": "Isporučeno {time}",
+      "statusProblem": "Problem: {reason}",
+      "navigateStarting": "Navigacija se otvara …",
+      "deliveredStrip": "Isporučeno u {time}",
+      "problemStrip": "Problem je prijavljen",
+      "editAction": "Uredi",
+      "nextStop": "Dalje na stanicu {number}",
+      "backToTourAction": "Na turu",
+      "viewerTitle": "Pregled fotografije",
+      "viewerPrev": "Prethodna fotografija",
+      "viewerNext": "Sledeća fotografija",
+      "viewerClose": "Zatvori",
+      "summaryTotalMixed": "Ukupno po jedinici",
+      "weekdayMo": "pon",
+      "weekdayTu": "uto",
+      "weekdayWe": "sre",
+      "weekdayTh": "čet",
+      "weekdayFr": "pet",
+      "weekdaySa": "sub",
+      "weekdaySu": "ned",
+      "clockSuffix": "č"
+    },
+    "status": {
+      "delivered": "Isporučeno",
+      "problem": "Problem",
+      "actionsLabel": "Završi stanicu",
+      "problemTitle": "Koji je problem?",
+      "problemDescription": "Izaberite razlog. Tekst nije obavezan.",
+      "noteLabel": "Napomena (nije obavezna)",
+      "notePlaceholder": "npr. kapija je bila zatvorena",
+      "submit": "Prijavi problem",
+      "cancel": "Otkaži",
+      "undo": "Poništi",
+      "undone": "Poništeno",
+      "deliveredToast": "Isporučeno: {name}",
+      "problemToast": "Problem prijavljen: {name}",
+      "doneDelivered": "Isporučeno",
+      "doneProblem": "Problem: {reason}",
+      "doneAt": "u {time}",
+      "errors": {
+        "generic": "Nije uspelo. Pokušajte ponovo.",
+        "network": "Nema veze. Dodirnite ponovo.",
+        "already_completed": "Ova stanica je već završena.",
+        "not_completed": "Ova stanica nije završena.",
+        "undo_expired": "Poništavanje je moguće samo u prvih 5 minuta.",
+        "tour_completed": "Tura je završena, ništa se više ne može menjati.",
+        "tour_not_active": "Ova tura nije aktivna.",
+        "not_found": "Stanica nije pronađena.",
+        "mutation_conflict": "Nije uspelo. Pokušajte ponovo.",
+        "invalid": "Nije uspelo. Pokušajte ponovo.",
+        "forbidden": "Nemate dozvolu za ovo.",
+        "storage": "Čuvanje na telefonu nije moguće. Pokušajte ponovo.",
+        "changed_by_office": "Kancelarija je izmenila ovu stanicu."
+      },
+      "offlineNotice": "Van mreže: vaš unos se čuva na telefonu i automatski se šalje čim se internet vrati.",
+      "queuedHint": "Čeka slanje"
+    },
+    "install": {
+      "title": "Instaliraj aplikaciju",
+      "androidText": "Instalirajte aplikaciju i otvaraće se direktno sa početnog ekrana.",
+      "installButton": "Instaliraj",
+      "iosText": "Dodajte je na početni ekran i aplikacija će se otvarati direktno.",
+      "howButton": "Kako se to radi",
+      "notNow": "Ne sada",
+      "overlayTitle": "Dodaj aplikaciju na početni ekran",
+      "step1": "U Safariju dodirnite „Podeli“ pri dnu.",
+      "step2": "Izaberite „Dodaj na početni ekran“.",
+      "step3": "Dodirnite „Dodaj“ gore desno.",
+      "done": "Razumem",
+      "illustrationLabel": "Ilustracija: ikona za deljenje u traci Safarija"
+    },
+    "offline": {
+      "bar": "Van mreže – poslednje ažuriranje {time}",
+      "barNoData": "Van mreže – nema sačuvane ture",
+      "ready": "Spremno za rad van mreže ✓",
+      "partial": "Delimično spremno za rad van mreže: {cached} od {total} fotografija",
+      "syncing": "Tura se čuva za rad van mreže …",
+      "error": "Rad van mreže nije dostupan",
+      "noDataTitle": "Nema sačuvane ture",
+      "noDataDescription": "Bez veze nije sačuvana nijedna tura za danas. Povežite se na internet i ponovo otvorite aplikaciju.",
+      "retry": "Pokušaj ponovo",
+      "stopMissingTitle": "Stanica nije sačuvana",
+      "stopMissingDescription": "Ova stanica ne pripada sačuvanoj turi.",
+      "backToTour": "Na turu"
+    },
+    "sync": {
+      "pending": "{count, plural, one {# unos čeka} few {# unosa čekaju} other {# unosa čeka}} slanje",
+      "willRetry": "Biće ponovo poslato kasnije",
+      "dismiss": "Razumem",
+      "notices": {
+        "changed_by_office": "{name}: kancelarija je izmenila ovu stanicu. Vaš unos nije preuzet, važi aktuelno stanje.",
+        "not_found": "{name}: ova stanica je uklonjena iz ture. Vaš unos nije preuzet.",
+        "already_completed": "{name}: ova stanica je već bila završena. Važi sačuvano stanje.",
+        "not_completed": "{name}: ova stanica nije bila završena. Važi sačuvano stanje.",
+        "undo_expired": "{name}: poništavanje je stiglo prekasno (samo 5 minuta). Stanica ostaje završena.",
+        "tour_completed": "{name}: tura je već završena. Važi sačuvano stanje.",
+        "tour_not_active": "{name}: ova tura više nije aktivna. Vaš unos nije preuzet.",
+        "generic": "{name}: unos se nije mogao preuzeti. Važi sačuvano stanje."
+      },
+      "photoNotices": {
+        "not_found": "{name}: ova stanica je uklonjena iz ture. Fotografija nije preuzeta.",
+        "tour_not_active": "{name}: ova tura više nije aktivna. Fotografija nije preuzeta.",
+        "upload_failed": "{name}: fotografija se nije mogla otpremiti. Snimite je ponovo.",
+        "generic": "{name}: fotografija se nije mogla preuzeti."
+      },
+      "outboxTitle": "Čeka slanje",
+      "outboxEmpty": "Sve je poslato. Ništa ne čeka.",
+      "outboxExplanation": "Ovi unosi su još na uređaju. Biće poslati čim budete na mreži – ništa se ne gubi.",
+      "outboxOnlineExplanation": "Ovi unosi se upravo šalju. Možete nastaviti da radite.",
+      "outboxRetry": "Pošalji sada",
+      "outboxWaiting": "čeka",
+      "mutationDelivered": "isporučeno",
+      "mutationProblem": "problem prijavljen",
+      "mutationUndo": "poništeno",
+      "mutationPhoto": "fotografija",
+      "stopLine": "Stanica {number}",
+      "noticesTitle": "Obaveštenja",
+      "cachedBadge": "Spremno za rad van mreže ✓",
+      "online": "Na mreži",
+      "preparing": "Priprema se …",
+      "offline": "Van mreže",
+      "pendingChip": "{count, plural, one {# čeka} few {# čekaju} other {# čeka}}",
+      "error": "Greška sinhronizacije",
+      "outboxNothingPending": "Nema ničega za slanje. Sve je preneto.",
+      "outboxSending": "{count, plural, one {Šalje se # unos …} few {Šalju se # unosa …} other {Šalje se # unosa …}}",
+      "preparingShort": "Čuva se",
+      "errorShort": "Greška",
+      "pendingShort": "{count}"
+    },
+    "unitsTotal": {
+      "KG": "kg",
+      "PACK": "Kesa",
+      "CRATE": "Karton",
+      "PIECE": "Komada"
+    }
+  },
+  "pwa": {
+    "name": "Nudel Liefer App",
+    "shortName": "Isporuke",
+    "description": "Dnevna tura, adrese i količine za isporuku za vozače",
+    "offline": {
+      "title": "Nema veze",
+      "text": "Stranica se trenutno ne može učitati. Proverite vezu.",
+      "retry": "Pokušaj ponovo"
+    }
+  },
+  "errorPages": {
+    "driver": {
+      "title": "Nešto je pošlo naopako",
+      "description": "Podaci su sigurni. Pokušajte ponovo.",
+      "retry": "Pokušaj ponovo",
+      "home": "Na turu",
+      "offlineTitle": "Nema veze",
+      "offlineDescription": "Već uneti podaci sačuvani su na telefonu i biće poslati čim se veza vrati.",
+      "offlineOpen": "Otvori sačuvanu turu"
+    },
+    "admin": {
+      "title": "Nešto je pošlo naopako",
+      "description": "Stranica se nije mogla učitati. Već sačuvani podaci nisu pogođeni. Pokušajte ponovo.",
+      "retry": "Pokušaj ponovo",
+      "home": "Na pregled",
+      "reference": "ID greške: {digest}"
+    },
+    "fatal": {
+      "title": "Nešto je pošlo naopako",
+      "description": "Podaci su sigurni. Ponovo učitajte stranicu.",
+      "retry": "Učitaj ponovo"
+    }
+  },
+  "maps": {
+    "tilesOffline": "Pozadina mape nije dostupna van mreže",
+    "tilesFailed": "Pozadina mape nije dostupna",
+    "tilesHint": "Stanice, depo i ruta i dalje se prikazuju.",
+    "stopMarker": "Stanica {n}: {name}",
+    "stopMarkerPlain": "Stanica {n}",
+    "depotMarker": "Depo: {name}",
+    "depotMarkerPlain": "Depo",
+    "pinMarker": "Adresa isporuke: {place}",
+    "pinMoved": "Lokacija: {lat}, {lng}",
+    "cluster": "{count, plural, one {# stanica} few {# stanice} other {# stanica}}: {names}",
+    "clusterMore": "Dodirnite ponovo za uvećanje",
+    "fitAll": "Prikaži sve stanice"
+  }
+}

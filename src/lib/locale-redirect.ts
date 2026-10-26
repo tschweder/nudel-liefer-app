@@ -1,4 +1,4 @@
-import { resolveLocale } from "./locale-resolution";
+import { adminLocaleFor, resolveLocale } from "./locale-resolution";
 
 /**
  * Target of the redirect for a path without a locale prefix (`/driver?source=pwa` ->
@@ -13,6 +13,9 @@ export function localeRedirectPath(input: {
   cookie?: string | null;
   acceptLanguage?: string | null;
 }): string {
-  const locale = resolveLocale(input);
+  const resolved = resolveLocale(input);
+  // The office screens exist in de/en/zh-Hans only: a driver-only language falls back to German there.
+  const isAdminPath = input.pathname === "/admin" || input.pathname.startsWith("/admin/");
+  const locale = isAdminPath ? adminLocaleFor(resolved) : resolved;
   return `/${locale}${input.pathname === "/" ? "" : input.pathname}${input.search}`;
 }

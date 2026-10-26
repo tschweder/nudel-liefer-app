@@ -33,9 +33,9 @@ describe("applyJwt", () => {
       applyJwt({
         token: { ...base },
         trigger: "update",
-        session: { user: { locale: "zh-Hant-TW" } },
+        session: { user: { locale: "cs" } },
       }).locale,
-    ).toBe("zh-Hant-TW");
+    ).toBe("cs");
     expect(
       applyJwt({ token: { ...base }, trigger: "update", session: { user: { locale: "fr" } } })
         .locale,

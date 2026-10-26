@@ -1,31 +1,37 @@
-import path from "node:path";
-
-import { IntlMessageFormat } from "intl-messageformat";
-
-import { buildHant, checkMessages, flatten, GENERATED_LOCALES, type MessageTree } from "./i18n";
 import {
-  buildGenerated,
-  type GeneratedLocale,
-  overridePath,
-  readSources,
-  writeTree,
-} from "./i18n-files";
+  checkMessages,
+  expectedKeys,
+  flatten,
+  MESSAGE_LOCALES,
+  type MessageLocale,
+  type MessageTree,
+  placeholderNames,
+} from "./i18n";
+import { buildGenerated, localeFile, readSources, writeTree } from "./i18n-files";
 import { routeHint } from "./i18n-routes";
 
-export const REVIEW_LOCALES = ["zh-Hans", ...GENERATED_LOCALES] as const;
+/** Languages a reviewer can correct (German is the source text and is edited in the repository). */
+export const REVIEW_LOCALES = [
+  "en",
+  "sr-Latn",
+  "cs",
+  "zh-Hans",
+] as const satisfies readonly MessageLocale[];
 export type ReviewLocale = (typeof REVIEW_LOCALES)[number];
 
 export const REVIEW_COLUMNS = [
   "key",
   "de",
+  "en",
+  "sr-Latn",
+  "cs",
   "zh-Hans",
-  "zh-Hant-HK",
-  "zh-Hant-TW",
   "route_hint",
   "reviewer_comment",
+  "corrected_en",
+  "corrected_sr-Latn",
+  "corrected_cs",
   "corrected_zh-Hans",
-  "corrected_zh-Hant-HK",
-  "corrected_zh-Hant-TW",
 ] as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -98,44 +104,16 @@ export function parseCsv(input: string): string[][] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// ICU helpers
-// ---------------------------------------------------------------------------------------------
-
-type IcuNode = {
-  type: number;
-  value?: string;
-  children?: IcuNode[];
-  options?: Record<string, { value: IcuNode[] }>;
-};
-
-/** Names of all arguments / tags used in an ICU message (throws on invalid syntax). */
-export function placeholderNames(message: string, locale: string): Set<string> {
-  const out = new Set<string>();
-  const walk = (nodes: IcuNode[]) => {
-    for (const node of nodes) {
-      // 1 argument, 2 number, 3 date, 4 time, 5 select, 6 plural, 8 tag
-      if ([1, 2, 3, 4, 5, 6, 8].includes(node.type) && node.value) out.add(node.value);
-      if (node.children) walk(node.children);
-      if (node.options) for (const option of Object.values(node.options)) walk(option.value);
-    }
-  };
-  walk(new IntlMessageFormat(message, locale).getAst() as unknown as IcuNode[]);
-  return out;
-}
-
-// ---------------------------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------------------------
 
-/** All four locales as flat key -> text maps, Hant computed fresh from zh-Hans + overrides. */
+/** All five locales as flat key -> text maps. */
 function currentTexts(dir: string) {
-  const { de, hans, overrides } = readSources(dir);
-  return {
-    de: flatten(de),
-    "zh-Hans": flatten(hans),
-    "zh-Hant-HK": flatten(buildHant("zh-Hant-HK", hans, overrides["zh-Hant-HK"])),
-    "zh-Hant-TW": flatten(buildHant("zh-Hant-TW", hans, overrides["zh-Hant-TW"])),
-  };
+  const sources = readSources(dir);
+  return Object.fromEntries(MESSAGE_LOCALES.map((l) => [l, flatten(sources[l])])) as Record<
+    MessageLocale,
+    Record<string, string>
+  >;
 }
 
 export function exportReview(
@@ -152,10 +130,12 @@ export function exportReview(
     rows.push([
       key,
       texts.de[key] ?? "",
+      texts.en[key] ?? "",
+      texts["sr-Latn"][key] ?? "",
+      texts.cs[key] ?? "",
       texts["zh-Hans"][key] ?? "",
-      texts["zh-Hant-HK"][key] ?? "",
-      texts["zh-Hant-TW"][key] ?? "",
       hint,
+      "",
       "",
       "",
       "",
@@ -174,7 +154,7 @@ export type ReviewChange = { file: string; key: string; from: string | null; to:
 export type ImportResult = {
   ok: boolean;
   errors: string[];
-  /** Edits to the hand-maintained files (zh-Hans.json, overrides/*). Empty on failure. */
+  /** Edits to the message files. Empty on failure. */
   changes: ReviewChange[];
   /** Number of reviewer comments in the file (informational, never written to disk). */
   comments: number;
@@ -191,37 +171,14 @@ function setPath(tree: MessageTree, key: string, value: string): void {
     if (typeof next === "object" && next !== null) node = next;
     else node = node[part] = {};
   }
-  node[parts[parts.length - 1]] = value;
-}
-
-function deletePath(tree: MessageTree, key: string): void {
-  const parts = key.split(".");
-  const walk = (node: MessageTree, depth: number): void => {
-    const part = parts[depth];
-    const child = node[part];
-    if (depth === parts.length - 1) delete node[part];
-    else if (typeof child === "object" && child !== null) {
-      walk(child, depth + 1);
-      if (Object.keys(child).length === 0) delete node[part];
-    }
-  };
-  walk(tree, 0);
-}
-
-function sortTree(tree: MessageTree): MessageTree {
-  const out: MessageTree = {};
-  for (const key of Object.keys(tree).sort()) {
-    const value = tree[key];
-    out[key] = typeof value === "string" ? value : sortTree(value);
-  }
-  return out;
+  node[parts[parts.length - 1]!] = value;
 }
 
 const clone = (tree: MessageTree): MessageTree => JSON.parse(JSON.stringify(tree)) as MessageTree;
 
 /**
- * Applies reviewer corrections from a CSV to `<dir>/zh-Hans.json` / `<dir>/overrides/*.json`
- * and regenerates the Hant files. All-or-nothing: on any error nothing is written.
+ * Applies reviewer corrections from a CSV to `<dir>/<locale>.json` and refreshes the fatal-error
+ * texts. All-or-nothing: on any error nothing is written.
  */
 export function importReview(
   dir: string,
@@ -260,8 +217,11 @@ export function importReview(
 
   const sources = readSources(dir);
   const before = currentTexts(dir);
-  const known = new Set([...Object.keys(before.de), ...Object.keys(before["zh-Hans"])]);
-  const deKeys = before.de;
+  const germanKeys = Object.keys(before.de);
+  const known = new Set(germanKeys);
+  const allowed = Object.fromEntries(
+    MESSAGE_LOCALES.map((l) => [l, new Set(expectedKeys(l, germanKeys))]),
+  ) as Record<MessageLocale, Set<string>>;
 
   type Edit = { locale: ReviewLocale; key: string; value: string; row: number };
   const edits: Edit[] = [];
@@ -290,6 +250,12 @@ export function importReview(
       if (i < 0) continue;
       const value = norm(cells[i] ?? "").trim();
       if (value === "") continue;
+      if (!allowed[locale].has(key)) {
+        errors.push(
+          `row ${row}: "${key}" is not used in ${locale} (office screens are de/en/zh-Hans only)`,
+        );
+        continue;
+      }
       const exportedCell = col(locale);
       if (!options.force && exportedCell >= 0 && cells[exportedCell] !== undefined) {
         if (norm(cells[exportedCell]) !== norm(before[locale][key] ?? "")) {
@@ -308,10 +274,7 @@ export function importReview(
   for (const edit of edits) {
     try {
       const names = placeholderNames(edit.value, edit.locale);
-      const expected = placeholderNames(
-        deKeys[edit.key] ?? before["zh-Hans"][edit.key] ?? "",
-        "de",
-      );
+      const expected = placeholderNames(before.de[edit.key] ?? "", "de");
       const missing = [...expected].filter((n) => !names.has(n));
       const extra = [...names].filter((n) => !expected.has(n));
       if (missing.length > 0 || extra.length > 0) {
@@ -328,49 +291,26 @@ export function importReview(
   }
   if (errors.length > 0) return fail();
 
-  // Apply in memory. zh-Hans first so Hant corrections are compared against the new conversion.
-  const hans = clone(sources.hans);
-  const overrides: Record<GeneratedLocale, MessageTree> = {
-    "zh-Hant-HK": clone(sources.overrides["zh-Hant-HK"]),
-    "zh-Hant-TW": clone(sources.overrides["zh-Hant-TW"]),
-  };
-  for (const edit of edits.filter((e) => e.locale === "zh-Hans"))
-    setPath(hans, edit.key, edit.value);
-  for (const locale of GENERATED_LOCALES) {
-    const plain = flatten(buildHant(locale, hans, {}));
-    const currentOverrides = flatten(overrides[locale]);
-    for (const edit of edits.filter((e) => e.locale === locale)) {
-      if (edit.value === plain[edit.key]) {
-        // the automatic conversion already yields this text: a stored override is redundant
-        if (edit.key in currentOverrides) deletePath(overrides[locale], edit.key);
-      } else setPath(overrides[locale], edit.key, edit.value);
-    }
-  }
+  // Apply in memory.
+  const trees = Object.fromEntries(MESSAGE_LOCALES.map((l) => [l, clone(sources[l])])) as Record<
+    MessageLocale,
+    MessageTree
+  >;
+  for (const edit of edits) setPath(trees[edit.locale], edit.key, edit.value);
 
-  // Report what changed in the hand-edited files.
   const changes: ReviewChange[] = [];
-  const diff = (file: string, oldTree: MessageTree, newTree: MessageTree) => {
-    const a = flatten(oldTree);
-    const b = flatten(newTree);
+  for (const locale of REVIEW_LOCALES) {
+    const a = flatten(sources[locale]);
+    const b = flatten(trees[locale]);
     for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      if (a[key] !== b[key]) changes.push({ file, key, from: a[key] ?? null, to: b[key] ?? null });
+      if (a[key] !== b[key]) {
+        changes.push({ file: `${locale}.json`, key, from: a[key] ?? null, to: b[key] ?? null });
+      }
     }
-  };
-  diff("zh-Hans.json", sources.hans, hans);
-  for (const locale of GENERATED_LOCALES) {
-    diff(`overrides/${locale}.json`, sources.overrides[locale], overrides[locale]);
   }
 
-  // Validate the complete result exactly like `pnpm i18n:check` would after the build.
-  const tw = buildHant("zh-Hant-TW", hans, overrides["zh-Hant-TW"]);
-  const hk = buildHant("zh-Hant-HK", hans, overrides["zh-Hant-HK"]);
-  const problems = checkMessages({
-    de: sources.de,
-    "zh-Hans": hans,
-    "zh-Hant-HK": hk,
-    "zh-Hant-TW": tw,
-    overrides,
-  });
+  // Validate the complete result exactly like `pnpm i18n:check` would.
+  const problems = checkMessages(trees);
   if (problems.length > 0) {
     errors.push(...problems.map((p) => `result check: ${p}`));
     return fail();
@@ -380,11 +320,9 @@ export function importReview(
     return { ok: true, errors, changes, comments, written: false };
   }
 
-  if (changes.some((c) => c.file === "zh-Hans.json"))
-    writeTree(path.join(dir, "zh-Hans.json"), hans);
-  for (const locale of GENERATED_LOCALES) {
-    if (changes.some((c) => c.file === `overrides/${locale}.json`)) {
-      writeTree(overridePath(dir, locale), sortTree(overrides[locale]));
+  for (const locale of REVIEW_LOCALES) {
+    if (changes.some((c) => c.file === `${locale}.json`)) {
+      writeTree(localeFile(dir, locale), trees[locale]);
     }
   }
   buildGenerated(dir);

@@ -2,8 +2,8 @@
  * Printout languages of the load sheet (NUD-134). Client-safe: no server-only imports, so both the
  * print page and its screen toolbar can use it.
  *
- * The owner wants exactly two choices: German and ONE Chinese option, so the three regional Chinese
- * UI locales (`zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`) disappear from the picker. The single 中文 link
+ * The owner wants exactly two choices: German and ONE Chinese option, so any regional Chinese
+ * UI locales disappear from the picker (Traditional Chinese no longer exists, D21). The single 中文 link
  * prints the simplified (`zh-Hans`) sheet; that sheet already renders the German product name in
  * small type (`productLabel`), which is what the office asked for.
  */
@@ -24,9 +24,8 @@ export type SheetLocale = "de" | "zh-Hans";
  * - Matching is case-sensitive and literal, exactly like the URL segments; a repeated value arrives
  *   as an array and falls back like any other junk.
  *
- * Every Hant variant folds into `zh-Hans` on purpose: the Hant message files are generated from the
- * simplified ones, the owner explicitly does not want three Chinese options, and this keeps an old
- * or shared `?locale=zh-Hant-TW` URL printing Chinese instead of silently printing German.
+ * Every `zh*` tag folds into `zh-Hans` on purpose: this keeps an old or shared
+ * `?locale=fr` URL printing Chinese instead of silently printing German.
  */
 export function parseSheetLocale(raw: unknown): SheetLocale {
   if (typeof raw !== "string") return "de";

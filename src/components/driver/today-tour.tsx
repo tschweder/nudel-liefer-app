@@ -409,12 +409,7 @@ function StopRow({
         label={t("stopLabel", { number: stop.sequence })}
         className="relative z-10 shrink-0"
       />
-      <span
-        className={cn(
-          "flex min-w-0 flex-1 flex-col gap-0.5",
-          stop.status === "DELIVERED" && "opacity-70",
-        )}
-      >
+      <span className={"flex min-w-0 flex-1 flex-col gap-0.5"}>
         <span className="flex items-center gap-1.5">
           <span
             className="min-w-0 truncate text-[17px] leading-tight font-semibold"
@@ -727,8 +722,8 @@ export function TodayTour({
       {view === "list" ? (
         <>
           {/* Progress header (re-design.md §7.2.1). The count is printed exactly once, inside the
-              ring; `progress-count` sits on the ring so the specs still read the same text. The ring
-              carries the word "erledigt" (run 3 review, point 6: a bare "3 / 6" next to "3 offen"
+              ring; `progress-count` sits on the ring so the specs still read the same text. The word "erledigt"
+              sits under the ring (run 3 review, point 6: a bare "3 / 6" next to "3 offen"
               read as "3 offen") and repeats the green/amber split of the bar below. */}
           <section
             aria-label={t("progressLabel")}
@@ -736,30 +731,29 @@ export function TodayTour({
             data-testid="progress"
           >
             <div className="flex items-start gap-3">
-              <div className="relative shrink-0">
-                <ProgressRing
-                  value={done}
-                  max={total}
-                  size={64}
-                  label={
-                    <span className="flex flex-col items-center leading-none">
-                      <span className="tabular-nums">{t("progress", { done, total })}</span>
-                      <span className="mt-1 text-xs font-medium text-muted-foreground">
-                        {t("progressDone")}
-                      </span>
-                    </span>
-                  }
-                  data-testid="progress-count"
-                  className="[&_circle:last-child]:stroke-success"
-                />
-                {problems > 0 ? (
-                  <ProblemArc
-                    delivered={done - problems}
-                    problems={problems}
-                    total={total}
+              <div className="flex shrink-0 flex-col items-center gap-1">
+                <div className="relative">
+                  <ProgressRing
+                    value={done}
+                    max={total}
                     size={64}
+                    label={<span className="tabular-nums">{t("progress", { done, total })}</span>}
+                    data-testid="progress-count"
+                    className="[&_circle:last-child]:stroke-success"
                   />
-                ) : null}
+                  {problems > 0 ? (
+                    <ProblemArc
+                      delivered={done - problems}
+                      problems={problems}
+                      total={total}
+                      size={64}
+                    />
+                  ) : null}
+                </div>
+                {/* Outside the ring: the ring is too small for a 16 px word (driver body text >= 16 px). */}
+                <span className="text-base font-medium text-muted-foreground">
+                  {t("progressDone")}
+                </span>
               </div>
               <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
                 <p

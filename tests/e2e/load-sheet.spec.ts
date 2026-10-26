@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
-// NUD-091. Needs a seeded database (demo products, demo driver `fahrer-de`, driver-hk),
+// NUD-091. Needs a seeded database (demo products, demo driver `fahrer-de`, driver-sr),
 // DATABASE_URL and SEED_ADMIN_PASSWORD. Desktop only. The tour (30 stops) is inserted directly,
 // so no routing or depot setting is involved.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
@@ -132,8 +132,16 @@ test("load sheet: totals, reverse order, Deutsch + 中文, A4 print, warning, au
 
     // Link from the tour page.
     await page.goto(`/de/admin/tours?date=${f.day}`);
-    await tid(page, "tour-print-link").click();
-    await expect(page).toHaveURL(new RegExp(`/de/admin/tours/${f.tourId}/print\\?locale=de$`));
+    // The link opens the sheet in a new tab (NUD-134); carry on in that tab.
+    const [popup] = await Promise.all([
+      page.waitForEvent("popup"),
+      tid(page, "tour-print-link").click(),
+    ]);
+    await popup.waitForLoadState();
+    const printUrl = popup.url();
+    await popup.close();
+    expect(printUrl).toMatch(new RegExp(`/de/admin/tours/${f.tourId}/print\\?locale=de$`));
+    await page.goto(printUrl);
     const sheet = tid(page, "load-sheet");
     await expect(sheet).toBeVisible();
     // no admin chrome
@@ -147,13 +155,13 @@ test("load sheet: totals, reverse order, Deutsch + 中文, A4 print, warning, au
     // Section 1: totals = sum of all stops (checked against the seeded numbers).
     const rows = page.locator('[data-testid="load-sheet-total-row"]:visible');
     await expect(rows).toHaveCount(f.expected.size);
-    for (const [productId, cents] of f.expected) {
+    for (const [productId, quantity] of f.expected) {
       const qtyText = await rows
         .and(page.locator(`[data-product-id="${productId}"]`))
         .getByTestId("load-sheet-total-qty")
         .innerText();
       const parsed = Number(qtyText.replace(/\./g, "").replace(",", "."));
-      expect(Math.round(parsed * 100)).toBe(cents);
+      expect(parsed).toBe(quantity);
     }
     // ... and equal to the sum of the quantities printed in section 2
     const printedItems = await page
@@ -268,8 +276,8 @@ test("load sheet: totals, reverse order, Deutsch + 中文, A4 print, warning, au
     await expect(tid(page, "load-sheet-locale-de")).not.toHaveAttribute("aria-current", "true");
     await page.screenshot({ path: `${OUT}/screen-zh-Hans.png`, fullPage: true });
 
-    // The regional Hant variants (and a bare `zh`) fold onto that same simplified sheet.
-    for (const folded of ["zh", "zh-Hant-HK", "zh-Hant-TW"]) {
+    // Other Chinese tags (a bare `zh`, `zh-Hant-TW`) fold onto that same simplified sheet.
+    for (const folded of ["zh", "zh-CN", "zh-Hant-TW"]) {
       await page.goto(`/de/admin/tours/${f.tourId}/print?locale=${folded}`);
       await expect(sheet).toHaveAttribute("data-locale", "zh-Hans");
       await expect(tid(page, "load-sheet-title")).toHaveText(texts["zh-Hans"].title);
@@ -308,7 +316,7 @@ test("load sheet: totals, reverse order, Deutsch + 中文, A4 print, warning, au
     const driverCtx = await browser.newContext();
     const dp = await driverCtx.newPage();
     await dp.goto("/de/driver/login");
-    await dp.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-hk");
+    await dp.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-sr");
     await dp.getByTestId("driver-login-form").locator('input[name="pin"]').fill("123456");
     await dp.getByTestId("login-submit").click();
     await expect(dp).toHaveURL(/\/driver$/);

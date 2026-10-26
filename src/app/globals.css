@@ -229,17 +229,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Per-locale CJK stacks; Inter has no CJK glyphs, so these take over for Chinese text. */
+/* CJK stack; Inter has no CJK glyphs, so this takes over for Chinese text. */
 :lang(zh-Hans) body {
   font-family: var(--font-inter), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  line-height: 1.6;
-}
-:lang(zh-Hant-HK) body {
-  font-family: var(--font-inter), "PingFang HK", "Noto Sans HK", "Microsoft JhengHei", sans-serif;
-  line-height: 1.6;
-}
-:lang(zh-Hant-TW) body {
-  font-family: var(--font-inter), "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   line-height: 1.6;
 }
 

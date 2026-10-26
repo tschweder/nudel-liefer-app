@@ -11,7 +11,7 @@ const PIN = "482916";
 const tag = `pwa${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
 const zhUsername = `drz-${tag}`;
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const IPHONE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1";
 
@@ -28,11 +28,11 @@ test.beforeAll(async () => {
      VALUES ($1,'DRIVER',$2,$3,'de',true,'PWA Driver',now())`,
     [userId, username, await bcrypt.hash(PIN, 10)],
   );
-  // Installed while in Traditional Chinese (Taiwan); used by the start URL tests (NUD-106).
+  // Installed while in Czech; used by the start URL tests (NUD-106).
   zhUserId = `idz-${tag}`;
   await db.query(
     `INSERT INTO "User" ("id","role","username","passwordHash","locale","localeChosen","displayName","updatedAt")
-     VALUES ($1,'DRIVER',$2,$3,'zh-Hant-TW',true,'PWA Driver ZH',now())`,
+     VALUES ($1,'DRIVER',$2,$3,'cs',true,'PWA Driver ZH',now())`,
     [zhUserId, zhUsername, await bcrypt.hash(PIN, 10)],
   );
 });
@@ -58,14 +58,14 @@ async function login(page: Page) {
 }
 
 async function loginZh(page: Page) {
-  // The tests switch the language; start every test from the installed state (zh-Hant-TW).
-  await db.query(`UPDATE "User" SET "locale"='zh-Hant-TW' WHERE "id"=$1`, [zhUserId]);
-  await page.goto("/zh-Hant-TW/driver/login");
+  // The tests switch the language; start every test from the installed state (cs).
+  await db.query(`UPDATE "User" SET "locale"='cs' WHERE "id"=$1`, [zhUserId]);
+  await page.goto("/cs/driver/login");
   const form = page.getByTestId("driver-login-form");
   await form.locator('input[name="username"]').fill(zhUsername);
   await form.locator('input[name="pin"]').fill(PIN);
   await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/zh-Hant-TW\/driver$/);
+  await expect(page).toHaveURL(/\/cs\/driver$/);
 }
 
 const swControlled = (page: Page) =>
@@ -141,10 +141,10 @@ test.describe("manifest, icons and worker are public", () => {
 });
 
 test("login page links the locale manifest and icons", async ({ page }) => {
-  await page.goto("/zh-Hant-TW/driver/login");
+  await page.goto("/cs/driver/login");
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
     "href",
-    "/zh-Hant-TW/manifest.webmanifest",
+    "/cs/manifest.webmanifest",
   );
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
     "href",
@@ -209,7 +209,7 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
   for (const u of urls) {
     // NUD-081 adds the public offline shell pages (no personal data) to the precache.
     expect(u, u).toMatch(
-      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|zh-Hans|zh-Hant-HK|zh-Hant-TW)\/driver\/offline-shell$)/,
+      /^(\/_next\/static\/|\/icons\/|\/offline\.(html|js)$|\/(de|en|sr-Latn|cs|zh-Hans)\/driver\/offline-shell$)/,
     );
     expect(u).not.toContain("_rsc");
   }
@@ -229,7 +229,7 @@ test("the worker caches only the app shell, never pages or API data", async ({ p
   expect(htmlEntries.sort()).toEqual(
     [
       "/offline.html",
-      ...["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"].map((l) => `/${l}/driver/offline-shell`),
+      ...["de", "en", "sr-Latn", "cs", "zh-Hans"].map((l) => `/${l}/driver/offline-shell`),
     ].sort(),
   );
 });
@@ -278,21 +278,21 @@ test.describe("start URL of the installed app (NUD-106)", () => {
     expect(res.headers()["cache-control"]).toContain("no-store");
     const withCookie = await anon.get("/driver?source=pwa", {
       maxRedirects: 0,
-      headers: { Cookie: "NEXT_LOCALE=zh-Hant-HK", "Accept-Language": "de" },
+      headers: { Cookie: "NEXT_LOCALE=sr-Latn", "Accept-Language": "de" },
     });
-    expect(withCookie.headers()["location"]).toMatch(/\/zh-Hant-HK\/driver\?source=pwa$/);
+    expect(withCookie.headers()["location"]).toMatch(/\/sr-Latn\/driver\?source=pwa$/);
     await anon.dispose();
 
     // Not logged in: the launch lands on the driver login in the cookie language.
     await context.addCookies([
-      { name: "NEXT_LOCALE", value: "zh-Hant-HK", url: baseURL ?? "http://localhost:3000" },
+      { name: "NEXT_LOCALE", value: "sr-Latn", url: baseURL ?? "http://localhost:3000" },
     ]);
     await page.goto("/driver?source=pwa");
-    await expect(page).toHaveURL(/\/zh-Hant-HK\/driver\/login/);
+    await expect(page).toHaveURL(/\/sr-Latn\/driver\/login/);
     await expect(page.getByTestId("driver-login-form")).toBeVisible();
   });
 
-  test("a driver installed in zh-Hant-TW who switched to German launches into /de/driver", async ({
+  test("a driver installed in cs who switched to German launches into /de/driver", async ({
     page,
   }) => {
     await loginZh(page);
@@ -304,7 +304,7 @@ test.describe("start URL of the installed app (NUD-106)", () => {
     await expect(page).toHaveURL(/\/de\/driver$/);
 
     // "Launch the installed app": a fresh load of the manifest start_url.
-    const manifest = await (await page.request.get("/zh-Hant-TW/manifest.webmanifest")).json();
+    const manifest = await (await page.request.get("/cs/manifest.webmanifest")).json();
     await page.goto(manifest.start_url);
     await expect(page).toHaveURL(/\/de\/driver(\?source=pwa)?$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
@@ -348,16 +348,19 @@ test.describe("start URL of the installed app (NUD-106)", () => {
     } finally {
       await context.setOffline(false);
     }
-    // Back online switch to Chinese; the next offline launch follows.
-    await page.goto("/de/driver");
-    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("zh-Hant-HK");
-    await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
+    // Back online switch to Serbian; the next offline launch follows. The offline shell reloads
+    // itself when the connection returns, which can abort this navigation: retry it.
+    await expect(async () => {
+      await page.goto("/de/driver");
+    }).toPass({ timeout: 20_000 });
+    await page.locator(`[data-testid="language-switcher"]:visible`).selectOption("sr-Latn");
+    await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
     await context.setOffline(true);
     try {
       await page.goto("/driver?source=pwa").catch(() => {});
-      await expect(page).toHaveURL(/\/zh-Hant-HK\/driver(\?source=pwa)?$/);
+      await expect(page).toHaveURL(/\/sr-Latn\/driver(\?source=pwa)?$/);
       await expect(page.getByTestId("offline-empty")).toBeVisible();
-      await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-HK");
+      await expect(page.locator("html")).toHaveAttribute("lang", "sr-Latn");
     } finally {
       await context.setOffline(false);
     }

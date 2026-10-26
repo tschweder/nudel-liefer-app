@@ -9,17 +9,19 @@ import {
   setDeferredPrompt,
 } from "@/lib/install-prompt";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { InstallHint } from "./install-hint";
 
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 function renderIn(locale: string) {

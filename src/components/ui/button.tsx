@@ -26,7 +26,7 @@ const buttonVariants = cva(
         outline: "border border-input bg-background hover:bg-muted",
         secondary: "bg-primary-soft text-primary-soft-foreground hover:bg-primary-soft/70",
         ghost: "hover:bg-muted",
-        success: "bg-success text-success-foreground hover:bg-success/90",
+        success: "bg-success text-success-foreground hover:brightness-90",
         link: "text-primary underline-offset-4 hover:underline",
       },
       // `lg` / `xl` / `icon-lg` are the driver sizes: touch targets >= 48 px (backlog 4.3).

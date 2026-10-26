@@ -84,7 +84,7 @@ export function PinInput({
   return (
     <div
       data-slot="pin-input"
-      className={cn("group/pin relative flex w-fit items-center gap-2", className)}
+      className={cn("group/pin relative flex w-fit max-w-full items-center gap-2", className)}
     >
       <input
         {...props}
@@ -103,7 +103,7 @@ export function PinInput({
         // Transparent and stretched over the cells: only the caret is visible, the value never.
         className="absolute inset-0 z-10 w-full cursor-text rounded-md bg-transparent text-transparent caret-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       />
-      <div className="flex items-center gap-2" aria-hidden>
+      <div className="flex min-w-0 items-center gap-2" aria-hidden>
         {Array.from({ length }, (_, index) => (
           <div
             key={index}
@@ -111,7 +111,7 @@ export function PinInput({
             data-filled={index < digits.length ? "" : undefined}
             data-active={index === active ? "" : undefined}
             className={cn(
-              "flex h-14 w-12 items-center justify-center rounded-md border bg-background text-2xl font-semibold tabular-nums transition-colors duration-150 motion-reduce:transition-none group-focus-within/pin:ring-2 group-focus-within/pin:ring-ring/40",
+              "flex h-14 w-12 min-w-0 items-center justify-center rounded-md border bg-background text-2xl font-semibold tabular-nums transition-colors duration-150 motion-reduce:transition-none group-focus-within/pin:ring-2 group-focus-within/pin:ring-ring/40",
               index === active && "border-ring ring-2 ring-ring/40",
               invalid ? "border-destructive text-destructive" : "border-input text-foreground",
               cellClassName,

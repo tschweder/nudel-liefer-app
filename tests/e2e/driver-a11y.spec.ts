@@ -11,7 +11,7 @@ import {
   loginDriver,
   stubImages,
 } from "./helpers/driver-fixture";
-import { installNetworkEmulation, setOnline } from "./helpers/network";
+import { gotoSettled, installNetworkEmulation, setOnline } from "./helpers/network";
 
 // NUD-095. Needs DATABASE_URL, S3_* (signed photo URLs; the images are answered by the test) and a
 // PRODUCTION build (service worker, offline shell). `ENABLE_ERROR_TEST_PAGES=true` for the error
@@ -150,7 +150,7 @@ for (const scheme of ["light", "dark"] as const) {
   }
 }
 
-for (const locale of ["de", "zh-Hant-TW"] as const) {
+for (const locale of ["de", "cs"] as const) {
   test.describe(`130 % font ${locale}`, () => {
     test(`all driver screens at 130 % root font size (${locale})`, async ({ page, fx }, info) => {
       test.setTimeout(120_000);
@@ -196,12 +196,12 @@ test.describe("offline shell, generic offline page, error page, install overlay"
           const layout = [];
           // Offline list and stop from the service worker's shell.
           await setOnline(context, page, false);
-          await page.goto(`/${locale}/driver`);
+          await gotoSettled(page, `/${locale}/driver`);
           await expect(page.getByTestId("offline-bar")).toBeVisible();
           await expect(page.getByTestId("stop-list")).toBeVisible();
           axe.push(...(await axeAudit(page, `offline-list-${locale}-${scheme}`, info)));
           layout.push(...(await layoutAudit(page, `offline-list-${locale}-${scheme}`)));
-          await page.goto(`/${locale}/driver/stops/${fx.stopIds[0]}`);
+          await gotoSettled(page, `/${locale}/driver/stops/${fx.stopIds[0]}`);
           await expect(page.getByTestId("stop-detail")).toBeVisible();
           axe.push(...(await axeAudit(page, `offline-stop-${locale}-${scheme}`, info)));
           layout.push(...(await layoutAudit(page, `offline-stop-${locale}-${scheme}`)));

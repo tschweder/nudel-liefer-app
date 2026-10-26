@@ -28,8 +28,9 @@ const NOW = new Date("2099-07-01T22:30:00Z");
 const text = (de: string, hans: string) => ({
   de,
   "zh-Hans": hans,
-  "zh-Hant-HK": `${hans}HK`,
-  "zh-Hant-TW": `${hans}TW`,
+  en: `${de}-en`,
+  "sr-Latn": `${de}-sr`,
+  cs: `${de}-cs`,
   meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
 });
 
@@ -211,8 +212,9 @@ describe.skipIf(!process.env.DATABASE_URL)("driver tour API (NUD-081)", { timeou
     expect(first.items[0]!.name).toMatchObject({
       de: "Spaghetti",
       "zh-Hans": "意大利面",
-      "zh-Hant-HK": "意大利面HK",
-      "zh-Hant-TW": "意大利面TW",
+      en: "Spaghetti-en",
+      "sr-Latn": "Spaghetti-sr",
+      cs: "Spaghetti-cs",
     });
     expect(first.notes).toMatchObject({ de: "Hintereingang", "zh-Hans": "后门" });
     expect(first.deliveryHoursInfo).toBe("Mo-Fr 8-11");

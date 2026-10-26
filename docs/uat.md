@@ -69,9 +69,9 @@ pnpm db:seed --demo --today
 `--today` creates the orders for **today**, so the driver sees the tour right away (without it the
 orders are for the next delivery day and the whole script must run on that day). The command is safe
 to run again. It creates: the depot "Nudelfabrik Wien (Demo)" (pin confirmed), 20 customers
-`D-001` to `D-020` with entrance and parking photos, 3 products (Nudeln Beutel, Nudeln Karton, Wantan-Teig) with names in all four languages, one
+`D-001` to `D-020` with entrance and parking photos, 3 products (Nudeln Beutel, Nudeln Karton, Wantan-Teig) with names in all five languages, one
 confirmed order per customer for the date it prints, an admin `admin@example.com` (password =
-`SEED_ADMIN_PASSWORD`) and the driver accounts `fahrer-de`, `driver-hans`, `driver-hk`, `driver-tw`
+`SEED_ADMIN_PASSWORD`) and the driver accounts `fahrer-de`, `driver-hans`, `driver-en`, `driver-sr`, `driver-cs`
 (language already chosen) and `driver-new` (**no language chosen yet: shows the language picker**).
 All demo drivers use the PIN `123456` (or `SEED_DRIVER_PIN`). Real drivers must **not** use these
 accounts: the office creates their own accounts in step O-100.
@@ -119,8 +119,8 @@ Start at `https://<host>/de/login`. Admin pages are under `/de/admin/...`.
 | ID   | Do                                                                                                                                                              | Expected                                                                                                                                                                                                             | Pass / fail       |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | O-10 | Open "Produkte".                                                                                                                                                | List with "Reihenfolge", "Artikelnr.", "Name (Deutsch)", "Name (vereinfacht)", "Einheit", "Gewicht pro Einheit", "Status". The three products (Nudeln Beutel 3 kg, Nudeln Karton 10 kg, Wantan-Teig 5 kg) are there. | [ ] pass [ ] fail |
-| O-11 | Press "Neues Produkt". Enter "Artikelnummer (SKU)", "Einheit", "Name (Deutsch)" and "Name (vereinfachtes Chinesisch)" (a real Chinese name). Press "Speichern". | "Produkt angelegt." The two traditional names ("Name (traditionell, Hongkong)", "Name (traditionell, Taiwan)") are proposed automatically (marked "automatisch").                                                    | [ ] pass [ ] fail |
-| O-12 | Ask a Chinese reader (the driver, or the client) to read the three Chinese names of the new product.                                                            | The names are correct and natural for the product. Wrong or odd names go to section 5.3 (wording). A traditional name can be edited by hand in the product form.                                                     | [ ] pass [ ] fail |
+| O-11 | Press "Neues Produkt". Enter "Artikelnummer (SKU)", "Einheit", "Name (Deutsch)" and "Name (vereinfachtes Chinesisch)" (a real Chinese name). Press "Speichern". | "Produkt angelegt." The names in English, Serbian and Czech ("Name (Englisch)", "Name (Serbisch, lateinisch)", "Name (Tschechisch)") are translated automatically when saving (marked "automatisch").                                                    | [ ] pass [ ] fail |
+| O-12 | Ask a reader of each language (the driver, or the client) to read the names of the new product in that language.                                                            | The names are correct and natural for the product. Wrong or odd names go to section 5.3 (wording). Every translated name can be edited by hand in the product form.                                                     | [ ] pass [ ] fail |
 | O-13 | Move a product with "{name} nach oben" / "{name} nach unten" (the arrow buttons next to the name).                                                              | The order changes. The same order is used in the product choice of a new order (check in O-40).                                                                                                                      | [ ] pass [ ] fail |
 | O-14 | Press "Deaktivieren" on a product that has no orders yet.                                                                                                       | "Produkt deaktiviert. Es erscheint nicht mehr bei neuen Bestellungen." "Aktivieren" brings it back ("Produkt wieder aktiviert.").                                                                                    | [ ] pass [ ] fail |
 
@@ -234,8 +234,8 @@ released (O-67).
 | ID   | Do                                                                                                                                                                                                                             | Expected                                                                                                                                                                                                                                               | Pass / fail       |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
 | D-01 | Open the address. Enter "Benutzername" and "PIN (6 Ziffern)", press "Anmelden". Once with a wrong PIN first.                                                                                                                   | The login page has a language switch and large fields. The wrong PIN shows "Anmeldung fehlgeschlagen. Bitte Eingaben prüfen." The correct PIN logs in. The PIN field is a number keypad.                                                               | [ ] pass [ ] fail |
-| D-02 | **First start:** a full screen with four big buttons appears, each in its own writing: "Deutsch", "简体中文", "繁體中文（香港）", "繁體中文（台灣）". Ask the driver: "Choose the language you read most easily." Do not help. | The driver chooses without help. The app switches at once to the chosen language. **Write the choice into section 5.2** (also if he first hesitated between the two Traditional versions and why). The picker does not appear again at the next login. | [ ] pass [ ] fail |
-| D-03 | Ask: "Which of the other Chinese versions would you also understand? Is anything in the chosen version unusual for you?"                                                                                                       | Answers go to section 5.2 and, for single words, to 5.3. All four versions ship regardless of the answer.                                                                                                                                              | [ ] pass [ ] fail |
+| D-02 | **First start:** a full screen with five big buttons appears, each in its own writing: "Deutsch", "English", "Srpski", "Čeština", "中文". Ask the driver: "Choose the language you read most easily." Do not help. | The driver chooses without help. The app switches at once to the chosen language. **Write the choice into section 5.2** (also if he first hesitated between languages and why). The picker does not appear again at the next login. | [ ] pass [ ] fail |
+| D-03 | Ask: "Which of the other languages would you also understand? Is anything in the chosen language unusual for you?"                                                                                                       | Answers go to section 5.2 and, for single words, to 5.3. All five languages ship regardless of the answer.                                                                                                                                              | [ ] pass [ ] fail |
 | D-04 | Look at the home screen "Heutige Tour" (top bar shows the date and "Online").                                                                                                                                                  | The next stop is on top ("Nächster Stopp") with the customer name, address, "Ankunft ca. {time}", number of products; "Noch ca. {duration}" and the progress ("{done} / {total}"). The list "Alle Stopps" follows in tour order.                       | [ ] pass [ ] fail |
 | D-05 | **Android (Chrome):** the box "App installieren" is shown. Press "Installieren" and confirm. Open the new icon from the home screen.                                                                                           | The app is installed with the icon and the name "Lieferungen" (or the name in the driver's language), opens full screen without the browser bar and shows today's tour. Note the icon quality (is it cut off?).                                        | [ ] pass [ ] fail |
 | D-06 | **iPhone (Safari):** the box "Zum Home-Bildschirm hinzufügen, dann öffnet die App direkt." is shown. Press "So geht's" and follow the three steps ("Teilen", "Zum Home-Bildschirm", "Hinzufügen"). Open the icon.              | The picture shows where the Share symbol is. After the three steps the icon is on the home screen and the app opens full screen. Could the driver do it alone? Note where he stopped.                                                                  | [ ] pass [ ] fail |
@@ -269,8 +269,8 @@ released (O-67).
 
 | ID   | Do                                                                                                            | Expected                                                                                                                                                                                                    | Pass / fail       |
 | ---- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| D-25 | Tap the language symbol in the top bar ("Sprache ändern") and choose another language, then each of the four. | All text changes at once, on the home screen and on a stop. Product names and notes change language, customer names and addresses do not. The choice is still there after closing and reopening the app.    | [ ] pass [ ] fail |
-| D-26 | Have a second Chinese reader look at the screens in the Traditional versions (HK and TW) and in Simplified.   | Wrong or unnatural words are written down with screen, current text and better text in section 5.3. (Texts were written by the development agent and are only verified once the review of NUD-073 is done.) | [ ] pass [ ] fail |
+| D-25 | Tap the language symbol in the top bar ("Sprache ändern") and choose another language, then each of the other four. | All text changes at once, on the home screen and on a stop. Product names and notes change language, customer names and addresses do not. The choice is still there after closing and reopening the app.    | [ ] pass [ ] fail |
+| D-26 | Have a second reader of each language (English, Serbian, Czech, Chinese) look at the driver screens in that language.   | Wrong or unnatural words are written down with screen, current text and better text in section 5.3. (Texts were written by the development agent and are only verified once the review of NUD-073 is done.) | [ ] pass [ ] fail |
 
 ### 4.5 Offline behaviour (real dead spot)
 
@@ -337,14 +337,14 @@ Severity: S1 blocker, S2 major, S3 minor, S4 wish (section 1). Result: pass, fai
 Fill one row per driver (D-02, D-03, O-103). The choice is what the driver picked **himself** on the
 first start, without help. This answers the open question in `backlog.md` section 10.
 
-| Driver (first name or letter, no user name) | Date | Variant chosen (zh-Hans / zh-Hant-HK / zh-Hant-TW / de) | Shown in "Fahrer" > "Sprache" (O-103) | Hesitated between variants? (yes / no, why) | Would also understand (variants) | Preferred variant, if different | Comment |
+| Driver (first name or letter, no user name) | Date | Variant chosen (de / en / sr-Latn / cs / zh-Hans) | Shown in "Fahrer" > "Sprache" (O-103) | Hesitated between variants? (yes / no, why) | Would also understand (variants) | Preferred variant, if different | Comment |
 | ------------------------------------------- | ---- | ------------------------------------------------------- | ------------------------------------- | ------------------------------------------- | -------------------------------- | ------------------------------- | ------- |
 |                                             |      |                                                         |                                       |                                             |                                  |                                 |         |
 |                                             |      |                                                         |                                       |                                             |                                  |                                 |         |
 |                                             |      |                                                         |                                       |                                             |                                  |                                 |         |
 
 Summary (filled in by the developer after the session): number of drivers per variant:
-zh-Hans ___ , zh-Hant-HK ___ , zh-Hant-TW ___ , de ___ .
+de ___ , en ___ , sr-Latn ___ , cs ___ , zh-Hans ___ .
 
 ### 5.3 Wording issues
 
@@ -353,7 +353,7 @@ One row per text. Take the **key** from the developer if you know it; otherwise 
 not a fragment. Do not report customer names or addresses (they are never translated). The rows feed
 `pnpm i18n:import` (section 8, `docs/i18n.md`).
 
-| Step ID | Key or screen | Locale (de / zh-Hans / zh-Hant-HK / zh-Hant-TW) | Current text | Suggested text | Comment (why) |
+| Step ID | Key or screen | Locale (de / en / sr-Latn / cs / zh-Hans) | Current text | Suggested text | Comment (why) |
 | ------- | ------------- | ----------------------------------------------- | ------------ | -------------- | ------------- |
 |         |               |                                                 |              |                |               |
 |         |               |                                                 |              |                |               |
@@ -419,13 +419,12 @@ matrix) to the agent. The agent works through them in this order:
 3. **Skipped steps** that were not run for a technical reason are repeated in the next session
    (note them in the ticket NUD-096 under "Human steps").
 4. **Wording issues (5.3) do not become code tickets.** The agent copies the rows into the
-   review CSV format of `docs/i18n.md` (`pnpm i18n:export`, then fill `corrected_zh-Hans`,
-   `corrected_zh-Hant-HK`, `corrected_zh-Hant-TW`, `reviewer_comment`; German problems only in
+   review CSV format of `docs/i18n.md` (`pnpm i18n:export`, then fill `corrected_en`,
+   `corrected_sr-Latn`, `corrected_cs`, `corrected_zh-Hans`, `reviewer_comment`; German problems only in
    `reviewer_comment`), runs `pnpm i18n:import <file> --dry-run`, then the import, `pnpm i18n:check`,
    and commits the changed message files (see ticket NUD-073). The CSV itself is not committed.
-   If a Simplified text is wrong, fix `zh-Hans`; a Traditional text only goes to the override file of
-   that region when the other region reads it correctly.
-5. **Chinese variant choice (5.2):** the agent writes the numbers into the Decision log
+   A correction goes into the message file of the language it was written for.
+5. **Language choice (5.2):** the agent writes the numbers into the Decision log
    (section 9 of the backlog, one line) and resolves the open question in section 10. No locale is
    removed, whatever the numbers say; a variant nobody chose may be taken out of the first-start
    picker only after the client decides.

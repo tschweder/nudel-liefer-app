@@ -5,10 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DriverToday, TodayStop } from "@/server/driver-today";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { TodayTour } from "./today-tour";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -36,8 +37,9 @@ vi.mock("@/lib/offline/outbox-browser", () => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 const TILES = { url: "x", attribution: "" };
 

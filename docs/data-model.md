@@ -24,7 +24,7 @@ The provider is `postgresql`; the generated client is emitted to
 | Enum               | Values                                                                                                                      |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | `Role`             | `ADMIN`, `DRIVER`                                                                                                           |
-| `Locale`           | `de`, `zh_Hans` (`@map("zh-Hans")`), `zh_Hant_HK` (`@map("zh-Hant-HK")`), `zh_Hant_TW` (`@map("zh-Hant-TW")`) — BCP-47 tags |
+| `Locale`           | `de`, `en`, `sr_Latn` (`@map("sr-Latn")`), `cs`, `zh_Hans` (`@map("zh-Hans")`) — BCP-47 tags |
 | `Unit`             | `KG`, `PACK`, `CRATE`, `PIECE`                                                                                              |
 | `PhotoKind`        | `STORE`, `PARKING`                                                                                                          |
 | `OrderSource`      | `MANUAL`, `SCREENSHOT`                                                                                                      |

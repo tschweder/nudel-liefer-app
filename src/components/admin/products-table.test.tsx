@@ -72,8 +72,6 @@ const rows: ProductRow[] = [
     name: {
       de: "Spaghetti 5 kg",
       "zh-Hans": "意大利面 5 公斤",
-      "zh-Hant-HK": "意大利麵 5 公斤",
-      "zh-Hant-TW": "意大利麵 5 公斤",
     },
   } as unknown as ProductRow,
   {
@@ -84,8 +82,6 @@ const rows: ProductRow[] = [
     name: {
       de: "Penne 5 kg",
       "zh-Hans": "通心粉 5 公斤",
-      "zh-Hant-HK": "通心粉 5 公斤",
-      "zh-Hant-TW": "通心粉 5 公斤",
     },
   } as unknown as ProductRow,
 ];

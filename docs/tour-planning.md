@@ -183,7 +183,7 @@ The caller has already checked `requireRole("DRIVER")`.
 delivery order with customer addresses and the `Stop.items` snapshot (never live orders), plus the
 products and the `Tour.depotSnapshot`. `isOutdated` warns instead of silently printing newer
 numbers. `parseSheetLocale` (`lib/load-sheet-locale.ts`, NUD-134) resolves `?locale=`: `de` prints
-German, any `zh…` tag (`zh`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW`) prints the simplified
+German, any `zh…` tag (`zh`, `zh-Hans`, `zh-CN`, `zh-Hant-TW`) prints the simplified
 (`zh-Hans`) sheet, and anything else (missing, empty, `en`, junk) prints German regardless of the
 admin UI language. `tourPlanQuery` and `tourPrintQuery` are the ADMIN-only queries
 (`requireRole("ADMIN")`); `tourPlanQuery` falls back to the next delivery date for a bad or missing

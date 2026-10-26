@@ -3,10 +3,11 @@ import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import cs from "../../messages/cs.json";
 import de from "../../messages/de.json";
+import en from "../../messages/en.json";
+import srLatn from "../../messages/sr-Latn.json";
 import zhHans from "../../messages/zh-Hans.json";
-import zhHantHK from "../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../messages/zh-Hant-TW.json";
 import { AdminNav } from "./admin/admin-nav";
 import { AdminShell } from "./admin/admin-shell";
 import { ADMIN_SECTIONS } from "./admin/nav-items";
@@ -35,8 +36,9 @@ vi.mock("@/components/auth/logout-button", () => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 /** Any missing message or formatting error fails the test (no silent fallbacks). */
@@ -57,35 +59,44 @@ function renderIn(locale: string, ui: ReactNode) {
   );
 }
 
+/** Office screens exist in de / en / zh-Hans only; the driver-only languages carry no admin texts. */
+const ADMIN_LOCALE_KEYS = ["de", "en", "zh-Hans"];
+
 describe.each(Object.keys(LOCALES))("shells in %s", (locale) => {
   afterEach(() => {
     cleanup();
     navigation.pathname = "/admin";
   });
 
-  it("renders every admin section placeholder without missing keys", () => {
-    for (const section of ADMIN_SECTIONS) {
-      renderIn(locale, <SectionPlaceholder section={section} />);
-      expect(screen.getByTestId("section-title")).not.toBeEmptyDOMElement();
-      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-      cleanup();
-    }
-  });
+  it.runIf(ADMIN_LOCALE_KEYS.includes(locale))(
+    "renders every admin section placeholder without missing keys",
+    () => {
+      for (const section of ADMIN_SECTIONS) {
+        renderIn(locale, <SectionPlaceholder section={section} />);
+        expect(screen.getByTestId("section-title")).not.toBeEmptyDOMElement();
+        expect(screen.getByTestId("empty-state")).toBeInTheDocument();
+        cleanup();
+      }
+    },
+  );
 
-  it("renders the admin shell with navigation and header", () => {
-    renderIn(
-      locale,
-      <AdminShell name="Büro" locale={locale}>
-        <p>content</p>
-      </AdminShell>,
-    );
-    expect(screen.getByTestId("admin-nav").querySelectorAll("a")).toHaveLength(
-      ADMIN_SECTIONS.length,
-    );
-    expect(screen.getByTestId("user-menu")).toBeInTheDocument();
-    expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
-    expect(screen.getByText("content")).toBeInTheDocument();
-  });
+  it.runIf(ADMIN_LOCALE_KEYS.includes(locale))(
+    "renders the admin shell with navigation and header",
+    () => {
+      renderIn(
+        locale,
+        <AdminShell name="Büro" locale={locale}>
+          <p>content</p>
+        </AdminShell>,
+      );
+      expect(screen.getByTestId("admin-nav").querySelectorAll("a")).toHaveLength(
+        ADMIN_SECTIONS.length,
+      );
+      expect(screen.getByTestId("user-menu")).toBeInTheDocument();
+      expect(screen.getByTestId("language-switcher")).toBeInTheDocument();
+      expect(screen.getByText("content")).toBeInTheDocument();
+    },
+  );
 
   it("renders the driver shell and the Heute placeholder", () => {
     renderIn(

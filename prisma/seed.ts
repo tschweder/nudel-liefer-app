@@ -9,13 +9,14 @@ import { assertDemoStorageConfigured, seedDemo } from "../src/server/demo-seed";
 import { CATALOG_PRODUCTS } from "../src/server/product-catalog";
 import { getStorage } from "../src/server/storage";
 
-// `localeChosen`: the four language demo drivers already have their language (they skip the
+// `localeChosen`: the language demo drivers already have their language (they skip the
 // first-start picker, which keeps e2e logins deterministic); `driver-new` shows the picker (NUD-050).
 const DRIVERS = [
   { username: "fahrer-de", displayName: "Fahrer Deutsch", locale: "de", localeChosen: true },
   { username: "driver-hans", displayName: "司机 简体", locale: "zh_Hans", localeChosen: true },
-  { username: "driver-hk", displayName: "司機 香港", locale: "zh_Hant_HK", localeChosen: true },
-  { username: "driver-tw", displayName: "司機 台灣", locale: "zh_Hant_TW", localeChosen: true },
+  { username: "driver-en", displayName: "Driver English", locale: "en", localeChosen: true },
+  { username: "driver-sr", displayName: "Vozač Srpski", locale: "sr_Latn", localeChosen: true },
+  { username: "driver-cs", displayName: "Řidič Česky", locale: "cs", localeChosen: true },
   { username: "driver-new", displayName: "Neuer Fahrer", locale: "de", localeChosen: false },
 ] as const;
 
@@ -75,9 +76,17 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
 
   for (const [index, p] of CATALOG_PRODUCTS.entries()) {
     const name = createLocalizedText(
-      { de: p.de, "zh-Hans": p.hans, "zh-Hant-HK": p.hant, "zh-Hant-TW": p.hant },
+      { de: p.de, en: p.en, "sr-Latn": p.sr, cs: p.cs, "zh-Hans": p.hans },
       "de",
+      { machine: { en: true, "sr-Latn": true, cs: true } },
     );
+    // The NUD-138 migration creates the catalog with de + zh-Hans only and NUD-140 flags it pending;
+    // fill the other locales from the seed unless the owner already changed the name.
+    const existing = await prisma.product.findUnique({ where: { sku: p.sku } });
+    const meta = (existing?.name as { meta?: { pendingTranslation?: boolean } } | null)?.meta;
+    if (existing && meta?.pendingTranslation) {
+      await prisma.product.update({ where: { sku: p.sku }, data: { name } });
+    }
     await prisma.product.upsert({
       where: { sku: p.sku },
       update: {},

@@ -32,7 +32,7 @@ const { stopStatusAction } = await import("./stop-status-actions");
 const { getTourPlan } = await import("./tour-planning");
 
 const NOW = new Date("2099-07-02T08:00:00Z");
-const NOTE_HK = "門口鎖住了，沒人應門";
+const NOTE_ZH = "门锁着，没有人开门";
 
 const down: Translator = {
   kind: "deepl",
@@ -70,7 +70,7 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
           username: "drv",
           displayName: "Driver",
           passwordHash: await hashSecret("123456"),
-          locale: "zh_Hant_HK",
+          locale: "zh_Hans",
           localeChosen: true,
         },
       })
@@ -129,25 +129,25 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
   });
 
   it("the mutation stores a Chinese note as pending and never calls the translator", async () => {
-    const res = await report(0, NOTE_HK, "zh-Hant-HK");
+    const res = await report(0, NOTE_ZH, "zh-Hans");
     expect(res).toMatchObject({ ok: true, status: "PROBLEM" });
     expect((await stopRow(0)).problemNote).toMatchObject({
-      "zh-Hant-HK": NOTE_HK,
-      meta: { source: "zh-Hant-HK", pendingTranslation: true },
+      "zh-Hans": NOTE_ZH,
+      meta: { source: "zh-Hans", pendingTranslation: true },
     });
   });
 
   it("translates to German after the commit (Fake translator: [de] prefix) and keeps the original", async () => {
-    await report(0, NOTE_HK, "zh-Hant-HK");
+    await report(0, NOTE_ZH, "zh-Hans");
     expect(
       await translateStopProblemNote(t.prisma, stopIds[0], { translator: new FakeTranslator() }),
     ).toBe("translated");
     const note = (await stopRow(0)).problemNote as Record<string, unknown> & {
       meta: Record<string, unknown>;
     };
-    expect(note["zh-Hant-HK"]).toBe(NOTE_HK);
+    expect(note["zh-Hans"]).toBe(NOTE_ZH);
     expect(note.de).toMatch(/^\[de\] /);
-    expect(note.meta).toMatchObject({ source: "zh-Hant-HK", machine: { de: true } });
+    expect(note.meta).toMatchObject({ source: "zh-Hans", machine: { de: true } });
     expect(note.meta.pendingTranslation).toBeUndefined();
     // Nothing left to do on a second call.
     expect(
@@ -169,7 +169,7 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
   });
 
   it("a provider outage leaves the note pending; the mutation result is unaffected; the retry job completes it later", async () => {
-    const res = await report(2, NOTE_HK, "zh-Hant-HK");
+    const res = await report(2, NOTE_ZH, "zh-Hans");
     expect(res).toMatchObject({ ok: true, status: "PROBLEM", tourStatus: "IN_PROGRESS" });
     expect(await translateStopProblemNote(t.prisma, stopIds[2], { translator: down })).toBe(
       "pending",
@@ -179,13 +179,13 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
 
     const run = await retryPendingTranslations({ db: t.prisma, translator: new FakeTranslator() });
     expect(run.sources["Stop.problemNote"]?.translated).toBe(1);
-    expect((await stopRow(2)).problemNote).toMatchObject({ de: `[de] ${NOTE_HK}` });
+    expect((await stopRow(2)).problemNote).toMatchObject({ de: `[de] ${NOTE_ZH}` });
   });
 
   it("scheduling never throws and does nothing for replays, delivered stops and rejections", async () => {
     const scheduled: unknown[] = [];
     const schedule = (task: () => Promise<unknown>) => void scheduled.push(task);
-    const problem = await report(3, NOTE_HK, "zh-Hant-HK");
+    const problem = await report(3, NOTE_ZH, "zh-Hans");
     scheduleProblemNoteTranslation(t.prisma, problem, schedule);
     expect(scheduled).toHaveLength(1);
 
@@ -210,18 +210,18 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
       stopId: stopIds[0],
       clientMutationId: randomUUID(),
       reason: "NOBODY_THERE",
-      note: NOTE_HK,
+      note: NOTE_ZH,
     });
     expect(res).toMatchObject({ ok: true, status: "PROBLEM" });
     expect((await stopRow(0)).problemNote).toMatchObject({ meta: { pendingTranslation: true } });
   });
 
   it("an undone report is not overwritten by a late translation", async () => {
-    const res = await report(0, NOTE_HK, "zh-Hant-HK");
+    const res = await report(0, NOTE_ZH, "zh-Hans");
     if (!res.ok) throw new Error("setup");
     await applyStopMutation(
       t.prisma,
-      { id: driverId, role: "DRIVER", locale: "zh-Hant-HK" },
+      { id: driverId, role: "DRIVER", locale: "zh-Hans" },
       { type: "undo", stopId: stopIds[0], clientMutationId: randomUUID() },
       NOW,
     );
@@ -232,16 +232,16 @@ describe.skipIf(!process.env.DATABASE_URL)("problem note translation", { timeout
   });
 
   it("the tour plan carries the German version, the original and the pending state", async () => {
-    await report(0, NOTE_HK, "zh-Hant-HK");
+    await report(0, NOTE_ZH, "zh-Hans");
     await report(1, "Baustelle", "de");
     await report(2, "门关着", "zh-Hans");
     await translateStopProblemNote(t.prisma, stopIds[0], { translator: new FakeTranslator() });
     const plan = await getTourPlan(t.prisma, "2099-07-02", "Europe/Vienna");
     const notes = plan!.tour!.stops.map((s) => s.problemNote);
     expect(notes[0]).toEqual({
-      text: NOTE_HK,
-      locale: "zh-Hant-HK",
-      german: `[de] ${NOTE_HK}`,
+      text: NOTE_ZH,
+      locale: "zh-Hans",
+      german: `[de] ${NOTE_ZH}`,
       germanMachine: true,
       pending: false,
     });

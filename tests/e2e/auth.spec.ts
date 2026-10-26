@@ -21,14 +21,14 @@ test("admin logs in and lands on the dashboard", async ({ page }) => {
 
 test("driver logs in and lands on the driver home in his own locale", async ({ page }) => {
   await page.goto("/de/driver/login");
-  await page.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-hk");
+  await page.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-sr");
   await page.getByTestId("driver-login-form").locator('input[name="pin"]').fill("123456");
   await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-HK");
+  await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "sr-Latn");
   // a driver cannot open admin pages
-  await page.goto("/zh-Hant-HK/admin");
-  await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
+  await page.goto("/sr-Latn/admin");
+  await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
 });
 
 test("the 6th wrong PIN is rejected with a localized rate-limit message", async ({ page }) => {

@@ -1,0 +1,448 @@
+{
+  "common": {
+    "appName": "Nudel Liefer App",
+    "language": "Jazyk",
+    "notifications": "Upozornění",
+    "theme": {
+      "day": "Denní režim",
+      "night": "Noční režim",
+      "toggleToNight": "Přepnout na noční režim",
+      "toggleToDay": "Přepnout na denní režim"
+    },
+    "actions": {
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "delete": "Smazat",
+      "archive": "Archivovat",
+      "restore": "Obnovit",
+      "edit": "Upravit",
+      "create": "Vytvořit",
+      "add": "Přidat",
+      "remove": "Odebrat",
+      "back": "Zpět",
+      "next": "Další",
+      "confirm": "Potvrdit",
+      "close": "Zavřít",
+      "search": "Hledat",
+      "retry": "Zkusit znovu",
+      "release": "Uvolnit",
+      "optimize": "Optimalizovat",
+      "upload": "Nahrát",
+      "logout": "Odhlásit se",
+      "login": "Přihlásit se"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Sáček",
+      "CRATE": "Karton",
+      "PIECE": "×"
+    },
+    "statuses": {
+      "order": {
+        "DRAFT": "Návrh",
+        "CONFIRMED": "Potvrzená",
+        "CANCELLED": "Zrušená"
+      },
+      "tour": {
+        "DRAFT": "Návrh",
+        "OPTIMIZED": "Optimalizovaná",
+        "RELEASED": "Uvolněná",
+        "IN_PROGRESS": "Na cestě",
+        "COMPLETED": "Dokončená"
+      },
+      "stop": {
+        "PENDING": "Čeká",
+        "DELIVERED": "Doručeno",
+        "PROBLEM": "Problém"
+      }
+    },
+    "problemReasons": {
+      "CLOSED": "Zavřeno",
+      "NOBODY_THERE": "Nikdo na místě",
+      "NO_PARKING": "Nelze zaparkovat",
+      "WRONG_QUANTITY": "Špatné množství",
+      "REFUSED": "Převzetí odmítnuto",
+      "ADDRESS_NOT_FOUND": "Adresa nenalezena",
+      "OTHER": "Jiné"
+    },
+    "errors": {
+      "generic": "Něco se nepovedlo. Zkuste to prosím znovu.",
+      "notFound": "Stránka nenalezena.",
+      "forbidden": "K tomu chybí oprávnění.",
+      "required": "Povinné pole",
+      "invalid": "Neplatná hodnota",
+      "network": "Žádné připojení."
+    },
+    "itemsCount": "{count, plural, =0 {Žádné záznamy} one {# záznam} few {# záznamy} many {# záznamu} other {# záznamů}}",
+    "states": {
+      "emptyTitle": "Zatím tu nic není",
+      "comingSoon": "Tato část bude brzy doplněna.",
+      "errorTitle": "Něco se nepovedlo",
+      "loading": "Načítání …"
+    },
+    "notFound": {
+      "title": "Stránka nenalezena",
+      "description": "Tato stránka neexistuje nebo byla přesunuta.",
+      "home": "Na úvodní stránku"
+    },
+    "error": {
+      "title": "Něco se nepovedlo",
+      "description": "Stránku se nepodařilo zobrazit. Zkuste to prosím znovu."
+    },
+    "upload": {
+      "dropHere": "Přetáhněte obrázek sem",
+      "choose": "Vybrat obrázek",
+      "camera": "Pořídit fotku",
+      "pasteHint": "nebo vložte obrázek ze schránky (Ctrl+V)",
+      "uploading": "Nahrávání … {percent} %",
+      "done": "Nahráno",
+      "cancel": "Zrušit",
+      "errors": {
+        "NOT_AN_IMAGE": "Toto není soubor s obrázkem.",
+        "HEIC_UNSUPPORTED": "Tento prohlížeč nepodporuje fotografie HEIC. Uložte je prosím jako JPEG nebo PNG.",
+        "DECODE_FAILED": "Obrázek se nepodařilo přečíst.",
+        "TOO_LARGE": "Obrázek je příliš velký.",
+        "UNAUTHENTICATED": "Přihlaste se prosím znovu.",
+        "FORBIDDEN": "K tomu chybí oprávnění.",
+        "REQUEST_FAILED": "Nahrávání se nepodařilo připravit. Zkuste to prosím znovu.",
+        "UPLOAD_FAILED": "Nahrávání se nezdařilo. Zkuste to prosím znovu.",
+        "ABORTED": "Nahrávání bylo zrušeno."
+      },
+      "preview": {
+        "open": "Zvětšit obrázek",
+        "title": "Náhled obrázku",
+        "zoomIn": "Přiblížit",
+        "zoomOut": "Oddálit",
+        "reset": "Obnovit původní"
+      }
+    },
+    "unitNames": {
+      "KG": "kg",
+      "PACK": "Sáček",
+      "CRATE": "Karton",
+      "PIECE": "Kus (N ×)"
+    }
+  },
+  "home": {
+    "title": "Nudel Liefer App",
+    "placeholder": "Zástupný text"
+  },
+  "auth": {
+    "adminLogin": {
+      "title": "Přihlášení do kanceláře",
+      "email": "E-mail",
+      "password": "Heslo",
+      "submit": "Přihlásit se",
+      "driverLink": "Přihlášení řidiče",
+      "brandSentence": "Přihlášení do kanceláře – Nudel Liefer App",
+      "showPassword": "Zobrazit",
+      "hidePassword": "Skrýt"
+    },
+    "driverLogin": {
+      "title": "Přihlášení řidiče",
+      "username": "Uživatelské jméno",
+      "pin": "PIN (6 číslic)",
+      "submit": "Přihlásit se",
+      "adminLink": "Přihlášení do kanceláře"
+    },
+    "errors": {
+      "invalid": "Přihlášení se nezdařilo. Zkontrolujte zadané údaje.",
+      "rateLimited": "Příliš mnoho neúspěšných pokusů. Zkuste to prosím za 15 minut.",
+      "generic": "Přihlášení není možné. Zkuste to prosím později.",
+      "pinLength": "PIN musí mít 6 číslic",
+      "usernameRequired": "Zadejte uživatelské jméno",
+      "credentials": "Špatné uživatelské jméno nebo PIN",
+      "emailRequired": "Zadejte e-mail",
+      "passwordRequired": "Zadejte heslo"
+    },
+    "signedInAs": "Přihlášen jako {name}",
+    "logout": "Odhlásit se",
+    "help": "Nápověda"
+  },
+  "driver": {
+    "home": {
+      "title": "Dnes",
+      "welcome": "Vítejte, {name}.",
+      "todayCount": "{open} otevřeno · {problems, plural, =0 {žádné problémy} one {# problém} few {# problémy} many {# problému} other {# problémů}}",
+      "endTime": "Konec cca v {time}",
+      "nextStop": "Další zastávka",
+      "nextStopEta": "Příjezd cca v {time}",
+      "quantityChip": "{quantity} × {name}"
+    },
+    "shell": {
+      "connectionOnline": "Online",
+      "connectionOffline": "Offline",
+      "changeLanguage": "Změnit jazyk",
+      "openOutbox": "Otevřít stav přenosu a upozornění",
+      "language": "Změnit jazyk",
+      "menu": "Další možnosti",
+      "logout": "Odhlásit se",
+      "currentLanguage": "Aktuální jazyk"
+    },
+    "today": {
+      "pageTitle": "Dnešní trasa",
+      "emptyTitle": "Dnes žádná trasa",
+      "emptyDescription": "Jakmile kancelář trasu uvolní, objeví se zde.",
+      "progressLabel": "Průběh",
+      "progress": "{done} / {total}",
+      "progressAria": "Hotovo {done} z {total} zastávek",
+      "remaining": "Zbývá cca {duration}",
+      "durationMinutes": "{minutes} min",
+      "durationHours": "{hours} h {minutes} min",
+      "nextStop": "Další zastávka",
+      "allDoneTitle": "Všechny zastávky hotové",
+      "allDoneDescription": "Trasa je dokončena. Děkujeme!",
+      "eta": "Příjezd cca v {time}",
+      "kinds": "{count, plural, one {# druh} few {# druhy} many {# druhu} other {# druhů}}",
+      "navigate": "Spustit navigaci",
+      "details": "Podrobnosti",
+      "noPin": "Žádný bod adresy – zeptejte se kanceláře",
+      "viewLabel": "Zobrazení",
+      "viewList": "Seznam",
+      "viewMap": "Mapa",
+      "listTitle": "Všechny zastávky",
+      "mapLabel": "Mapa zastávek",
+      "statusPending": "Čeká",
+      "statusDelivered": "Doručeno",
+      "statusProblem": "Problém",
+      "stopLabel": "Zastávka {number}",
+      "changeAdded": "Nová zastávka",
+      "changeChanged": "Množství změněno",
+      "updatedTitle": "Trasa byla aktualizována",
+      "updatedDescription": "Kancelář trasu změnila. Zkontrolujte prosím označené zastávky. Vždy se zobrazují aktuální množství.",
+      "removedStops": "Odstraněné zastávky",
+      "updatedConfirm": "Rozumím",
+      "finishedSummary": "{delivered} doručeno · {problems, plural, =0 {žádný problém} one {# problém} few {# problémy} many {# problému} other {# problémů}}",
+      "openGroup": "Otevřené ({count})",
+      "doneGroup": "Hotové ({count})",
+      "expandDone": "Zobrazit hotové zastávky",
+      "collapseDone": "Skrýt hotové zastávky",
+      "problemReason": "Problém: {reason}",
+      "noteLabel": "Poznámka",
+      "waiting": "čeká",
+      "backToDepot": "Zpět do depa",
+      "finishedElapsed": "Doba cca {duration}",
+      "mapSheet": "Otevřené zastávky ({count})",
+      "mapSheetHide": "Zavřít seznam zastávek",
+      "progressDone": "hotovo",
+      "mapSheetCount": "{count, plural, one {# otevřená zastávka} few {# otevřené zastávky} many {# otevřené zastávky} other {# otevřených zastávek}}",
+      "focusOnMap": "Ukázat na mapě"
+    },
+    "units": {
+      "KG": "kg",
+      "PACK": "Sáček",
+      "CRATE": "Karton",
+      "PIECE": "×"
+    },
+    "stop": {
+      "back": "Zpět na trasu",
+      "position": "Zastávka {position} z {total}",
+      "copyAddress": "Kopírovat adresu",
+      "copied": "Adresa zkopírována",
+      "photoStore": "Vchod",
+      "photoParking": "Parkování",
+      "noPhoto": "Zatím žádná fotka",
+      "items": "Dodávka",
+      "notes": "Poznámka",
+      "notesGerman": "Text je k dispozici jen v němčině",
+      "hours": "Doba dodání",
+      "appleMaps": "Apple Mapy",
+      "stopNavigation": "Přepínání mezi zastávkami",
+      "previous": "Zpět",
+      "next": "Další",
+      "takePhoto": "Pořídit fotku",
+      "replacePhoto": "Nahradit fotku",
+      "photoPreparing": "Fotka se připravuje …",
+      "usePhoto": "Použít fotku",
+      "retakePhoto": "Pořídit znovu",
+      "cancelPhoto": "Zrušit",
+      "photoPending": "Čeká na odeslání",
+      "photoSent": "Odesláno",
+      "photoNotSaved": "Fotku se nepodařilo uložit v zařízení. Zkuste to prosím znovu.",
+      "backToTour": "Zpět na trasu",
+      "photos": "Fotky",
+      "summaryTotal": "Celkem",
+      "statusDeliveredAt": "Doručeno {time}",
+      "statusProblem": "Problém: {reason}",
+      "navigateStarting": "Otevírá se navigace …",
+      "deliveredStrip": "Doručeno v {time}",
+      "problemStrip": "Problém nahlášen",
+      "editAction": "Upravit",
+      "nextStop": "Dále na zastávku {number}",
+      "backToTourAction": "Na trasu",
+      "viewerTitle": "Zobrazit fotku",
+      "viewerPrev": "Předchozí fotka",
+      "viewerNext": "Další fotka",
+      "viewerClose": "Zavřít",
+      "summaryTotalMixed": "Celkem podle jednotky",
+      "weekdayMo": "Po",
+      "weekdayTu": "Út",
+      "weekdayWe": "St",
+      "weekdayTh": "Čt",
+      "weekdayFr": "Pá",
+      "weekdaySa": "So",
+      "weekdaySu": "Ne",
+      "clockSuffix": "hod."
+    },
+    "status": {
+      "delivered": "Doručeno",
+      "problem": "Problém",
+      "actionsLabel": "Dokončit zastávku",
+      "problemTitle": "Jaký je problém?",
+      "problemDescription": "Vyberte důvod. Text není povinný.",
+      "noteLabel": "Poznámka (nepovinná)",
+      "notePlaceholder": "např. brána byla zavřená",
+      "submit": "Nahlásit problém",
+      "cancel": "Zrušit",
+      "undo": "Vrátit zpět",
+      "undone": "Vráceno zpět",
+      "deliveredToast": "Doručeno: {name}",
+      "problemToast": "Problém nahlášen: {name}",
+      "doneDelivered": "Doručeno",
+      "doneProblem": "Problém: {reason}",
+      "doneAt": "v {time}",
+      "errors": {
+        "generic": "To se nepovedlo. Zkuste to prosím znovu.",
+        "network": "Žádné připojení. Klepněte prosím znovu.",
+        "already_completed": "Tato zastávka je již hotová.",
+        "not_completed": "Tato zastávka není hotová.",
+        "undo_expired": "Vrátit zpět lze jen v prvních 5 minutách.",
+        "tour_completed": "Trasa je dokončena, nic už nelze měnit.",
+        "tour_not_active": "Tato trasa není aktivní.",
+        "not_found": "Zastávka nenalezena.",
+        "mutation_conflict": "To se nepovedlo. Zkuste to prosím znovu.",
+        "invalid": "To se nepovedlo. Zkuste to prosím znovu.",
+        "forbidden": "K tomu chybí oprávnění.",
+        "storage": "Uložení v telefonu není možné. Zkuste to prosím znovu.",
+        "changed_by_office": "Kancelář tuto zastávku změnila."
+      },
+      "offlineNotice": "Offline: váš zápis se uloží v telefonu a automaticky se odešle, jakmile bude opět internet.",
+      "queuedHint": "Čeká na odeslání"
+    },
+    "install": {
+      "title": "Nainstalovat aplikaci",
+      "androidText": "Nainstalujte aplikaci a otevře se přímo z domovské obrazovky.",
+      "installButton": "Nainstalovat",
+      "iosText": "Přidejte ji na domovskou obrazovku a aplikace se otevře přímo.",
+      "howButton": "Jak na to",
+      "notNow": "Teď ne",
+      "overlayTitle": "Přidat aplikaci na domovskou obrazovku",
+      "step1": "V Safari klepněte dole na „Sdílet“.",
+      "step2": "Vyberte „Přidat na plochu“.",
+      "step3": "Vpravo nahoře klepněte na „Přidat“.",
+      "done": "Rozumím",
+      "illustrationLabel": "Obrázek: ikona sdílení v liště Safari"
+    },
+    "offline": {
+      "bar": "Offline – naposledy aktualizováno {time}",
+      "barNoData": "Offline – žádná uložená trasa",
+      "ready": "Připraveno offline ✓",
+      "partial": "Částečně připraveno offline: {cached} z {total} fotek",
+      "syncing": "Trasa se ukládá pro offline použití …",
+      "error": "Offline není k dispozici",
+      "noDataTitle": "Žádná uložená trasa",
+      "noDataDescription": "Bez připojení není pro dnešek uložena žádná trasa. Připojte se prosím k internetu a otevřete aplikaci znovu.",
+      "retry": "Zkusit znovu",
+      "stopMissingTitle": "Zastávka není uložena",
+      "stopMissingDescription": "Tato zastávka nepatří k uložené trase.",
+      "backToTour": "Na trasu"
+    },
+    "sync": {
+      "pending": "{count, plural, one {# zápis čeká} few {# zápisy čekají} many {# zápisu čeká} other {# zápisů čeká}} na odeslání",
+      "willRetry": "Odešle se znovu později",
+      "dismiss": "Rozumím",
+      "notices": {
+        "changed_by_office": "{name}: kancelář tuto zastávku změnila. Váš zápis nebyl převzat, platí aktuální stav.",
+        "not_found": "{name}: tato zastávka byla z trasy odstraněna. Váš zápis nebyl převzat.",
+        "already_completed": "{name}: tato zastávka již byla hotová. Platí uložený stav.",
+        "not_completed": "{name}: tato zastávka nebyla hotová. Platí uložený stav.",
+        "undo_expired": "{name}: vrácení zpět přišlo pozdě (jen 5 minut). Zastávka zůstává hotová.",
+        "tour_completed": "{name}: trasa je již dokončena. Platí uložený stav.",
+        "tour_not_active": "{name}: tato trasa již není aktivní. Váš zápis nebyl převzat.",
+        "generic": "{name}: zápis se nepodařilo převzít. Platí uložený stav."
+      },
+      "photoNotices": {
+        "not_found": "{name}: tato zastávka byla z trasy odstraněna. Fotka nebyla převzata.",
+        "tour_not_active": "{name}: tato trasa již není aktivní. Fotka nebyla převzata.",
+        "upload_failed": "{name}: fotku se nepodařilo nahrát. Pořiďte ji prosím znovu.",
+        "generic": "{name}: fotku se nepodařilo převzít."
+      },
+      "outboxTitle": "Čeká na odeslání",
+      "outboxEmpty": "Vše odesláno. Nic nečeká.",
+      "outboxExplanation": "Tyto zápisy jsou stále v zařízení. Odešlou se, jakmile budete online – nic se neztratí.",
+      "outboxOnlineExplanation": "Tyto zápisy se právě odesílají. Můžete pokračovat v práci.",
+      "outboxRetry": "Odeslat nyní",
+      "outboxWaiting": "čeká",
+      "mutationDelivered": "doručeno",
+      "mutationProblem": "problém nahlášen",
+      "mutationUndo": "vráceno zpět",
+      "mutationPhoto": "fotka",
+      "stopLine": "Zastávka {number}",
+      "noticesTitle": "Upozornění",
+      "cachedBadge": "Připraveno offline ✓",
+      "online": "Online",
+      "preparing": "Připravuje se …",
+      "offline": "Offline",
+      "pendingChip": "{count, plural, one {# čeká} few {# čekají} many {# čeká} other {# čeká}}",
+      "error": "Chyba synchronizace",
+      "outboxNothingPending": "Není co odeslat. Vše je přeneseno.",
+      "outboxSending": "{count, plural, one {Odesílá se # zápis …} few {Odesílají se # zápisy …} many {Odesílá se # zápisu …} other {Odesílá se # zápisů …}}",
+      "preparingShort": "Ukládá se",
+      "errorShort": "Chyba",
+      "pendingShort": "{count}"
+    },
+    "unitsTotal": {
+      "KG": "kg",
+      "PACK": "Sáčků",
+      "CRATE": "Kartonů",
+      "PIECE": "Kusů"
+    }
+  },
+  "pwa": {
+    "name": "Nudel Liefer App",
+    "shortName": "Dodávky",
+    "description": "Denní trasa, adresy a množství k doručení pro řidiče",
+    "offline": {
+      "title": "Žádné připojení",
+      "text": "Stránku se právě nepodařilo načíst. Zkontrolujte prosím připojení.",
+      "retry": "Zkusit znovu"
+    }
+  },
+  "errorPages": {
+    "driver": {
+      "title": "Něco se nepovedlo",
+      "description": "Data jsou v bezpečí. Zkuste to prosím znovu.",
+      "retry": "Zkusit znovu",
+      "home": "K trase",
+      "offlineTitle": "Žádné připojení",
+      "offlineDescription": "Již zadaná data jsou uložena v telefonu a odešlou se, jakmile bude opět připojení.",
+      "offlineOpen": "Otevřít uloženou trasu"
+    },
+    "admin": {
+      "title": "Něco se nepovedlo",
+      "description": "Stránku se nepodařilo načíst. Již uložená data nejsou dotčena. Zkuste to prosím znovu.",
+      "retry": "Zkusit znovu",
+      "home": "K přehledu",
+      "reference": "ID chyby: {digest}"
+    },
+    "fatal": {
+      "title": "Něco se nepovedlo",
+      "description": "Data jsou v bezpečí. Načtěte prosím stránku znovu.",
+      "retry": "Načíst znovu"
+    }
+  },
+  "maps": {
+    "tilesOffline": "Podkladová mapa není offline dostupná",
+    "tilesFailed": "Podkladová mapa není dostupná",
+    "tilesHint": "Zastávky, depo a trasa se nadále zobrazují.",
+    "stopMarker": "Zastávka {n}: {name}",
+    "stopMarkerPlain": "Zastávka {n}",
+    "depotMarker": "Depo: {name}",
+    "depotMarkerPlain": "Depo",
+    "pinMarker": "Adresa doručení: {place}",
+    "pinMoved": "Poloha: {lat}, {lng}",
+    "cluster": "{count, plural, one {# zastávka} few {# zastávky} many {# zastávky} other {# zastávek}}: {names}",
+    "clusterMore": "Klepnutím znovu přiblížíte",
+    "fitAll": "Zobrazit všechny zastávky"
+  }
+}

@@ -5,10 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TodayProgress } from "@/server/tour-progress";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { TodayCard } from "./today-card";
 
 vi.mock("@/i18n/navigation", () => ({
@@ -23,8 +24,9 @@ vi.mock("@/i18n/navigation", () => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 const progress = {
@@ -73,7 +75,8 @@ function renderIn(locale: string, today: TodayProgress) {
 
 afterEach(cleanup);
 
-describe.each(Object.keys(LOCALES))("TodayCard (%s)", (locale) => {
+// Office screens exist in de / en / zh-Hans only.
+describe.each(["de", "en", "zh-Hans"])("TodayCard (%s)", (locale) => {
   it("shows progress, next stop and the problems count", () => {
     renderIn(locale, live);
     const bar = screen.getByRole("progressbar");

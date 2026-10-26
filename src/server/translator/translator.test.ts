@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RoutedTranslator } from "./base";
 import { DeepLTranslator, mapDeepLResponse, resolvePlan } from "./deepl";
 import { FakeTranslator } from "./fake";
 import { getTranslator, setTranslatorForTests, TranslatorError } from "./index";
@@ -32,20 +33,12 @@ describe("FakeTranslator", () => {
   it("prefixes the target language", async () => {
     expect(await fake.translate(NOTE_DE, "de", "zh-Hans")).toBe(`[zh-Hans] ${NOTE_DE}`);
     expect(await fake.translate("你好", "zh-Hans", "de")).toBe("[de] 你好");
-    expect(await fake.translate("你好", "zh-Hant-HK", "de")).toBe("[de] 你好");
+    expect(await fake.translate("Nudeln", "de", "sr-Latn")).toBe("[sr-Latn] Nudeln");
+    expect(await fake.translate("Nudeln", "de", "cs")).toBe("[cs] Nudeln");
+    expect(await fake.translate("Nudeln", "de", "en")).toBe("[en] Nudeln");
   });
 
-  it("converts Hant targets with OpenCC and keeps the prefix", async () => {
-    const hk = await fake.translate("意大利面", "de", "zh-Hant-HK");
-    const tw = await fake.translate("意大利面", "de", "zh-Hant-TW");
-    expect(hk.startsWith("[zh-Hans] ")).toBe(true);
-    expect(hk).toContain("意大利麪");
-    expect(tw).toContain("義大利麵");
-  });
-
-  it("converts Chinese to Chinese locally and returns same-locale text unchanged", async () => {
-    expect(await fake.translate("意大利面", "zh-Hans", "zh-Hant-TW")).toBe("義大利麵");
-    expect(await fake.translate("義大利麵", "zh-Hant-TW", "zh-Hans")).toBe("义大利面");
+  it("returns same-locale and blank text unchanged", async () => {
     expect(await fake.translate("abc", "de", "de")).toBe("abc");
     expect(await fake.translate("  ", "de", "zh-Hans")).toBe("  ");
   });
@@ -104,35 +97,48 @@ describe("DeepLTranslator", () => {
     );
   });
 
-  it("sends Chinese -> German with source ZH, whichever script", async () => {
+  it("sends Chinese -> German with source ZH", async () => {
     const fetchFn = vi.fn(async () => jsonResponse(fixture("deepl-zh-to-de.json")));
     const t = make(fetchFn as never);
-    expect(await t.translate("請使用後門", "zh-Hant-HK", "de")).toBe(
+    expect(await t.translate("请使用后门", "zh-Hans", "de")).toBe(
       "Bitte den Hintereingang benutzen, nach 10 Uhr klingeln",
     );
     const body = JSON.parse(
       (fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
     );
-    expect(body).toEqual({ text: ["請使用後門"], source_lang: "ZH", target_lang: "DE" });
+    expect(body).toEqual({ text: ["请使用后门"], source_lang: "ZH", target_lang: "DE" });
   });
 
-  it("derives Hant targets from the ZH-HANS answer with OpenCC (one call)", async () => {
+  it.each([
+    ["en", "DE", "EN-GB"],
+    ["cs", "DE", "CS"],
+  ] as const)("sends German -> %s with the DeepL codes %s -> %s", async (to, source, target) => {
     const fetchFn = vi.fn(async () => jsonResponse(fixture("deepl-pasta.json")));
-    const t = make(fetchFn as never);
-    expect(await t.translate("Spaghetti", "de", "zh-Hant-HK")).toBe("意大利麪");
-    expect(await t.translate("Spaghetti", "de", "zh-Hant-TW")).toBe("義大利麵");
-    // Every call asked DeepL for ZH-HANS, never for a Hant target.
-    for (const call of fetchFn.mock.calls) {
-      const body = JSON.parse((call as unknown as [string, RequestInit])[1].body as string);
-      expect(body.target_lang).toBe("ZH-HANS");
-    }
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    await make(fetchFn as never).translate("Nudeln", "de", to);
+    const body = JSON.parse(
+      (fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
+    expect(body).toMatchObject({ source_lang: source, target_lang: target });
   });
 
-  it("does not call DeepL for Chinese -> Chinese or the same locale", async () => {
+  it("sends Czech and English sources with their own codes", async () => {
+    const fetchFn = vi.fn(async () => jsonResponse(fixture("deepl-zh-to-de.json")));
+    const t = make(fetchFn as never);
+    await t.translate("Zadní vchod", "cs", "de");
+    await t.translate("Back door", "en", "zh-Hans");
+    const bodies = fetchFn.mock.calls.map((c) =>
+      JSON.parse((c as unknown as [string, RequestInit])[1].body as string),
+    );
+    expect(bodies[0]).toMatchObject({ source_lang: "CS", target_lang: "DE" });
+    expect(bodies[1]).toMatchObject({ source_lang: "EN", target_lang: "ZH-HANS" });
+  });
+
+  it("does not translate Serbian itself and does not call DeepL for the same locale", async () => {
     const fetchFn = vi.fn();
     const t = make(fetchFn as never);
-    expect(await t.translate("意大利面", "zh-Hans", "zh-Hant-HK")).toBe("意大利麪");
+    await expect(t.translate("Nudeln", "de", "sr-Latn")).rejects.toMatchObject({
+      code: "UNSUPPORTED",
+    });
     expect(await t.translate("x", "de", "de")).toBe("x");
     expect(fetchFn).not.toHaveBeenCalled();
   });
@@ -198,6 +204,39 @@ describe("DeepLTranslator", () => {
   });
 });
 
+describe("RoutedTranslator (Serbian slot)", () => {
+  const primary = {
+    kind: "deepl" as const,
+    translate: vi.fn(async (t: string, _f: string, to: string) => `P:${to}:${t}`),
+  };
+  const serbian = {
+    kind: "fake" as const,
+    translate: vi.fn(async (t: string, _f: string, to: string) => `S:${to}:${t}`),
+  };
+
+  it("sends everything without Serbian to the primary provider", async () => {
+    const routed = new RoutedTranslator(primary as never, serbian as never);
+    expect(await routed.translate("a", "de", "cs")).toBe("P:cs:a");
+    expect(serbian.translate).not.toHaveBeenCalled();
+  });
+
+  it("sends German <-> Serbian to the Serbian provider and pivots other pairs through German", async () => {
+    const routed = new RoutedTranslator(primary as never, serbian as never);
+    expect(await routed.translate("a", "de", "sr-Latn")).toBe("S:sr-Latn:a");
+    expect(await routed.translate("a", "sr-Latn", "de")).toBe("S:de:a");
+    expect(await routed.translate("a", "sr-Latn", "en")).toBe("P:en:S:de:a");
+    expect(await routed.translate("a", "zh-Hans", "sr-Latn")).toBe("S:sr-Latn:P:de:a");
+  });
+
+  it("throws UNSUPPORTED for Serbian without a Serbian provider and reports the primary kind", async () => {
+    const routed = new RoutedTranslator(primary as never, undefined);
+    expect(routed.kind).toBe("deepl");
+    await expect(routed.translate("a", "de", "sr-Latn")).rejects.toMatchObject({
+      code: "UNSUPPORTED",
+    });
+  });
+});
+
 describe("getTranslator", () => {
   it("falls back to the Fake with exactly one warning when the key is missing", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -209,7 +248,11 @@ describe("getTranslator", () => {
     expect(String(warn.mock.calls[0]![0])).toContain("DEEPL_API_KEY");
   });
 
-  it("uses DeepL when a key is set", () => {
-    expect(getTranslator({ DEEPL_API_KEY: "abc:fx" }).kind).toBe("deepl");
+  it("uses DeepL when a key is set (Serbian stays unsupported until its provider exists)", async () => {
+    const translator = getTranslator({ DEEPL_API_KEY: "abc:fx" });
+    expect(translator.kind).toBe("deepl");
+    await expect(translator.translate("Nudeln", "de", "sr-Latn")).rejects.toMatchObject({
+      code: "UNSUPPORTED",
+    });
   });
 });

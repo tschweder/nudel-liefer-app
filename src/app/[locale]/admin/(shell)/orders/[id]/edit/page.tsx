@@ -7,12 +7,10 @@ import { PageHeader } from "@/components/admin/page-header";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { formatCalendarDate } from "@/domain/order";
 import { Link, redirect } from "@/i18n/navigation";
-import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
+import { type AppLocale, LOCALES, localizedTextSchema, pick } from "@/lib/localized-text";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { orderDetailQuery } from "@/server/order-queries";
 import { activeProductsQuery } from "@/server/product-queries";
-
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
 
 /** Edit an open order (NUD-032). Cancelled orders and orders of past days go back to the detail. */
 async function Guarded({ locale, id }: { locale: string; id: string }) {

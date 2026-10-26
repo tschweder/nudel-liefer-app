@@ -23,7 +23,7 @@ import { OFFLINE_SHELL_SEGMENT, PHOTO_CACHE_PATH } from "../lib/offline/constant
  */
 // The locale list is duplicated on purpose (the worker bundle must stay tiny); rules.test.ts checks
 // that it matches `LOCALES`.
-export const SW_LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+export const SW_LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const DRIVER_PATH = new RegExp(`^/(${SW_LOCALES.join("|")})/driver(/|$)`);
 
 export function isDriverPath(pathname: string): boolean {

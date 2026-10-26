@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
 // NUD-071. Needs a seeded database, DATABASE_URL and SEED_ADMIN_PASSWORD. No DEEPL_API_KEY is set,
-// so the FakeTranslator is used: its output is the German text with a "[zh-Hans]" prefix (NOT a
+// so the FakeTranslator is used: its output is the German text with a "[<locale>]" prefix (NOT a
 // real translation). The spec creates its own customer through the admin UI, then a driver, a
 // released tour for TODAY and one stop for that customer.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
@@ -12,8 +12,8 @@ const tag = `ntr${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
 const NOTE = "Hintereingang benutzen, nach 10 Uhr klingeln";
 const NEW_NOTE = "Seiteneingang benutzen, ab 9 Uhr klingeln";
-const HK_MANUAL = "請用後門，十點後撳鐘";
-const CHINESE = ["zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const CS_MANUAL = "Použijte zadní vchod, zvonit po desáté";
+const TRANSLATED = ["en", "sr-Latn", "cs", "zh-Hans"] as const;
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -77,7 +77,7 @@ test.afterAll(async () => {
   await db.end();
 });
 
-test("admin: a German note is translated on save and shows four versions with badges", async ({
+test("admin: a German note is translated on save and shows five versions with badges", async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -97,12 +97,11 @@ test("admin: a German note is translated on save and shows four versions with ba
   await page.getByTestId("tab-translations").click();
   await expect(vis(page, "tr-text-de")).toHaveValue(NOTE);
   expect(await kindOf(page, "de")).toBe("source");
-  for (const locale of CHINESE) {
-    await expect(vis(page, `tr-text-${locale}`)).toHaveValue(new RegExp(NOTE));
+  for (const locale of TRANSLATED) {
+    await expect(vis(page, `tr-text-${locale}`)).toHaveValue(`[${locale}] ${NOTE}`);
     expect(await kindOf(page, locale)).toBe("machine");
     await expect(vis(page, `tr-badge-${locale}`)).toHaveText("maschinell übersetzt");
   }
-  await expect(vis(page, "tr-text-zh-Hans")).toHaveValue(`[zh-Hans] ${NOTE}`);
   await expect(vis(page, "translations-pending")).toHaveCount(0);
   expect(await noHorizontalScroll(page)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("translations-machine.png"), fullPage: true });
@@ -153,7 +152,7 @@ async function driverNote(
   };
 }
 
-test("driver: the note appears in all three Chinese variants, no DE badge", async ({
+test("driver: the note appears in all four translations, no DE badge", async ({
   browser,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -167,24 +166,24 @@ test("driver: the note appears in all three Chinese variants, no DE badge", asyn
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/de\/driver$/);
 
-  // German: the source, no badge. Chinese: machine translations (Fake translator: prefixed text).
+  // German: the source, no badge. Other languages: machine translations (Fake translator: prefixed text).
   expect(await driverNote(page, "de")).toEqual({ text: NOTE, lang: "de", badge: 0 });
-  for (const locale of CHINESE) {
+  for (const locale of TRANSLATED) {
     const note = await driverNote(page, locale);
     expect(note.text, locale).toContain(NOTE);
-    expect(note.text, locale).toMatch(/^\[zh-Hans\] /);
+    expect(note.text, locale).toMatch(new RegExp(`^\\[${locale}\\] `));
     expect(note.lang, locale).toBe(locale);
     expect(note.badge, `${locale} DE badge`).toBe(0);
     expect(await noHorizontalScroll(page)).toBe(true);
   }
   await page.screenshot({
-    path: testInfo.outputPath("driver-note-zh-Hant-TW.png"),
+    path: testInfo.outputPath("driver-note-cs.png"),
     fullPage: true,
   });
   await context.close();
 });
 
-test("admin: edit zh-Hant-HK, change the German source, check warning, re-translate", async ({
+test("admin: edit cs, change the German source, check warning, re-translate", async ({
   browser,
   page,
 }, testInfo) => {
@@ -193,15 +192,15 @@ test("admin: edit zh-Hant-HK, change the German source, check warning, re-transl
   await openTranslations(page);
 
   // Editing a version removes its "machine-translated" badge at once; saving keeps it removed.
-  expect(await kindOf(page, "zh-Hant-HK")).toBe("machine");
-  await vis(page, "tr-text-zh-Hant-HK").fill(HK_MANUAL);
-  expect(await kindOf(page, "zh-Hant-HK")).toBe("manual");
+  expect(await kindOf(page, "cs")).toBe("machine");
+  await vis(page, "tr-text-cs").fill(CS_MANUAL);
+  expect(await kindOf(page, "cs")).toBe("manual");
   await vis(page, "translations-save").click();
   await expect(vis(page, "translations-save")).toBeDisabled(); // nothing left to save
-  expect(await kindOf(page, "zh-Hant-HK")).toBe("manual");
+  expect(await kindOf(page, "cs")).toBe("manual");
   expect(await kindOf(page, "zh-Hans")).toBe("machine");
-  expect(await kindOf(page, "zh-Hant-TW")).toBe("machine");
-  await expect(vis(page, "tr-stale-zh-Hant-HK")).toHaveCount(0);
+  expect(await kindOf(page, "sr-Latn")).toBe("machine");
+  await expect(vis(page, "tr-stale-cs")).toHaveCount(0);
 
   // Change the German source in the customer form.
   await page.goto(`/de/admin/customers/${customerId}/edit`);
@@ -217,17 +216,17 @@ test("admin: edit zh-Hant-HK, change the German source, check warning, re-transl
   await expect(page).toHaveURL(new RegExp(`/de/admin/customers/${customerId}$`));
   await page.getByTestId("tab-translations").click();
   await expect(vis(page, "tr-text-de")).toHaveValue(NEW_NOTE);
-  await expect(vis(page, "tr-text-zh-Hant-HK")).toHaveValue(HK_MANUAL); // survived
-  await expect(vis(page, "tr-stale-zh-Hant-HK")).toHaveText("Quelle geändert, Übersetzung prüfen");
+  await expect(vis(page, "tr-text-cs")).toHaveValue(CS_MANUAL); // survived
+  await expect(vis(page, "tr-stale-cs")).toHaveText("Quelle geändert, Übersetzung prüfen");
   await expect(vis(page, "tr-stale-zh-Hans")).toHaveCount(0);
-  await expect(vis(page, "tr-stale-zh-Hant-TW")).toHaveCount(0);
+  await expect(vis(page, "tr-stale-sr-Latn")).toHaveCount(0);
   await expect(vis(page, "tr-text-zh-Hans")).toHaveValue(`[zh-Hans] ${NEW_NOTE}`);
-  await expect(vis(page, "tr-text-zh-Hant-TW")).toHaveValue(new RegExp(NEW_NOTE));
-  expect(await kindOf(page, "zh-Hant-HK")).toBe("manual");
+  await expect(vis(page, "tr-text-sr-Latn")).toHaveValue(`[sr-Latn] ${NEW_NOTE}`);
+  expect(await kindOf(page, "cs")).toBe("manual");
   expect(await kindOf(page, "zh-Hans")).toBe("machine");
   await page.screenshot({ path: testInfo.outputPath("translations-stale.png"), fullPage: true });
 
-  // The driver (Hong Kong) still reads the hand-written text; Simplified follows the new source.
+  // The driver (Czech) still reads the hand-written text; Simplified follows the new source.
   const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const driver = await context.newPage();
   await stubTiles(driver);
@@ -237,34 +236,35 @@ test("admin: edit zh-Hant-HK, change the German source, check warning, re-transl
   await form.locator('input[name="pin"]').fill(PIN);
   await driver.getByTestId("login-submit").click();
   await expect(driver).toHaveURL(/\/de\/driver$/);
-  const hk = await driverNote(driver, "zh-Hant-HK");
-  expect(hk.text).toBe(HK_MANUAL);
-  expect(hk.badge).toBe(0);
+  const cs = await driverNote(driver, "cs");
+  expect(cs.text).toBe(CS_MANUAL);
+  expect(cs.badge).toBe(0);
   await driver.screenshot({
-    path: testInfo.outputPath("driver-note-hk-manual.png"),
+    path: testInfo.outputPath("driver-note-cs-manual.png"),
     fullPage: true,
   });
   expect((await driverNote(driver, "zh-Hans")).text).toBe(`[zh-Hans] ${NEW_NOTE}`);
+  expect((await driverNote(driver, "sr-Latn")).text).toBe(`[sr-Latn] ${NEW_NOTE}`);
   await context.close();
 
   // "Mark as checked" clears only the flag.
-  await vis(page, "tr-checked-zh-Hant-HK").click();
-  await expect(vis(page, "tr-stale-zh-Hant-HK")).toHaveCount(0);
+  await vis(page, "tr-checked-cs").click();
+  await expect(vis(page, "tr-stale-cs")).toHaveCount(0);
   await vis(page, "translations-save").click();
   await expect(vis(page, "translations-save")).toBeDisabled();
   await page.reload();
   await page.getByTestId("tab-translations").click();
-  await expect(vis(page, "tr-stale-zh-Hant-HK")).toHaveCount(0);
-  await expect(vis(page, "tr-text-zh-Hant-HK")).toHaveValue(HK_MANUAL);
+  await expect(vis(page, "tr-stale-cs")).toHaveCount(0);
+  await expect(vis(page, "tr-text-cs")).toHaveValue(CS_MANUAL);
 
   // Re-translate warns that manual edits are overwritten; cancelling changes nothing.
   await vis(page, "translations-retranslate").click();
   await expect(page.getByTestId("retranslate-warning")).toContainText("gehen dabei verloren");
   await page.screenshot({ path: testInfo.outputPath("retranslate-warning.png") });
   await page.keyboard.press("Escape");
-  await expect(vis(page, "tr-text-zh-Hant-HK")).toHaveValue(HK_MANUAL);
+  await expect(vis(page, "tr-text-cs")).toHaveValue(CS_MANUAL);
   await vis(page, "translations-retranslate").click();
   await page.getByTestId("retranslate-confirm").click();
-  await expect(vis(page, "tr-text-zh-Hant-HK")).toHaveValue(new RegExp(NEW_NOTE));
-  expect(await kindOf(page, "zh-Hant-HK")).toBe("machine");
+  await expect(vis(page, "tr-text-cs")).toHaveValue(new RegExp(NEW_NOTE));
+  expect(await kindOf(page, "cs")).toBe("machine");
 });

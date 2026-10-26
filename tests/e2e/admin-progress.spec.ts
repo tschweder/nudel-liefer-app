@@ -51,8 +51,9 @@ test.beforeAll(async () => {
       JSON.stringify({
         de: "Spaghetti lose",
         "zh-Hans": "意大利面",
-        "zh-Hant-HK": "意大利麵",
-        "zh-Hant-TW": "義大利麵",
+        en: "Spaghetti lose (en)",
+        "sr-Latn": "Spaghetti lose (sr)",
+        cs: "Spaghetti lose (cs)",
         meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
       }),
     ],
@@ -269,8 +270,8 @@ test("a stop the driver completes shows up on the dashboard and the tour page wi
   await dash.screenshot({ path: testInfo.outputPath("progress-dashboard-done.png") });
   await tours.screenshot({ path: testInfo.outputPath("progress-tour-done.png"), fullPage: true });
 
-  // Chinese UI of the same data: all strings exist, the original (German) driver text stays.
-  for (const locale of ["zh-Hans", "zh-Hant-HK", "zh-Hant-TW"]) {
+  // English and Chinese UI of the same data: all strings exist, the original (German) driver text stays.
+  for (const locale of ["en", "zh-Hans"]) {
     await tours.goto(`/${locale}/admin/tours?date=${today}`);
     await expect(
       tours.locator(`[data-stop-id="${stopIds[1]}"]:visible`).getByTestId("stop-problem-note"),

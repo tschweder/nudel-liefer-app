@@ -8,7 +8,7 @@ describe("parseSheetLocale", () => {
   });
 
   it("folds every Chinese tag onto the simplified sheet", () => {
-    for (const raw of ["zh-Hans", "zh", "zh-Hant-HK", "zh-Hant-TW"]) {
+    for (const raw of ["zh-Hans", "zh", "zh-CN", "zh-Hant-TW"]) {
       expect(parseSheetLocale(raw)).toBe("zh-Hans");
     }
   });
@@ -24,7 +24,7 @@ describe("parseSheetLocale", () => {
   });
 
   it("falls back to German for a repeated (array) value", () => {
-    expect(parseSheetLocale(["zh-Hant-TW", "de"])).toBe("de");
+    expect(parseSheetLocale(["fr", "de"])).toBe("de");
     expect(parseSheetLocale(["de"])).toBe("de");
   });
 

@@ -5,8 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { isAppLocale, LOCALE_LABELS } from "@/lib/locale-resolution";
-import { LOCALES } from "@/lib/localized-text";
+import { isAppLocale, LOCALE_LABELS, localesFor } from "@/lib/locale-resolution";
 import { cn } from "@/lib/utils";
 import { setLocaleAction } from "@/server/locale-actions";
 
@@ -17,6 +16,7 @@ type Variant = "labeled" | "compact" | "icon" | "bar";
  * `labeled`: visible label (login/start pages). `compact`: label for screen readers only (admin header).
  * `icon`: 48 px icon button that opens the native picker (driver top bar).
  * `bar`: language icon plus the visible 48 px select (driver login page, nobody logged in yet).
+ * The office screens offer Deutsch · English · 中文, everything else (driver area, start page) all five languages.
  * `query`: search params kept when the locale changes (e.g. the login `callbackUrl`).
  */
 export function LanguageSwitcher({
@@ -31,6 +31,9 @@ export function LanguageSwitcher({
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
+  const locales = localesFor(
+    pathname === "/admin" || pathname.startsWith("/admin/") ? "admin" : "driver",
+  );
 
   const select = (
     <select
@@ -54,7 +57,7 @@ export function LanguageSwitcher({
         });
       }}
     >
-      {LOCALES.map((code) => (
+      {locales.map((code) => (
         <option key={code} value={code} lang={code}>
           {LOCALE_LABELS[code]}
         </option>

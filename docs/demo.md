@@ -23,7 +23,7 @@ What the demo seed creates (safe to run again, nothing is duplicated):
 | Customers | `D-001` .. `D-020`, 20 restaurants, real Vienna addresses, confirmed pins, each with an entrance and a parking photo; some have delivery hours and a note (German + Chinese).                                                                                              |
 | Products  | The 3 catalog products (Nudeln Beutel, Nudeln Karton, Wantan-Teig) with names in all four languages.                                                                                                                                                                       |
 | Orders    | One confirmed order per customer (1 to 3 lines) for the **next delivery day** (`--today`: for today); the seed prints the date. Running it again adds nothing while those orders are still in the future; on a later day, after that date has passed, it adds a fresh set. |
-| Logins    | Admin `admin@example.com` / `SEED_ADMIN_PASSWORD`. Drivers (PIN `123456`, or `SEED_DRIVER_PIN`): `fahrer-de` (German), `driver-hans` (简体), `driver-hk` (繁體 HK), `driver-tw` (繁體 TW).                                                                                 |
+| Logins    | Admin `admin@example.com` / `SEED_ADMIN_PASSWORD`. Drivers (PIN `123456`, or `SEED_DRIVER_PIN`): `fahrer-de` (German), `driver-hans` (简体), `driver-en` (English), `driver-sr` (Srpski), `driver-cs` (Čeština).                                                                                 |
 
 Tip: open two browser windows side by side: the admin on a desktop-size window, the driver in a
 phone-size window (browser dev tools, e.g. 390 x 844), logged in as `driver-hans`.
@@ -49,7 +49,7 @@ in Simplified Chinese: next stop on top, remaining time, list of stops. Open the
 products with big quantities, the entrance photo, the parking photo, the customer note, the
 "Navigation starten" button (opens Google Maps with the customer's pin). Mark "Geliefert": the next stop
 opens by itself. Show a problem once: tap the problem button, pick a reason ("Kein Parkplatz"), type a
-short text. Switch the language with the language button (繁體 HK, 繁體 TW, Deutsch): the same data in every
+short text. Switch the language with the language button (English, Srpski, Čeština, 中文, Deutsch): the same data in every
 variant, customer names and addresses stay untouched.
 
 > The driver sees only the tour of **today**: that is why the demo seed is run with `--today`. Without it, generate the tour for the next delivery day and present the driver part on that day.
@@ -68,6 +68,6 @@ create a new set of demo orders by running `pnpm db:seed --demo` after the old d
 ## 3. End-to-end check
 
 `tests/e2e/mvp-happy-path.spec.ts` automates the core of this script (admin creates a customer and an
-order for today, generates and releases the tour, a driver in `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW` and
+order for today, generates and releases the tour, a driver in `zh-Hans`, `en`, `sr-Latn`, `cs` and
 `de` delivers, the admin sees it). It needs the demo seed (confirmed depot) and a database without a
 tour for today: `pnpm db:seed --demo --no-photos && pnpm exec playwright test mvp-happy-path`.

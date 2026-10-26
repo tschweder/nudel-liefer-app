@@ -3,23 +3,22 @@ import { z } from "zod";
 import {
   applyTranslationSave,
   changesSource,
-  CHINESE_LOCALES,
   describeTranslations,
   type FreshTranslations,
   mergeSourceChange,
   retranslateAll,
+  TRANSLATED_LOCALES,
   type TranslationRow,
 } from "@/domain/note-translations";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { createLocalizedText, type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
-import { hansToHk, hansToTw } from "@/lib/opencc";
 
 import { getTranslator } from "./translator";
 import { localize } from "./translator/localize";
 import type { Translator } from "./translator/types";
 
 /**
- * Customer notes as `LocalizedText` (NUD-071): German is the source; Chinese versions are machine
+ * Customer notes as `LocalizedText` (NUD-071): German is the source; other languages are machine
  * translations (NUD-070) until the office edits them. The pure merge rules live in
  * `src/domain/note-translations.ts`; this module adds the translator call and the database.
  */
@@ -29,25 +28,31 @@ type Options = { translator?: Translator; now?: Date };
 export const MAX_NOTE_LENGTH = 2000;
 
 /**
- * Machine translation of a German text into all three Chinese variants: one provider call
- * (Simplified), the Traditional variants via OpenCC. `null` when the provider fails or answers
- * with nothing; the text is not logged.
+ * Machine translation of a German text into the four other languages (one provider call each, in
+ * parallel). Languages the provider could not do are left out (`FreshTranslations` is partial; Serbian
+ * is missing until its provider exists). `null` when nothing came back at all; the text is not logged.
  */
 export async function freshTranslations(
   german: string,
   translator: Translator = getTranslator(),
 ): Promise<FreshTranslations | null> {
-  try {
-    const hans = (await translator.translate(german, "de", "zh-Hans")).trim();
-    if (hans === "") return null;
-    return { "zh-Hans": hans, "zh-Hant-HK": hansToHk(hans), "zh-Hant-TW": hansToTw(hans) };
-  } catch (error) {
-    const code = (error as { code?: unknown } | null)?.code;
+  const results = await Promise.allSettled(
+    TRANSLATED_LOCALES.map((to) => translator.translate(german, "de", to)),
+  );
+  const fresh: FreshTranslations = {};
+  results.forEach((result, index) => {
+    const locale = TRANSLATED_LOCALES[index]!;
+    if (result.status === "fulfilled") {
+      const text = result.value.trim();
+      if (text !== "") fresh[locale] = text;
+      return;
+    }
+    const code = (result.reason as { code?: unknown } | null)?.code;
     console.warn(
       `[translator] note translation failed (${typeof code === "string" ? code : "UNKNOWN"})`,
     );
-    return null;
-  }
+  });
+  return Object.keys(fresh).length > 0 ? fresh : null;
 }
 
 function parseNotes(stored: unknown): LocalizedText | null {
@@ -78,7 +83,7 @@ export async function prepareNotes(
 /**
  * Like `prepareNotes`, but never calls the translator (the import writes hundreds of notes): a new
  * or changed German text is stored with `meta.pendingTranslation = true` and the retry job
- * (NUD-070) translates it later; hand-written Chinese versions are kept and flagged stale.
+ * (NUD-070) translates it later; hand-written translations are kept and flagged stale.
  */
 export function prepareNotesWithoutTranslation(
   stored: unknown,
@@ -130,18 +135,19 @@ export async function getNoteTranslations(
 }
 
 const noteText = z.string().max(MAX_NOTE_LENGTH);
-const chineseLocale = z.enum(CHINESE_LOCALES);
+const translatedLocale = z.enum(TRANSLATED_LOCALES);
 
 export const saveTranslationsSchema = z.object({
   customerId: idSchema,
   baseUpdatedAt: z.string().min(1).max(64),
   values: z.object({
     de: noteText.optional(),
+    en: noteText.optional(),
+    "sr-Latn": noteText.optional(),
+    cs: noteText.optional(),
     "zh-Hans": noteText.optional(),
-    "zh-Hant-HK": noteText.optional(),
-    "zh-Hant-TW": noteText.optional(),
   }),
-  reviewed: z.array(chineseLocale).max(3).default([]),
+  reviewed: z.array(translatedLocale).max(TRANSLATED_LOCALES.length).default([]),
 });
 
 export type NoteTranslationsResult =
@@ -200,7 +206,7 @@ export async function saveNoteTranslations(
 }
 
 /**
- * "Re-translate": replaces all three Chinese versions (hand-written ones too) with a new machine
+ * "Re-translate": replaces all four translated versions (hand-written ones too) with a new machine
  * translation of the German text. If the provider fails nothing is changed.
  */
 export async function retranslateNote(

@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import type { ChineseLocale } from "@/domain/note-translations";
+import type { TranslatedLocale } from "@/domain/note-translations";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { AppLocale } from "@/lib/localized-text";
 import { retranslateNoteAction, saveNoteTranslationsAction } from "@/server/customer-actions";
@@ -45,7 +45,7 @@ export function NoteTranslations({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [values, setValues] = useState<Partial<Record<AppLocale, string>>>({});
-  const [reviewed, setReviewed] = useState<ChineseLocale[]>([]);
+  const [reviewed, setReviewed] = useState<TranslatedLocale[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!view) {
@@ -136,7 +136,7 @@ export function NoteTranslations({
         const locale = row.locale;
         const value = shown(locale, row.value);
         const edited = locale !== "de" && value.trim() !== row.value;
-        const isChecked = reviewed.includes(locale as ChineseLocale);
+        const isChecked = reviewed.includes(locale as TranslatedLocale);
         const showStale = row.stale && !edited && !isChecked;
         const kind =
           locale === "de"
@@ -168,7 +168,7 @@ export function NoteTranslations({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setReviewed((r) => [...r, locale as ChineseLocale])}
+                  onClick={() => setReviewed((r) => [...r, locale as TranslatedLocale])}
                   data-testid={`tr-checked-${locale}`}
                 >
                   {t("markChecked")}

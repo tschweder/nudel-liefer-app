@@ -29,5 +29,4 @@ console.log(
   `i18n:import ${result.written ? "applied" : "would apply"} ${result.changes.length} change(s); ` +
     `${result.comments} reviewer comment(s) in the file (comments are not stored; keep the CSV)`,
 );
-if (result.written)
-  console.log("zh-Hant-HK.json / zh-Hant-TW.json regenerated; run `pnpm i18n:check`");
+if (result.written) console.log("message files written; run `pnpm i18n:check`");

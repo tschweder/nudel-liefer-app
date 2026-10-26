@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { calendarDayIn, nextDeliveryDate } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { createLocalizedText } from "@/lib/localized-text";
-import { hansToHk, hansToTw } from "@/lib/opencc";
 
 import { addCustomerPhoto } from "./customer-photos";
 import {
@@ -165,11 +164,10 @@ export async function seedDemo(
                 {
                   de: c.note.de,
                   "zh-Hans": c.note.hans,
-                  "zh-Hant-HK": hansToHk(c.note.hans),
-                  "zh-Hant-TW": hansToTw(c.note.hans),
                 },
                 "de",
-                { machine: { "zh-Hant-HK": true, "zh-Hant-TW": true } },
+                // en / sr-Latn / cs are filled by the translation retry job (needs the providers).
+                { pendingTranslation: true },
               )
             : undefined,
         },

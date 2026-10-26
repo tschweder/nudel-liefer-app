@@ -2,10 +2,11 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { OfflineStatusBar } from "./offline-status";
 
 const state = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/offline/browser", () => ({ useOfflineStatus: () => state.status }));
 vi.mock("@/lib/offline/use-online", () => ({ useOnline: () => state.online }));
 
-const MESSAGES = { de, "zh-Hans": zhHans, "zh-Hant-HK": zhHantHK, "zh-Hant-TW": zhHantTW };
+const MESSAGES = { de, "zh-Hans": zhHans, en, "sr-Latn": srLatn, cs };
 
 function show(locale: keyof typeof MESSAGES, status: Record<string, unknown>, online: boolean) {
   state.status = { ...state.status, ...status };

@@ -1,17 +1,25 @@
 import { z } from "zod";
 
-/** UI/content locales as BCP-47 tags (URL segments, `<html lang>`, LocalizedText keys). */
-export const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+/**
+ * UI/content locales as BCP-47 tags (URL segments, `<html lang>`, LocalizedText keys), D21:
+ * German, English, Serbian (Latin script), Czech and Simplified Chinese. Traditional Chinese is gone.
+ */
+export const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 export type AppLocale = (typeof LOCALES)[number];
+
+/** Languages of the office (admin) screens; the driver screens offer all five. */
+export const ADMIN_LOCALES = ["de", "en", "zh-Hans"] as const satisfies readonly AppLocale[];
+export const DRIVER_LOCALES = LOCALES;
 
 export const localeSchema = z.enum(LOCALES);
 
 /** Prisma enum member names (`Locale` in schema.prisma) <-> BCP-47 tags. */
 const DB_TO_TAG = {
   de: "de",
+  en: "en",
+  sr_Latn: "sr-Latn",
+  cs: "cs",
   zh_Hans: "zh-Hans",
-  zh_Hant_HK: "zh-Hant-HK",
-  zh_Hant_TW: "zh-Hant-TW",
 } as const satisfies Record<string, AppLocale>;
 export type DbLocale = keyof typeof DB_TO_TAG;
 
@@ -25,9 +33,10 @@ export function tagToDbLocale(tag: AppLocale): DbLocale {
 
 export const localizedTextSchema = z.object({
   de: z.string().optional(),
+  en: z.string().optional(),
+  "sr-Latn": z.string().optional(),
+  cs: z.string().optional(),
   "zh-Hans": z.string().optional(),
-  "zh-Hant-HK": z.string().optional(),
-  "zh-Hant-TW": z.string().optional(),
   meta: z.object({
     source: localeSchema,
     machine: z.partialRecord(localeSchema, z.boolean()),
@@ -71,16 +80,9 @@ export function createLocalizedText(
   return localizedTextSchema.parse(text);
 }
 
-const FALLBACK_CHAIN: Record<AppLocale, AppLocale[]> = {
-  de: ["de"],
-  "zh-Hans": ["zh-Hans", "zh-Hant-HK", "zh-Hant-TW"],
-  "zh-Hant-HK": ["zh-Hant-HK", "zh-Hant-TW", "zh-Hans"],
-  "zh-Hant-TW": ["zh-Hant-TW", "zh-Hant-HK", "zh-Hans"],
-};
-
 /**
- * Read rule (backlog §6): requested locale; if empty, the closest Chinese variant
- * (HK <-> TW, then Hans), then `de`, then the source locale. Returns "" if nothing is set.
+ * Read rule (backlog §6, D21): the requested locale; if empty, `de`, then the source locale.
+ * Returns "" if nothing is set.
  */
 export function pick(text: LocalizedText, locale: AppLocale): string {
   return pickWithSource(text, locale)?.value ?? "";
@@ -91,7 +93,7 @@ export function pickWithSource(
   text: LocalizedText,
   locale: AppLocale,
 ): { value: string; locale: AppLocale } | null {
-  const chain = [...FALLBACK_CHAIN[locale], "de" as const, text.meta.source];
+  const chain = [locale, "de" as const, text.meta.source];
   for (const candidate of chain) {
     const value = text[candidate];
     if (value && value.trim() !== "") return { value, locale: candidate };

@@ -113,14 +113,14 @@ test("no CSP violation on the driver pages (login, home, language, offline shell
   test.setTimeout(120_000);
   const violations = await watchCsp(page);
   await page.goto("/de/driver/login");
-  await page.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-hk");
+  await page.getByTestId("driver-login-form").locator('input[name="username"]').fill("driver-sr");
   await page.getByTestId("driver-login-form").locator('input[name="pin"]').fill("123456");
   await page.getByTestId("login-submit").click();
-  await expect(page).toHaveURL(/\/zh-Hant-HK\/driver$/);
-  await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant-HK");
-  await page.goto("/zh-Hant-HK/driver/offline-shell");
+  await expect(page).toHaveURL(/\/sr-Latn\/driver$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "sr-Latn");
+  await page.goto("/sr-Latn/driver/offline-shell");
   await expect(page.locator("main:visible").first()).toBeVisible();
-  await page.goto("/zh-Hant-HK/driver");
+  await page.goto("/sr-Latn/driver");
   await expect(page.locator("main:visible").first()).toBeVisible();
   expect(violations).toEqual([]);
 });
@@ -181,7 +181,7 @@ test.describe("script-src without 'unsafe-inline' (NUD-110)", () => {
       "/de/login",
       "/zh-Hans/login",
       "/de",
-      "/zh-Hant-HK/driver/offline-shell",
+      "/sr-Latn/driver/offline-shell",
       "/de/does-not-exist",
     ]) {
       const response = await request.get(path);

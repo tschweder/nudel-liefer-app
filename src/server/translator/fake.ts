@@ -1,15 +1,17 @@
-import { ChineseAwareTranslator, type CoreSource, type CoreTarget } from "./base";
+import type { AppLocale } from "@/lib/localized-text";
+
+import { isTrivial } from "./base";
 import type { Translator } from "./types";
 
 /**
  * Stand-in for tests and a missing API key. It does not translate: it prefixes the target
- * language so the result is obviously not a real translation (`[zh-Hans] text`, `[de] text`).
- * Traditional targets get the same prefix with OpenCC-converted text.
+ * language so the result is obviously not a real translation (`[zh-Hans] text`, `[sr-Latn] text`).
  */
-export class FakeTranslator extends ChineseAwareTranslator implements Translator {
+export class FakeTranslator implements Translator {
   readonly kind = "fake" as const;
 
-  protected async call(text: string, _from: CoreSource, to: CoreTarget): Promise<string> {
+  async translate(text: string, from: AppLocale, to: AppLocale): Promise<string> {
+    if (isTrivial(text, from, to)) return text;
     return `[${to}] ${text}`;
   }
 }

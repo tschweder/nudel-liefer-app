@@ -5,10 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DriverStopDetail } from "@/server/driver-stop";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { StopDetail } from "./stop-detail";
 
 vi.mock("@/server/stop-status-actions", () => ({ stopStatusAction: vi.fn() }));
@@ -24,8 +25,9 @@ vi.mock("@/i18n/navigation", () => ({
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 
 function renderIn(locale: string, detail: DriverStopDetail) {
@@ -149,8 +151,13 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
     expect(within(rows[1]).queryByTestId("item-name-de")).toBeNull(); // same as the shown name
     // The delivery hours live on the merged ETA line in the header. Weekdays and the "Uhr" suffix
     // follow the locale (run 3 review point 3), the rest of the free text stays as stored.
-    const hours =
-      locale === "de" ? "Mo-Fr 8-11" : locale === "zh-Hans" ? "周一-周五 8-11" : "週一-週五 8-11";
+    const hours = {
+      de: "Mo-Fr 8-11",
+      en: "Mon-Fri 8-11",
+      "sr-Latn": "pon-pet 8-11",
+      cs: "Po-Pá 8-11",
+      "zh-Hans": "周一-周五 8-11",
+    }[locale as "de" | "en" | "sr-Latn" | "cs" | "zh-Hans"];
     expect(screen.getByTestId("stop-hours")).toHaveTextContent(hours);
     expect(screen.getByTestId("stop-eta")).toHaveTextContent(/\d{1,2}[:.]\d{2}/);
     expect(screen.getByTestId("stop-status")).toHaveAttribute("data-status", "PENDING");

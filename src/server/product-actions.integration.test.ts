@@ -1,8 +1,6 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { hansToHk, hansToTw } from "@/lib/opencc";
-
 import { hashSecret } from "./auth/password";
 import { createTestDb, type TestDb } from "./test-db";
 
@@ -17,13 +15,8 @@ vi.mock("./db", async (importOriginal) => ({
   getDb: () => state.db,
 }));
 
-const {
-  createProductAction,
-  deriveHantAction,
-  moveProductAction,
-  setProductActiveAction,
-  updateProductAction,
-} = await import("./product-actions");
+const { createProductAction, moveProductAction, setProductActiveAction, updateProductAction } =
+  await import("./product-actions");
 const { activeProductsQuery, getProductQuery, listProductsQuery } =
   await import("./product-queries");
 
@@ -31,9 +24,10 @@ const valid = {
   sku: "tst-1",
   unit: "PACK",
   weightKgPerUnit: "2,5",
-  name: { de: "Schraubennudeln", hans: "螺旋意面", hk: "", tw: "" },
-  hkAuto: true,
-  twAuto: true,
+  name: { de: "Schraubennudeln", hans: "螺旋意面", en: "", sr: "", cs: "" },
+  enAuto: true,
+  srAuto: true,
+  csAuto: true,
 };
 
 describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 }, () => {
@@ -95,7 +89,6 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
       () => updateProductAction(id, { ...valid, sku: "AUTH-1", name: { ...valid.name, de: "X" } }),
       () => setProductActiveAction(id, false),
       () => moveProductAction(id, "down"),
-      () => deriveHantAction("面"),
       () => listProductsQuery(),
       () => activeProductsQuery(),
       () => getProductQuery(id),
@@ -128,7 +121,7 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
         error: "invalid",
       });
     }
-    const withoutHans = { de: valid.name.de, hk: "", tw: "" };
+    const withoutHans = { de: valid.name.de, en: "", sr: "", cs: "" };
     expect(await createProductAction({ ...valid, name: withoutHans })).toEqual({
       ok: false,
       error: "invalid",
@@ -140,61 +133,96 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
     expect(await t.prisma.product.count()).toBe(0);
   });
 
-  it("derives both Traditional names from Simplified with OpenCC and marks them as machine", async () => {
+  it("machine-translates the en / sr-Latn / cs names from German and marks them as machine", async () => {
     const id = await create();
     const row = await t.prisma.product.findUniqueOrThrow({ where: { id } });
     expect(row.sku).toBe("TST-1");
     expect(row.name).toMatchObject({
       de: "Schraubennudeln",
       "zh-Hans": "螺旋意面",
-      "zh-Hant-HK": hansToHk("螺旋意面"),
-      "zh-Hant-TW": hansToTw("螺旋意面"),
-      meta: { source: "de", machine: { "zh-Hant-HK": true, "zh-Hant-TW": true } },
+      en: "[en] Schraubennudeln",
+      "sr-Latn": "[sr-Latn] Schraubennudeln",
+      cs: "[cs] Schraubennudeln",
+      meta: { source: "de", machine: { en: true, "sr-Latn": true, cs: true } },
     });
-    expect((row.name as Record<string, string>)["zh-Hant-HK"]).toBe("螺旋意麪");
-    expect((row.name as Record<string, string>)["zh-Hant-TW"]).toBe("螺旋意麵");
+    expect((row.name as { meta: { pendingTranslation?: boolean } }).meta.pendingTranslation).toBe(
+      undefined,
+    );
   });
 
   it("recomputes an auto name on the server and keeps a hand-edited one", async () => {
     const id = await create({
-      name: { de: "Fusilli", hans: "螺旋意面", hk: "FALSCH", tw: "Handarbeit 麵" },
-      hkAuto: true,
-      twAuto: false,
+      name: { de: "Fusilli", hans: "螺旋意面", en: "FALSCH", sr: "Rucno", cs: "Ručně" },
+      enAuto: true,
+      srAuto: false,
+      csAuto: false,
     });
     const row = await t.prisma.product.findUniqueOrThrow({ where: { id } });
     expect(row.name).toMatchObject({
-      "zh-Hant-HK": hansToHk("螺旋意面"),
-      "zh-Hant-TW": "Handarbeit 麵",
-      meta: { machine: { "zh-Hant-HK": true } },
+      en: "[en] Fusilli",
+      "sr-Latn": "Rucno",
+      cs: "Ručně",
+      meta: { machine: { en: true } },
     });
-    expect(
-      (row.name as { meta: { machine: Record<string, boolean> } }).meta.machine,
-    ).not.toHaveProperty("zh-Hant-TW");
-    // Editing Simplified keeps the hand-edited TW name and refreshes the auto HK name.
+    const machine = (row.name as { meta: { machine: Record<string, boolean> } }).meta.machine;
+    expect(machine).not.toHaveProperty("sr-Latn");
+    expect(machine).not.toHaveProperty("cs");
+    // Editing the German name refreshes the auto English name and keeps the hand-edited ones.
     asAdmin();
     const result = await updateProductAction(id, {
       sku: "TST-1",
       unit: "PACK",
       weightKgPerUnit: "3",
-      name: { de: "Fusilli", hans: "笔管面", hk: "x", tw: "Handarbeit 麵" },
-      hkAuto: true,
-      twAuto: false,
+      name: { de: "Penne", hans: "笔管面", en: "x", sr: "Rucno", cs: "Ručně" },
+      enAuto: true,
+      srAuto: false,
+      csAuto: false,
     });
     expect(result.ok).toBe(true);
     const updated = await t.prisma.product.findUniqueOrThrow({ where: { id } });
     expect(updated.name).toMatchObject({
+      de: "Penne",
       "zh-Hans": "笔管面",
-      "zh-Hant-HK": hansToHk("笔管面"),
-      "zh-Hant-TW": "Handarbeit 麵",
+      en: "[en] Penne",
+      "sr-Latn": "Rucno",
+      cs: "Ručně",
     });
     const form = await getProductQuery(id);
-    expect(form).toMatchObject({ hkAuto: true, twAuto: false, unitLocked: false });
+    expect(form).toMatchObject({ enAuto: true, srAuto: false, csAuto: false, unitLocked: false });
   });
 
-  it("derives an empty, non-auto Traditional field instead of storing an empty name", async () => {
-    const id = await create({ hkAuto: false, twAuto: false });
+  it("translates an empty, non-auto field instead of storing an empty name", async () => {
+    const id = await create({ enAuto: false, srAuto: false, csAuto: false });
     const row = await t.prisma.product.findUniqueOrThrow({ where: { id } });
-    expect((row.name as Record<string, string>)["zh-Hant-HK"]).toBe(hansToHk("螺旋意面"));
+    expect((row.name as Record<string, string>).cs).toBe("[cs] Schraubennudeln");
+  });
+
+  it("saves the product when the translator fails and flags the name pending", async () => {
+    const { buildProductName, productInputSchema } = await import("./products");
+    const down = {
+      kind: "deepl" as const,
+      translate: async () => {
+        throw Object.assign(new Error("down"), { code: "HTTP" });
+      },
+    };
+    const name = await buildProductName(productInputSchema.parse(valid), { translator: down });
+    expect(name).toMatchObject({ de: "Schraubennudeln", "zh-Hans": "螺旋意面" });
+    expect(name.en).toBeUndefined();
+    expect(name.meta.pendingTranslation).toBe(true);
+    // A language without a provider (UNSUPPORTED) stays empty without clogging the retry job.
+    const noSerbian = {
+      kind: "deepl" as const,
+      translate: async (text: string, _from: string, to: string) => {
+        if (to === "sr-Latn") throw Object.assign(new Error("n/a"), { code: "UNSUPPORTED" });
+        return `[${to}] ${text}`;
+      },
+    };
+    const partial = await buildProductName(productInputSchema.parse(valid), {
+      translator: noSerbian as never,
+    });
+    expect(partial["sr-Latn"]).toBeUndefined();
+    expect(partial.en).toBe("[en] Schraubennudeln");
+    expect(partial.meta.pendingTranslation).toBeUndefined();
   });
 
   it("rejects duplicate SKUs case-insensitively", async () => {
@@ -330,16 +358,5 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
     await expect(
       t.prisma.product.update({ where: { id }, data: { weightKgPerUnit: 0 } }),
     ).rejects.toThrow();
-  });
-
-  it("deriveHantAction returns the OpenCC output for the live pre-fill", async () => {
-    asAdmin();
-    expect(await deriveHantAction("螺旋意面")).toEqual({
-      ok: true,
-      hk: hansToHk("螺旋意面"),
-      tw: hansToTw("螺旋意面"),
-    });
-    expect(await deriveHantAction(42)).toEqual({ ok: false });
-    expect(await deriveHantAction("x".repeat(500))).toEqual({ ok: false });
   });
 });

@@ -2,7 +2,7 @@
 
 import { RefreshCwIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useEffect, useRef, useState, useTransition } from "react";
+import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,11 +19,7 @@ import {
 import { parseWeightKg } from "@/domain/weight";
 import { Link, useRouter } from "@/i18n/navigation";
 import { UNITS } from "@/lib/units";
-import {
-  createProductAction,
-  deriveHantAction,
-  updateProductAction,
-} from "@/server/product-actions";
+import { createProductAction, updateProductAction } from "@/server/product-actions";
 import type { ProductFormValues } from "@/server/products";
 
 type Props = {
@@ -33,8 +29,6 @@ type Props = {
   /** The unit cannot change once the product is on an order. */
   unitLocked: boolean;
 };
-
-const DERIVE_DELAY_MS = 200;
 
 type FormError = "invalid" | "generic" | "skuTaken" | "unitLocked" | "weightInvalid" | null;
 
@@ -48,32 +42,16 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
   const [weight, setWeight] = useState(initial.weightKgPerUnit);
   const [de, setDe] = useState(initial.de);
   const [hans, setHans] = useState(initial.hans);
-  const [hk, setHk] = useState(initial.hk);
-  const [tw, setTw] = useState(initial.tw);
-  // New products start "auto"; an existing name stays "auto" only if it was machine-derived.
-  const [hkAuto, setHkAuto] = useState(productId === null ? true : initial.hkAuto);
-  const [twAuto, setTwAuto] = useState(productId === null ? true : initial.twAuto);
+  const [en, setEn] = useState(initial.en);
+  const [sr, setSr] = useState(initial.sr);
+  const [cs, setCs] = useState(initial.cs);
+  // New products start "auto" (machine-translated on save); an existing name stays "auto" only if
+  // it was machine-translated.
+  const [enAuto, setEnAuto] = useState(productId === null ? true : initial.enAuto);
+  const [srAuto, setSrAuto] = useState(productId === null ? true : initial.srAuto);
+  const [csAuto, setCsAuto] = useState(productId === null ? true : initial.csAuto);
   const [error, setError] = useState<FormError>(null);
   const [hansMissing, setHansMissing] = useState(false);
-  const requestId = useRef(0);
-
-  // Live OpenCC pre-fill: every pause in typing re-derives the fields still marked "auto".
-  useEffect(() => {
-    if (!hkAuto && !twAuto) return;
-    const id = ++requestId.current;
-    const timer = setTimeout(async () => {
-      let derived: { ok: true; hk: string; tw: string } | { ok: false };
-      try {
-        derived = hans.trim() === "" ? { ok: true, hk: "", tw: "" } : await deriveHantAction(hans);
-      } catch {
-        return;
-      }
-      if (!derived.ok || id !== requestId.current) return; // stale answer
-      if (hkAuto) setHk(derived.hk);
-      if (twAuto) setTw(derived.tw);
-    }, DERIVE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [hans, hkAuto, twAuto]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,9 +63,10 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
       sku,
       unit,
       weightKgPerUnit: weight,
-      name: { de, hans, hk, tw },
-      hkAuto,
-      twAuto,
+      name: { de, hans, en, sr, cs },
+      enAuto,
+      srAuto,
+      csAuto,
     };
     startTransition(async () => {
       let result;
@@ -232,13 +211,14 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
         ) : null}
         {(
           [
-            ["hk", "zh-Hant-HK", hk, setHk, hkAuto, setHkAuto],
-            ["tw", "zh-Hant-TW", tw, setTw, twAuto, setTwAuto],
+            ["en", "en", en, setEn, enAuto, setEnAuto, "nameEn"],
+            ["sr", "sr-Latn", sr, setSr, srAuto, setSrAuto, "nameSr"],
+            ["cs", "cs", cs, setCs, csAuto, setCsAuto, "nameCs"],
           ] as const
-        ).map(([key, lang, value, setValue, auto, setAuto]) => (
+        ).map(([key, lang, value, setValue, auto, setAuto, label]) => (
           <FormField
             key={key}
-            label={t(key === "hk" ? "nameHk" : "nameTw")}
+            label={t(label)}
             htmlFor={`prod-${key}`}
             className="max-w-xl"
             hint={
@@ -249,7 +229,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setAuto(true)}
+                    className="h-auto min-h-9 max-w-full shrink whitespace-normal text-start"
+                    onClick={() => {
+                      setAuto(true);
+                      setValue("");
+                    }}
                     data-testid={`rederive-${key}`}
                   >
                     <RefreshCwIcon aria-hidden />
@@ -264,6 +248,7 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
               lang={lang}
               value={value}
               maxLength={160}
+              placeholder={auto ? t("autoPlaceholder") : undefined}
               onChange={(e) => {
                 setValue(e.target.value);
                 setAuto(false);

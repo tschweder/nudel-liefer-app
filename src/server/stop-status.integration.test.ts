@@ -39,7 +39,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop status", { timeout: 60_0
   let tourId: string;
   let stopIds: string[];
 
-  const actor = (id = driverId, role: "DRIVER" | "ADMIN" = "DRIVER", locale = "zh-Hant-TW") => ({
+  const actor = (id = driverId, role: "DRIVER" | "ADMIN" = "DRIVER", locale = "zh-Hans") => ({
     id,
     role,
     locale,
@@ -79,7 +79,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop status", { timeout: 60_0
       role: "DRIVER",
       username: "drv",
       displayName: "Driver",
-      locale: "zh_Hant_TW",
+      locale: "zh_Hans",
       localeChosen: true,
     });
     otherDriverId = await user({ role: "DRIVER", username: "drv2", displayName: "Other" });
@@ -158,15 +158,15 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop status", { timeout: 60_0
       type: "problem",
       stopId: stopIds[1],
       reason: "NO_PARKING",
-      note: "  門口封路  ",
+      note: "  门口封路  ",
     });
     expect(res).toMatchObject({ ok: true, status: "PROBLEM", nextStopId: stopIds[2] });
     const stop = await stopRow(1);
     expect(stop.status).toBe("PROBLEM");
     expect(stop.problemReason).toBe("NO_PARKING");
     expect(stop.problemNote).toMatchObject({
-      "zh-Hant-TW": "門口封路",
-      meta: { source: "zh-Hant-TW", machine: {} },
+      "zh-Hans": "门口封路",
+      meta: { source: "zh-Hans", machine: {} },
     });
     expect(stop.problemNote).not.toHaveProperty("de");
     // Without a text nothing is stored.

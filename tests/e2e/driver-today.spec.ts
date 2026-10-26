@@ -10,7 +10,7 @@ const PIN = "482916";
 const tag = `today${Date.now() % 1e8}${Math.floor(Math.random() * 1e4)}`;
 const username = `drv-${tag}`;
 const otherUsername = `drv2-${tag}`;
-const LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
+const LOCALES = ["de", "en", "sr-Latn", "cs", "zh-Hans"] as const;
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
@@ -23,12 +23,13 @@ let tourId: string;
 const stopIds: string[] = [];
 const names = [1, 2, 3, 4].map((n) => `Trattoria ${n} ${tag}`);
 
-const text = (de: string, hans: string, hk: string, tw: string) =>
+const text = (de: string, hans: string) =>
   JSON.stringify({
     de,
     "zh-Hans": hans,
-    "zh-Hant-HK": hk,
-    "zh-Hant-TW": tw,
+    en: `${de} (en)`,
+    "sr-Latn": `${de} (sr)`,
+    cs: `${de} (cs)`,
     meta: { source: "de", machine: {}, updatedAt: "2099-01-01T00:00:00Z" },
   });
 
@@ -55,10 +56,10 @@ test.beforeAll(async () => {
     [
       kg,
       `KG-${tag}`,
-      text("Spaghetti lose", "意大利面", "意大利麵", "義大利麵"),
+      text("Spaghetti lose", "意大利面"),
       pack,
       `PK-${tag}`,
-      text("Penne", "笔管面", "筆管麵", "筆管麵"),
+      text("Penne", "笔管面"),
     ],
   );
   const settings = (await db.query(`SELECT "timezone" FROM "Settings"`)).rows[0] as {
@@ -80,15 +81,15 @@ test.beforeAll(async () => {
   );
   const items = [
     [
-      { productId: kg, quantity: 1250 },
-      { productId: pack, quantity: 400 },
+      { productId: kg, quantity: 13 },
+      { productId: pack, quantity: 4 },
     ],
-    [{ productId: kg, quantity: 2700 }],
+    [{ productId: kg, quantity: 27 }],
     [
-      { productId: kg, quantity: 500 },
-      { productId: pack, quantity: 300 },
+      { productId: kg, quantity: 5 },
+      { productId: pack, quantity: 3 },
     ],
-    [{ productId: pack, quantity: 100 }],
+    [{ productId: pack, quantity: 1 }],
   ];
   for (let i = 0; i < 4; i++) {
     const customerId = `cust-${i}-${tag}`;
@@ -242,7 +243,8 @@ test("details link opens the stop route, other drivers get 404, next stop advanc
   await expect(page.getByTestId("stop-detail")).toContainText(names[1]);
 
   await page.goto("/de/driver");
-  await page.getByTestId("stop-row").nth(3).click();
+  // Done stops are grouped at the end of the list, so pick the row by stop id, not by position.
+  await page.locator(`[data-testid="stop-row"][data-stop-id="${stopIds[3]}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/stops/${stopIds[3]}$`));
 
   // A different driver cannot open this driver's stop.
@@ -285,12 +287,12 @@ test("re-released tour: banner, changed-stop highlight, acknowledged once", asyn
     [
       stopIds[2],
       JSON.stringify([
-        { productId: kgId, quantity: 800 },
-        { productId: packId, quantity: 300 },
+        { productId: kgId, quantity: 8 },
+        { productId: packId, quantity: 3 },
       ]),
       JSON.stringify([
-        { productId: kgId, quantity: 500 },
-        { productId: packId, quantity: 300 },
+        { productId: kgId, quantity: 5 },
+        { productId: packId, quantity: 3 },
       ]),
     ],
   );
@@ -333,6 +335,9 @@ test("re-released tour: banner, changed-stop highlight, acknowledged once", asyn
 
   // Quantities shown are the released ones.
   await expect(
-    page.getByTestId("stop-row").nth(2).getByTestId("summary-total").first(),
+    page
+      .locator(`[data-testid="stop-row"][data-stop-id="${stopIds[2]}"]`)
+      .getByTestId("summary-total")
+      .first(),
   ).toContainText("8");
 });

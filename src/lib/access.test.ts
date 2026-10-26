@@ -57,7 +57,7 @@ describe("decideAccess", () => {
 describe("postLoginPath", () => {
   it("goes to the role's home under the user's locale", () => {
     expect(postLoginPath({ role: "ADMIN", locale: "zh-Hans" })).toBe("/zh-Hans/admin");
-    expect(postLoginPath({ role: "DRIVER", locale: "zh-Hant-HK" })).toBe("/zh-Hant-HK/driver");
+    expect(postLoginPath({ role: "DRIVER", locale: "cs" })).toBe("/cs/driver");
   });
 
   it("returns to the requested page, re-prefixed with the user's locale", () => {

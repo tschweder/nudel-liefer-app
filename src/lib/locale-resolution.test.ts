@@ -6,29 +6,35 @@ describe("matchAcceptLanguage", () => {
   it.each([
     ["zh-CN", "zh-Hans"],
     ["zh-SG", "zh-Hans"],
-    ["zh-HK", "zh-Hant-HK"],
-    ["zh-MO", "zh-Hant-HK"],
-    ["zh-TW", "zh-Hant-TW"],
-    ["zh-Hant", "zh-Hant-TW"],
+    ["zh-HK", "zh-Hans"],
+    ["zh-TW", "zh-Hans"],
+    ["zh-Hant", "zh-Hans"],
     ["de-AT", "de"],
+    ["en-GB", "en"],
+    ["en-US", "en"],
+    ["sr", "sr-Latn"],
+    ["sr-RS", "sr-Latn"],
+    ["sr-Cyrl-RS", "sr-Latn"],
+    ["cs", "cs"],
+    ["cs-CZ", "cs"],
   ])("maps %s to %s", (tag, expected) => {
     expect(matchAcceptLanguage(tag)).toBe(expected);
   });
 
   it("respects q-values and skips unsupported languages", () => {
-    expect(matchAcceptLanguage("fr;q=0.9, zh-TW;q=0.8, de;q=0.5")).toBe("zh-Hant-TW");
-    expect(matchAcceptLanguage("de;q=0.2, zh-HK;q=0.9")).toBe("zh-Hant-HK");
-    expect(matchAcceptLanguage("fr, en-US")).toBeNull();
+    expect(matchAcceptLanguage("fr;q=0.9, cs;q=0.8, de;q=0.5")).toBe("cs");
+    expect(matchAcceptLanguage("de;q=0.2, sr-RS;q=0.9")).toBe("sr-Latn");
+    expect(matchAcceptLanguage("fr, es")).toBeNull();
     expect(matchAcceptLanguage(null)).toBeNull();
   });
 });
 
 describe("resolveLocale", () => {
   it("prefers user locale over cookie over Accept-Language over de", () => {
-    const acceptLanguage = "zh-TW";
+    const acceptLanguage = "cs-CZ";
     expect(resolveLocale({ userLocale: "zh-Hans", cookie: "de", acceptLanguage })).toBe("zh-Hans");
-    expect(resolveLocale({ cookie: "zh-Hant-HK", acceptLanguage })).toBe("zh-Hant-HK");
-    expect(resolveLocale({ acceptLanguage })).toBe("zh-Hant-TW");
+    expect(resolveLocale({ cookie: "sr-Latn", acceptLanguage })).toBe("sr-Latn");
+    expect(resolveLocale({ acceptLanguage })).toBe("cs");
     expect(resolveLocale({ acceptLanguage: "fr" })).toBe("de");
     expect(resolveLocale({})).toBe("de");
   });

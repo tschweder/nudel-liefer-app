@@ -114,7 +114,8 @@ describe("driver login", () => {
     // The full-screen first-start picker owns `language-picker`; the login row must not duplicate it.
     expect(screen.queryByTestId("language-picker")).toBeNull();
     expect(screen.getByTestId("language-switcher")).toHaveValue("de");
-    expect(screen.getByTestId("pick-zh-Hant-TW")).toHaveTextContent("繁體(台)");
+    expect(screen.getByTestId("login-pick-sr-Latn")).toHaveTextContent("SR");
+    expect(screen.getByTestId("login-pick-cs")).toHaveTextContent("CS");
     expect(screen.getByTestId("driver-login-form")).toHaveAttribute("novalidate");
     expect(document.querySelectorAll("[data-slot=pin-cell]")).toHaveLength(6);
     expect(pinField()).toHaveAttribute("inputmode", "numeric");

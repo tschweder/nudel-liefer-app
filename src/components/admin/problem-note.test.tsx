@@ -4,23 +4,25 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { PlanStop } from "@/server/tour-planning";
 
+import cs from "../../../messages/cs.json";
 import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
+import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
-import zhHantHK from "../../../messages/zh-Hant-HK.json";
-import zhHantTW from "../../../messages/zh-Hant-TW.json";
 import { ProblemNote } from "./problem-note";
 
 const LOCALES: Record<string, AbstractIntlMessages> = {
   de,
   "zh-Hans": zhHans,
-  "zh-Hant-HK": zhHantHK,
-  "zh-Hant-TW": zhHantTW,
+  en,
+  "sr-Latn": srLatn,
+  cs,
 };
 type Note = NonNullable<PlanStop["problemNote"]>;
 
 const translated: Note = {
-  text: "門口鎖住了，沒人應門",
-  locale: "zh-Hant-HK",
+  text: "门锁着，没有人开门",
+  locale: "zh-Hans",
   german: "Die Tür ist verschlossen, niemand öffnet.",
   germanMachine: true,
   pending: false,
@@ -53,7 +55,7 @@ describe.each(Object.keys(LOCALES))("ProblemNote (%s)", (ui) => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     const original = screen.getByTestId("stop-problem-original");
     expect(original).toHaveTextContent(translated.text);
-    expect(original.querySelector("q")).toHaveAttribute("lang", "zh-Hant-HK");
+    expect(original.querySelector("q")).toHaveAttribute("lang", "zh-Hans");
     fireEvent.click(toggle);
     expect(screen.queryByTestId("stop-problem-original")).toBeNull();
   });

@@ -264,7 +264,7 @@ Then tick the criteria in `backlog.md` and set NUD-113 and NUD-114 to `done`.
 
 ## Part 6 — Chinese language review (you, ~2 weeks lead time — start early)
 
-**NUD-073.** Needs one native Simplified reviewer and one native Traditional reviewer (HK and/or TW).
+**NUD-073.** Needs one native reviewer per language: English, Serbian, Czech and Simplified Chinese.
 The tooling is verified working.
 
 1. `pnpm i18n:export` → writes `i18n-review.csv` (998 rows).
