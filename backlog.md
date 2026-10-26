@@ -16,7 +16,7 @@
 6. Tickets marked **👤 HUMAN** need a person (accounts, API keys, client feedback). Prepare everything you can, write precise instructions under the ticket, set `blocked`, move on to the next ticket.
 7. Never commit secrets. All config goes through env vars documented in `.env.example`.
 
-Status values: `todo` · `in-progress` · `blocked` · `done`
+Status values: `todo` · `in-progress` · `blocked` · `done` · `superseded` (replaced by another ticket — never implement; follow the pointer)
 
 ---
 
@@ -40,22 +40,32 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 | D2 | Platform | **One** Next.js web app. Admin area for desktop, driver area as mobile-first **PWA**. No native apps. |
 | D3 | Stack | Next.js (App Router, Server Actions + Route Handlers), TypeScript `strict`, pnpm, Prisma + PostgreSQL, Tailwind CSS + shadcn/ui, next-intl, zod, Auth.js v5, react-leaflet, Serwist (PWA), Vitest, Playwright. |
 | D4 | Hosting | Vercel (EU region `fra1`) + Neon Postgres (EU) + Cloudflare R2 (S3-compatible, EU jurisdiction) for images. Local dev: Docker Compose with Postgres + MinIO. Budget target < €50/month. |
-| D5 | Scale | 50–150 customers, 10–30 stops/day, **1 driver / 1 tour per day in v1**. Data model must allow several tours per date later (no unique constraint on `Tour.date`). |
-| D6 | Order entry | M1: manual entry, optionally with an attached screenshot shown side by side. AI extraction is a **later** epic (M3) and will always require human review before saving. Screenshots may be German or Chinese. |
+| D5 | Scale | 50–150 customers, 10–30 stops/day, **1 driver / 1 tour per day in v1**. Data model must allow several tours per date later (no unique constraint on `Tour.date`). **Amended by D24 (2026-10-26).** |
+| D6 | Order entry | M1: manual entry, optionally with an attached screenshot shown side by side. AI extraction is a **later** epic (M3) and will always require human review before saving. Screenshots may be German or Chinese. **Amended by D26 (2026-10-26).** |
 | D7 | Catalog | Admin-managed products with SKU, unit and names in all locales. **No prices**. |
-| D8 | Dates | Every order has a `deliveryDate` (date only, factory time zone). Future dates allowed. Recurring orders are M3. |
-| D9 | Route | Start and end at the depot (factory, configurable). Optimization via **OpenRouteService (ORS)** behind a `RoutingProvider` interface, with a local heuristic fallback. Geocoding via ORS behind a `Geocoder` interface. **Admin must confirm the map pin** for every customer. No hard time windows or capacity in v1; delivery hours are informational text. |
+| D8 | Dates | Every order has a `deliveryDate` (date only, factory time zone). Future dates allowed. Recurring orders are M3. **Amended by D25 (2026-10-26).** |
+| D9 | Route | Start and end at the depot (factory, configurable). Optimization via **OpenRouteService (ORS)** behind a `RoutingProvider` interface, with a local heuristic fallback. Geocoding via ORS behind a `Geocoder` interface. **Admin must confirm the map pin** for every customer. No hard time windows or capacity in v1; delivery hours are informational text. **Pin confirmation replaced by D22; time windows/capacity by D24/D25 (2026-10-26).** |
 | D10 | Route control | Office can reorder stops manually, lock, re-optimize and **release** the tour. Driver cannot reorder; he can only mark stops delivered / problem. |
 | D11 | Driver feedback | Per stop: `DELIVERED` or `PROBLEM` (predefined reason + optional free text). Free text is auto-translated to German for the office. No signature / proof photo in v1. |
 | D12 | Photos | Shop photo + parking photo per customer. Uploaded by office **or** taken by the driver with the phone camera. Customers can be saved without photos but are flagged **"photos missing"**. |
 | D13 | Auth | Roles `ADMIN` and `DRIVER`. Admin: email + password. Driver: username + 6-digit PIN, accounts created by admin, long-lived session (90 days). |
-| D14 | Languages | UI locales: `de`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW` across the **whole app**. Each user has a preferred locale, switchable at any time. Drivers choose on first start. Written standard Chinese (no Cantonese colloquialisms). |
-| D15 | Translation method | UI strings: `de` and `zh-Hans` maintained by hand; `zh-Hant-HK` / `zh-Hant-TW` generated with **OpenCC** (`s2hk`, `s2twp`) plus per-key override files. Content (product names, customer notes, driver free text): stored as `LocalizedText` (all four locales). Product names: `de` + `zh-Hans` entered by hand, Hant variants derived by OpenCC and editable. Customer notes: machine-translated (`Translator` interface, DeepL default) de→zh-Hans, then OpenCC; editable. |
-| D16 | Navigation | Deep link to Google Maps (universal URL, works on Android + iOS) with lat/lng. No in-app turn-by-turn. |
+| D14 | Languages | UI locales: `de`, `zh-Hans`, `zh-Hant-HK`, `zh-Hant-TW` across the **whole app**. Each user has a preferred locale, switchable at any time. Drivers choose on first start. Written standard Chinese (no Cantonese colloquialisms). **Replaced by D21 (2026-10-26).** |
+| D15 | Translation method | UI strings: `de` and `zh-Hans` maintained by hand; `zh-Hant-HK` / `zh-Hant-TW` generated with **OpenCC** (`s2hk`, `s2twp`) plus per-key override files. Content (product names, customer notes, driver free text): stored as `LocalizedText` (all four locales). Product names: `de` + `zh-Hans` entered by hand, Hant variants derived by OpenCC and editable. Customer notes: machine-translated (`Translator` interface, DeepL default) de→zh-Hans, then OpenCC; editable. **Hant/OpenCC parts replaced by D21 (2026-10-26).** |
+| D16 | Navigation | Deep link to Google Maps (universal URL, works on Android + iOS) with lat/lng. No in-app turn-by-turn. **Amended by D30 (2026-10-26).** |
 | D17 | Offline | Driver PWA caches today's tour incl. photos; status changes are queued offline and synced later. |
 | D18 | Extras in v1 | CSV/XLSX customer import with pin review; printable packing list / load sheet per tour. |
 | D19 | Out of scope | Invoicing, delivery notes for accounting, prices, stock / production planning, payments, customer self-service portal, GPS tracking of drivers. |
 | D20 | Code language | Code, identifiers, commits, comments: **English**. UI text: via i18n only. |
+| D21 | Languages (2026-10-26) | **Admin:** `de`, `en`, `zh-Hans`. **Driver:** `de`, `en`, `sr-Latn` (Serbian, Latin script), `cs`, `zh-Hans`. Traditional Chinese (`zh-Hant-HK`, `zh-Hant-TW`) and the OpenCC build are removed. All message files are hand-maintained (agent-written first, native review via NUD-073). `LocalizedText` keys follow the five locales. Machine translation: DeepL where supported, otherwise the OpenRouter client (NUD-150). |
+| D22 | Routing point (2026-10-26) | Optimisation and navigation use the customer's **default Parkplatz** (`ParkingSpot`, NUD-125); without one, the geocoded **Lieferadresse**. No pin confirmation step; a customer is never excluded from a tour for a missing confirmation, only flagged "Parkplatz fehlt". The parking photo is what identifies the spot. |
+| D23 | Catalog & quantities (2026-10-26) | Three products: Nudeln (Beutel, 3 kg), Nudeln (Karton, 10 kg), Wantan-Teig (`PIECE`, 5 kg, shown "N ×"). Every product has an admin-editable `weightKgPerUnit`. Quantities are whole numbers (`Int`). Unit labels: `PACK` = Beutel, `CRATE` = Karton (cardboard; never "Kiste"). |
+| D24 | Fleet & multiple tours (2026-10-26) | Several drivers and tours per day. `Vehicle` with capacity in **kg**; driver and vehicle are assigned per tour per day. When the load does not fit: use all available vehicles first, then reload trips at the depot. |
+| D25 | Delivery window & recurring orders (2026-10-26) | Orders carry a requested delivery window (hours to days); the planned day is the earliest day inside the window with capacity, movable by the office. Recurring orders are in scope now: a rule is confirmed once, then generates CONFIRMED orders 14 days ahead (configurable). Setting a customer inactive pauses his rules and cancels his future open orders. |
+| D26 | AI order entry (2026-10-26) | Pasted customer message text and/or screenshot are turned into a DRAFT order by an LLM via **OpenRouter** behind `OrderExtractor`; the office always reviews and confirms. No WhatsApp/WeChat bots. |
+| D27 | Driver-maintained data (2026-10-26) | Drivers may set and correct customer key numbers and Parkplatz coordinates and add photos (camera or gallery). Saved directly with author, timestamp and audit history — no office approval. Drivers' field knowledge outranks the system data. |
+| D28 | Working time (2026-10-26) | Each driver has working days/hours. Utilization = tour time incl. loading/checking before departure (from checklist timestamps or a default loading time) vs. planned time and vs. contracted hours. Measured from app events only — no GPS tracking (D19 unchanged). |
+| D29 | Tour editing (2026-10-26) | "Bearbeiten" may change driver, vehicle, stop order and move stops between tours of the same date — also on released tours (via the "tour was updated" path). Not the date. Completed stops are locked. |
+| D30 | Navigation (2026-10-26) | One "Navigation starten" button. With a Parkplatz: Google Maps link with the Parkplatz as `waypoints` and the Lieferadresse as `destination`, `travelmode=driving`; without: the address point. Apple Maps link: Parkplatz only (one destination supported). |
 
 ---
 
@@ -63,16 +73,21 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 
 | Term (code) | German UI | Meaning |
 |---|---|---|
-| `Customer` | Kunde | A business that receives deliveries. Has exactly one delivery address and one confirmed pin. |
-| `Product` | Nudelsorte / Produkt | A sellable pasta article with a unit (e.g. "Spaghetti 5 kg" in `PACK`). |
+| `Customer` | Kunde | A business that receives deliveries. Has exactly one delivery address (**Lieferadresse**) and zero or more parking spots; optional key number. |
+| `Product` | Produkt | A sellable article with a unit and a weight per unit (e.g. Nudeln in `CRATE` = Karton, 10 kg). |
 | `Order` | Bestellung | What one customer ordered for one `deliveryDate`. Contains `OrderItem`s. |
-| `OrderItem` | Bestellposition | Product + quantity within an order. |
+| `OrderItem` | Produkt (in an order; plural "Produkte" — **never "Position"**) | Product + whole-number quantity within an order. |
 | `Depot` | Fabrik / Depot | Start and end point of every tour. Stored in `Settings`. |
 | `Tour` | Tour | One driver's delivery run on one date. Contains ordered `Stop`s. **Don't use "Route" for this entity**; "route" only means the geometry / road path. |
 | `Stop` | Stopp | One visit to one customer within a tour. **All confirmed orders of a customer for that date are merged into one stop.** |
 | `Release` | Freigabe | The act of making a tour visible to the driver. |
-| `Pin` | Kartenpunkt | The confirmed lat/lng of a customer. |
-| `LocalizedText` | – | JSON value `{ de, "zh-Hans", "zh-Hant-HK", "zh-Hant-TW", meta }` used for any user-generated text the driver must read. |
+| `ParkingSpot` | Parkplatz | Where the driver parks/unloads; the default one is the routing and navigation point (D22). **The words "Pin" / "Kartenpunkt" are no longer used in the UI.** |
+| `Customer.lat/lng` | Lieferadresse (Adresspunkt) | Geocoded point of the delivery address; routing fallback when no Parkplatz exists. |
+| `Vehicle` | Fahrzeug | A delivery vehicle with a capacity in kg (D24). |
+| `RecurringOrder` | Dauerbestellung | Rule that generates orders on a schedule (D25). |
+| delivery window | Lieferzeitraum | The time span in which the customer accepts the delivery (D25). |
+| `PACK` / `CRATE` / `PIECE` | Beutel / Karton / "N ×" | Unit labels (D23). Never "Kiste" or "Packung". |
+| `LocalizedText` | – | JSON value `{ de, en, "sr-Latn", cs, "zh-Hans", meta }` (D21; Hant keys until NUD-140 lands) used for any user-generated text the driver must read. |
 
 ---
 
@@ -263,7 +278,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | todo |
 | NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | done |
-| NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | todo |
+| NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | superseded → NUD-138 |
 | NUD-125 | Parking spots: schema + office UI | M2 | – | todo |
 | NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | todo |
 | NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
@@ -276,10 +291,27 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
 | NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
-| NUD-100 | AI screenshot extraction (review required) | M3 | 031 | todo |
-| NUD-101 | Recurring / standing orders | M3 | 032 | todo |
-| NUD-102 | Multiple drivers / tours per day | M3 | 043 | todo |
-| NUD-103 | Delivery time windows & vehicle capacity | M3 | 102 | todo |
+| NUD-137 | Whole-number quantities | M2.6 | – | todo |
+| NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | todo |
+| NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | todo |
+| NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | todo |
+| NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | todo |
+| NUD-142 | Customer key number (office + driver) | M2.6 | 139 | todo |
+| NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | todo |
+| NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | todo |
+| NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
+| NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | todo |
+| NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | todo |
+| NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | todo |
+| NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | todo |
+| NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
+| NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | todo |
+| NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
+| NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
+| NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
+| NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
+| NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
+| NUD-103 | Delivery time windows & vehicle capacity | M3 | 102 | superseded → NUD-147/148 |
 | NUD-104 | Proof of delivery (photo / signature) | M3 | 053 | todo |
 
 **Milestone exit criteria**
@@ -1908,7 +1940,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-124 · Product list: relabel `PACK` → Beutel, six real products, archive the demo ones
-**Status:** todo · **depends_on:** –
+**Status:** superseded → NUD-138 (owner test 2026-10-26) · **depends_on:** –
 
 **Goal:** the catalog must hold exactly **6** products — *Nudeln* and *Wantan-Teig*, each in *kg* / *Karton* / *Beutel* — replacing the 6 demo products. "Beutel" is the existing `PACK` unit **relabelled** (no Prisma enum change, no fourth unit); `CRATE` = Karton, `KG` = kg. The owner confirmed there are **no real orders** on the demo products (all demo data), so they are retired with the existing `Deaktivieren` soft delete (`active=false`) — products already on an order cannot be hard-deleted (`OrderItem.productId` is `onDelete: Restrict`).
 
@@ -1930,7 +1962,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 #### NUD-125 · Parking spots: schema + office UI
 **Status:** todo · **depends_on:** –
 
-**Goal:** a customer has a **list** of parking spots (new `ParkingSpot` table) instead of today's single `PARKING` photo / single `lat`/`lng` pin. The office manages the list; routing and optimisation keep using the single customer pin (one point per stop, D5).
+**Goal:** a customer has a **list** of parking spots (new `ParkingSpot` table) instead of today's single `PARKING` photo / single `lat`/`lng` pin. The office manages the list. ~~Routing and optimisation keep using the single customer pin~~ — **changed 2026-10-26 (D22): the default parking spot becomes the routing point, see NUD-141.** Still one point per stop.
 
 **Scope**
 - Prisma schema + committed migration for `ParkingSpot` (customer, label/note, lat/lng, sortOrder, `active`, timestamps); soft delete only.
@@ -1948,7 +1980,9 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 #### NUD-126 · Parking spots: driver UI, park-first navigation, offline
 **Status:** todo · **depends_on:** 125
 
-**Goal:** the driver sees the parking spots of his stop and navigation guides him to the **parking spot first**, with the shop entrance as the secondary target. Routing/optimisation still uses the customer pin.
+**Goal:** the driver sees the parking spots of his stop and navigation guides him to the **parking spot first**, with the shop entrance as the secondary target.
+
+**Amended 2026-10-26 (owner test F21, D30):** there is **one** "Navigation starten" button only (no separate entrance button). With a Parkplatz the Google Maps URL is `…/dir/?api=1&waypoints=<parkLat>,<parkLng>&destination=<addrLat>,<addrLng>&travelmode=driving`; without one it goes to the address point. Apple Maps: Parkplatz only. Routing uses the Parkplatz (NUD-141), so the acceptance criterion "routing output unchanged" below is void.
 
 **Scope**
 - Driver stop detail shows the customer's parking spots (label + note); primary action navigates to the chosen spot, secondary action to the entrance.
@@ -2129,7 +2163,9 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 
 **Goal:** the tour page offers reorder/lock/reoptimize/assign/release but no way to correct a tour itself. Add an explicit **Bearbeiten** entry point that leads to a real edit form.
 
-**Open question (blocks the design):** what may be edited? Candidates, in increasing risk: (a) only driver assignment and departure time, (b) also the stop order and which stops belong to the tour, (c) everything including the date, moving the orders along. Nothing is built until this is answered: a wrong guess writes to released tours that drivers may already be working on, and the release-revision rules (D19, "stop changed after release") must stay honest.
+**Answered by the owner on 2026-10-26 (F14/F15, D29):** driver, vehicle (once NUD-146 exists), stop order, and moving stops between tours of the same date — also on released tours, via the "tour was updated" path; completed stops locked; **the date is not editable**. Additionally: the tour tabs from NUD-099 are shown **always** (also for a single tour, labelled "Tour 1 · <Fahrer>") plus a **"+ Tour"** tab that creates an empty tour for the date. The ticket is no longer blocked.
+
+~~**Open question (blocks the design):** what may be edited?~~ Candidates, in increasing risk: (a) only driver assignment and departure time, (b) also the stop order and which stops belong to the tour, (c) everything including the date, moving the orders along. Nothing is built until this is answered: a wrong guess writes to released tours that drivers may already be working on, and the release-revision rules (D19, "stop changed after release") must stay honest.
 
 **Acceptance criteria**
 - [ ] The owner has answered what "Bearbeiten" may change.
@@ -2169,6 +2205,310 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 
 ---
 
+### M2.6 — Owner manual test 2026-10-26 (NUD-137…153)
+
+Findings from the owner's manual walk-through on 2026-10-26 (report: [`QA-REPORT-2026-10-26-manual.md`](./QA-REPORT-2026-10-26-manual.md), finding numbers **F1…F25**). Decisions **D21–D30** (§2) are binding for these tickets and override older decisions where they say so. Work them **in ID order, one ticket per session**. NUD-153 runs last.
+
+General rules for every ticket in this block:
+- New UI text in **every active locale** (after NUD-140: `de`, `en`, `zh-Hans`, plus `sr-Latn`, `cs` for driver screens). Agent-written translations are fine; native review comes later (NUD-073).
+- Glossary §3 (as amended on 2026-10-26) is binding for wording: **Parkplatz**, **Lieferadresse**, **Produkte** (order lines), **Karton**, **Beutel**, **Lieferzeitraum**, **Fahrzeug**. The words "Pin", "Kartenpunkt", "Position(en)" (for order lines) and "Kiste" must not appear in any UI string.
+- Data the driver enters (key numbers, parking spots) is written straight to the customer, with `updatedById`/`updatedAt` and an audit entry (NUD-092). No office approval step (D27).
+
+---
+
+#### NUD-137 · Whole-number quantities
+**Status:** todo · **depends_on:** – · F13
+
+**Goal:** no halves exist (no half Beutel, no half Karton). Every quantity is a positive integer.
+
+**Scope**
+- Prisma: `OrderItem.quantity` `Decimal(10,2)` → `Int` with a committed migration (existing values are rounded; log any non-integer row found in the migration output).
+- zod: integer ≥ 1 everywhere a quantity is accepted (order form, AI draft from NUD-150, recurring rules from NUD-149).
+- Order form: numeric input without decimal separator (`inputmode="numeric"`), remove the hint "Dezimalzahlen mit Komma oder Punkt …" and its translations.
+- Update domain helpers that format quantities (no trailing-zero logic needed any more), totals, load sheet, driver views.
+- §4.3 rule "Quantities: `Decimal(10,2)`" → "Quantities: `Int`".
+
+**Acceptance criteria**
+- [ ] Entering `2,5` or `2.5` is rejected with a localized message; `3` is accepted.
+- [ ] Migration committed; `pnpm db:seed` works on a fresh DB; totals / load sheet / driver tests pass.
+
+---
+
+#### NUD-138 · Product catalog: 3 real products with weight per unit
+**Status:** todo · **depends_on:** 137 · F5 · **supersedes NUD-124**
+
+**Goal:** the catalog holds exactly the owner's three products; each product has an admin-editable weight per unit (used for vehicle capacity, NUD-146).
+
+| Product (de) | Unit | Weight per unit | Display |
+|---|---|---|---|
+| Nudeln | `PACK` → **Beutel** | 3 kg | "22 Beutel Nudeln" |
+| Nudeln | `CRATE` → **Karton** (cardboard) | 10 kg | "14 Karton Nudeln" |
+| Wantan-Teig | `PIECE` | 5 kg | "3 × Wantan-Teig" (no unit word) |
+
+**Scope**
+- Prisma: `Product.weightKgPerUnit Decimal(6,2)` (required, > 0) + migration; product form field "Gewicht pro Einheit (kg)" editable by admins.
+- Unit labels: `PACK` = Beutel, `CRATE` = Karton (zh-Hans: 纸箱, not 箱子/筐), `PIECE` rendered as "N ×" before the product name on driver screens, checklist and load sheet. The `KG` unit stays in the enum but is not used by the seed.
+- Seed + data migration: the 3 products with `de` + `zh-Hans` (+ `en`) names; archive every other product (`active=false`) and move existing demo `OrderItem`s onto the matching new product (orders are never deleted). Follow the NUD-124 notes on soft delete.
+- Weight helper in `src/domain/` (`orderWeightKg(items, products)`) with unit tests.
+
+**Acceptance criteria**
+- [ ] Product list shows exactly the 3 active products; demo products are archived and not selectable.
+- [ ] Changing the weight per unit changes the computed weight of a tour (unit test).
+- [ ] No UI string in any locale contains "Kiste" or "Packung"; driver/checklist/load sheet render "3 × Wantan-Teig".
+
+---
+
+#### NUD-139 · Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle
+**Status:** todo · **depends_on:** – · F6, F9, F19
+
+**Scope**
+- **Order lines (F9):** "Positionen/Position" → "Produkte/Produkt" in every order context: list column, drawer, detail, form ("Produkt hinzufügen", "Produkt {n} entfernen"), counts (`{count, plural, one {# Produkt} other {# Produkte}}`), "Keine Produkte". ~15 keys in `messages/de.json` (lines ~813–1149 at the time of the test) + the matching `zh-Hans` keys.
+- **Pin (F6):** remove the words "Pin" and "Kartenpunkt" from every UI string. Customer location wording becomes **Parkplatz** (where the driver parks) and **Lieferadresse** (the address). Map-candidate strings ("Gefundene Positionen", "Unsichere Position – bitte Pin prüfen") are reworded to "Gefundene Adresspunkte" / "Unsicherer Adresspunkt – bitte auf der Karte prüfen". (The behaviour change is NUD-141; this ticket only does wording that is still valid after it.)
+- **Day/night toggle (F19):** the toggle shows the **action**: ☾ "Nachtmodus" while in day mode, ☀ "Tagmodus" while in night mode (today: moon icon + "Tagmodus"). Same on the admin header (icon-only there: give it the matching `aria-label` + tooltip).
+- Glossary §3 is already amended; keep code identifiers (`OrderItem`, `lat/lng`) unchanged.
+
+**Acceptance criteria**
+- [ ] `grep -riE "Position|Pin\b|Kartenpunkt" messages/de.json` returns no order-line or customer-location string.
+- [ ] Toggle label and icon match the action in both modes (component test).
+- [ ] `pnpm i18n:check` green.
+
+---
+
+#### NUD-140 · Languages: Deutsch · English · Srpski · Čeština · 中文
+**Status:** todo · **depends_on:** 139 · F17, F18 · implements **D21**
+
+**Goal:** admin languages `de`, `en`, `zh-Hans`; driver languages `de`, `en`, `sr-Latn`, `cs`, `zh-Hans`. Traditional Chinese is removed.
+
+**Scope**
+- `Locale` enum: add `en`, `sr_Latn`, `cs`; remove `zh_Hant_HK`, `zh_Hant_TW` via migration that maps existing users with a Hant locale to `zh_Hans`. URL tags: `de`, `en`, `sr-Latn`, `cs`, `zh-Hans`.
+- Messages: new hand-maintained `en.json`, `sr-Latn.json`, `cs.json` (agent-written now; Serbian in **Latin** script). Delete the OpenCC build path, `messages/overrides/*`, the generated `zh-Hant-*.json` and the `opencc-js` dependency; `pnpm i18n:build` becomes a no-op or is removed; `pnpm i18n:check` checks all five files. Admin-only keys need not exist in `sr-Latn`/`cs` only if the checker is taught the admin/driver split cleanly — otherwise translate everything (simpler, preferred).
+- Locale availability per area: admin switcher shows **Deutsch · English · 中文**; driver switcher (login segmented control) **DE · EN · SR · CS · 中文**; first-start picker (NUD-050) shows five big buttons **Deutsch · English · Srpski · Čeština · 中文**. A driver-only locale opening an admin page falls back to `de`.
+- `Accept-Language` mapping: `zh-*` → `zh-Hans`, `sr`/`sr-Latn`/`sr-Cyrl` → `sr-Latn`, `cs` → `cs`, `en-*` → `en`, else `de`.
+- `LocalizedText`: keys `de`, `en`, `sr-Latn`, `cs`, `zh-Hans`; data migration drops Hant keys; `pick()` fallback: requested → `de` → source. `withDerivedHant` removed.
+- Translator (NUD-070): DeepL for `en`, `cs`, `zh-Hans`; **check whether DeepL supports Serbian** — if not, translate Serbian through the OpenRouter client from NUD-150 behind the same `Translator` interface (log the decision). Product names: `de` + `zh-Hans` by hand, other locales machine-filled and editable.
+- `<html lang>` and font stacks for the new locales; drop the HK/TW CJK stacks.
+- Update NUD-073 export/import columns to the five locales; update §4.1/§4.2 and `AGENTS.md` where they mention Hant/OpenCC.
+
+**Acceptance criteria**
+- [ ] Admin switcher lists exactly 3 languages, driver switcher exactly 5, each in its own script.
+- [ ] A user stored as `zh_Hant_TW` before the migration logs in and sees `zh-Hans`.
+- [ ] Driver home, stop detail and problem sheet render in `sr-Latn` and `cs` at 375 px with no horizontal scroll and correct diacritics (č, ć, š, ž, đ, ř, ě).
+- [ ] E2E happy path (NUD-060) parameterised over the 5 driver locales passes.
+
+---
+
+#### NUD-141 · Parkplatz is the routing point; no more pin confirmation
+**Status:** todo · **depends_on:** 125, 139 · F6, F7, F8 · implements **D22**
+
+**Goal:** the point used for optimisation and navigation is the customer's **default Parkplatz**; without one, the geocoded **Lieferadresse**. Nobody is excluded from a tour for a missing confirmation.
+
+**Scope**
+- Domain helper `routingPoint(customer)`: first active `ParkingSpot` (NUD-125, `sortOrder`) → else the geocoded address point (`Customer.lat/lng`) → else "no location" (only when geocoding failed).
+- Remove `pinConfirmed` from every gate: tour builder (NUD-041), order-form warning, import (NUD-090/136), customer flags. The column can stay in the DB unused (no destructive migration); the UI no longer shows or sets it.
+- Tour builder: customers without a Parkplatz are routed to the address point and get a non-blocking flag "Parkplatz fehlt"; only "no location at all" is a warning that keeps the stop out.
+- Geocoding runs automatically on customer save/import when the address changed (no confirm checkbox).
+- Dashboard to-do (F7): replace "N Kunden mit unbestätigtem Pin" by **"N Kunden ohne Parkplatz – Lieferung zur Adresse"**; clicking opens a **Parkplatz queue** (customer by customer: map with address point → set Parkplatz by click/drag → save → next; "skip").
+- Customer list flags: "ohne Parkplatz" replaces "Pin unbestätigt".
+- NUD-125 scope note "routing/optimisation keeps using the single customer pin" no longer applies.
+
+**Acceptance criteria**
+- [ ] A customer with a Parkplatz is optimised and navigated to the Parkplatz coordinates; without one to the address point (integration test).
+- [ ] A freshly imported customer (no confirmation, no Parkplatz) ends up on the tour with the flag.
+- [ ] Dashboard entry text and link to the queue; the queue sets a Parkplatz in ≤ 3 clicks per customer.
+
+---
+
+#### NUD-142 · Customer key number (office + driver)
+**Status:** todo · **depends_on:** 139 · F4, F22 · D27
+
+**Scope**
+- Prisma: `Customer.hasKey Boolean?` (null = unknown) and `Customer.keyNumber String?` (max 20), `keyUpdatedById`, `keyUpdatedAt`; migration; audit entries for every change (before/after).
+- Office: optional fields "Schlüssel vorhanden" + "Schlüsselnummer" on the customer form/detail, with "geändert von <Fahrer>, <Datum>".
+- Driver: 🔑 + number visible on the **next-stop card**, the **stop list rows** and the **stop detail header**. Unknown (`hasKey = null`) → small "🔑 ?" chip that opens a sheet "Gibt es einen Schlüssel? Nummer:" (Ja + number / Nein). Existing number → tap opens the same sheet to **correct** it. Saved immediately to the customer; offline queued (NUD-082 outbox pattern).
+- Include `hasKey`/`keyNumber` in the cached driver tour payload (NUD-081).
+
+**Acceptance criteria**
+- [ ] Driver sets a missing key number → office sees it with driver name/date; audit entry has the diff.
+- [ ] Driver corrects an existing number → old value visible in the history.
+- [ ] Key chip readable at 375 px; touch target ≥ 48 px; works offline (queued).
+
+---
+
+#### NUD-143 · Driver stop UI: whole card opens details, gallery photos
+**Status:** todo · **depends_on:** – · F20, F23
+
+**Scope**
+- Next-stop card on driver home: the **whole card** is the link to the stop detail; the "Details" button becomes an icon-only button (›) with `aria-label`, touch target ≥ 48 px. **"Navigation starten"** inside the card must not open the detail (stop propagation; keep it a separate focusable element — no nested interactive elements inside an `<a>`).
+- Photo slots (Eingang, Parken) on stop detail: two actions **"Foto aufnehmen"** (`capture="environment"`) and **"Aus Galerie"** (same input without `capture`). Gallery images go through the NUD-006 resize pipeline and the NUD-083 offline outbox.
+
+**Acceptance criteria**
+- [ ] Tap on card body → detail; tap on "Navigation starten" → navigation URL only (component test).
+- [ ] Gallery upload works online and queued offline (e2e with a file chooser).
+- [ ] axe: no nested-interactive violation on driver home.
+
+---
+
+#### NUD-144 · Driver sets Parkplatz coordinates
+**Status:** todo · **depends_on:** 125, 141 · F24 · D27
+
+**Scope**
+- In the "Parken" slot of the stop detail: button **"Parkplatz festlegen"** with two modes:
+  - **Aktueller Standort:** Geolocation API → map with draggable marker → "Bestätigen". Permission denied / no fix → clear localized message and switch to manual mode.
+  - **Koordinaten eingeben:** fields **Breite** and **Länge**, comma or point, range check (−90…90 / −180…180), map preview, "Bestätigen".
+- Saves a `ParkingSpot` (NUD-125) for the customer — becomes the default if none exists — with `createdById` and audit entry; offline queued. It is the routing/navigation point immediately (NUD-141).
+- Coordinates rounded to 6 decimals.
+
+**Acceptance criteria**
+- [ ] Manual entry `48,2082` / `16,3738` saves a spot at 48.208200, 16.373800.
+- [ ] Next navigation link for that customer uses the new spot.
+- [ ] Works offline (queued, applied on reconnect).
+
+---
+
+#### NUD-145 · Tour page cleanup + real ORS routing
+**Status:** todo · **depends_on:** – · F16
+
+**Scope**
+- Diagnose why the tour shows "Näherungswerte" (heuristic fallback). Expected: `ORS_API_KEY` missing on the vServer. **👤 HUMAN:** create/paste the ORS key on the server — agent writes the exact steps into `docs/deploy.md` / `HANDOVER-NEXT-STEPS.md`, verifies with `/api/health` (add an ORS reachability check that reports `fake`/`ok`/`error` without exposing the key).
+- The ⚠-only badge under "Strecke" gets a text ("Näherungswert") like the one under "Gesamtdauer", or both are merged into one notice above the cards.
+- Remove the redundant subline "4 Stopps" under the "Stopps" figure.
+
+**Acceptance criteria**
+- [ ] With a valid key a newly generated tour has `approximate=false` and no "Näherungswerte" badge.
+- [ ] No icon-only status badge left on the tour page (axe + visual check at 1280 px).
+
+---
+
+#### NUD-146 · Vehicles with kg capacity, one vehicle per tour
+**Status:** todo · **depends_on:** 138, 135 · F2 · D24
+
+**Scope**
+- Prisma `Vehicle { id, name, plate?, capacityKg Int, active, createdAt, updatedAt }`; `Tour.vehicleId?`; migrations; soft delete only.
+- Admin page **Fahrzeuge** (nav under Stammdaten): list, create, edit, deactivate.
+- Tour planning: assign driver **and** vehicle per tour per day (no fixed driver↔vehicle link). Release requires both.
+- Load indicator on the tour: total kg (NUD-138 weights) vs. vehicle capacity, red when over.
+
+**Acceptance criteria**
+- [ ] A tour over capacity shows the overload and cannot be released without an explicit override (logged in audit).
+- [ ] Authz rows for the new actions; screens at 1280 px.
+
+---
+
+#### NUD-147 · Several tours per day: split by capacity, then reload trips
+**Status:** todo · **depends_on:** 146 · F2 · D24 · **supersedes NUD-102 and the capacity part of NUD-103**
+
+**Scope**
+- "Touren planen" for a date: the office selects the available drivers + vehicles (default: all active); the optimiser (ORS/VROOM multi-vehicle with `capacity` in kg, `delivery` per job = stop weight) distributes the day's stops across the vehicles.
+- Order of preference: **use all selected vehicles first**; only if the load still does not fit, a vehicle gets a **reload trip** (return to the depot mid-tour, model as a second trip / break at the depot; show a "Nachladen im Depot" stop in admin, driver app and load sheet, with the load per trip).
+- Heuristic fallback (no ORS): capacity-aware greedy split + per-vehicle nearest-neighbour/2-opt, flagged `approximate`.
+- Driver app: a driver sees only his tours; reload stop rendered as a depot stop with the next trip's load.
+- Load sheet (NUD-091/134) per tour and per trip.
+- Reuse the NUD-099 multi-tour building blocks (`pickDefaultTour`, `pickDriverTour`, order scope per tour).
+
+**Acceptance criteria**
+- [ ] 2 vehicles × 500 kg, 800 kg of stops → two tours, neither over capacity.
+- [ ] 1 vehicle × 500 kg, 800 kg of stops → one tour with a reload stop, each trip ≤ 500 kg.
+- [ ] Each driver sees only his own tour (authz test).
+
+---
+
+#### NUD-148 · Requested delivery window instead of a delivery date
+**Status:** todo · **depends_on:** 147 · F11 · D25 · **supersedes the time-window part of NUD-103**
+
+**Scope**
+- Order gets `windowStart` / `windowEnd` (date + optional time, factory TZ) — "Gewünschter Lieferzeitraum", from a few hours to several days. Keep `deliveryDate` as the **planned** day (set by planning, editable by the office).
+- Default planned day = **earliest day inside the window that is a delivery weekday and still has vehicle capacity**; the office can move it (within or, with a warning, outside the window).
+- Time-of-day parts are passed to the optimiser as job time windows; infeasible windows are reported as warnings.
+- Order form, list, filters, totals and the AI draft (NUD-150) use the window; existing orders migrate to `windowStart = windowEnd = deliveryDate` (whole day).
+
+**Acceptance criteria**
+- [ ] Order with window Tue–Thu, Tue full → planned Wed (unit test on the pure helper).
+- [ ] Window 08:00–11:00 → the stop's ETA lies inside it or a warning is shown.
+
+---
+
+#### NUD-149 · Recurring orders (Dauerbestellungen)
+**Status:** todo · **depends_on:** 148 · F12 · D25 · **supersedes NUD-101**
+
+**Scope**
+- `RecurringOrder { customerId, items (productId, quantity), weekdays Int[], everyNWeeks Int @default(1), anchorDate, seasonFrom (MM-DD)?, seasonTo (MM-DD)?, exceptions Date[], active, confirmedById, confirmedAt }`.
+- Examples that must be expressible: "every Monday and Thursday"; "every second week, September to May, pause in summer".
+- The office confirms a rule **once**; a daily cron generates **CONFIRMED** orders `Settings.recurringLeadDays` (default **14**) days ahead, idempotent (one order per rule and date), each linked to its rule.
+- Customer detail: list/create/edit/pause rules; generated orders show "aus Dauerbestellung".
+- **Customer set inactive:** all rules paused and every future, not yet delivered order of that customer → `CANCELLED` (no delete); orders on a released tour flag the tour outdated (NUD-043) so it is re-released. Reactivation resumes rules; cancelled orders stay cancelled.
+
+**Acceptance criteria**
+- [ ] Unit tests for the schedule function (weekdays, every N weeks, season across the year boundary, exceptions).
+- [ ] Cron run twice → no duplicates.
+- [ ] Deactivating a customer cancels his future orders and pauses his rules (integration test).
+
+---
+
+#### NUD-150 · AI order draft from pasted message text or screenshot (OpenRouter)
+**Status:** todo · **depends_on:** 138 · F10 · D26 · **supersedes NUD-100**
+
+**Scope**
+- `OrderExtractor` interface with an **OpenRouter** implementation (model configurable via `OPENROUTER_MODEL`, key `OPENROUTER_API_KEY`; vision-capable model for screenshots) and a Fake for tests / missing key.
+- Order form: after choosing the customer, a **"Nachricht des Kunden"** textarea (paste WhatsApp/WeChat text) and/or the existing screenshot. Button "Mit KI auslesen" → structured result (products from the catalog, integer quantities, requested window if mentioned, confidence per field) filled into the form as a **DRAFT**; low-confidence fields highlighted. The office always reviews and confirms.
+- Input German or Chinese; raw text + raw extraction stored (`Screenshot.extraction` / new `Order.sourceText`).
+- No WhatsApp/WeChat bots, no share target (owner decision).
+- Env vars in `.env.example` + `docs/env.md`; privacy note in `docs/privacy.md` (message text goes to OpenRouter).
+
+**Acceptance criteria**
+- [ ] With the Fake: pasted "2 Karton Nudeln, 5 Beutel, morgen vormittag" → 2 × Nudeln Karton, 5 × Nudeln Beutel, window tomorrow morning, as a draft.
+- [ ] Missing key → button disabled with a hint; manual entry unaffected.
+- [ ] Evaluation script with ≥ 15 anonymised sample messages (de + zh) reports line accuracy.
+
+---
+
+#### NUD-151 · Optional departure checklist for the driver
+**Status:** todo · **depends_on:** 138, 142 · F3
+
+**Scope**
+- Driver home before the first stop: card **"Abfahrt vorbereiten"** → checklist, one tap per item, skippable:
+  - one line per product with the tour total in packaging units ("14 Karton Nudeln", "22 Beutel Nudeln", "3 × Wantan-Teig"),
+  - one line per needed key ("🔑 12 · KundeTest2"),
+  - optional fixed items maintained by the office in Settings (e.g. "Lieferscheine").
+- Opening the checklist records `Tour.loadingStartedAt`; **"Losfahren"** records `Tour.departedAt`. Skipping records `departedAt` only.
+- With reload trips (NUD-147) a checklist per trip.
+- Large text, icons, works offline (part of the cached tour).
+
+**Acceptance criteria**
+- [ ] Checklist totals equal the load sheet totals for the tour (shared aggregation function).
+- [ ] Timestamps written (online and queued offline).
+
+---
+
+#### NUD-152 · Driver working time and utilization
+**Status:** todo · **depends_on:** 146, 151 · F1 · D28
+
+**Scope**
+- `WorkSchedule` per driver: working days and hours per weekday (e.g. Mon–Fri 06:00–14:00); edited on the driver page (Fahrer).
+- Measured working time per tour = `loadingStartedAt` (or `departedAt − Settings.defaultLoadingMinutes` when the checklist was skipped) → last stop completed + planned drive back to the depot. No GPS (D19).
+- Reports: (a) **actual vs. planned** per tour; (b) **tour time vs. contracted hours** as % per day / week / month per driver. Shown as a column in the driver list and on a new page **Auslastung**.
+- Planning warning when a tour's planned end exceeds the assigned driver's shift end, or a tour is assigned on a non-working day.
+
+**Acceptance criteria**
+- [ ] Pure, unit-tested utilization functions (incl. skipped checklist, tours across midnight are rejected).
+- [ ] Shift-end warning shown on the tour page (e2e).
+
+---
+
+#### NUD-153 · Tablet layout audit (portrait + landscape), every page
+**Status:** todo · **depends_on:** 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 135, 125, 126 · F25 · **run last**
+
+**Scope**
+- Playwright projects `tablet-portrait` / `tablet-landscape` with 768×1024 / 1024×768 (iPad), 820×1180 / 1180×820 (iPad Air), 800×1280 / 1280×800 (Android tablet).
+- Every admin and driver page incl. dialogs, drawers, checklist, map views, language picker, both login screens, in every locale of that area.
+- Check and fix: misaligned / overlapping text and buttons, cut-off labels (long German/Czech words, CJK line height), horizontal scroll, touch targets < 48 px, layout jumps on rotation.
+- Screenshot every page/viewport/locale into `test-results/tablet/`; list every issue found and its fix under "Implementation notes".
+
+**Acceptance criteria**
+- [ ] No-horizontal-scroll + touch-target assertions pass for all pages in both tablet projects.
+- [ ] Issue list in the ticket, each one fixed or turned into a new ticket.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
@@ -2184,19 +2524,19 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 **Also worth a look (found in the same run):** a deploy that printed every stage, passed `nginx -t`, took the nginx backup, and reported "Done." together with successful health checks still ended with **exit code 1** (twice now). The deployment itself was verified healthy both times, so the script's own exit status is misleading — the last command of the ssh session probably returns non-zero.
 
 #### NUD-100 · AI screenshot extraction (review required)
-**Status:** todo · **depends_on:** 031
+**Status:** superseded → NUD-150 (owner test 2026-10-26) · **depends_on:** 031
 Vision LLM behind an `OrderExtractor` interface reads WhatsApp/WeChat screenshots (German and Chinese, Simplified + Traditional), proposes customer (fuzzy match on name/phone), products (match against catalog incl. Chinese names and common aliases) and quantities with confidence per field. Office **must** review and confirm; low-confidence fields highlighted. Store raw extraction in `Screenshot.extraction`. Build an evaluation set of ≥ 30 real (anonymized) screenshots; target ≥ 90 % line accuracy before enabling by default.
 
 #### NUD-101 · Recurring / standing orders
-**Status:** todo · **depends_on:** 032
+**Status:** superseded → NUD-149 (owner test 2026-10-26) · **depends_on:** 032
 Templates per customer (weekday(s), items); auto-generate `DRAFT` or `CONFIRMED` orders N days ahead (cron); exceptions (skip a date, holiday list).
 
 #### NUD-102 · Multiple drivers / tours per day
-**Status:** todo · **depends_on:** 043
+**Status:** superseded → NUD-147 (owner test 2026-10-26) · **depends_on:** 043
 Several vehicles in ORS optimization (VRP), split stops across tours, per-driver release, admin drag stops between tours.
 
 #### NUD-103 · Delivery time windows & vehicle capacity
-**Status:** todo · **depends_on:** 102
+**Status:** superseded → NUD-147 / NUD-148 (owner test 2026-10-26) · **depends_on:** 102
 Structured opening hours per customer → ORS time windows; vehicle capacity in kg; warnings when infeasible.
 
 #### NUD-104 · Proof of delivery (photo / signature)
@@ -2520,12 +2860,22 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-136 | Import without customer numbers matches by name and assigns the next free number | The owner's list has none; "Kundenname" is unique in it and is the office's own short name, so re-imports stay idempotent |
 | 2026-10-26 | NUD-136 | A LieferAdresse without a postal code takes postal code and city from the address columns, flagged for review, instead of rejecting the row | Pins need the admin's confirmation anyway (D9); rejecting would lose the customer |
 
+| 2026-10-26 | NUD-137…153 | Owner manual test → findings F1–F25, decisions D21–D30, tickets NUD-137…153 | `QA-REPORT-2026-10-26-manual.md` |
+| 2026-10-26 | NUD-124 | Superseded by NUD-138: 3 products (not 6), weight per unit, label Karton | Owner decision in the manual test |
+| 2026-10-26 | NUD-149 | Recurring orders are generated 14 days ahead by default (`Settings.recurringLeadDays`) | Owner gave no number; editable |
+| 2026-10-26 | NUD-135 | Tour date is not editable via Bearbeiten; orders move via their delivery window | Owner did not object to the proposal; least risk |
+| 2026-10-26 | NUD-126 | Combined navigation uses `travelmode=driving` for the whole route incl. Parkplatz → entrance | Google Maps URLs allow one travel mode; owner chose one button ("keep it simple") |
+| 2026-10-26 | NUD-152 | Skipped checklist → loading time = `Settings.defaultLoadingMinutes` | Utilization must include loading time (owner) and needs a value when no timestamp exists |
+| 2026-10-26 | NUD-150 | No WhatsApp/WeChat bots and no PWA share target; a pasted-text field + screenshot instead | Owner decision; WeChat has no official bot API for personal accounts |
+
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
 - Exact depot (factory) address → set in Settings (NUD-012).
 - Real product list with units and Chinese names → seed / product admin (NUD-020).
 - Existing customer list file → import (NUD-090).
-- Which Chinese variant(s) the drivers actually read → collected in UAT (NUD-096); all four locales ship regardless.
+- ~~Which Chinese variant(s) the drivers actually read~~ → decided 2026-10-26: Simplified only (D21).
+- Does DeepL support Serbian? If not, Serbian content translation runs through OpenRouter (NUD-140).
+- OpenRouter model choice and budget (NUD-150).
 - Vehicle type (car vs. van/truck profile for routing) → ORS profile setting (NUD-040).
 - Map tile provider account for production (NUD-011) and DeepL API account (NUD-070).
 - Retention of orders, tours and stops (NUD-112): keep forever (current behaviour, nothing is deleted), or delete / anonymise completed orders and tours after N years (proposal 3 years, or as long as accounting and dispute obligations require)? What may be anonymised: `Order.internalNote`, the driver link of tours? Also confirm the driver text period (365 days proposed) and the audit period (730 days proposed). Until decided nothing is deleted; the periods are variables (`docs/privacy.md` section 6).
