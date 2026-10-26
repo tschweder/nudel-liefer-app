@@ -324,6 +324,10 @@ const MATRIX: Record<string, Row> = {
     "locale cookie; own User.locale if logged in",
     async () => (await import("./locale-actions")).setLocaleAction("de"),
   ),
+  "src/server/theme-actions.ts#setThemeAction": publicAction(
+    "colour-scheme cookie of the caller (the toggle is also on the login screens)",
+    async () => (await import("./theme-actions")).setThemeAction("dark"),
+  ),
 
   // ---- route handlers
   "src/app/api/uploads/route.ts#POST": {

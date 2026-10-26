@@ -3,6 +3,14 @@
     "appName": "面条配送应用",
     "language": "语言",
     "notifications": "通知",
+    "theme": {
+      "label": "配色",
+      "toggle": "切换配色",
+      "light": "浅色",
+      "dark": "深色",
+      "day": "日间模式",
+      "night": "夜间模式"
+    },
     "actions": {
       "save": "保存",
       "cancel": "取消",

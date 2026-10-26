@@ -2,11 +2,23 @@
 @import "tw-animate-css";
 
 /*
+ * Colour scheme is a user choice (NUD-132), not an OS preference: the theme lives in a cookie, is
+ * rendered server-side as `class="dark"` on <html>, and is switched by the toggle in the top bars
+ * and on the login screens. This makes `dark:` utilities follow the toggle too - Tailwind v4 defaults
+ * them to `prefers-color-scheme`, which would leave the two mechanisms disagreeing.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * Design tokens (redesign RD-1, re-design.md §4). shadcn/ui naming kept so existing components keep
  * working; the new tokens are additive. Values are HSL channels consumed through `hsl(var(--x))` in
  * `@theme inline`.
  *
- * Contrast (measured with `.redesign/contrast.mjs`, WCAG AA needs 4.5:1 for text, 3:1 for UI):
+ * Light is the default (NUD-132: the office and the drivers asked for the brighter design; a device
+ * whose OS prefers dark used to be forced into dark with no way back).
+ *
+ * Contrast (measured with `.redesign/contrast.mjs`, WCAG AA needs 4.5:1 for text, 3:1 for UI) -
+ * re-measured after the NUD-132 brightness pass:
  *   foreground on background            16.06:1      foreground on card                17.05:1
  *   muted-foreground on background       4.99:1      muted-foreground on card           5.30:1
  *   primary on card                      5.45:1      primary-foreground on primary      5.45:1
@@ -18,17 +30,19 @@
  *   ring / map-route on card             5.45:1
  */
 :root {
-  /* surfaces — warm neutrals (stone), never cool grey */
-  --background: 40 25% 97%;
+  color-scheme: light;
+
+  /* surfaces — warm neutrals (stone), never cool grey; lifted in NUD-132 for a brighter, airier page */
+  --background: 42 38% 98.5%;
   --foreground: 20 14% 11%;
   --card: 0 0% 100%;
   --card-foreground: 20 14% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 20 14% 11%;
-  --muted: 40 15% 93%;
+  --muted: 40 24% 95.5%;
   --muted-foreground: 25 6% 42%;
-  --border: 30 10% 88%;
-  --input: 30 10% 78%;
+  --border: 30 16% 90%;
+  --input: 30 14% 80%;
   --ring: 18 76% 40%;
 
   /* brand — terracotta */
@@ -74,58 +88,58 @@
 }
 
 /*
- * Dark mode is out of scope for the redesign (re-design.md §4.1/§10); the block stays so a dark
- * system preference does not break, and so a future `.dark` block has a starting point.
+ * Dark mode (NUD-132). Class-based, selected by the toggle and rendered server-side, so it is a
+ * choice rather than an OS preference. The surfaces are lifted compared with the old
+ * `prefers-color-scheme` block: "brighter" was asked for in both schemes, and the previous
+ * `background 8%` / `card 12%` read almost black on a tablet screen.
  */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: 24 10% 8%;
-    --foreground: 40 20% 96%;
-    --card: 24 8% 12%;
-    --card-foreground: 40 20% 96%;
-    --popover: 24 8% 12%;
-    --popover-foreground: 40 20% 96%;
-    --muted: 24 8% 18%;
-    --muted-foreground: 30 8% 68%;
-    --border: 24 8% 24%;
-    --input: 24 8% 30%;
-    --ring: 20 80% 60%;
+.dark {
+  color-scheme: dark;
+  --background: 24 12% 13%;
+  --foreground: 40 20% 96%;
+  --card: 24 10% 17%;
+  --card-foreground: 40 20% 96%;
+  --popover: 24 10% 17%;
+  --popover-foreground: 40 20% 96%;
+  --muted: 24 10% 23%;
+  --muted-foreground: 30 10% 72%;
+  --border: 24 9% 30%;
+  --input: 24 9% 36%;
+  --ring: 20 80% 60%;
 
-    --primary: 20 80% 58%;
-    --primary-hover: 20 80% 64%;
-    --primary-foreground: 20 40% 8%;
-    --primary-soft: 20 40% 18%;
-    --primary-soft-foreground: 20 80% 82%;
+  --primary: 20 80% 58%;
+  --primary-hover: 20 80% 64%;
+  --primary-foreground: 20 40% 8%;
+  --primary-soft: 20 40% 18%;
+  --primary-soft-foreground: 20 80% 82%;
 
-    --secondary: 24 8% 18%;
-    --secondary-foreground: 40 20% 96%;
-    --accent: 20 40% 18%;
-    --accent-foreground: 20 80% 82%;
+  --secondary: 24 10% 23%;
+  --secondary-foreground: 40 20% 96%;
+  --accent: 20 40% 18%;
+  --accent-foreground: 20 80% 82%;
 
-    --success: 152 45% 55%;
-    --success-foreground: 152 60% 8%;
-    --success-soft: 152 40% 16%;
-    --success-soft-foreground: 152 60% 82%;
+  --success: 152 45% 55%;
+  --success-foreground: 152 60% 8%;
+  --success-soft: 152 40% 16%;
+  --success-soft-foreground: 152 60% 82%;
 
-    --warning: 36 80% 60%;
-    --warning-foreground: 30 90% 8%;
-    --warning-soft: 30 40% 18%;
-    --warning-soft-foreground: 40 90% 82%;
+  --warning: 36 80% 60%;
+  --warning-foreground: 30 90% 8%;
+  --warning-soft: 30 40% 18%;
+  --warning-soft-foreground: 40 90% 82%;
 
-    --destructive: 0 65% 60%;
-    --destructive-foreground: 0 40% 8%;
-    --destructive-soft: 0 40% 20%;
-    --destructive-soft-foreground: 0 80% 86%;
+  --destructive: 0 65% 60%;
+  --destructive-foreground: 0 40% 8%;
+  --destructive-soft: 0 40% 20%;
+  --destructive-soft-foreground: 0 80% 86%;
 
-    --info: 214 70% 62%;
-    --info-foreground: 214 60% 8%;
-    --info-soft: 214 40% 20%;
-    --info-soft-foreground: 214 80% 84%;
+  --info: 214 70% 62%;
+  --info-foreground: 214 60% 8%;
+  --info-soft: 214 40% 20%;
+  --info-soft-foreground: 214 80% 84%;
 
-    --map-route: 20 80% 58%;
-    --map-depot: 40 20% 92%;
-  }
+  --map-route: 20 80% 58%;
+  --map-depot: 40 20% 92%;
 }
 
 @theme inline {

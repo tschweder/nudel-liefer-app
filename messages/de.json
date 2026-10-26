@@ -3,6 +3,14 @@
     "appName": "Nudel Liefer App",
     "language": "Sprache",
     "notifications": "Hinweise",
+    "theme": {
+      "label": "Farbschema",
+      "toggle": "Farbschema wechseln",
+      "light": "Hell",
+      "dark": "Dunkel",
+      "day": "Tagmodus",
+      "night": "Nachtmodus"
+    },
     "actions": {
       "save": "Speichern",
       "cancel": "Abbrechen",

@@ -35,6 +35,12 @@ export function buildOfflineScript(): string {
   const localeRoot = JSON.stringify(`${BASE_PATH}/`);
   return `(function () {
   var basePath = ${prefix};
+  // Colour scheme (NUD-132): the offline page is handed out by the service worker, so it never runs
+  // the app's bootstrap. Same cookie, same class, and the stylesheet only needs color-scheme to flip.
+  try {
+    var theme = /(?:^|; )NEXT_THEME=(dark|light)(?:;|$)/.exec(document.cookie);
+    if (theme && theme[1] === "dark") document.documentElement.classList.add("dark");
+  } catch (e) {}
   var buttons = document.querySelectorAll("button[data-reload]");
   for (var b = 0; b < buttons.length; b++) buttons[b].addEventListener("click", function () { location.reload(); });
   var wanted = location.pathname.slice(basePath.length).split("/")[1];
@@ -85,7 +91,8 @@ export function buildOfflineHtml(
     <meta name="robots" content="noindex" />
     <title>${escapeHtml(texts.de.title)}</title>
     <style>
-      :root { color-scheme: light dark; }
+      :root { color-scheme: light; }
+      .dark { color-scheme: dark; }
       body { margin: 0; min-height: 100dvh; display: grid; place-items: end center; padding: 16px 16px 15vh; box-sizing: border-box;
         font: 18px/1.5 system-ui, "PingFang SC", "PingFang HK", "PingFang TC", "Noto Sans SC", "Noto Sans HK", "Noto Sans TC", "Microsoft YaHei", "Microsoft JhengHei", sans-serif; }
       main { max-width: 24rem; text-align: center; }

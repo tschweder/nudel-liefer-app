@@ -9,6 +9,7 @@ import { MobileNav } from "@/components/admin/mobile-nav";
 import { activeNavItem } from "@/components/admin/nav-items";
 import { UserMenu } from "@/components/admin/user-menu";
 import { LanguageSwitcher } from "@/components/shared/language-switcher";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -164,6 +165,7 @@ export function AdminShell({
             <MobileNav />
             <Breadcrumb pathname={pathname} />
             <div className="ms-auto flex items-center gap-2">
+              <ThemeToggle />
               <LanguageSwitcher variant="compact" />
               <UserMenu name={name} locale={locale} />
             </div>

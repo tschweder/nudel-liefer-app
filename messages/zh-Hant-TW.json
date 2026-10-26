@@ -4,6 +4,14 @@
     "appName": "麵條配送應用",
     "language": "語言",
     "notifications": "通知",
+    "theme": {
+      "label": "配色",
+      "toggle": "切換配色",
+      "light": "淺色",
+      "dark": "深色",
+      "day": "日間模式",
+      "night": "夜間模式"
+    },
     "actions": {
       "save": "儲存",
       "cancel": "取消",

@@ -15,13 +15,16 @@ import { Toaster as Sonner, type ToasterProps } from "sonner";
  */
 function Toaster({
   position = "top-right",
+  theme = "light",
   toastOptions,
   ...props
 }: ToasterProps & { position?: ToasterProps["position"] }) {
   const t = useTranslations("common");
   return (
     <Sonner
-      theme="system"
+      // Follows the app's colour-scheme choice (NUD-132), which the root layout passes down; "system"
+      // would follow the OS and disagree with the class on <html>.
+      theme={theme}
       position={position}
       // The live region's name is read by screen readers: localized, without the "alt+T" hotkey hint.
       containerAriaLabel={t("notifications")}

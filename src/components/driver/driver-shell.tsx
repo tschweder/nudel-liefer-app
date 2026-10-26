@@ -21,6 +21,7 @@ import { OfflineSync } from "@/components/driver/offline-sync";
 import { PendingBadge } from "@/components/driver/pending-badge";
 import { SyncNotices } from "@/components/driver/sync-notices";
 import type { SyncState } from "@/components/shared/sync-status-chip";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -271,7 +272,11 @@ function OutboxSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
   );
 }
 
-/** Overflow menu of the driver top bar: logout (and the locale fallback for the offline shell). */
+/**
+ * Overflow menu of the driver top bar: logout and the colour scheme (NUD-132). The theme switch lives
+ * here rather than in the bar itself: at 375 px the bar is already at its limit (date + sync chip +
+ * language + menu), and a fifth control pushed the date into "Mo., 26…" during the design review.
+ */
 function OverflowSheet({
   open,
   onOpenChange,
@@ -288,7 +293,10 @@ function OverflowSheet({
         <SheetHeader>
           <SheetTitle>{t("menu")}</SheetTitle>
         </SheetHeader>
-        <div className="flex flex-col gap-3 p-4">{logout}</div>
+        <div className="flex flex-col gap-3 p-4">
+          <ThemeToggle variant="row" />
+          {logout}
+        </div>
       </SheetContent>
     </Sheet>
   );
