@@ -134,14 +134,14 @@ export type CommitResult =
       updated: number;
       unchanged: number;
       failed: ImportFailure[];
-      /** Updates that changed the address: pin and confirmation were dropped. */
+      /** Updates that changed the address: the Adresspunkt was dropped and is looked up again. */
       pinsReset: number;
       /** Updated customers that are archived (they stay archived). */
       archivedUpdated: number;
-      /** Active customers without a pin after the import (the geocoding step's work list). */
+      /** Active customers without an Adresspunkt after the import (the geocoding step's work list). */
       withoutPin: number;
-      /** Active customers whose pin is not confirmed (the pin review queue). */
-      toReview: number;
+      /** Active customers without a Parkplatz (the Parkplatz queue, NUD-141). */
+      withoutParking: number;
     }
   | { ok: false; error: "invalid" };
 
@@ -192,7 +192,7 @@ export async function commitImport(
       unchanged += 1;
     } else if (p.status === "create") {
       // Same rules as the customer form.
-      const input = customerInputSchema.safeParse({ ...p.create, pinConfirmed: false });
+      const input = customerInputSchema.safeParse(p.create);
       if (!input.success) {
         fail(p, "invalid");
         continue;
@@ -209,7 +209,6 @@ export async function commitImport(
             deliveryHoursInfo: input.data.deliveryHoursInfo,
             ...officeFields(input.data),
             notes: notesJson(prepareNotesWithoutTranslation(null, input.data.notes, now)),
-            pinConfirmed: false,
           },
         });
         created += 1;
@@ -228,10 +227,10 @@ export async function commitImport(
         data.notes = notesJson(prepareNotesWithoutTranslation(before.notesRaw, patch.notes, now));
       }
       if (p.pinReset) {
-        // The stored pin belongs to the old address (NUD-014): drop it and the confirmation.
+        // The stored Adresspunkt belongs to the old address (NUD-014): drop it; the geocoding step
+        // after the import looks the new address up (NUD-141).
         data.lat = null;
         data.lng = null;
-        data.pinConfirmed = false;
       }
       const result = await db.customer.updateMany({
         where: { id: before.id, updatedAt: before.updatedAt },
@@ -248,7 +247,9 @@ export async function commitImport(
   }
 
   const withoutPin = await db.customer.count({ where: { active: true, lat: null } });
-  const toReview = await db.customer.count({ where: { active: true, pinConfirmed: false } });
+  const withoutParking = await db.customer.count({
+    where: { active: true, parkingSpots: { none: { active: true } } },
+  });
   console.info(
     `[customer-import] created ${created}, updated ${updated}, unchanged ${unchanged}, failed ${failed.length}, pins reset ${pinsReset}`,
   );
@@ -261,6 +262,6 @@ export async function commitImport(
     pinsReset,
     archivedUpdated,
     withoutPin,
-    toReview,
+    withoutParking,
   };
 }

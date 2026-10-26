@@ -2,7 +2,7 @@ import { requireRole } from "./auth/guards";
 import { getCustomerDetail, listUpcomingOrders, nextCustomerNumber } from "./customer-admin";
 import { getNoteTranslations } from "./customer-notes";
 import { getCustomerPhotos } from "./customer-photos";
-import { countPinReviewQueue, listPinReviewQueue } from "./customer-pins";
+import { countParkingQueue, listParkingQueue } from "./customer-pins";
 import { listCustomers } from "./customers";
 import { getDb } from "./db";
 import { listParkingSpots } from "./parking-spots";
@@ -48,16 +48,16 @@ export async function noteTranslationsQuery(id: unknown) {
   return getNoteTranslations(getDb(), id);
 }
 
-/** Customers whose pin still has to be checked, for the pin review queue (admin only). */
-export async function pinReviewQueueQuery() {
+/** Customers without a Parkplatz, for the Parkplatz queue (admin only). */
+export async function parkingQueueQuery() {
   await requireRole("ADMIN");
-  return listPinReviewQueue(getDb());
+  return listParkingQueue(getDb());
 }
 
-/** Number of customers waiting for pin review (admin only). */
-export async function pinReviewCountQuery() {
+/** Number of customers without a Parkplatz (admin only). */
+export async function parkingQueueCountQuery() {
   await requireRole("ADMIN");
-  return countPinReviewQueue(getDb());
+  return countParkingQueue(getDb());
 }
 
 /** Active Parkplätze of one customer in display order, first = default (admin only). */

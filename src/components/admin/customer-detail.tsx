@@ -1,11 +1,4 @@
-import {
-  AlertTriangleIcon,
-  ArchiveIcon,
-  CheckCircle2Icon,
-  ImageOffIcon,
-  MapPinOffIcon,
-  PencilIcon,
-} from "lucide-react";
+import { ArchiveIcon, ImageOffIcon, MapPinOffIcon, PencilIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -106,10 +99,10 @@ export function CustomerDetailView({
                 {t("flags.photosMissing")}
               </Badge>
             ) : null}
-            {!customer.pinConfirmed ? (
-              <Badge variant="warning" data-testid="flag-pin-unconfirmed">
+            {parkingSpots.length === 0 ? (
+              <Badge variant="warning" data-testid="flag-parking-missing">
                 <MapPinOffIcon aria-hidden />
-                {t("flags.pinUnconfirmed")}
+                {t("flags.parkingMissing")}
               </Badge>
             ) : null}
             {!customer.active ? (
@@ -185,23 +178,8 @@ export function CustomerDetailView({
                 </Field>
                 <Field label={td("pin")} testId="detail-pin">
                   {customer.lat !== null && customer.lng !== null ? (
-                    <span className="flex flex-col gap-1">
-                      <span>
-                        {customer.pinConfirmed ? (
-                          <span className="inline-flex items-center gap-1">
-                            <CheckCircle2Icon className="size-4 text-success" aria-hidden />
-                            {td("pinConfirmed")}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1">
-                            <AlertTriangleIcon className="size-4" aria-hidden />
-                            {td("pinUnconfirmed")}
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-mono text-sm text-muted-foreground">
-                        {customer.lat}, {customer.lng}
-                      </span>
+                    <span className="font-mono text-sm text-muted-foreground">
+                      {customer.lat}, {customer.lng}
                     </span>
                   ) : (
                     td("pinNone")

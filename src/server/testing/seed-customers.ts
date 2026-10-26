@@ -38,7 +38,7 @@ export type SeedCustomersOptions = {
 
 /**
  * Test helper (NOT part of the default seed): inserts `count` deterministic customers.
- * Mix per index i: i % 3 === 0 pin unconfirmed; i % 7 === 0 archived; photos: i % 4 = 0 none,
+ * Mix per index i: i % 3 === 0 no Parkplatz (the others get one, needs `uploadedById`); i % 7 === 0 archived; photos: i % 4 = 0 none,
  * 1 store only, 2 parking only, 3 both. Photos need `uploadedById`.
  */
 export async function seedTestCustomers(db: PrismaClient, options: SeedCustomersOptions) {
@@ -51,7 +51,6 @@ export async function seedTestCustomers(db: PrismaClient, options: SeedCustomers
     city: CITIES[i % CITIES.length]!,
     lat: 48 + (i % 100) / 100,
     lng: 14 + (i % 100) / 100,
-    pinConfirmed: i % 3 !== 0,
     active: i % 7 !== 0,
   }));
   await db.customer.createMany({ data: customers });
@@ -79,5 +78,18 @@ export async function seedTestCustomers(db: PrismaClient, options: SeedCustomers
     }));
   });
   if (photos.length) await db.photo.createMany({ data: photos });
+  const spots = created.flatMap((c) => {
+    const i = index.get(c.customerNumber) ?? 0;
+    if (i % 3 === 0) return [];
+    return [
+      {
+        customerId: c.id,
+        lat: 48 + (i % 100) / 100 + 0.001,
+        lng: 14 + (i % 100) / 100 + 0.001,
+        createdById: options.uploadedById!,
+      },
+    ];
+  });
+  if (spots.length) await db.parkingSpot.createMany({ data: spots });
   return customers.length;
 }

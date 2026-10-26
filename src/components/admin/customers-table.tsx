@@ -44,7 +44,7 @@ type Filters = {
   q: string;
   status: "active" | "archived" | "all";
   photosMissing: boolean;
-  pinUnconfirmed: boolean;
+  parkingMissing: boolean;
 };
 
 /** Initials avatars use the soft tone pairs of the design system (never a hard-coded colour). */
@@ -102,7 +102,7 @@ export function CustomersTable({
     filters.q.trim() !== "" ||
     filters.status !== "active" ||
     filters.photosMissing ||
-    filters.pinUnconfirmed;
+    filters.parkingMissing;
   const pageHref = (page: number) => ({
     pathname: "/admin/customers" as const,
     query: customerListQuery({ ...filters, page }),
@@ -256,7 +256,7 @@ function CustomerRow({ customer }: { customer: CustomerListRow }) {
 
 /**
  * "Hinweise" column (re-design.md §8.5): the icon flags the toolbar filters by, for **every** row
- * whose data matches — `photosMissing` and `!pinConfirmed` are exactly the predicates of the two
+ * whose data matches — `photosMissing` and `parkingMissing` are exactly the predicates of the two
  * filter chips, `!active` marks an archived customer, and `StickyNote` marks a customer whose
  * `notes` (LocalizedText) carries text in the locale's fallback chain. A row without a single match
  * shows a muted dash, so an empty cell never reads as a rendering bug.
@@ -272,11 +272,11 @@ function FlagList({ customer }: { customer: CustomerListRow }) {
       title: t("flags.photosMissing"),
     });
   }
-  if (!customer.pinConfirmed) {
+  if (customer.parkingMissing) {
     flags.push({
-      testId: "flag-pin-unconfirmed",
+      testId: "flag-parking-missing",
       icon: MapPinOffIcon,
-      title: t("flags.pinUnconfirmed"),
+      title: t("flags.parkingMissing"),
     });
   }
   if (hasNote(customer.notes, locale)) {

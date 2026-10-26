@@ -157,7 +157,6 @@ export async function seedDemo(
           country: "AT",
           lat: c.lat,
           lng: c.lng,
-          pinConfirmed: true,
           deliveryHoursInfo: c.hours ?? null,
           notes: c.note
             ? createLocalizedText(

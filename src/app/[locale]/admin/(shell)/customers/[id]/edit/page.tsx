@@ -73,7 +73,6 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
             customer.lat !== null && customer.lng !== null
               ? { lat: customer.lat, lng: customer.lng }
               : null,
-          pinConfirmed: customer.pinConfirmed,
           deliveryHoursInfo: customer.deliveryHoursInfo ?? "",
           notes: customer.notes,
           office: {

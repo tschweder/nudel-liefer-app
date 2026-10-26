@@ -10,8 +10,6 @@ import { PinPickerMapLazy } from "@/components/maps/lazy";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { canConfirmPin, type CustomerAddress } from "@/domain/customer";
 import type { PhotoKind } from "@/domain/photos";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { LatLng } from "@/lib/coords";
@@ -31,7 +29,6 @@ export type CustomerFormValues = {
   city: string;
   country: string;
   pin: LatLng | null;
-  pinConfirmed: boolean;
   deliveryHoursInfo: string;
   notes: string;
   /** Office-only master data (NUD-136): legal entity, VAT id, billing address if different. */
@@ -95,13 +92,13 @@ function addressQuery(parts: Array<string | null | undefined>): string {
 /**
  * Customer form (re-design.md §8.5): a two-column layout — labels in a 240 px left column, controls
  * on the right, collapsing to one column below 768 px — in the sections "Stammdaten", "Lieferadresse
- * & Pin", "Lieferzeiten und Hinweise" and "Fotos", closed by a sticky save bar with an
+ * & Adresspunkt", "Lieferzeiten und Hinweise" and "Fotos", closed by a sticky save bar with an
  * unsaved-changes indicator.
  *
  * The pin picker is one 360 px map: the address search sits as an overlay in the map's top-left
  * (Leaflet's own zoom control moves to the bottom-left by descendant utilities, so the two never
  * overlap) and the coordinates stay below it as two small inputs — the keyboard alternative WCAG
- * asks for. "Pin geprüft" is a `Switch`; the pin marker carries an accessible name and M1's live
+ * asks for. There is no confirmation step (D22, NUD-141): the Adresspunkt is looked up on save; the pin marker carries an accessible name and M1's live
  * region announces the new coordinates after a drag (**QA-02**).
  *
  * The visible surface changed only: zod input, server action, field names, test ids and the
@@ -123,26 +120,10 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
   const [notes, setNotes] = useState(initial.notes);
   const [office, setOffice] = useState(initial.office);
   const [pin, setPin] = useState(initial.pin);
-  const [confirmed, setConfirmed] = useState(initial.pinConfirmed);
   const [search, setSearch] = useState<Search>({ state: "idle" });
   const [focus, setFocus] = useState<{ point: LatLng; nonce: number } | null>(null);
   const [error, setError] = useState<"invalid" | "generic" | null>(null);
   const [numberTaken, setNumberTaken] = useState(false);
-
-  const address: CustomerAddress = { street, postalCode, city, country };
-  const before = customerId
-    ? {
-        address: {
-          street: initial.street,
-          postalCode: initial.postalCode,
-          city: initial.city,
-          country: initial.country,
-        },
-        pin: initial.pin,
-      }
-    : null;
-  const confirmable = canConfirmPin(before, { address, pin });
-  const needsNewPin = Boolean(pin) && !confirmable;
 
   // The map's search overlay follows the address fields until the user types something themselves
   // (`null` = untouched); no effect needed, the value is derived during render.
@@ -154,7 +135,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
   const [queryEdit, setQueryEdit] = useState<string | null>(null);
   const query = queryEdit ?? derivedQuery;
 
-  const pinConfirmed = confirmed && confirmable;
   const initialValues = {
     customerNumber: initial.customerNumber,
     name: initial.name,
@@ -167,7 +147,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     office: initial.office,
     lat: initial.pin?.lat ?? null,
     lng: initial.pin?.lng ?? null,
-    pinConfirmed: initial.pinConfirmed,
   };
   const dirty =
     JSON.stringify({
@@ -182,7 +161,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       office,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
-      pinConfirmed,
     }) !== JSON.stringify(initialValues);
 
   // Warn before leaving with unsaved edits; the save bar carries the visible indicator.
@@ -208,7 +186,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     setNotes(initial.notes);
     setOffice(initial.office);
     setPin(initial.pin);
-    setConfirmed(initial.pinConfirmed);
     setSearch({ state: "idle" });
     setFocus(null);
     setError(null);
@@ -216,18 +193,16 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     setQueryEdit(null);
   }
 
-  // Any change of the address or the pin withdraws an earlier confirmation (D9).
+  // A new address makes the earlier search results obsolete.
   function editAddress(set: (value: string) => void) {
     return (value: string) => {
       set(value);
-      setConfirmed(false);
       setSearch({ state: "idle" });
     };
   }
 
   function changePin(next: LatLng) {
     setPin(next);
-    setConfirmed(false);
   }
 
   async function findOnMap() {
@@ -264,7 +239,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       country,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
-      pinConfirmed,
       deliveryHoursInfo: hours,
       notes,
       ...office,
@@ -516,25 +490,6 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
               invalid: tm("coordinatesInvalid"),
             }}
           />
-        </FieldRow>
-        <FieldRow id="pin-confirm-switch" label={t("pinChecked")} hint={t("confirm")}>
-          <Switch
-            id="pin-confirm-switch"
-            checked={pinConfirmed}
-            disabled={!confirmable}
-            onCheckedChange={setConfirmed}
-            aria-label={t("pinChecked")}
-            data-testid="pin-confirm"
-          />
-          {!pin ? (
-            <p className="text-sm text-muted-foreground" data-testid="pin-hint">
-              {t("confirmNeedsPin")}
-            </p>
-          ) : needsNewPin ? (
-            <p className="text-sm text-muted-foreground" data-testid="pin-hint">
-              {t("confirmNeedsMove")}
-            </p>
-          ) : null}
         </FieldRow>
       </section>
 

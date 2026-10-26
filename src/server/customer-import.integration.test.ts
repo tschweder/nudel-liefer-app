@@ -24,8 +24,9 @@ vi.mock("./db", async (importOriginal) => ({
 const actions = await import("./customer-import-actions");
 const queries = await import("./customer-queries");
 const { commitImport, previewImport } = await import("./customer-import");
-const { confirmPin, geocodeCustomers, listCustomerIdsWithoutPin, listPinReviewQueue } =
+const { geocodeCustomers, listCustomerIdsWithoutPin, listParkingQueue } =
   await import("./customer-pins");
+const { createParkingSpot, deactivateParkingSpot } = await import("./parking-spots");
 const { setGeocoderForTests } = await import("./geocoder");
 
 function fixtureRecords(): Array<{ line: number; values: ImportRecord }> {
@@ -74,7 +75,10 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
     state.session = { user: { id: adminId } };
   });
 
-  const clean = () => t.prisma.customer.deleteMany({});
+  const clean = async () => {
+    await t.prisma.parkingSpot.deleteMany({});
+    await t.prisma.customer.deleteMany({});
+  };
 
   it("rejects anonymous callers, drivers and deactivated admins on every action and read", async () => {
     await clean();
@@ -83,15 +87,8 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       () => actions.commitCustomerImportAction({ records: fixtureRecords() }),
       () => actions.listCustomersWithoutPinAction(),
       () => actions.geocodeCustomersAction(["x"]),
-      () =>
-        actions.confirmCustomerPinAction({
-          id: "x",
-          lat: 48,
-          lng: 16,
-          baseUpdatedAt: new Date().toISOString(),
-        }),
-      () => queries.pinReviewQueueQuery(),
-      () => queries.pinReviewCountQuery(),
+      () => queries.parkingQueueQuery(),
+      () => queries.parkingQueueCountQuery(),
     ];
     const sessions: Array<[typeof state.session, string]> = [
       [null, "UNAUTHENTICATED"],
@@ -126,6 +123,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       updated: 0,
       unchanged: 0,
       withoutPin: 147,
+      withoutParking: 147,
     });
     if (!first.ok) throw new Error("unreachable");
     expect(first.failed.map((f) => [f.line, f.issues[0]!.code, f.issues[0]!.field])).toEqual([
@@ -134,7 +132,6 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       [121, "bad_country", "country"],
     ]);
     expect(await t.prisma.customer.count()).toBe(147);
-    expect(await t.prisma.customer.count({ where: { pinConfirmed: true } })).toBe(0);
     expect(await t.prisma.customer.count({ where: { lat: { not: null } } })).toBe(0);
 
     // Leading zero, umlauts, Chinese, the search trigger filled `searchText` for the import too.
@@ -162,7 +159,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
     expect(await t.prisma.customer.count()).toBe(147);
   });
 
-  it("updates changed rows, keeps confirmed pins unless the address changed, matches numbers case-insensitively", async () => {
+  it("updates changed rows, keeps the Adresspunkt unless the address changed, matches numbers case-insensitively", async () => {
     await clean();
     const base = { postalCode: "1010", city: "Wien" };
     const mk = (n: string, over: Record<string, unknown> = {}) =>
@@ -174,7 +171,6 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
           country: "AT",
           lat: 48.2,
           lng: 16.3,
-          pinConfirmed: true,
           ...base,
           ...over,
         },
@@ -196,7 +192,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
     });
     const result = await commitImport(t.prisma, {
       records: [
-        rec("u-1", 2, { name: "Neuer Name" }), // name only: pin stays confirmed
+        rec("u-1", 2, { name: "Neuer Name" }), // name only: the point stays
         rec("U-2", 3, { street: "Neugasse 7" }), // address: pin dropped
         rec("U-3", 4), // unchanged
         rec("U-4", 5, { city: "Graz" }), // archived: updated, stays archived
@@ -214,21 +210,19 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
     const rows = Object.fromEntries(
       (await t.prisma.customer.findMany()).map((c) => [c.customerNumber, c]),
     );
-    expect(rows["U-1"]).toMatchObject({ name: "Neuer Name", pinConfirmed: true, lat: 48.2 });
+    expect(rows["U-1"]).toMatchObject({ name: "Neuer Name", lat: 48.2 });
     expect(rows["U-2"]).toMatchObject({
       street: "Neugasse 7",
-      pinConfirmed: false,
       lat: null,
       lng: null,
     });
-    expect(rows["U-3"]).toMatchObject({ pinConfirmed: true, lat: 48.2 });
+    expect(rows["U-3"]).toMatchObject({ lat: 48.2 });
     expect(rows["U-4"]).toMatchObject({
       city: "Graz",
       active: false,
-      pinConfirmed: false,
       lat: null,
     });
-    expect(rows["U-5"]).toMatchObject({ pinConfirmed: false, lat: null, active: true });
+    expect(rows["U-5"]).toMatchObject({ lat: null, active: true });
     expect(await t.prisma.customer.count()).toBe(5); // no u-1 duplicate
   });
 
@@ -327,7 +321,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
     expect(await t.prisma.customer.count()).toBe(1);
   });
 
-  describe("batch geocoding and pin review", () => {
+  describe("batch geocoding and the Parkplatz queue", () => {
     const seed = async (n: number) => {
       await clean();
       await t.prisma.customer.createMany({
@@ -343,7 +337,7 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       return listCustomerIdsWithoutPin(t.prisma);
     };
 
-    it("stores candidates as unconfirmed pins, at most 5 per batch, only for customers without a pin", async () => {
+    it("stores the best hit as the Adresspunkt, at most 5 per batch, only for customers without one", async () => {
       const ids = await seed(8);
       expect(ids).toHaveLength(8);
       const waits = vi.fn(noWait);
@@ -365,7 +359,6 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       });
       const rows = await t.prisma.customer.findMany({ where: { lat: { not: null } } });
       expect(rows).toHaveLength(5);
-      expect(rows.every((r) => r.pinConfirmed === false)).toBe(true);
       // Already geocoded customers are skipped, nothing is overwritten.
       const again = await geocodeCustomers(t.prisma, new FakeGeocoder(), ids.slice(3, 8), {
         wait: noWait,
@@ -381,11 +374,11 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       expect(await listCustomerIdsWithoutPin(t.prisma)).toEqual([]);
     });
 
-    it("does not touch confirmed or archived customers", async () => {
+    it("does not touch customers that already have a point or are archived", async () => {
       const ids = await seed(3);
       await t.prisma.customer.update({
         where: { id: ids[0]! },
-        data: { lat: 1, lng: 2, pinConfirmed: true },
+        data: { lat: 1, lng: 2 },
       });
       await t.prisma.customer.update({ where: { id: ids[1]! }, data: { active: false } });
       const r = await geocodeCustomers(t.prisma, new FakeGeocoder(), ids, { wait: noWait });
@@ -427,61 +420,27 @@ describe.skipIf(!process.env.DATABASE_URL)("customer import", { timeout: 120_000
       ).toBeNull();
     });
 
-    it("pin review: queue holds unconfirmed active customers; confirming stores the dragged pin", async () => {
+    it("Parkplatz queue: holds active customers without an active Parkplatz, a saved spot removes the customer", async () => {
       const ids = await seed(3);
       await t.prisma.customer.update({ where: { id: ids[2]! }, data: { active: false } });
-      const queue = await listPinReviewQueue(t.prisma);
+      const queue = await listParkingQueue(t.prisma);
       expect(queue.map((q) => q.customerNumber)).toEqual(["G-001", "G-002"]);
 
-      const item = queue[0]!;
-      const ok = await confirmPin(t.prisma, {
-        id: item.id,
+      const created = await createParkingSpot(t.prisma, adminId, {
+        customerId: queue[0]!.id,
         lat: 48.2082123456,
         lng: 16.37381,
-        baseUpdatedAt: item.updatedAt,
       });
-      expect(ok).toEqual({ ok: true });
-      expect(await t.prisma.customer.findUniqueOrThrow({ where: { id: item.id } })).toMatchObject({
-        lat: 48.208212,
-        lng: 16.37381,
-        pinConfirmed: true,
-      });
-      expect((await listPinReviewQueue(t.prisma)).map((q) => q.customerNumber)).toEqual(["G-002"]);
+      expect(created).toMatchObject({ ok: true });
+      expect((await listParkingQueue(t.prisma)).map((q) => q.customerNumber)).toEqual(["G-002"]);
 
-      // Edited since the queue was loaded -> refused, nothing stored.
-      const other = queue[1]!;
-      await t.prisma.customer.update({
-        where: { id: other.id },
-        data: { street: "Andere Gasse 1" },
-      });
-      expect(
-        await confirmPin(t.prisma, {
-          id: other.id,
-          lat: 48,
-          lng: 16,
-          baseUpdatedAt: other.updatedAt,
-        }),
-      ).toEqual({ ok: false, error: "conflict" });
-      expect(
-        (await t.prisma.customer.findUniqueOrThrow({ where: { id: other.id } })).pinConfirmed,
-      ).toBe(false);
-      expect(
-        await confirmPin(t.prisma, {
-          id: "nope",
-          lat: 48,
-          lng: 16,
-          baseUpdatedAt: other.updatedAt,
-        }),
-      ).toEqual({ ok: false, error: "not_found" });
-      for (const bad of [
-        { id: other.id, lat: 91, lng: 16, baseUpdatedAt: other.updatedAt },
-        { id: other.id, lat: 48, lng: 181, baseUpdatedAt: other.updatedAt },
-        { id: other.id, lat: 48, lng: 16, baseUpdatedAt: "yesterday" },
-        { id: other.id, lat: "48", lng: 16, baseUpdatedAt: other.updatedAt },
-        {},
-      ]) {
-        expect(await confirmPin(t.prisma, bad)).toEqual({ ok: false, error: "invalid" });
-      }
+      // A removed (inactive) spot puts the customer back into the queue.
+      if (!created.ok) throw new Error("unreachable");
+      await deactivateParkingSpot(t.prisma, adminId, { id: created.spotId });
+      expect((await listParkingQueue(t.prisma)).map((q) => q.customerNumber)).toEqual([
+        "G-001",
+        "G-002",
+      ]);
     });
   });
 });

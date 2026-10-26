@@ -21,7 +21,7 @@ export type CustomerFilterValues = {
   q: string;
   status: "active" | "archived" | "all";
   photosMissing: boolean;
-  pinUnconfirmed: boolean;
+  parkingMissing: boolean;
 };
 
 const DEBOUNCE_MS = 200;
@@ -48,7 +48,7 @@ export function CustomerFilters({ values }: { values: CustomerFilterValues }) {
   if (
     seen.status !== values.status ||
     seen.photosMissing !== values.photosMissing ||
-    seen.pinUnconfirmed !== values.pinUnconfirmed ||
+    seen.parkingMissing !== values.parkingMissing ||
     seen.q !== values.q
   ) {
     setSeen(values);
@@ -72,7 +72,7 @@ export function CustomerFilters({ values }: { values: CustomerFilterValues }) {
     values.q.trim() !== "" ||
     values.status !== "active" ||
     values.photosMissing ||
-    values.pinUnconfirmed;
+    values.parkingMissing;
 
   return (
     <form
@@ -126,11 +126,11 @@ export function CustomerFilters({ values }: { values: CustomerFilterValues }) {
         onCheckedChange={(checked) => push({ ...local, photosMissing: checked })}
       />
       <FilterChip
-        testId="filter-pin-unconfirmed"
+        testId="filter-parking-missing"
         icon={<MapPinOffIcon className="size-4" aria-hidden />}
-        label={t("filters.pinUnconfirmed")}
-        checked={local.pinUnconfirmed}
-        onCheckedChange={(checked) => push({ ...local, pinUnconfirmed: checked })}
+        label={t("filters.parkingMissing")}
+        checked={local.parkingMissing}
+        onCheckedChange={(checked) => push({ ...local, parkingMissing: checked })}
       />
 
       <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ export function CustomerFilters({ values }: { values: CustomerFilterValues }) {
             type="button"
             variant="ghost"
             onClick={() =>
-              push({ q: "", status: "active", photosMissing: false, pinUnconfirmed: false })
+              push({ q: "", status: "active", photosMissing: false, parkingMissing: false })
             }
             data-testid="reset-filters"
           >

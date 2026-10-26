@@ -79,6 +79,7 @@ async function fixture() {
   const b = await customer("B", 0.02);
   const c = await customer("C", 0.03);
   const noPin = await customer("D", 0.04, false);
+  await client.query(`UPDATE "Customer" SET "lat"=NULL, "lng"=NULL WHERE "id"=$1`, [noPin.id]);
   let n = 0;
   const order = async (customerId: string, quantity: string) => {
     const id = `ord-${tag}-${n++}`;
@@ -164,7 +165,7 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
     await expect(tid(page, "section-title")).toHaveText("Touren");
     await expect(tid(page, "tour-date")).toHaveValue(f.day);
 
-    // No tour yet: warning for the customer without a confirmed pin, with a link; generate button.
+    // No tour yet: warning for the customer without any location, with a link; generate button.
     await expect(tid(page, "empty-state")).toBeVisible();
     const warning = tid(page, "tour-warning");
     await expect(warning).toHaveCount(1);
@@ -177,11 +178,11 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
     expect(await names(rows)).toEqual([f.a.name, f.b.name, f.c.name]);
     await expect(tid(page, "tour-status")).toHaveText("Optimiert");
     await expect(tid(page, "tour-approximate")).toBeVisible(); // no ORS key -> local heuristic
-    await expect(tid(page, "tour-warning")).toHaveCount(1); // the unconfirmed customer is still reported
+    await expect(tid(page, "tour-warning")).toHaveCount(1); // the customer without a location is still reported
     await expect(rows.nth(0).locator('[data-testid="stop-missing-store"]')).toHaveCount(0);
     await expect(rows.nth(0).locator('[data-testid="stop-missing-parking"]')).toHaveCount(1);
     await expect(rows.nth(1).locator('[data-testid="stop-missing-store"]')).toHaveCount(1);
-    await expect(rows.nth(0).locator('[data-testid="stop-items"]')).toHaveText("1 Position");
+    await expect(rows.nth(0).locator('[data-testid="stop-items"]')).toHaveText("1 Produkt");
     const etasBefore = await rows.locator('[data-testid="stop-eta"]').allTextContents();
     expect(etasBefore.every((e) => /^\d\d:\d\d$/.test(e))).toBe(true);
     expect(etasBefore[0] < etasBefore[1] && etasBefore[1] < etasBefore[2]).toBe(true);

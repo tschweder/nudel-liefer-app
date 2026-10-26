@@ -134,13 +134,31 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(all.rows.find((r) => r.customerNumber === "P-BOTH")!.photosMissing).toBe(false);
     });
 
-    it("pin filter", async () => {
-      await t.prisma.customer.create({
-        data: { customerNumber: "C-PIN", name: "Pinned", ...base, pinConfirmed: true },
+    it("Parkplatz filter and flag (NUD-141)", async () => {
+      const withSpot = await t.prisma.customer.create({
+        data: { customerNumber: "C-PARK", name: "Parked", ...base },
       });
-      const r = await listCustomers(t.prisma, { q: "pinned", pinUnconfirmed: true });
-      expect(r.total).toBe(0);
-      expect((await listCustomers(t.prisma, { q: "pinned" })).rows[0]!.pinConfirmed).toBe(true);
+      await t.prisma.customer.create({
+        data: { customerNumber: "C-NOPARK", name: "Parked without", ...base },
+      });
+      await t.prisma.parkingSpot.create({
+        data: { customerId: withSpot.id, lat: 48.2, lng: 16.3, createdById: userId },
+      });
+      const missing = await listCustomers(t.prisma, { q: "parked", parkingMissing: true });
+      expect(missing.rows.map((r) => r.customerNumber)).toEqual(["C-NOPARK"]);
+      const all = await listCustomers(t.prisma, { q: "parked" });
+      expect(Object.fromEntries(all.rows.map((r) => [r.customerNumber, r.parkingMissing]))).toEqual(
+        {
+          "C-PARK": false,
+          "C-NOPARK": true,
+        },
+      );
+      // A removed spot no longer counts.
+      await t.prisma.parkingSpot.updateMany({
+        where: { customerId: withSpot.id },
+        data: { active: false },
+      });
+      expect((await listCustomers(t.prisma, { q: "parked", parkingMissing: true })).total).toBe(2);
     });
 
     it("rejects invalid input", async () => {

@@ -124,6 +124,7 @@ model Customer {
   country           String   @default("AT")
   lat               Float?
   lng               Float?
+  /// Unused since NUD-141 (D22: no pin confirmation); kept so no destructive migration is needed.
   pinConfirmed      Boolean  @default(false)
   /// LocalizedText
   notes             Json?

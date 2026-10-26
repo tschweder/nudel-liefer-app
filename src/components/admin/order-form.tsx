@@ -18,7 +18,7 @@ import {
   parseCalendarDate,
   parseQuantity,
 } from "@/domain/order";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import {
   confirmedOrderCountAction,
@@ -27,7 +27,7 @@ import {
   updateOrderAction,
 } from "@/server/order-actions";
 
-export type CustomerOption = ComboboxOption & { pinConfirmed: boolean };
+export type CustomerOption = ComboboxOption;
 export type ProductOption = ComboboxOption & { unit: "KG" | "PACK" | "CRATE" | "PIECE" };
 
 /** An existing order that is being edited (NUD-032). */
@@ -139,9 +139,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   }, [countKey, customerId, date, order?.id]);
   const confirmedCount = counted && counted.key === countKey ? counted.count : 0;
 
-  const warnings = customer
-    ? orderWarnings({ pinConfirmed: customer.pinConfirmed, confirmedOrdersOnDate: confirmedCount })
-    : [];
+  const warnings = customer ? orderWarnings({ confirmedOrdersOnDate: confirmedCount }) : [];
   const usedProducts = lines.map((l) => l.productId).filter((p): p is string => Boolean(p));
 
   /**
@@ -363,25 +361,6 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
               >
                 <AlertTriangleIcon aria-hidden />
                 <div>{t("warningCombined", { count: confirmedCount })}</div>
-              </Alert>
-            ) : null}
-            {warnings.includes("pin_unconfirmed") ? (
-              <Alert
-                role="status"
-                className="border-warning text-warning"
-                data-testid="warning-pin"
-              >
-                <AlertTriangleIcon aria-hidden />
-                <div className="flex flex-col gap-1">
-                  <span>{t("warningPin")}</span>
-                  <Link
-                    href={`/admin/customers/${customerId}`}
-                    className="underline underline-offset-4"
-                    target="_blank"
-                  >
-                    {t("openCustomer")}
-                  </Link>
-                </div>
               </Alert>
             ) : null}
           </div>

@@ -39,7 +39,6 @@ async function Guarded({ locale }: { locale: string }) {
           value: c.id,
           label: `${c.customerNumber} · ${c.name}, ${c.city}`,
           keywords: [c.customerNumber, c.name, c.street, c.postalCode, c.city],
-          pinConfirmed: c.pinConfirmed,
         }))}
         products={products.map((p) => ({
           value: p.id,

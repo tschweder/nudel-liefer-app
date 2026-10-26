@@ -30,9 +30,11 @@ These are pure TypeScript modules with no framework or database imports.
   `buildStops` sums them per product.
 - `buildStops(orders)` produces one stop per customer (input order of first appearance); the caller
   passes only CONFIRMED orders of one day.
-- `hasConfirmedPin` / `partitionByPin`: a customer can be routed only when the admin confirmed the
-  pin and both coordinates exist. Stops without one are split off (`unrouted`) and reported, never
-  silently dropped.
+- `routingPoint(customer)` (`src/domain/parking.ts`, D22): the first active Parkplatz by `sortOrder`,
+  else the geocoded Lieferadresse (`Customer.lat/lng`), else `null`. `partitionByLocation` splits the
+  stops into `routable`, `unrouted` (no location at all: reported, never silently dropped) and
+  `withoutParking` (routable stops that go to the address because the customer has no Parkplatz: a
+  flag, not a gate). There is no pin confirmation any more (NUD-141).
 - `mergeLockedOrder` reorders a LOCKED tour: stops that still have a routable stop keep their
   position, new customers are appended, customers with nothing left are reported as removed.
 - `departureInstant` / `computeSchedule`: ETAs are departure + cumulative driving legs + service
@@ -122,7 +124,10 @@ stops in a transaction. Rules:
   LOCKED one keeps the order of its stops (`locked_extended`): existing customers stay, new ones are
   appended, customers without orders are removed. Released / running / completed tours are refused
   (`tour_not_editable`); a released tour is updated by the re-release, not the builder.
-- Customers without a confirmed pin are left out and returned as `warnings` (`PIN_UNCONFIRMED`).
+- Every stop is routed to the customer's default Parkplatz, else to the address point. Customers
+  with no location at all are left out and returned as `warnings` (`NO_LOCATION`); customers on the
+  tour without a Parkplatz are returned as `parkingMissing` (flag "Parkplatz fehlt" in the planner,
+  non-blocking).
 - `maxStops` (`too_many_stops`) and order-change conflicts (`conflict`) come from routing.
 - ETAs = `Settings.departureTime` in the factory time zone + legs + `serviceMinutesPerStop` at each
   earlier stop; `Tour.totalDurationS` is driving plus service. Every stop stores the quantities it
@@ -154,7 +159,7 @@ database, routing provider and settings:
 ### `tour-rerelease.ts` — re-release of a released tour (NUD-043)
 
 `loadReleasePlan` compares a released tour with the day's CONFIRMED orders (customers without a
-confirmed pin are left out; orders linked to a completed stop are always kept so their edits are
+location at all are left out; orders linked to a completed stop are always kept so their edits are
 reported). `getTourDiffView` builds the admin banner diff with customer and product names.
 `reReleaseTourWith(deps, input)` applies `planReRelease` in a transaction: completed stops are
 frozen, open stops are updated in place (order kept, new customers appended, empty ones removed),

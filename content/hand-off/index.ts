@@ -294,77 +294,54 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Der Hinweis für den Fahrer wird später in die Fahrersprachen übersetzt. Der Adresspunkt wird danach gesetzt und bestätigt.",
-        zh: "给司机的备注稍后会翻译成司机使用的语言。地址点需要在之后设置并确认。",
+        de: "Der Hinweis für den Fahrer wird später in die Fahrersprachen übersetzt. Der Adresspunkt wird beim Speichern automatisch aus der Adresse ermittelt; den Parkplatz legst du danach fest.",
+        zh: "给司机的备注稍后会翻译成司机使用的语言。保存时会根据地址自动确定地址点；停车位在之后设置。",
       },
       route: "/de/admin/customers/new",
     },
     {
       id: "kartenpunkt-setzen-und-bestaetigen",
       area: "buero",
-      title: { de: "Adresspunkt setzen und bestätigen", zh: "设置并确认地址点" },
+      title: { de: "Parkplatz festlegen", zh: "设置停车位" },
       summary: {
-        de: "Die Adresse auf der Karte suchen, den Adresspunkt genau auf den Eingang schieben und bestätigen.",
-        zh: "在地图上查找地址，把标记拖到入口，然后确认。",
+        de: "Den Parkplatz eines Kunden auf der Karte setzen, damit Tour und Navigation dorthin führen.",
+        zh: "在地图上设置客户的停车位，路线和导航就会前往该处。",
       },
       path: {
-        de: "Seitenleiste → Stammdaten → Kunden → Kunde öffnen → «Adresspunkt auf der Karte»",
-        zh: "侧边栏 → 基础数据 → 客户 → 打开客户 →「地图上的地址点」",
+        de: "Seitenleiste → Stammdaten → Kunden → Kunde öffnen → «Parkplätze»",
+        zh: "侧边栏 → 基础数据 → 客户 → 打开客户 →「停车位」",
       },
       search: {
         de: [
-          "pin",
+          "parkplatz",
+          "parkplatz festlegen",
           "karte",
-          "adresse suchen",
-          "kartenpunkt",
-          "auf karte suchen",
-          "pin bestätigen",
-          "pin prüfen",
-          "kartenpunkt bestätigen",
+          "navigation",
+          "lieferadresse",
+          "adresspunkt",
         ],
-        zh: ["地址点", "查找地址", "确认地址点"],
+        zh: ["停车位", "设置停车位", "地址点", "导航"],
       },
       steps: [
         {
           text: {
-            de: "Im Kundenformular den Abschnitt «Adresspunkt auf der Karte» öffnen.",
-            zh: "在客户表单中打开「地图上的地址点」部分。",
+            de: "Auf der Kundenseite im Abschnitt «Parkplätze» auf «Parkplatz hinzufügen» klicken.",
+            zh: "在客户页面的「停车位」部分点击「添加停车位」。",
           },
-          label: "Adresspunkt auf der Karte",
+          label: "Parkplatz hinzufügen",
         },
         {
           text: {
-            de: "Im Feld «Adresse für die Kartensuche» Straße, PLZ oder Ort eingeben.",
-            zh: "在「用于地图搜索的地址」中输入街道、邮编或城市。",
-          },
-          label: "Adresse für die Kartensuche",
-        },
-        {
-          text: {
-            de: "Auf «Auf Karte suchen» klicken.",
-            zh: "点击「在地图上查找」。",
-          },
-          label: "Auf Karte suchen",
-        },
-        {
-          text: {
-            de: "Unter «Gefundene Adresspunkte – bitte einen auswählen» den passenden Treffer anklicken.",
-            zh: "在「找到的地址点，请选择一个」中点击正确的结果。",
-          },
-          label: "Gefundene Adresspunkte – bitte einen auswählen",
-        },
-        {
-          text: {
-            de: "Den Adresspunkt auf der Karte genau auf den Eingang bzw. die Lieferstelle ziehen.",
-            zh: "把地图上的地址点拖到入口或卸货点的准确位置。",
+            de: "Auf die Karte klicken oder den Marker auf den Parkplatz ziehen. Die Karte startet an der Lieferadresse.",
+            zh: "点击地图，或把标记拖到停车位上。地图从送货地址开始显示。",
           },
         },
         {
           text: {
-            de: "Das Kästchen «Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.» anhaken.",
-            zh: "勾选「已核对：地址点位于送货地址的正确位置。」",
+            de: "Optional eine «Bezeichnung» und einen «Hinweis» eintragen, z. B. «Hof» oder «Einfahrt links».",
+            zh: "可选：填写「名称」和「备注」，例如「院子」或「入口在左侧」。",
           },
-          label: "Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.",
+          label: "Bezeichnung",
         },
         {
           text: {
@@ -372,12 +349,12 @@ export const HAND_OFF: HandOffContent = {
             zh: "点击「保存」。",
           },
           label: "Speichern",
-          result: "Änderungen gespeichert.",
+          result: "Parkplatz gespeichert.",
         },
       ],
       after: {
-        de: "Erst nach dem Bestätigen gilt der Adresspunkt als geprüft. Ein unbestätigter Adresspunkt hält den Kunden aus jeder Tour heraus.",
-        zh: "只有确认后标记才算已核对。标记未确认的客户不会出现在任何配送线路中。",
+        de: "Der erste Parkplatz ist der Standard: Touren und Navigation führen dorthin. Ohne Parkplatz wird die Lieferadresse angefahren; der Kunde bleibt trotzdem in der Tour.",
+        zh: "第一个停车位为默认停车位：路线和导航都会前往该处。没有停车位时前往送货地址，客户仍然会出现在路线中。",
       },
       route: "/de/admin/customers",
     },
@@ -504,49 +481,55 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ändert sich die Adresse eines Kunden, werden Adresspunkt und Bestätigung zurückgesetzt. Danach mit «Adresspunkte prüfen» die Punkte kontrollieren.",
-        zh: "如果客户地址发生变化，地址点和确认状态会被重置。之后请用「检查地址点」逐个检查。",
+        de: "Nach dem Import werden die Adresspunkte automatisch gesucht. Ändert sich die Adresse eines Kunden, wird der Adresspunkt neu ermittelt. Für Kunden ohne Parkplatz führt der Link «Parkplätze festlegen» durch die Liste.",
+        zh: "导入后会自动查找地址点。如果客户地址发生变化，地址点会重新确定。对于没有停车位的客户，可通过「设置停车位」链接逐个处理。",
       },
       route: "/de/admin/customers/import",
     },
     {
       id: "pins-pruefen",
       area: "buero",
-      title: { de: "Adresspunkte nach dem Import prüfen", zh: "导入后检查地址点" },
+      title: { de: "Parkplätze nach dem Import festlegen", zh: "导入后设置停车位" },
       summary: {
-        de: "Neue oder geänderte Adresspunkte der Reihe nach kontrollieren und bestätigen.",
-        zh: "逐个检查新建或变更的地址点并确认。",
+        de: "Kunden ohne Parkplatz der Reihe nach durchgehen und den Parkplatz auf der Karte setzen.",
+        zh: "逐个查看没有停车位的客户，并在地图上设置停车位。",
       },
       path: {
-        de: "Kunden → Import → «Adresspunkte prüfen»",
-        zh: "客户 → 导入 →「检查地址点」",
+        de: "Kunden → Import → «Parkplätze festlegen»",
+        zh: "客户 → 导入 →「设置停车位」",
       },
       search: {
-        de: ["pins prüfen", "pin bestätigen", "überspringen", "kartenpunkt prüfen", "nach import"],
-        zh: ["检查地址点", "确认地址点", "跳过", "地址点未确认"],
+        de: [
+          "parkplätze festlegen",
+          "parkplatz setzen",
+          "überspringen",
+          "nach import",
+          "ohne parkplatz",
+        ],
+        zh: ["设置停车位", "跳过", "没有停车位"],
       },
       steps: [
         {
           text: {
-            de: "Nach dem Import auf «Adresspunkte prüfen» klicken.",
-            zh: "导入完成后点击「检查地址点」。",
+            de: "Nach dem Import auf «Parkplätze festlegen» klicken.",
+            zh: "导入完成后点击「设置停车位」。",
           },
-          label: "Adresspunkte prüfen",
+          label: "Parkplätze festlegen",
         },
         {
           text: {
-            de: "Bei Bedarf «Adresse auf der Karte suchen» nutzen und den Adresspunkt auf den Eingang ziehen.",
-            zh: "需要时使用「在地图上查找地址」，并把标记拖到入口。",
+            de: "Bei Bedarf «Adresse auf der Karte suchen» nutzen und den Marker auf den Parkplatz ziehen.",
+            zh: "需要时使用「在地图上查找地址」，并把标记拖到停车位上。",
           },
           label: "Adresse auf der Karte suchen",
         },
         {
           text: {
-            de: "Auf «Adresspunkt bestätigen» klicken.",
-            zh: "点击「确认地址点」。",
+            de: "Auf «Parkplatz speichern» klicken — der nächste Kunde erscheint automatisch.",
+            zh: "点击「保存停车位」——下一位客户会自动出现。",
           },
-          label: "Adresspunkt bestätigen",
-          result: "Adresspunkt bestätigt.",
+          label: "Parkplatz speichern",
+          result: "Parkplatz gespeichert.",
         },
         {
           text: {
@@ -564,10 +547,10 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ein nicht bestätigter Adresspunkt hält den Kunden aus jeder Tour heraus, bis er geprüft wurde.",
-        zh: "标记未确认的客户在核对之前不会进入任何配送线路。",
+        de: "Ein Kunde ohne Parkplatz bleibt in der Tour; sie führt dann zu seiner Lieferadresse.",
+        zh: "没有停车位的客户仍在路线中，路线会前往他的送货地址。",
       },
-      route: "/de/admin/customers/import/review",
+      route: "/de/admin/customers/parking",
     },
     {
       id: "kunde-archivieren",
@@ -628,8 +611,8 @@ export const HAND_OFF: HandOffContent = {
       area: "buero",
       title: { de: "Kunden suchen und filtern", zh: "搜索和筛选客户" },
       summary: {
-        de: "Kunden über die Suche finden und nach fehlenden Fotos oder unbestätigtem Adresspunkt filtern.",
-        zh: "通过搜索找到客户，并按缺少照片或地址点未确认进行筛选。",
+        de: "Kunden über die Suche finden und nach fehlenden Fotos oder fehlendem Parkplatz filtern.",
+        zh: "通过搜索找到客户，并按缺少照片或没有停车位进行筛选。",
       },
       path: {
         de: "Seitenleiste → Stammdaten → Kunden → «Suche»",
@@ -641,11 +624,11 @@ export const HAND_OFF: HandOffContent = {
           "suche",
           "filter",
           "fotos fehlen",
-          "pin unbestätigt",
+          "ohne parkplatz",
           "kunde finden",
           "kundenliste",
         ],
-        zh: ["搜索客户", "搜索", "筛选", "缺少照片", "地址点未确认"],
+        zh: ["搜索客户", "搜索", "筛选", "缺少照片", "无停车位"],
       },
       steps: [
         {
@@ -664,10 +647,10 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Den Filter «Adresspunkt unbestätigt» einschalten, um Kunden mit unbestätigtem Adresspunkt zu sehen.",
-            zh: "打开「地址点未确认」筛选，查看地址点未确认的客户。",
+            de: "Den Filter «Ohne Parkplatz» einschalten, um Kunden ohne Parkplatz zu sehen.",
+            zh: "打开「无停车位」筛选，查看没有停车位的客户。",
           },
-          label: "Adresspunkt unbestätigt",
+          label: "Ohne Parkplatz",
         },
         {
           text: {
@@ -1252,8 +1235,8 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Im Abschnitt «Zu erledigen» offene Punkte sehen, z. B. Kunden mit unbestätigtem Adresspunkt.",
-            zh: "在「待处理」中查看未完成事项，例如地址点未确认的客户。",
+            de: "Im Abschnitt «Zu erledigen» offene Punkte sehen, z. B. Kunden ohne Parkplatz.",
+            zh: "在「待处理」中查看未完成事项，例如没有停车位的客户。",
           },
           label: "Zu erledigen",
         },
@@ -2075,14 +2058,14 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Die Navigation führt zum Adresspunkt des Kunden, nicht zur getippten Adresse.",
-            zh: "导航会指向客户的地址点，而不是输入的地址。",
+            de: "Die Navigation führt zum Parkplatz des Kunden, nicht zur getippten Adresse.",
+            zh: "导航会指向客户的停车位，而不是输入的地址。",
           },
         },
       ],
       after: {
-        de: "Fehlt der Adresspunkt («Kein Adresspunkt – bitte beim Büro nachfragen»), führt die Navigation nicht zum richtigen Ort.",
-        zh: "如果没有地址点（「没有地址点，请联系办公室」），导航无法带你到正确位置。",
+        de: "Hat der Kunde keinen Parkplatz, führt die Navigation zur Lieferadresse. Fehlt auch der Adresspunkt («Kein Adresspunkt – bitte beim Büro nachfragen»), führt die Navigation nicht zum richtigen Ort.",
+        zh: "如果客户没有停车位，导航会前往送货地址。如果连地址点也没有（「没有地址点，请联系办公室」），导航无法带你到正确位置。",
       },
       route: "/de/driver/stops/[stopId]",
     },
@@ -2654,8 +2637,8 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Erscheint «Keine Stopps», gibt es keine bestätigten Bestellungen mit bestätigtem Adresspunkt für diesen Tag.",
-            zh: "如果出现「没有站点」，说明该日期没有已确认订单且地址点已确认的客户。",
+            de: "Erscheint «Keine Stopps», gibt es keine bestätigten Bestellungen mit Parkplatz oder Adresspunkt für diesen Tag.",
+            zh: "如果出现「没有站点」，说明该日期没有已确认订单且有停车位或地址点的客户。",
           },
           label: "Keine Stopps",
         },
@@ -2668,8 +2651,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ein unbestätigter Adresspunkt ist der häufigste Grund, warum eine Bestellung in keiner Tour landet.",
-        zh: "客户地址点未确认，是订单无法进入线路的最常见原因。",
+        de: "Ein Kunde ohne Parkplatz und ohne Adresspunkt ist der häufigste Grund, warum eine Bestellung in keiner Tour landet.",
+        zh: "客户既没有停车位也没有地址点，是订单无法进入线路的最常见原因。",
       },
       route: "/de/admin/tours",
     },
@@ -2678,29 +2661,30 @@ export const HAND_OFF: HandOffContent = {
       area: "system",
       title: { de: "Warum ein Kunde nicht in der Tour ist", zh: "为什么客户不在线路中" },
       summary: {
-        de: "Bestätigte Bestellung, aber der Kunde fehlt in der Tour — meistens wegen des Adresspunkts.",
-        zh: "订单已确认但客户不在线路中——通常是地址点的问题。",
+        de: "Bestätigte Bestellung, aber der Kunde fehlt in der Tour — meistens, weil weder Parkplatz noch Adresspunkt vorhanden ist.",
+        zh: "订单已确认但客户不在线路中——通常是因为既没有停车位也没有地址点。",
       },
       path: {
-        de: "Touren → Hinweis «Nicht in der Tour: Adresspunkt nicht bestätigt»",
-        zh: "配送线路 → 提示「未纳入配送线路：地址点未确认」",
+        de: "Touren → Hinweis «Nicht in der Tour: kein Parkplatz und kein Adresspunkt»",
+        zh: "配送线路 → 提示「未纳入配送线路：没有停车位和地址点」",
       },
       search: {
         de: [
           "kunde nicht in der tour",
-          "kartenpunkt nicht bestätigt",
+          "kein parkplatz",
+          "kein adresspunkt",
           "nicht in der tour",
           "warnung tour",
         ],
-        zh: ["客户不在线路中", "地址点未确认", "未纳入配送线路"],
+        zh: ["客户不在线路中", "没有停车位", "未纳入配送线路"],
       },
       steps: [
         {
           text: {
-            de: "In der Tour den Abschnitt «Nicht in der Tour: Adresspunkt nicht bestätigt» lesen.",
-            zh: "在线路页面查看「未纳入配送线路：地址点未确认」部分。",
+            de: "In der Tour den Abschnitt «Nicht in der Tour: kein Parkplatz und kein Adresspunkt» lesen.",
+            zh: "在线路页面查看「未纳入配送线路：没有停车位和地址点」部分。",
           },
-          label: "Nicht in der Tour: Adresspunkt nicht bestätigt",
+          label: "Nicht in der Tour: kein Parkplatz und kein Adresspunkt",
         },
         {
           text: {
@@ -2711,10 +2695,10 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Dort den Adresspunkt prüfen, mit «Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.» bestätigen und speichern.",
-            zh: "在那里检查地址点，勾选「已核对：地址点位于送货地址的正确位置。」并保存。",
+            de: "Dort über «Parkplatz hinzufügen» einen Parkplatz festlegen (oder die Adresse korrigieren und speichern).",
+            zh: "在那里通过「添加停车位」设置停车位（或更正地址后保存）。",
           },
-          label: "Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.",
+          label: "Parkplatz hinzufügen",
         },
         {
           text: {
@@ -2725,8 +2709,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Erst mit bestätigtem Adresspunkt nimmt die Tour den Kunden auf.",
-        zh: "只有地址点已确认，线路才会纳入该客户。",
+        de: "Sobald ein Parkplatz oder ein Adresspunkt vorhanden ist, nimmt die Tour den Kunden auf.",
+        zh: "只要有停车位或地址点，线路就会纳入该客户。",
       },
       route: "/de/admin/tours",
     },
@@ -3058,7 +3042,7 @@ export const HAND_OFF: HandOffContent = {
     { de: "Synchronisierung", zh: "同步" },
     { de: "Offline", zh: "离线" },
     { de: "Adresspunkt", zh: "地址点" },
-    { de: "Adresspunkt bestätigen", zh: "确认地址点" },
+    { de: "Parkplatz", zh: "停车位" },
     { de: "Adresse suchen", zh: "查找地址" },
     { de: "Depot / Fabrik", zh: "仓库（工厂）" },
     { de: "Einstellungen", zh: "设置" },

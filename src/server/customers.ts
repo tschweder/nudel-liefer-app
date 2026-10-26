@@ -12,7 +12,8 @@ export const customerListInputSchema = z.object({
   status: z.enum(["active", "archived", "all"]).default("active"),
   /** Only customers lacking a current STORE or a current PARKING photo. */
   photosMissing: z.boolean().default(false),
-  pinUnconfirmed: z.boolean().default(false),
+  /** Only customers without an active Parkplatz (they are routed to the address, NUD-141). */
+  parkingMissing: z.boolean().default(false),
   page: z.number().int().min(1).max(100_000).default(1),
   pageSize: z.number().int().min(1).max(100).default(CUSTOMER_PAGE_SIZE),
 });
@@ -25,7 +26,7 @@ export type CustomerListRow = {
   street: string;
   postalCode: string;
   city: string;
-  pinConfirmed: boolean;
+  parkingMissing: boolean;
   active: boolean;
   photosMissing: boolean;
   /**
@@ -54,6 +55,10 @@ export function searchTerms(q: string): string[] {
   return q.split(/\s+/).filter(Boolean).slice(0, MAX_TERMS);
 }
 
+export const MISSING_PARKING = Prisma.sql`NOT EXISTS (
+  SELECT 1 FROM "ParkingSpot" ps WHERE ps."customerId" = c."id" AND ps."active"
+)`;
+
 const MISSING_PHOTO = Prisma.sql`NOT (
   EXISTS (SELECT 1 FROM "Photo" p WHERE p."customerId" = c."id" AND p."kind" = 'STORE' AND p."isCurrent")
   AND EXISTS (SELECT 1 FROM "Photo" p WHERE p."customerId" = c."id" AND p."kind" = 'PARKING' AND p."isCurrent")
@@ -73,7 +78,7 @@ export async function listCustomers(
   const conditions: Prisma.Sql[] = [];
   if (input.status === "active") conditions.push(Prisma.sql`c."active"`);
   if (input.status === "archived") conditions.push(Prisma.sql`NOT c."active"`);
-  if (input.pinUnconfirmed) conditions.push(Prisma.sql`NOT c."pinConfirmed"`);
+  if (input.parkingMissing) conditions.push(MISSING_PARKING);
   if (input.photosMissing) conditions.push(MISSING_PHOTO);
   for (const term of searchTerms(input.q)) {
     conditions.push(
@@ -87,7 +92,8 @@ export async function listCustomers(
   const [rows, counted] = await Promise.all([
     db.$queryRaw<CustomerListRow[]>`
       SELECT c."id", c."customerNumber", c."name", c."street", c."postalCode", c."city",
-             c."pinConfirmed", c."active", c."notes", (${MISSING_PHOTO}) AS "photosMissing"
+             c."active", c."notes", (${MISSING_PHOTO}) AS "photosMissing",
+             (${MISSING_PARKING}) AS "parkingMissing"
       FROM "Customer" c
       ${where}
       ORDER BY lower(c."name"), c."customerNumber"

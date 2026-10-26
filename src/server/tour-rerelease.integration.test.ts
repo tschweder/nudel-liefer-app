@@ -87,7 +87,6 @@ describe.skipIf(!process.env.DATABASE_URL)(
             city: "Wien",
             lat: DEPOT.lat,
             lng: DEPOT.lng + lngOffset,
-            pinConfirmed: true,
             ...extra,
           },
         })

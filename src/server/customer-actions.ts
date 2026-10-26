@@ -10,6 +10,7 @@ import {
 import { retranslateNote, saveNoteTranslations } from "./customer-notes";
 import { addCustomerPhoto } from "./customer-photos";
 import { getDb } from "./db";
+import { getGeocoder } from "./geocoder";
 import { getStorage } from "./storage";
 
 /**
@@ -19,7 +20,7 @@ import { getStorage } from "./storage";
 
 export async function createCustomerAction(input: unknown): Promise<CustomerSaveResult> {
   await requireRole("ADMIN");
-  return createCustomer(getDb(), input);
+  return createCustomer(getDb(), input, { geocoder: getGeocoder() });
 }
 
 export async function updateCustomerAction(
@@ -27,7 +28,7 @@ export async function updateCustomerAction(
   input: unknown,
 ): Promise<CustomerSaveResult> {
   await requireRole("ADMIN");
-  return updateCustomer(getDb(), id, input);
+  return updateCustomer(getDb(), id, input, { geocoder: getGeocoder() });
 }
 
 export async function setCustomerActiveAction(id: unknown, active: unknown) {

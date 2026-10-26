@@ -67,7 +67,6 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
           city: "Wien",
           lat: DEPOT.lat,
           lng: DEPOT.lng + lngOffset,
-          pinConfirmed: true,
           ...extra,
         },
       })
@@ -127,6 +126,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     await t.prisma.tour.deleteMany();
     await t.prisma.orderItem.deleteMany();
     await t.prisma.order.deleteMany();
+    await t.prisma.parkingSpot.deleteMany();
     await t.prisma.customer.deleteMany();
   });
 
@@ -203,31 +203,90 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     expect(sum).toBe(4);
   });
 
-  it("reports customers without a confirmed pin instead of dropping them silently", async () => {
-    const ok = await customer("C1", 0.1);
-    const unconfirmed = await customer("C2", 0.2, { pinConfirmed: false });
-    const noCoords = await customer("C3", 0.3, { lat: null, lng: null });
-    await order(ok, [[p1, 1]]);
-    const o2 = await order(unconfirmed, [[p1, 1]]);
-    await order(noCoords, [[p1, 1]]);
+  const parkingSpot = (customerId: string, lat: number, lng: number, extra = {}) =>
+    t.prisma.parkingSpot.create({
+      data: { customerId, lat, lng, createdById: adminId, ...extra },
+    });
+
+  it("routes to the default Parkplatz, else to the address; only 'no location' stays out (NUD-141)", async () => {
+    const withSpot = await customer("C1", 0.1);
+    const noSpot = await customer("C2", 0.2); // no Parkplatz, never confirmed: still on the tour
+    const nothing = await customer("C3", 0.3, { lat: null, lng: null });
+    const spotOnly = await customer("C4", 0.4, { lat: null, lng: null });
+    await parkingSpot(withSpot, DEPOT.lat + 0.01, DEPOT.lng + 0.11, { sortOrder: 1 });
+    await parkingSpot(withSpot, DEPOT.lat + 0.02, DEPOT.lng + 0.12, { sortOrder: 0 }); // default
+    await parkingSpot(withSpot, DEPOT.lat + 0.03, DEPOT.lng + 0.13, {
+      active: false,
+      sortOrder: -1,
+    });
+    await parkingSpot(spotOnly, DEPOT.lat, DEPOT.lng + 0.41);
+    await order(withSpot, [[p1, 1]]);
+    await order(noSpot, [[p1, 1]]);
+    const o3 = await order(nothing, [[p1, 1]]);
+    await order(spotOnly, [[p1, 1]]);
+
+    const optimize = vi.spyOn(provider, "optimize");
+    const result = await generate();
+    expect(result).toMatchObject({ ok: true, stopCount: 3 });
+    if (!result.ok) return;
+
+    const points = new Map(
+      optimize.mock.calls[0]![0].stops.map((s) => [s.id, s.location] as const),
+    );
+    expect(points.get(withSpot)).toEqual({ lat: DEPOT.lat + 0.02, lng: DEPOT.lng + 0.12 });
+    expect(points.get(noSpot)).toEqual({ lat: DEPOT.lat, lng: DEPOT.lng + 0.2 });
+    expect(points.get(spotOnly)).toEqual({ lat: DEPOT.lat, lng: DEPOT.lng + 0.41 });
+    optimize.mockRestore();
+
+    // Only the customer with no location at all is a warning ...
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatchObject({
+      code: "NO_LOCATION",
+      customerId: nothing,
+      customerNumber: "C3",
+      orderIds: [o3],
+    });
+    expect(await t.prisma.stop.count({ where: { customerId: nothing } })).toBe(0);
+    // ... and the customer routed to the address point carries the non-blocking flag.
+    expect(result.parkingMissing.map((w) => w.customerId)).toEqual([noSpot]);
+    expect(await t.prisma.stop.count({ where: { customerId: noSpot } })).toBe(1);
+  });
+
+  it("puts a freshly imported customer (no confirmation, no Parkplatz) on the tour with the flag", async () => {
+    const { commitImport } = await import("./customer-import");
+    const { geocodeCustomers } = await import("./customer-pins");
+    const { FakeGeocoder } = await import("./geocoder");
+    const imported = await commitImport(t.prisma, {
+      records: [
+        {
+          line: 2,
+          values: {
+            customerNumber: "IMP-1",
+            name: "Importiert",
+            street: "Neue Gasse 3",
+            postalCode: "1020",
+            city: "Wien",
+          },
+        },
+      ],
+    });
+    expect(imported).toMatchObject({ ok: true, created: 1, withoutPin: 1, withoutParking: 1 });
+    const row = await t.prisma.customer.findFirstOrThrow({ where: { customerNumber: "IMP-1" } });
+    const geocoded = await geocodeCustomers(t.prisma, new FakeGeocoder(), [row.id], {
+      wait: async () => {},
+    });
+    expect(geocoded).toMatchObject({ ok: true, stopped: null });
+    await order(row.id, [[p1, 2]]);
 
     const result = await generate();
-    expect(result).toMatchObject({ ok: true, stopCount: 1 });
+    expect(result).toMatchObject({ ok: true, stopCount: 1, warnings: [] });
     if (!result.ok) return;
-    expect(result.warnings.map((w) => w.customerId).sort()).toEqual([unconfirmed, noCoords].sort());
-    const warning = result.warnings.find((w) => w.customerId === unconfirmed);
-    expect(warning).toMatchObject({
-      code: "PIN_UNCONFIRMED",
-      customerNumber: "C2",
-      name: "Kunde C2",
-      orderIds: [o2],
-    });
-    expect(await t.prisma.stop.count({ where: { customerId: unconfirmed } })).toBe(0);
+    expect(result.parkingMissing.map((w) => w.customerId)).toEqual([row.id]);
   });
 
   it("returns the warnings together with no_stops when nothing is routable", async () => {
-    const unconfirmed = await customer("C2", 0.2, { pinConfirmed: false });
-    await order(unconfirmed, [[p1, 1]]);
+    const nothing = await customer("C2", 0.2, { lat: null, lng: null });
+    await order(nothing, [[p1, 1]]);
     const result = await generate();
     expect(result).toMatchObject({ ok: false, error: "no_stops" });
     expect(result.warnings).toHaveLength(1);
@@ -271,7 +330,6 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
       city: "Wien",
       lat: DEPOT.lat + 0.001 * i,
       lng: DEPOT.lng + 0.001 * i,
-      pinConfirmed: true,
     }));
     await t.prisma.customer.createMany({ data: rows });
     const all = await t.prisma.customer.findMany({ select: { id: true } });

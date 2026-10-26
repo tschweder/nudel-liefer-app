@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { routingPoint } from "@/domain/parking";
 import type { PhotoKind } from "@/domain/photos";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
@@ -12,6 +13,7 @@ import {
 import { localizedTextSchema } from "@/lib/localized-text";
 
 import type { Actor } from "./auth/guards";
+import { parkingSpotsForRouting } from "./routing-points";
 import type { Storage } from "./storage/types";
 import { getDriverTour } from "./tour-driver";
 
@@ -82,6 +84,7 @@ export async function getDriverTourResponse(
         city: true,
         lat: true,
         lng: true,
+        parkingSpots: parkingSpotsForRouting,
         notes: true,
         deliveryHoursInfo: true,
       },
@@ -117,6 +120,7 @@ export async function getDriverTourResponse(
 
   const stops: PayloadStop[] = tour.stops.map((stop) => {
     const customer = byId.get(stop.customerId);
+    const point = customer ? routingPoint(customer) : null;
     const notes = localizedTextSchema.safeParse(customer?.notes);
     const photos = photoByCustomer.get(stop.customerId);
     return {
@@ -135,8 +139,9 @@ export async function getDriverTourResponse(
       street: customer?.street ?? "",
       postalCode: customer?.postalCode ?? "",
       city: customer?.city ?? "",
-      lat: customer?.lat ?? null,
-      lng: customer?.lng ?? null,
+      // Navigation and the map use the same point as the optimisation: Parkplatz, else address.
+      lat: point?.lat ?? null,
+      lng: point?.lng ?? null,
       notes: notes.success ? notes.data : null,
       deliveryHoursInfo: customer?.deliveryHoursInfo?.trim() || null,
       photos: { STORE: photos?.STORE ?? null, PARKING: photos?.PARKING ?? null },

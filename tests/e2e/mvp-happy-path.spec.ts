@@ -163,12 +163,12 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await expect(admin.getByTestId("candidate")).toHaveCount(1);
     await admin.getByTestId("candidate").first().click();
     await expect(admin.getByTestId("pin-picker").locator(".leaflet-marker-icon")).toHaveCount(1);
-    await expect(admin.getByTestId("pin-confirm")).toBeEnabled();
-    await admin.getByTestId("pin-confirm").check();
+    await expect(admin.getByTestId("pin-confirm")).toHaveCount(0);
     await admin.getByTestId("customer-save").click();
     await expect(admin).toHaveURL(/\/de\/admin\/customers\/[^/]+$/);
     await expect(admin.getByRole("heading", { name, level: 1 })).toBeVisible();
-    await expect(admin.getByTestId("detail-pin")).toContainText("Adresspunkt bestätigt");
+    await expect(admin.getByTestId("detail-pin")).toContainText(/\d+\.\d+, \d+\.\d+/);
+    await expect(admin.getByTestId("flag-parking-missing")).toBeVisible();
 
     await admin.goto("/de/admin/orders/new");
     await admin.locator("#order-customer").click();
@@ -203,6 +203,10 @@ for (const { locale, username } of DRIVER_LOCALES) {
     const rows = admin.locator('[data-testid="stop-row"]:visible');
     await expect(rows).toHaveCount(1);
     await expect(rows.first().getByTestId("stop-name")).toHaveText(name);
+    // No Parkplatz yet: routed to the address point, with a non-blocking flag.
+    await expect(rows.first().getByTestId("stop-missing-parking-spot")).toContainText(
+      "Parkplatz fehlt",
+    );
     await expect(rows.first().getByTestId("stop-items")).toHaveText("2 Produkte");
     await expect(visible(admin, "tour-status")).toHaveText("Optimiert");
     await expect(visible(admin, "tour-release")).toBeDisabled();
@@ -309,7 +313,6 @@ test("demo data: the seeded customers show their generated photos", async ({ pag
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto(`/de/admin/customers/${demo!.id}`);
   await expect(page.getByTestId("flag-photos-missing")).toHaveCount(0);
-  await expect(page.getByTestId("flag-pin-unconfirmed")).toHaveCount(0);
   for (const slot of ["photo-slot-store", "photo-slot-parking"]) {
     const img = page.getByTestId(slot).locator("img");
     await expect(img).toBeVisible();

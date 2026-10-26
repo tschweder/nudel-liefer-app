@@ -137,18 +137,12 @@ export const orderInputSchema = z
 export type OrderInput = z.input<typeof orderInputSchema>;
 export type ValidOrder = z.output<typeof orderInputSchema>;
 
-export type OrderWarning = "combined_stop" | "pin_unconfirmed";
+export type OrderWarning = "combined_stop";
 
 /**
  * Warnings (never errors) shown while entering an order: the customer already has confirmed
- * orders that day (they become one stop), or the pin is unconfirmed (cannot be routed).
+ * orders that day (they become one stop). A missing Parkplatz is no order warning (D22, NUD-141).
  */
-export function orderWarnings(input: {
-  pinConfirmed: boolean;
-  confirmedOrdersOnDate: number;
-}): OrderWarning[] {
-  const warnings: OrderWarning[] = [];
-  if (input.confirmedOrdersOnDate > 0) warnings.push("combined_stop");
-  if (!input.pinConfirmed) warnings.push("pin_unconfirmed");
-  return warnings;
+export function orderWarnings(input: { confirmedOrdersOnDate: number }): OrderWarning[] {
+  return input.confirmedOrdersOnDate > 0 ? ["combined_stop"] : [];
 }

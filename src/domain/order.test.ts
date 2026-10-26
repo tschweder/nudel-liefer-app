@@ -180,24 +180,12 @@ describe("orderInputSchema", () => {
 });
 
 describe("orderWarnings", () => {
-  it("is empty for a routable customer without other orders", () => {
-    expect(orderWarnings({ pinConfirmed: true, confirmedOrdersOnDate: 0 })).toEqual([]);
+  it("is empty for a customer without other orders", () => {
+    expect(orderWarnings({ confirmedOrdersOnDate: 0 })).toEqual([]);
   });
 
   it("warns about combining into one stop", () => {
-    expect(orderWarnings({ pinConfirmed: true, confirmedOrdersOnDate: 1 })).toEqual([
-      "combined_stop",
-    ]);
-  });
-
-  it("warns about an unconfirmed pin and can show both", () => {
-    expect(orderWarnings({ pinConfirmed: false, confirmedOrdersOnDate: 0 })).toEqual([
-      "pin_unconfirmed",
-    ]);
-    expect(orderWarnings({ pinConfirmed: false, confirmedOrdersOnDate: 2 })).toEqual([
-      "combined_stop",
-      "pin_unconfirmed",
-    ]);
+    expect(orderWarnings({ confirmedOrdersOnDate: 1 })).toEqual(["combined_stop"]);
   });
 });
 

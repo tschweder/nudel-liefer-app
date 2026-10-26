@@ -172,7 +172,6 @@ export type OrderableCustomer = {
   street: string;
   postalCode: string;
   city: string;
-  pinConfirmed: boolean;
 };
 
 /** Customers that may receive new orders: active ones only (archived customers are never offered). */
@@ -189,7 +188,6 @@ export async function listOrderableCustomers(
       street: true,
       postalCode: true,
       city: true,
-      pinConfirmed: true,
     },
   });
 }
@@ -421,7 +419,6 @@ export type OrderDetail = {
     customerNumber: string;
     name: string;
     city: string;
-    pinConfirmed: boolean;
     active: boolean;
   };
   items: Array<{
@@ -461,7 +458,6 @@ export async function getOrderDetail(
           customerNumber: true,
           name: true,
           city: true,
-          pinConfirmed: true,
           active: true,
         },
       },

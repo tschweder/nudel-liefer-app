@@ -92,7 +92,7 @@ const STAGES = ["upload", "mapping", "preview", "result"] as const;
  * batch geocoding. The file is parsed on the server; the browser keeps the table and sends only the
  * mapped cells back, which the server validates again.
  */
-export function CustomerImport({ initialReviewCount }: { initialReviewCount: number }) {
+export function CustomerImport({ initialQueueCount }: { initialQueueCount: number }) {
   const t = useTranslations("admin.customers.import");
   const [stage, setStage] = useState<Stage>({ name: "upload" });
   const [upload, setUpload] = useState<Upload | null>(null);
@@ -258,14 +258,14 @@ export function CustomerImport({ initialReviewCount }: { initialReviewCount: num
               </p>
             ) : null}
           </div>
-          {initialReviewCount > 0 ? (
+          {initialQueueCount > 0 ? (
             <Link
-              href="/admin/customers/import/review"
+              href="/admin/customers/parking"
               className={buttonVariants({ variant: "outline", className: "w-fit" })}
-              data-testid="review-link-upload"
+              data-testid="queue-link-upload"
             >
               <MapPinCheckIcon aria-hidden />
-              {t("reviewLink", { count: initialReviewCount })}
+              {t("queueLink", { count: initialQueueCount })}
             </Link>
           ) : null}
         </section>
@@ -421,12 +421,12 @@ export function CustomerImport({ initialReviewCount }: { initialReviewCount: num
 
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/admin/customers/import/review"
+              href="/admin/customers/parking"
               className={buttonVariants()}
-              data-testid="review-link"
+              data-testid="queue-link"
             >
               <MapPinCheckIcon aria-hidden />
-              {t("reviewLink", { count: result.toReview })}
+              {t("queueLink", { count: result.withoutParking })}
             </Link>
             <Link href="/admin/customers" className={buttonVariants({ variant: "outline" })}>
               {t("result.toList")}

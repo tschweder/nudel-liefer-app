@@ -1,12 +1,13 @@
 import { isOpenTour } from "@/domain/day-tours";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
+import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
 import {
   buildStops,
   computeSchedule,
   departureInstant,
   mergeLockedOrder,
-  partitionByPin,
+  partitionByLocation,
   type PlannedStop,
 } from "@/domain/tour";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -21,11 +22,15 @@ import {
   RoutingError,
   type RoutingProvider,
 } from "./routing";
+import { customerLocationSelect } from "./routing-points";
 import { type AppSettings, getSettings, requireDepotConfigured } from "./settings";
 
-/** A customer that has confirmed orders but no confirmed pin, so it is not part of the tour. */
+/**
+ * A customer that has confirmed orders but no location at all (no Parkplatz, geocoding failed), so
+ * it cannot be part of the tour (D22, NUD-141).
+ */
 export type TourWarning = {
-  code: "PIN_UNCONFIRMED";
+  code: "NO_LOCATION";
   customerId: string;
   customerNumber: string;
   name: string;
@@ -60,6 +65,8 @@ export type GenerateTourResult =
       removedCustomerIds: string[];
       approximate: boolean;
       warnings: TourWarning[];
+      /** Customers on the tour that go to the address point because they have no Parkplatz. */
+      parkingMissing: TourWarning[];
     }
   | { ok: false; error: GenerateTourError; maxStops?: number; warnings: TourWarning[] };
 
@@ -68,7 +75,7 @@ export type TourBuilderDeps = {
   /** The admin who asked for the (re)build; recorded in the audit log. */
   actorId: string;
   provider: RoutingProvider;
-  /** Throws `DepotNotSetError` while the depot pin is not confirmed (`requireDepotConfigured`). */
+  /** Throws `DepotNotSetError` while the depot location is not confirmed (`requireDepotConfigured`). */
   requireDepot: () => Promise<Depot>;
   loadSettings: () => Promise<Pick<
     AppSettings,
@@ -99,8 +106,10 @@ function orderSignature(orders: ReadonlyArray<{ id: string; updatedAt: Date }>):
  * Builds (or rebuilds) the tour of one delivery day from its CONFIRMED orders.
  *
  * - Refuses without a confirmed depot (`depot_not_set`) and for past days.
- * - One stop per customer (orders merged, `StopOrder` links kept). Customers without a confirmed
- *   pin are left out and returned as `warnings`; they are never dropped silently.
+ * - One stop per customer (orders merged, `StopOrder` links kept). Each stop is routed to the
+ *   customer's default Parkplatz, else to the Lieferadresse (D22); the latter are returned as
+ *   `parkingMissing` (a flag, not a gate). Only customers with no location at all are left out and
+ *   returned as `warnings`; they are never dropped silently.
  * - An unreleased tour (DRAFT / OPTIMIZED) is re-optimized and its stops are replaced. A LOCKED
  *   one keeps the order of its stops: customers that still have something to deliver stay where
  *   they are, new customers are appended at the end, customers without orders are removed, and
@@ -165,27 +174,25 @@ export async function generateTourWith(
   const planned = buildStops(orders);
   const customers = await db.customer.findMany({
     where: { id: { in: planned.map((s) => s.customerId) } },
-    select: {
-      id: true,
-      customerNumber: true,
-      name: true,
-      lat: true,
-      lng: true,
-      pinConfirmed: true,
-    },
+    select: customerLocationSelect,
   });
   const customerById = new Map(customers.map((c) => [c.id, c]));
-  const { routable, unrouted } = partitionByPin(planned, customerById);
-  const warnings: TourWarning[] = unrouted.map((stop) => {
+  const { routable, unrouted, withoutParking } = partitionByLocation(planned, customerById);
+  const toWarning = (stop: PlannedStop): TourWarning => {
     const c = customerById.get(stop.customerId);
     return {
-      code: "PIN_UNCONFIRMED",
+      code: "NO_LOCATION",
       customerId: stop.customerId,
       customerNumber: c?.customerNumber ?? "",
       name: c?.name ?? "",
       orderIds: stop.orderIds,
     };
-  });
+  };
+  const warnings: TourWarning[] = unrouted.map(toWarning);
+  const keptCustomers = new Set(routable.map((s) => s.customerId));
+  const parkingMissing: TourWarning[] = withoutParking
+    .filter((s) => keptCustomers.has(s.customerId))
+    .map(toWarning);
 
   const locked = !!existing?.locked;
   let ordered: PlannedStop[];
@@ -207,8 +214,9 @@ export async function generateTourWith(
   }
 
   const location = (stop: PlannedStop) => {
-    const c = customerById.get(stop.customerId)!;
-    return { lat: c.lat as number, lng: c.lng as number };
+    // Routable stops have a location by construction (`partitionByLocation`).
+    const point = routingPoint(customerById.get(stop.customerId)!)!;
+    return { lat: point.lat, lng: point.lng };
   };
   const depotPoint = { lat: depot.lat, lng: depot.lng };
   const serviceSeconds = settings.serviceMinutesPerStop * 60;
@@ -353,6 +361,7 @@ export async function generateTourWith(
           customerIds: ordered.map((s) => s.customerId),
           approximate: route.approximate,
           unroutedCustomerIds: warnings.map((w) => w.customerId),
+          parkingMissingCustomerIds: parkingMissing.map((w) => w.customerId),
         },
       });
 
@@ -365,6 +374,7 @@ export async function generateTourWith(
         removedCustomerIds: removed,
         approximate: route.approximate,
         warnings,
+        parkingMissing,
       };
     },
     { timeout: 20_000, maxWait: 10_000 },

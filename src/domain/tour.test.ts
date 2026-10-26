@@ -5,7 +5,7 @@ import {
   computeSchedule,
   departureInstant,
   mergeLockedOrder,
-  partitionByPin,
+  partitionByLocation,
 } from "./tour";
 
 describe("buildStops", () => {
@@ -56,20 +56,28 @@ describe("buildStops", () => {
   });
 });
 
-describe("partitionByPin", () => {
+describe("partitionByLocation (NUD-141)", () => {
   const stop = (customerId: string) => ({ customerId, orderIds: [customerId], items: [] });
-  it("separates customers without a confirmed pin", () => {
+  const spot = (lat: number, lng: number, sortOrder = 0, active = true) => ({
+    lat,
+    lng,
+    sortOrder,
+    active,
+  });
+  it("routes everyone with a location, flags missing Parkplatz, reports 'no location'", () => {
     const customers = new Map([
-      ["a", { id: "a", lat: 48, lng: 16, pinConfirmed: true }],
-      ["b", { id: "b", lat: 48, lng: 16, pinConfirmed: false }],
-      ["c", { id: "c", lat: null, lng: null, pinConfirmed: true }],
+      ["a", { id: "a", lat: 48, lng: 16, parkingSpots: [spot(48.1, 16.1)] }],
+      ["b", { id: "b", lat: 48, lng: 16, parkingSpots: [] }],
+      ["c", { id: "c", lat: null, lng: null, parkingSpots: [] }],
+      ["e", { id: "e", lat: null, lng: null, parkingSpots: [spot(47, 15)] }],
     ]);
-    const { routable, unrouted } = partitionByPin(
-      [stop("a"), stop("b"), stop("c"), stop("d")],
+    const { routable, unrouted, withoutParking } = partitionByLocation(
+      [stop("a"), stop("b"), stop("c"), stop("d"), stop("e")],
       customers,
     );
-    expect(routable.map((s) => s.customerId)).toEqual(["a"]);
-    expect(unrouted.map((s) => s.customerId)).toEqual(["b", "c", "d"]);
+    expect(routable.map((s) => s.customerId)).toEqual(["a", "b", "e"]);
+    expect(unrouted.map((s) => s.customerId)).toEqual(["c", "d"]);
+    expect(withoutParking.map((s) => s.customerId)).toEqual(["b"]);
   });
 });
 

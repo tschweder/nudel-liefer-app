@@ -1,7 +1,8 @@
 import { canCreateFollowUp, deliveredStopConflicts, findLateOrderIds } from "@/domain/day-tours";
-import { hasConfirmedPin } from "@/domain/tour";
+import { routingPoint } from "@/domain/parking";
 import type { PrismaClient } from "@/generated/prisma/client";
 
+import { customerLocationSelect } from "./routing-points";
 import type { DiffStopView } from "./tour-rerelease";
 import { readStopItems } from "./tour-rerelease";
 
@@ -17,7 +18,7 @@ type Db = Pick<PrismaClient, "tour" | "stop" | "order" | "customer" | "product">
 
 export type LateOrderView = DiffStopView & {
   orderIds: string[];
-  /** False while the customer has no confirmed pin: a follow-up tour cannot include the stop. */
+  /** False while the customer has no location at all: a follow-up tour cannot include the stop. */
   routable: boolean;
 };
 
@@ -43,14 +44,7 @@ export const NO_LATE_ORDERS: LateOrdersView = {
   canCreateFollowUp: false,
 };
 
-const customerSelect = {
-  id: true,
-  customerNumber: true,
-  name: true,
-  lat: true,
-  lng: true,
-  pinConfirmed: true,
-} as const;
+const customerSelect = customerLocationSelect;
 
 export async function getLateOrdersView(db: Db, date: Date): Promise<LateOrdersView> {
   const tours = await db.tour.findMany({
@@ -138,7 +132,7 @@ export async function getLateOrdersView(db: Db, date: Date): Promise<LateOrdersV
         name: c?.name ?? "",
         items: [],
         orderIds: [],
-        routable: hasConfirmedPin(c),
+        routable: !!c && routingPoint(c) !== null,
       };
       perCustomer.set(order.customerId, entry);
     }

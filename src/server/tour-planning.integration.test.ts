@@ -73,7 +73,6 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
           city: "Wien",
           lat: DEPOT.lat,
           lng: DEPOT.lng + lngOffset,
-          pinConfirmed: true,
           ...extra,
         },
       })
@@ -150,6 +149,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
     await t.prisma.orderItem.deleteMany();
     await t.prisma.order.deleteMany();
     await t.prisma.photo.deleteMany();
+    await t.prisma.parkingSpot.deleteMany();
     await t.prisma.customer.deleteMany();
   });
 
@@ -395,11 +395,11 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
           isCurrent: true,
         },
       });
-      const noPin = await customer("C9", 0.5, { pinConfirmed: false });
+      const noPin = await customer("C9", 0.5, { lat: null, lng: null });
       await order(noPin);
       const plan = await getTourPlan(t.prisma, "2099-07-01", "Europe/Vienna");
       expect(plan).toMatchObject({ date: "2099-07-01", confirmedOrderCount: 4 });
-      expect(plan?.warnings).toMatchObject([{ code: "PIN_UNCONFIRMED", customerId: noPin }]);
+      expect(plan?.warnings).toMatchObject([{ code: "NO_LOCATION", customerId: noPin }]);
       expect(plan?.drivers.map((d) => d.displayName)).toEqual(["Driver"]);
       expect(plan?.tour).toMatchObject({
         id: tour.id,
@@ -423,6 +423,22 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
       expect(await getTourPlan(t.prisma, "2099-02-30", "Europe/Vienna")).toBeNull();
       const empty = await getTourPlan(t.prisma, "2099-07-02", "Europe/Vienna");
       expect(empty).toMatchObject({ tour: null, confirmedOrderCount: 0 });
+    });
+  });
+
+  describe("routing point (NUD-141)", () => {
+    it("shows the Parkplatz coordinates and flags stops that go to the address", async () => {
+      const { tour, customerIds } = await buildTour();
+      const home = await t.prisma.customer.findUniqueOrThrow({ where: { id: customerIds[0] } });
+      await t.prisma.parkingSpot.create({
+        data: { customerId: customerIds[0]!, lat: 48.5, lng: 16.9, createdById: adminId },
+      });
+      const plan = await getTourPlan(t.prisma, "2099-07-01", "Europe/Vienna", tour.id);
+      const stops = plan?.tour?.stops ?? [];
+      expect(stops[0]).toMatchObject({ lat: 48.5, lng: 16.9, parkingMissing: false });
+      expect(stops[1]).toMatchObject({ parkingMissing: true });
+      expect(stops[1]!.lat).not.toBe(48.5);
+      expect(home.lat).not.toBe(48.5); // the address point itself is untouched
     });
   });
 

@@ -29,7 +29,7 @@ async function Guarded({
     q: input.q,
     status: input.status,
     photosMissing: input.photosMissing,
-    pinUnconfirmed: input.pinUnconfirmed,
+    parkingMissing: input.parkingMissing,
   };
   return (
     <div className="flex flex-col gap-5">

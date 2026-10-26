@@ -170,6 +170,18 @@ describe.skipIf(!process.env.DATABASE_URL)("driver today screen data", { timeout
     expect(today?.serviceSecondsPerStop).toBe(600);
   });
 
+  it("navigates to the default Parkplatz and falls back to the address (NUD-141)", async () => {
+    const first = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
+    const spot = await t.prisma.parkingSpot.create({
+      data: { customerId: first.customerId, lat: 48.5, lng: 16.9, createdById: adminId },
+    });
+    const withSpot = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
+    expect(withSpot).toMatchObject({ lat: 48.5, lng: 16.9 });
+    await t.prisma.parkingSpot.update({ where: { id: spot.id }, data: { active: false } });
+    const without = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
+    expect(without).toMatchObject({ lat: 48.21, lng: 16.3 });
+  });
+
   it("picks the product name in the requested locale", async () => {
     const today = await getDriverToday(t.prisma, actor(driverId, "DRIVER", "de"), {
       ...OPTIONS,

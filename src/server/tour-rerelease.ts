@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import { toAuditQuantity } from "@/domain/audit";
-import { computeSchedule, departureInstant, hasConfirmedPin, type StopItem } from "@/domain/tour";
+import { routingPoint } from "@/domain/parking";
+import { computeSchedule, departureInstant, type StopItem } from "@/domain/tour";
 import {
   type ItemChange,
   planReRelease,
@@ -20,6 +21,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { recordAudit } from "./audit";
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
+import { customerLocationSelect } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { PlanResult } from "./tour-planning";
 
@@ -52,16 +54,7 @@ const tourInclude = {
     orderBy: { sequence: "asc" },
     include: {
       orders: { select: { orderId: true } },
-      customer: {
-        select: {
-          id: true,
-          customerNumber: true,
-          name: true,
-          lat: true,
-          lng: true,
-          pinConfirmed: true,
-        },
-      },
+      customer: { select: customerLocationSelect },
     },
   },
   driver: { select: { active: true, role: true } },
@@ -87,6 +80,9 @@ function orderSignature(orders: ReadonlyArray<{ id: string; updatedAt: Date }>):
   return orders.map((o) => `${o.id}@${o.updatedAt.getTime()}`).join("|");
 }
 
+const hasRoutingPoint = (customer: Parameters<typeof routingPoint>[0] | undefined) =>
+  !!customer && routingPoint(customer) !== null;
+
 export type LoadedReleasePlan = {
   plan: ReleasePlan;
   orderSignature: string;
@@ -95,8 +91,8 @@ export type LoadedReleasePlan = {
 };
 
 /**
- * Compares the stops of a released tour with the CONFIRMED orders of its day. Customers without
- * a confirmed pin cannot be routed, so their orders are left out (the planning page lists them as
+ * Compares the stops of a released tour with the CONFIRMED orders of its day. Customers with no
+ * location at all (no Parkplatz, no address point) cannot be routed, so their orders are left out (the planning page lists them as
  * warnings); orders linked to a completed stop are always kept so that their edits are reported.
  */
 export async function loadReleasePlan(
@@ -110,21 +106,14 @@ export async function loadReleasePlan(
   ];
   const rows = await db.customer.findMany({
     where: { id: { in: customerIds } },
-    select: {
-      id: true,
-      customerNumber: true,
-      name: true,
-      lat: true,
-      lng: true,
-      pinConfirmed: true,
-    },
+    select: customerLocationSelect,
   });
   const customers = new Map(rows.map((c) => [c.id, c]));
   const frozen = new Set(
     tour.stops.filter((s) => s.status !== "PENDING").flatMap((s) => s.orders.map((o) => o.orderId)),
   );
   const usable = orders.filter(
-    (o) => frozen.has(o.id) || hasConfirmedPin(customers.get(o.customerId)),
+    (o) => frozen.has(o.id) || hasRoutingPoint(customers.get(o.customerId)),
   );
   const snapshot: SnapshotStop[] = tour.stops.map((s) => ({
     id: s.id,
@@ -413,7 +402,8 @@ export async function reReleaseTourWith(
   if (!settings || !depot.success) return fail("invalid");
   const customerPoint = (customerId: string) => {
     const c = loaded.customers.get(customerId);
-    return c && c.lat !== null && c.lng !== null ? { lat: c.lat, lng: c.lng } : null;
+    const point = c ? routingPoint(c) : null;
+    return point ? { lat: point.lat, lng: point.lng } : null;
   };
   const points: Array<{ lat: number; lng: number }> = [];
   for (const entry of plan.entries) {

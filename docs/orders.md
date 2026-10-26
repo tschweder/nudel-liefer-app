@@ -57,7 +57,7 @@ database before reading the input.
   `isScreenshotKey`), and 1..100 lines each with quantity `> 0`. Lines are merged on the
   server; the client's merged state is never trusted.
 - `orderWarnings` emits non-blocking warnings: `combined_stop` (the customer already has
-  confirmed orders that day, so they merge into one stop) and `pin_unconfirmed`.
+  confirmed orders that day, so they merge into one stop). A missing Parkplatz or address point is no order warning (NUD-141, D22).
 
 `src/domain/order-overview.ts`:
 
@@ -93,7 +93,7 @@ database before reading the input.
   an existing order to another delivery day as a new `DRAFT` with source `MANUAL` (copying
   note and items), likewise refusing past dates, inactive customers and inactive products.
 - `listOrderableCustomers` returns only active customers for the entry picker (archived
-  customers are never offered), sorted by name then customer number, including `pinConfirmed`.
+  customers are never offered), sorted by name then customer number.
 - `countConfirmedOrders` counts the customer's `CONFIRMED` orders for a day (they become one
   stop), optionally excluding one order id.
 - `listOrderOverview` returns overview rows under `OrderFilters` with a `truncated` flag;
@@ -117,7 +117,7 @@ role is checked by its callers (`tourPlanQuery`, `orderOverviewQuery`, `todayPro
 
 - `getLateOrdersView(db, date)` returns `LateOrdersView`: the count and per-customer merged
   entries for those orders (`orderIds`, and `routable` = false while the customer has no
-  confirmed pin, in which case a follow-up tour cannot include the stop), the `conflicts`
+  location at all (no Parkplatz, no address point), in which case a follow-up tour cannot include the stop), the `conflicts`
   (stops of completed tours whose linked orders were edited or cancelled after the tour ran;
   the follow-up tour does not deliver the difference), and `canCreateFollowUp` (all tours of
   the day completed and at least one late order routable). Returns the `NO_LATE_ORDERS`

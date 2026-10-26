@@ -5,12 +5,12 @@ import { CustomerImport } from "@/components/admin/customer-import";
 import { LoadingSkeleton } from "@/components/shared/states";
 import { Link } from "@/i18n/navigation";
 import { requirePageActor } from "@/server/auth/page-guards";
-import { pinReviewCountQuery } from "@/server/customer-queries";
+import { parkingQueueCountQuery } from "@/server/customer-queries";
 
 async function Guarded({ locale }: { locale: string }) {
   await requirePageActor("admin", locale);
   const t = await getTranslations({ locale, namespace: "admin.customers" });
-  const reviewCount = await pinReviewCountQuery();
+  const queueCount = await parkingQueueCountQuery();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -25,7 +25,7 @@ async function Guarded({ locale }: { locale: string }) {
         </h1>
         <p className="max-w-prose text-muted-foreground">{t("import.description")}</p>
       </div>
-      <CustomerImport initialReviewCount={reviewCount} />
+      <CustomerImport initialQueueCount={queueCount} />
     </div>
   );
 }

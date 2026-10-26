@@ -1,7 +1,9 @@
 /**
- * Pure tour-building logic (NUD-041): orders -> stops, pin filtering, schedule (ETAs) and the
+ * Pure tour-building logic (NUD-041): orders -> stops, routing-point filtering (NUD-141), schedule (ETAs) and the
  * rules for re-running the builder on an existing tour. No framework imports.
  */
+
+import { type ParkingPointLike, routingPoint } from "./parking";
 
 export type StopOrderInput = {
   id: string;
@@ -42,39 +44,36 @@ export function buildStops(orders: readonly StopOrderInput[]): PlannedStop[] {
   return [...stops.values()];
 }
 
-export type CustomerPin = {
+/** What `routingPoint` needs from a customer (NUD-141). */
+export type CustomerLocation = {
   id: string;
   lat: number | null;
   lng: number | null;
-  pinConfirmed: boolean;
+  parkingSpots: readonly ParkingPointLike[];
 };
 
-/** A pin counts only when the admin confirmed it (D9) and both coordinates exist. */
-export function hasConfirmedPin(customer: CustomerPin | undefined): customer is CustomerPin & {
-  lat: number;
-  lng: number;
-} {
-  return (
-    !!customer &&
-    customer.pinConfirmed &&
-    customer.lat !== null &&
-    customer.lng !== null &&
-    Number.isFinite(customer.lat) &&
-    Number.isFinite(customer.lng)
-  );
-}
-
-/** Splits stops into routable ones and the customers whose pin is not confirmed (reported). */
-export function partitionByPin(
+/**
+ * Splits stops into routable ones and the customers with no location at all (reported as
+ * warnings). `withoutParking` lists the routable stops that go to the address point because the
+ * customer has no Parkplatz: a flag, never a reason to leave the stop out (D22).
+ */
+export function partitionByLocation(
   stops: readonly PlannedStop[],
-  customers: ReadonlyMap<string, CustomerPin>,
-): { routable: PlannedStop[]; unrouted: PlannedStop[] } {
+  customers: ReadonlyMap<string, CustomerLocation>,
+): { routable: PlannedStop[]; unrouted: PlannedStop[]; withoutParking: PlannedStop[] } {
   const routable: PlannedStop[] = [];
   const unrouted: PlannedStop[] = [];
+  const withoutParking: PlannedStop[] = [];
   for (const stop of stops) {
-    (hasConfirmedPin(customers.get(stop.customerId)) ? routable : unrouted).push(stop);
+    const customer = customers.get(stop.customerId);
+    const point = customer ? routingPoint(customer) : null;
+    if (!point) unrouted.push(stop);
+    else {
+      routable.push(stop);
+      if (point.source === "address") withoutParking.push(stop);
+    }
   }
-  return { routable, unrouted };
+  return { routable, unrouted, withoutParking };
 }
 
 /**

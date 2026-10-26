@@ -8,8 +8,6 @@ import {
   type PreviewResult,
 } from "./customer-import";
 import {
-  confirmPin,
-  type ConfirmPinResult,
   type GeocodeBatchResult,
   geocodeCustomers,
   listCustomerIdsWithoutPin,
@@ -32,20 +30,14 @@ export async function commitCustomerImportAction(input: unknown): Promise<Commit
   return commitImport(getDb(), input);
 }
 
-/** Customers still without a pin: the work list for the batch geocoding. */
+/** Customers still without an Adresspunkt: the work list for the batch geocoding. */
 export async function listCustomersWithoutPinAction(): Promise<string[]> {
   await requireRole("ADMIN");
   return listCustomerIdsWithoutPin(getDb());
 }
 
-/** One rate-limited batch (<= 5 customers) of candidate pins; the browser calls this in a loop. */
+/** One rate-limited batch (<= 5 customers) of Adresspunkte; the browser calls this in a loop. */
 export async function geocodeCustomersAction(ids: unknown): Promise<GeocodeBatchResult> {
   await requireRole("ADMIN");
   return geocodeCustomers(getDb(), getGeocoder(), ids);
-}
-
-/** Pin review: confirm (possibly dragged) coordinates for one customer. */
-export async function confirmCustomerPinAction(input: unknown): Promise<ConfirmPinResult> {
-  await requireRole("ADMIN");
-  return confirmPin(getDb(), input);
 }

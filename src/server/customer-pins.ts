@@ -38,7 +38,7 @@ function defaultWait(): () => Promise<void> {
   return sharedThrottle.wait;
 }
 
-/** Active customers that still have no pin (work list of the geocoding step), by customer number. */
+/** Active customers that still have no Adresspunkt (work list of the geocoding step), by customer number. */
 export async function listCustomerIdsWithoutPin(db: PinDb): Promise<string[]> {
   const rows = await db.customer.findMany({
     where: { active: true, lat: null },
@@ -68,10 +68,10 @@ function isRateLimit(error: unknown): boolean {
 }
 
 /**
- * Looks up a candidate pin for up to five customers, one geocoder call at a time with a pause
- * between calls. The best candidate is stored as the customer's pin but stays *unconfirmed*; only
- * customers that are active, have no pin yet and are unconfirmed are touched (an admin who placed a
- * pin in the meantime wins). Stops at the first rate-limit answer or after three failures in a row.
+ * Looks up the Adresspunkt for up to five customers, one geocoder call at a time with a pause
+ * between calls. The best hit is stored as the customer's Adresspunkt (no confirmation step, D22);
+ * only customers that are active and have no point yet are touched (a point set in the meantime
+ * wins). Stops at the first rate-limit answer or after three failures in a row.
  * Logs a summary line, never addresses. The caller checked the role.
  */
 export async function geocodeCustomers(
@@ -89,7 +89,7 @@ export async function geocodeCustomers(
 
   for (const id of [...new Set(parsed.data)]) {
     const customer = await db.customer.findFirst({
-      where: { id, active: true, lat: null, pinConfirmed: false },
+      where: { id, active: true, lat: null },
       select: { street: true, postalCode: true, city: true, country: true },
     });
     if (!customer) {
@@ -106,7 +106,7 @@ export async function geocodeCustomers(
         continue;
       }
       await db.customer.updateMany({
-        where: { id, lat: null, pinConfirmed: false },
+        where: { id, lat: null },
         data: { lat: roundCoord(best.lat), lng: roundCoord(best.lng) },
       });
       outcomes.push({ id, status: "found", lowConfidence: best.confidence < LOW_CONFIDENCE });
@@ -133,9 +133,9 @@ export async function geocodeCustomers(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Pin review queue
+// Parkplatz queue (NUD-141)
 
-export type PinReviewItem = {
+export type ParkingQueueItem = {
   id: string;
   customerNumber: string;
   name: string;
@@ -143,16 +143,19 @@ export type PinReviewItem = {
   postalCode: string;
   city: string;
   country: string;
+  /** The Adresspunkt, where the map starts; `null` when geocoding found nothing. */
   lat: number | null;
   lng: number | null;
-  /** Version token sent back with the confirmation. */
+  /** Version token: a changed customer restarts the queue. */
   updatedAt: string;
 };
 
-/** Active customers whose pin is not confirmed yet, by customer number. */
-export async function listPinReviewQueue(db: PinDb): Promise<PinReviewItem[]> {
+const withoutParking = { active: true, parkingSpots: { none: { active: true } } } as const;
+
+/** Active customers without an active Parkplatz (delivered to the address), by customer number. */
+export async function listParkingQueue(db: PinDb): Promise<ParkingQueueItem[]> {
   const rows = await db.customer.findMany({
-    where: { active: true, pinConfirmed: false },
+    where: withoutParking,
     orderBy: { customerNumber: "asc" },
     take: PIN_LIST_LIMIT,
     select: {
@@ -171,35 +174,6 @@ export async function listPinReviewQueue(db: PinDb): Promise<PinReviewItem[]> {
   return rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() }));
 }
 
-export async function countPinReviewQueue(db: PinDb): Promise<number> {
-  return db.customer.count({ where: { active: true, pinConfirmed: false } });
-}
-
-export const confirmPinSchema = z.object({
-  id: z.string().trim().min(1).max(64),
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  baseUpdatedAt: z.string().min(1).max(40),
-});
-export type ConfirmPinResult =
-  { ok: true } | { ok: false; error: "invalid" | "not_found" | "conflict" };
-
-/**
- * The admin checked the pin (possibly dragged it): stores it and sets `pinConfirmed`. Refused with
- * `conflict` when the customer was edited since the queue was loaded (e.g. the address changed), so
- * a pin is never confirmed for an address the admin has not seen.
- */
-export async function confirmPin(db: PinDb, raw: unknown): Promise<ConfirmPinResult> {
-  const parsed = confirmPinSchema.safeParse(raw);
-  const base = parsed.success ? new Date(parsed.data.baseUpdatedAt) : null;
-  if (!parsed.success || !base || Number.isNaN(base.getTime()))
-    return { ok: false, error: "invalid" };
-  const v = parsed.data;
-  const result = await db.customer.updateMany({
-    where: { id: v.id, updatedAt: base },
-    data: { lat: roundCoord(v.lat), lng: roundCoord(v.lng), pinConfirmed: true },
-  });
-  if (result.count === 1) return { ok: true };
-  const exists = await db.customer.findUnique({ where: { id: v.id }, select: { id: true } });
-  return { ok: false, error: exists ? "conflict" : "not_found" };
+export async function countParkingQueue(db: PinDb): Promise<number> {
+  return db.customer.count({ where: withoutParking });
 }

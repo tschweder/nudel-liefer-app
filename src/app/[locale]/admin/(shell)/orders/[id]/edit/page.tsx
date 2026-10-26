@@ -62,7 +62,6 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
           {
             value: order.customer.id,
             label: `${order.customer.customerNumber} · ${order.customer.name}, ${order.customer.city}`,
-            pinConfirmed: order.customer.pinConfirmed,
           },
         ]}
         products={options}

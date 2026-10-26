@@ -13,6 +13,7 @@ import {
   LockIcon,
   LockOpenIcon,
   MapPinIcon,
+  MapPinOffIcon,
   PrinterIcon,
   RefreshCwIcon,
   RocketIcon,
@@ -763,6 +764,15 @@ export function TourPlanner({
                         <span className="shrink-0 tabular-nums" data-testid="stop-items">
                           {t("stop.items", { count: stop.itemCount })}
                         </span>
+                        {stop.parkingMissing ? (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
+                            data-testid="stop-missing-parking-spot"
+                          >
+                            <MapPinOffIcon className="size-4" aria-hidden />
+                            {t("stop.noParkingSpot")}
+                          </span>
+                        ) : null}
                         {!stop.hasStorePhoto ? (
                           <span
                             className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"

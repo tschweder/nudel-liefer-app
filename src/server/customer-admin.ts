@@ -1,13 +1,14 @@
 import { z } from "zod";
 
-import { resolvePinConfirmed, suggestNextCustomerNumber } from "@/domain/customer";
+import { addressChanged, samePin, suggestNextCustomerNumber } from "@/domain/customer";
 import { calendarDayIn } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
 import { localizedTextSchema } from "@/lib/localized-text";
 
+import { geocodeAddress } from "./customer-geocode";
 import { notesJson, prepareNotes } from "./customer-notes";
-import { MAX_ADDRESS_LENGTH } from "./geocoder";
+import { type Geocoder, MAX_ADDRESS_LENGTH } from "./geocoder";
 import type { Translator } from "./translator/types";
 
 type CustomerDb = Pick<PrismaClient, "customer" | "order" | "photo">;
@@ -23,9 +24,8 @@ const optionalText = (max: number) =>
     .default(null);
 
 /**
- * Customer form input (create and update). `lat`/`lng` come as a pair or both `null`;
- * `pinConfirmed` is the admin's explicit confirmation and is further limited by the pin rules
- * in `src/domain/customer.ts`.
+ * Customer form input (create and update). `lat`/`lng` (the Adresspunkt) come as a pair or both
+ * `null`; there is no confirmation step any more (D22, NUD-141).
  */
 export const customerInputSchema = z
   .object({
@@ -42,7 +42,6 @@ export const customerInputSchema = z
       .default("AT"),
     lat: z.number().min(-90).max(90).transform(roundCoord).nullable().default(null),
     lng: z.number().min(-180).max(180).transform(roundCoord).nullable().default(null),
-    pinConfirmed: z.boolean().default(false),
     deliveryHoursInfo: optionalText(300),
     /** German note for the driver (source); translations are made on save, edited on the detail page. */
     notes: optionalText(2000),
@@ -71,8 +70,7 @@ export function officeFields(v: z.output<typeof customerInputSchema>) {
   };
 }
 export type CustomerSaveResult =
-  | { ok: true; id: string; pinConfirmed: boolean }
-  | { ok: false; error: "invalid" | "number_taken" | "not_found" };
+  { ok: true; id: string } | { ok: false; error: "invalid" | "number_taken" | "not_found" };
 
 const idSchema = z.string().trim().min(1).max(64);
 
@@ -88,8 +86,19 @@ export function notesText(notes: unknown): string {
   return parsed.success ? (parsed.data.de ?? "") : "";
 }
 
-/** Test seam: the translator used for the notes (default: the configured one, NUD-070). */
-export type NotesOptions = { translator?: Translator; now?: Date };
+/**
+ * Test seams: the translator used for the notes (default: the configured one, NUD-070) and the
+ * geocoder that looks up the Adresspunkt when the address is new or changed (NUD-141; without one
+ * the point is not looked up).
+ */
+export type NotesOptions = { translator?: Translator; now?: Date; geocoder?: Geocoder };
+
+async function lookUpAddressPoint(
+  geocoder: Geocoder | undefined,
+  address: { street: string; postalCode: string; city: string; country: string },
+) {
+  return geocoder ? geocodeAddress(geocoder, address) : null;
+}
 
 async function numberTaken(db: CustomerDb, number: string, exceptId?: string): Promise<boolean> {
   const hit = await db.customer.findFirst({
@@ -113,7 +122,8 @@ export async function createCustomer(
   const v = parsed.data;
   if (await numberTaken(db, v.customerNumber)) return { ok: false, error: "number_taken" };
   const pin = v.lat !== null && v.lng !== null ? { lat: v.lat, lng: v.lng } : null;
-  const pinConfirmed = resolvePinConfirmed(v.pinConfirmed, null, { address: v, pin });
+  // No point given: look the address up (best effort, the customer is saved either way).
+  const point = pin ?? (await lookUpAddressPoint(options.geocoder, v));
   try {
     const row = await db.customer.create({
       data: {
@@ -123,23 +133,26 @@ export async function createCustomer(
         postalCode: v.postalCode,
         city: v.city,
         country: v.country,
-        lat: v.lat,
-        lng: v.lng,
-        pinConfirmed,
+        lat: point?.lat ?? null,
+        lng: point?.lng ?? null,
         deliveryHoursInfo: v.deliveryHoursInfo,
         ...officeFields(v),
         notes: notesJson(await prepareNotes(null, v.notes, options)),
       },
       select: { id: true },
     });
-    return { ok: true, id: row.id, pinConfirmed };
+    return { ok: true, id: row.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
     throw error;
   }
 }
 
-/** Updates a customer; changing the address without moving the pin resets `pinConfirmed`. */
+/**
+ * Updates a customer. When the address changed and the Adresspunkt was not moved by hand, the new
+ * address is geocoded automatically (best effort; on failure the old point is dropped, since it
+ * belongs to the old address).
+ */
 export async function updateCustomer(
   db: CustomerDb,
   rawId: unknown,
@@ -158,11 +171,9 @@ export async function updateCustomer(
   const storedPin =
     stored.lat !== null && stored.lng !== null ? { lat: stored.lat, lng: stored.lng } : null;
   const pin = v.lat !== null && v.lng !== null ? { lat: v.lat, lng: v.lng } : null;
-  const pinConfirmed = resolvePinConfirmed(
-    v.pinConfirmed,
-    { address: stored, pin: storedPin },
-    { address: v, pin },
-  );
+  // No point, or a changed address whose point the admin did not move: look it up again.
+  const stale = pin === null || (addressChanged(stored, v) && samePin(storedPin, pin));
+  const point = stale ? await lookUpAddressPoint(options.geocoder, v) : pin;
   try {
     await db.customer.update({
       where: { id: stored.id },
@@ -173,15 +184,14 @@ export async function updateCustomer(
         postalCode: v.postalCode,
         city: v.city,
         country: v.country,
-        lat: v.lat,
-        lng: v.lng,
-        pinConfirmed,
+        lat: point?.lat ?? null,
+        lng: point?.lng ?? null,
         deliveryHoursInfo: v.deliveryHoursInfo,
         ...officeFields(v),
         notes: notesJson(await prepareNotes(stored.notes, v.notes, options)),
       },
     });
-    return { ok: true, id: stored.id, pinConfirmed };
+    return { ok: true, id: stored.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
     throw error;
@@ -220,7 +230,6 @@ export type CustomerDetail = {
   country: string;
   lat: number | null;
   lng: number | null;
-  pinConfirmed: boolean;
   deliveryHoursInfo: string | null;
   notes: string;
   companyName: string | null;
@@ -256,7 +265,6 @@ export async function getCustomerDetail(
     country: row.country,
     lat: row.lat,
     lng: row.lng,
-    pinConfirmed: row.pinConfirmed,
     deliveryHoursInfo: row.deliveryHoursInfo,
     notes: notesText(row.notes),
     companyName: row.companyName,

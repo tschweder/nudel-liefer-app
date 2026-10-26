@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { pickDefaultTour, sortDayTours } from "@/domain/day-tours";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
-import { buildStops, computeSchedule, departureInstant, partitionByPin } from "@/domain/tour";
+import { routingPoint } from "@/domain/parking";
+import { buildStops, computeSchedule, departureInstant, partitionByLocation } from "@/domain/tour";
 import {
   EDITABLE_TOUR_STATUSES,
   isPermutation,
@@ -18,6 +19,7 @@ import { recordAudit } from "./audit";
 import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
 import { RoutingError, type RoutingProvider } from "./routing";
+import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
 import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
@@ -44,6 +46,8 @@ export type PlanStop = {
   etaAt: string | null;
   legDistanceM: number | null;
   legDurationS: number | null;
+  /** The stop goes to the address point because the customer has no Parkplatz (D22 flag). */
+  parkingMissing: boolean;
   /** Distinct products on the stop (all linked orders). */
   itemCount: number;
   orderCount: number;
@@ -118,7 +122,7 @@ export type TourPlan = {
   tours: PlanTourTab[];
   /** Orders confirmed after the tour of the day was completed, and edits after delivery. */
   late: LateOrdersView;
-  /** Customers with confirmed orders for the day that are not routable (pin not confirmed). */
+  /** Customers with confirmed orders for the day that are not routable (no Parkplatz and no address point). */
   warnings: TourWarning[];
   confirmedOrderCount: number;
   drivers: PlanDriver[];
@@ -203,6 +207,7 @@ export async function getTourPlan(
                     city: true,
                     lat: true,
                     lng: true,
+                    parkingSpots: parkingSpotsForRouting,
                     photos: { where: { isCurrent: true }, select: { kind: true } },
                   },
                 },
@@ -225,20 +230,13 @@ export async function getTourPlan(
   const planned = buildStops(orders);
   const customers = await db.customer.findMany({
     where: { id: { in: planned.map((s) => s.customerId) } },
-    select: {
-      id: true,
-      customerNumber: true,
-      name: true,
-      lat: true,
-      lng: true,
-      pinConfirmed: true,
-    },
+    select: customerLocationSelect,
   });
   const byId = new Map(customers.map((c) => [c.id, c]));
-  const { unrouted } = partitionByPin(planned, byId);
-  // A completed tour is history: pin warnings are for the tour that can still be built.
+  const { unrouted } = partitionByLocation(planned, byId);
+  // A completed tour is history: location warnings are for the tour that can still be built.
   const warnings: TourWarning[] = (tour?.status === "COMPLETED" ? [] : unrouted).map((stop) => ({
-    code: "PIN_UNCONFIRMED",
+    code: "NO_LOCATION",
     customerId: stop.customerId,
     customerNumber: byId.get(stop.customerId)?.customerNumber ?? "",
     name: byId.get(stop.customerId)?.name ?? "",
@@ -289,8 +287,9 @@ export async function getTourPlan(
           diff,
           depot: readDepot(tour.depotSnapshot),
           geometry: readGeometry(tour.geometry),
-          stops: tour.stops.flatMap((s) =>
-            s.customer.lat === null || s.customer.lng === null
+          stops: tour.stops.flatMap((s) => {
+            const point = routingPoint(s.customer);
+            return !point
               ? []
               : [
                   {
@@ -302,8 +301,9 @@ export async function getTourPlan(
                     street: s.customer.street,
                     postalCode: s.customer.postalCode,
                     city: s.customer.city,
-                    lat: s.customer.lat,
-                    lng: s.customer.lng,
+                    lat: point.lat,
+                    lng: point.lng,
+                    parkingMissing: point.source === "address",
                     etaAt: s.etaAt?.toISOString() ?? null,
                     legDistanceM: s.legDistanceM,
                     legDurationS: s.legDurationS,
@@ -319,8 +319,8 @@ export async function getTourPlan(
                     problemNote: readProblemNote(s.problemNote),
                     changeKind: s.changeKind,
                   },
-                ],
-          ),
+                ];
+          }),
         }
       : null,
   };
@@ -386,7 +386,9 @@ export async function reorderStopsWith(
     include: {
       stops: {
         orderBy: { sequence: "asc" },
-        include: { customer: { select: { lat: true, lng: true } } },
+        include: {
+          customer: { select: { lat: true, lng: true, parkingSpots: parkingSpotsForRouting } },
+        },
       },
     },
   });
@@ -405,8 +407,9 @@ export async function reorderStopsWith(
   const ordered = input.data.orderedStopIds.map((id) => byId.get(id)!);
   const points: Array<{ lat: number; lng: number }> = [];
   for (const stop of ordered) {
-    if (stop.customer.lat === null || stop.customer.lng === null) return fail("pin_missing");
-    points.push({ lat: stop.customer.lat, lng: stop.customer.lng });
+    const point = routingPoint(stop.customer);
+    if (!point) return fail("pin_missing");
+    points.push({ lat: point.lat, lng: point.lng });
   }
 
   let route;

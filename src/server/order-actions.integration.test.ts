@@ -291,7 +291,6 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     expect(numbers).toContain("C1");
     expect(numbers).toContain("C3");
     expect(numbers).not.toContain("C2"); // archived
-    expect(customers.find((c) => c.customerNumber === "C3")?.pinConfirmed).toBe(false);
     const skus = (await activeProductsQuery()).map((p) => p.sku);
     // The three catalog products (NUD-138) come from the migration; the test adds P1-P3.
     expect(skus.filter((s) => !CATALOG_SKUS.includes(s))).toEqual(["P1", "P2", "P3"]);

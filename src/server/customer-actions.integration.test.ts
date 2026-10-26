@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { hashSecret } from "./auth/password";
+import { FakeGeocoder } from "./geocoder";
 import { createTestDb, type TestDb } from "./test-db";
 import { setTranslatorForTests } from "./translator";
 import { FakeTranslator } from "./translator/fake";
@@ -38,7 +39,6 @@ const valid = {
   country: "at",
   lat: 48.2082123,
   lng: 16.3738,
-  pinConfirmed: true,
   deliveryHoursInfo: " Mo-Fr 6-10 ",
   notes: "Hintereingang benutzen",
 };
@@ -130,16 +130,14 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     expect(row.notes).not.toHaveProperty("cs", "Hacked");
   });
 
-  it("creates a normalized customer with a confirmed pin and German notes", async () => {
+  it("creates a normalized customer with its Adresspunkt and German notes", async () => {
     const result = await create({ customerNumber: "  C-1  " });
-    expect(result.pinConfirmed).toBe(true);
     const row = await t.prisma.customer.findUniqueOrThrow({ where: { id: result.id } });
     expect(row).toMatchObject({
       customerNumber: "C-1",
       country: "AT",
       lat: 48.208212,
       lng: 16.3738,
-      pinConfirmed: true,
       deliveryHoursInfo: "Mo-Fr 6-10",
       active: true,
     });
@@ -149,24 +147,24 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     expect(row.searchText).toContain("trattoria");
   });
 
-  it("stores no pin confirmation without coordinates", async () => {
+  it("looks the address up automatically when no coordinates are given (NUD-141)", async () => {
     const result = await create({
       customerNumber: "C-2",
       lat: null,
       lng: null,
-      pinConfirmed: true,
       notes: "",
       deliveryHoursInfo: "",
     });
-    expect(result.pinConfirmed).toBe(false);
+    const expected = (await new FakeGeocoder().search("Hauptstraße 1, 1010 Wien, AT"))[0]!;
     const row = await t.prisma.customer.findUniqueOrThrow({ where: { id: result.id } });
-    expect(row).toMatchObject({ lat: null, lng: null, pinConfirmed: false, notes: null });
+    expect(row).toMatchObject({ lat: expected.lat, lng: expected.lng, notes: null });
     expect(row.deliveryHoursInfo).toBeNull();
   });
 
-  it("does not confirm the pin unless the admin asked for it", async () => {
-    const result = await create({ customerNumber: "C-3", pinConfirmed: false });
-    expect(result.pinConfirmed).toBe(false);
+  it("never sets the unused pinConfirmed column", async () => {
+    const result = await create({ customerNumber: "C-3", pinConfirmed: true });
+    const row = await t.prisma.customer.findUniqueOrThrow({ where: { id: result.id } });
+    expect(row.pinConfirmed).toBe(false);
   });
 
   it("rejects a duplicate customer number (case-insensitive) on create", async () => {
@@ -214,7 +212,6 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     ["NaN latitude", { lat: Number.NaN }],
     ["name too long", { name: "x".repeat(161) }],
     ["notes too long", { notes: "x".repeat(2001) }],
-    ["pinConfirmed not boolean", { pinConfirmed: "yes" }],
     ["number is not a string", { customerNumber: 5 }],
   ])("rejects invalid input: %s", async (_label, change) => {
     asAdmin();
@@ -228,21 +225,20 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
     expect(await t.prisma.customer.count()).toBe(before);
   });
 
-  it("editing the street without moving the pin resets pinConfirmed", async () => {
+  it("editing the street without moving the point geocodes the new address", async () => {
     const { id } = await create({ customerNumber: "PIN-1" });
-    // Asking for the confirmation again for the changed address with the old pin is not enough.
     const result = await updateCustomerAction(id, {
       ...valid,
       customerNumber: "PIN-1",
       street: "Nebengasse 7",
-      pinConfirmed: true,
     });
-    expect(result).toMatchObject({ ok: true, pinConfirmed: false });
+    expect(result).toMatchObject({ ok: true });
+    const expected = (await new FakeGeocoder().search("Nebengasse 7, 1010 Wien, AT"))[0]!;
     const row = await t.prisma.customer.findUniqueOrThrow({ where: { id } });
-    expect(row).toMatchObject({ street: "Nebengasse 7", pinConfirmed: false });
+    expect(row).toMatchObject({ street: "Nebengasse 7", lat: expected.lat, lng: expected.lng });
   });
 
-  it("editing the street and moving the pin allows a new confirmation", async () => {
+  it("editing the street and moving the point by hand keeps the hand-set point", async () => {
     const { id } = await create({ customerNumber: "PIN-2" });
     const result = await updateCustomerAction(id, {
       ...valid,
@@ -250,17 +246,15 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       street: "Nebengasse 7",
       lat: 48.21,
       lng: 16.38,
-      pinConfirmed: true,
     });
-    expect(result).toMatchObject({ ok: true, pinConfirmed: true });
+    expect(result).toMatchObject({ ok: true });
     expect(await t.prisma.customer.findUniqueOrThrow({ where: { id } })).toMatchObject({
       lat: 48.21,
       lng: 16.38,
-      pinConfirmed: true,
     });
   });
 
-  it("keeps the confirmation when only name, hours or notes change", async () => {
+  it("keeps the point when only name, hours or notes change", async () => {
     const { id } = await create({ customerNumber: "PIN-3" });
     const result = await updateCustomerAction(id, {
       ...valid,
@@ -269,7 +263,11 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
       deliveryHoursInfo: "",
       notes: "Neu",
     });
-    expect(result).toMatchObject({ ok: true, pinConfirmed: true });
+    expect(result).toMatchObject({ ok: true });
+    expect(await t.prisma.customer.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      lat: 48.208212,
+      lng: 16.3738,
+    });
   });
 
   it("keeps stored LocalizedText notes untouched when the German text is unchanged", async () => {

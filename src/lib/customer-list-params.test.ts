@@ -9,7 +9,7 @@ describe("customer list URL params", () => {
       status: "active",
       page: 1,
       photosMissing: false,
-      pinUnconfirmed: false,
+      parkingMissing: false,
     });
   });
   it("parses filters and round-trips", () => {
@@ -17,7 +17,7 @@ describe("customer list URL params", () => {
       q: "müller",
       status: "all",
       photos: "missing",
-      pin: "unconfirmed",
+      parking: "missing",
       page: "3",
     });
     expect(parsed).toMatchObject({ q: "müller", status: "all", photosMissing: true, page: 3 });
@@ -25,7 +25,7 @@ describe("customer list URL params", () => {
       q: "müller",
       status: "all",
       photos: "missing",
-      pin: "unconfirmed",
+      parking: "missing",
       page: "3",
     });
   });
@@ -35,7 +35,7 @@ describe("customer list URL params", () => {
         q: " ",
         status: "active",
         photosMissing: false,
-        pinUnconfirmed: false,
+        parkingMissing: false,
         page: 1,
       }),
     ).toEqual({});

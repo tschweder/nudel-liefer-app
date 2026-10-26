@@ -20,7 +20,7 @@ What the demo seed creates (safe to run again, nothing is duplicated):
 | What      | Details                                                                                                                                                                                                                                                                    |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Depot     | "Nudelfabrik Wien (Demo)", Absberggasse 27, 1100 Wien, pin already confirmed. A depot an admin already confirmed is never overwritten.                                                                                                                                     |
-| Customers | `D-001` .. `D-020`, 20 restaurants, real Vienna addresses, confirmed pins, each with an entrance and a parking photo; some have delivery hours and a note (German + Chinese).                                                                                              |
+| Customers | `D-001` .. `D-020`, 20 restaurants, real Vienna addresses, geocoded address points, each with an entrance and a parking photo; some have delivery hours and a note (German + Chinese).                                                                                              |
 | Products  | The 3 catalog products (Nudeln Beutel, Nudeln Karton, Wantan-Teig) with names in all four languages.                                                                                                                                                                       |
 | Orders    | One confirmed order per customer (1 to 3 lines) for the **next delivery day** (`--today`: for today); the seed prints the date. Running it again adds nothing while those orders are still in the future; on a later day, after that date has passed, it adds a fresh set. |
 | Logins    | Admin `admin@example.com` / `SEED_ADMIN_PASSWORD`. Drivers (PIN `123456`, or `SEED_DRIVER_PIN`): `fahrer-de` (German), `driver-hans` (简体), `driver-en` (English), `driver-sr` (Srpski), `driver-cs` (Čeština).                                                                                 |
@@ -31,8 +31,8 @@ phone-size window (browser dev tools, e.g. 390 x 844), logged in as `driver-hans
 ## 1. Script
 
 **Minute 0 - 1: the office view.** Log in as admin at `/de/login`. On "Übersicht" point out the
-"Heute" card (no tour yet). Open "Kunden": 20 customers, search for `Rosa`, open one: address, confirmed
-pin on the map, the two photos (entrance, parking), delivery hours and the note.
+"Heute" card (no tour yet). Open "Kunden": 20 customers, search for `Rosa`, open one: address, address
+point on the map, the two photos (entrance, parking), delivery hours and the note.
 
 **Minute 1 - 2: take an order.** "Bestellungen" -> "Neue Bestellung". Pick a customer by typing (the date is preselected, set it to today), add two products by keyboard (Enter adds the next line), e.g. quantity
 `2,5`. Save. In the order list the new order shows next to the 20 demo orders. Mention: orders of
@@ -47,7 +47,7 @@ summarises stops, driving time and driver. Confirm.
 **Minute 3 - 4: the driver's phone.** Phone window, log in as `driver-hans` (PIN `123456`). Today's tour
 in Simplified Chinese: next stop on top, remaining time, list of stops. Open the first stop: the
 products with big quantities, the entrance photo, the parking photo, the customer note, the
-"Navigation starten" button (opens Google Maps with the customer's pin). Mark "Geliefert": the next stop
+"Navigation starten" button (opens Google Maps with the customer's Parkplatz, or the address when there is none). Mark "Geliefert": the next stop
 opens by itself. Show a problem once: tap the problem button, pick a reason ("Kein Parkplatz"), type a
 short text. Switch the language with the language button (English, Srpski, Čeština, 中文, Deutsch): the same data in every
 variant, customer names and addresses stay untouched.
@@ -58,7 +58,7 @@ variant, customer names and addresses stay untouched.
 Stopps erledigt", the next open stop and the problem with its reason; the tour page shows a status per
 stop with the completion time and the original text of the driver. Both screens refresh by
 themselves (every 30 seconds). Finish with "photos missing" on a newly created customer
-("Kunden" -> "Neuer Kunde": the pin has to be confirmed on the map, photos can follow).
+("Kunden" -> "Neuer Kunde": the address point is looked up by itself, the Parkplatz and photos can follow).
 
 ## 2. Reset
 

@@ -2,7 +2,7 @@
 
 import { MapPinIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { GEOCODE_BATCH_SIZE } from "@/domain/customer-import";
@@ -32,13 +32,15 @@ const EMPTY: Progress = { total: 0, done: 0, found: 0, notFound: 0, failed: 0, l
 /**
  * Batch geocoding with a progress bar. The browser fetches the work list and asks for batches of
  * five customers one after the other; the server paces the geocoder calls (rate limit) and stops
- * at the provider's limit. Found positions are stored as unconfirmed pins.
+ * at the provider's limit. Found points are stored as the customers' Adresspunkt; it starts by itself after an import
+ * (NUD-141), the button repeats it for the customers that were not found.
  */
 export function CustomerImportGeocode({ withoutPin }: { withoutPin: number }) {
   const t = useTranslations("admin.customers.import.geocode");
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [progress, setProgress] = useState<Progress>(EMPTY);
   const cancelled = useRef(false);
+  const autoStarted = useRef(false);
 
   async function start() {
     cancelled.current = false;
@@ -71,6 +73,14 @@ export function CustomerImportGeocode({ withoutPin }: { withoutPin: number }) {
       setPhase({ name: "error" });
     }
   }
+
+  useEffect(() => {
+    if (autoStarted.current || withoutPin === 0) return;
+    autoStarted.current = true;
+    void start();
+    // Runs once on mount: the import has just finished and `start` reads its own fresh work list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const running = phase.name === "running";
   const percent = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100);

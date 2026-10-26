@@ -24,19 +24,25 @@ test("customer list: accent-insensitive search, photo filter, new-customer link"
   test.setTimeout(120_000);
   const tag = `e2e${Date.now()}${Math.floor(Math.random() * 1e4)}`;
   const client = await db();
-  const insert = async (suffix: string, name: string, pinConfirmed: boolean) =>
+  const insert = async (suffix: string, name: string) =>
     (
       await client.query<{ id: string }>(
-        `INSERT INTO "Customer" ("id","customerNumber","name","street","postalCode","city","pinConfirmed","updatedAt")
-         VALUES ($1,$2,$3,'Hauptstraße 1','1010','Wien',$4,now()) RETURNING "id"`,
-        [`id-${tag}-${suffix}`, `${tag}-${suffix}`, name, pinConfirmed],
+        `INSERT INTO "Customer" ("id","customerNumber","name","street","postalCode","city","updatedAt")
+         VALUES ($1,$2,$3,'Hauptstraße 1','1010','Wien',now()) RETURNING "id"`,
+        [`id-${tag}-${suffix}`, `${tag}-${suffix}`, name],
       )
     ).rows[0]!.id;
   try {
     const admin = (await client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
       .rows[0] as { id: string };
-    await insert("A", `Café Müller ${tag}`, false);
-    const b = await insert("B", `Pizzeria Bella ${tag}`, true);
+    await insert("A", `Café Müller ${tag}`);
+    const b = await insert("B", `Pizzeria Bella ${tag}`);
+    // Only B has a Parkplatz (NUD-141): A carries the flag "Ohne Parkplatz".
+    await client.query(
+      `INSERT INTO "ParkingSpot" ("id","customerId","lat","lng","createdById","updatedAt")
+       VALUES ($1,$2,48.2,16.3,$3,now())`,
+      [`ps-${tag}`, b, admin.id],
+    );
     for (const kind of ["STORE", "PARKING"]) {
       await client.query(
         `INSERT INTO "Photo" ("id","customerId","kind","storageKey","width","height","bytes","uploadedById","isCurrent")
@@ -54,7 +60,7 @@ test("customer list: accent-insensitive search, photo filter, new-customer link"
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText(`Café Müller ${tag}`);
     await expect(rows.first().getByTestId("flag-photos-missing")).toBeVisible();
-    await expect(rows.first().getByTestId("flag-pin-unconfirmed")).toBeVisible();
+    await expect(rows.first().getByTestId("flag-parking-missing")).toBeVisible();
     await expect(page).toHaveURL(/q=cafe(\+|%20)muller/);
 
     await page.getByTestId("customer-search").fill(tag);
@@ -67,9 +73,9 @@ test("customer list: accent-insensitive search, photo filter, new-customer link"
     await page.getByTestId("filter-photos-missing").uncheck();
     await expect(rows).toHaveCount(2);
 
-    await page.getByTestId("filter-pin-unconfirmed").check();
+    await page.getByTestId("filter-parking-missing").check();
     await expect(rows).toHaveCount(1);
-    await page.getByTestId("filter-pin-unconfirmed").uncheck();
+    await page.getByTestId("filter-parking-missing").uncheck();
 
     await page.getByTestId("customer-search").fill(`${tag} gibtesnicht`);
     await expect(page.getByTestId("empty-state")).toBeVisible();
@@ -87,6 +93,7 @@ test("customer list: accent-insensitive search, photo filter, new-customer link"
     await expect(page.getByRole("heading", { name: "Neuer Kunde" })).toBeVisible();
   } finally {
     await client.query(`DELETE FROM "Photo" WHERE "storageKey" LIKE $1`, [`e2e/${tag}/%`]);
+    await client.query(`DELETE FROM "ParkingSpot" WHERE "id" = $1`, [`ps-${tag}`]);
     await client.query(`DELETE FROM "Customer" WHERE "customerNumber" LIKE $1`, [`${tag}-%`]);
     await client.end();
   }

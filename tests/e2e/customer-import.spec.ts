@@ -34,7 +34,7 @@ const noHorizontalScroll = (page: Page) =>
     throw new Error(`overflow: ${wide.join(" | ")}`);
   });
 
-// A prefix that sorts before every other customer number, so the pin review queue (ordered by
+// A prefix that sorts before every other customer number, so the Parkplatz queue (ordered by
 // number) starts with this test's customers.
 const newPrefix = () => `00-IMP${Date.now().toString(36)}${Math.floor(Math.random() * 1e3)}-`;
 
@@ -49,7 +49,13 @@ async function withDb<T>(fn: (db: Client) => Promise<T>): Promise<T> {
 }
 
 const removeCustomers = (prefix: string) =>
-  withDb((db) => db.query(`DELETE FROM "Customer" WHERE "customerNumber" LIKE $1`, [`${prefix}%`]));
+  withDb(async (db) => {
+    await db.query(
+      `DELETE FROM "ParkingSpot" WHERE "customerId" IN (SELECT "id" FROM "Customer" WHERE "customerNumber" LIKE $1)`,
+      [`${prefix}%`],
+    );
+    await db.query(`DELETE FROM "Customer" WHERE "customerNumber" LIKE $1`, [`${prefix}%`]);
+  });
 
 const csvFile = (rows: string[][], name = "kunden.csv") => ({
   name,
@@ -67,7 +73,7 @@ async function uploadAndMap(page: Page, file: ReturnType<typeof csvFile>) {
   await expect(visible(page, "preview-summary")).toBeVisible();
 }
 
-test("customer import: 150-row file with 3 invalid rows, re-import, address change, geocoding, pin review", async ({
+test("customer import: 150-row file with 3 invalid rows, re-import, address change, automatic geocoding, Parkplatz queue", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "long flow runs at 1280 px");
@@ -127,18 +133,7 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
     await expect(visible(page, "result-created")).toHaveText("147");
     await expect(visible(page, "result-failed")).toHaveText("3");
     await expect(visible(page, "failed-row")).toHaveCount(3);
-    const counts = await withDb((db) =>
-      db.query(
-        `SELECT count(*)::int AS n, count(*) FILTER (WHERE "pinConfirmed")::int AS confirmed,
-                count(*) FILTER (WHERE lat IS NOT NULL)::int AS pinned
-           FROM "Customer" WHERE "customerNumber" LIKE $1`,
-        [`${prefix}%`],
-      ),
-    );
-    expect(counts.rows[0]).toEqual({ n: 147, confirmed: 0, pinned: 0 });
-
-    // 4. Batch geocoding with progress (Fake geocoder)
-    await visible(page, "geocode-start").click();
+    // 4. Geocoding starts by itself after the import (Fake geocoder), with a progress bar.
     await expect(visible(page, "geocode-finished")).toBeVisible({ timeout: 120_000 });
     const bar = visible(page, "geocode-progress");
     await expect(bar).toHaveAttribute(
@@ -148,13 +143,12 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
     await expect(visible(page, "geocode-status")).toContainText("von");
     const geocoded = await withDb((db) =>
       db.query(
-        `SELECT count(*) FILTER (WHERE lat IS NOT NULL)::int AS pinned,
-                count(*) FILTER (WHERE "pinConfirmed")::int AS confirmed
+        `SELECT count(*)::int AS n, count(*) FILTER (WHERE lat IS NOT NULL)::int AS pinned
            FROM "Customer" WHERE "customerNumber" LIKE $1`,
         [`${prefix}%`],
       ),
     );
-    expect(geocoded.rows[0]).toEqual({ pinned: 147, confirmed: 0 });
+    expect(geocoded.rows[0]).toEqual({ n: 147, pinned: 147 });
     expect(await noHorizontalScroll(page)).toBe(true);
     await page.screenshot({ path: "test-results/customer-import-result.png", fullPage: true });
 
@@ -167,11 +161,11 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
     await expect(visible(page, "preview-error")).toHaveText("3");
     await expect(visible(page, "import-commit")).toBeDisabled();
 
-    // 6. Changed address: updates instead of duplicates, the pin is dropped
+    // 6. Changed address: updates instead of duplicates, the address point is looked up again
     const changed = rows.map((r) => [...r]);
     changed[1]![2] = "Neugasse 99";
     changed[2]![2] = "Neugasse 100";
-    changed[3]![1] = "Pizzeria Umbenannt"; // name only: the pin stays
+    changed[3]![1] = "Pizzeria Umbenannt"; // name only: the address point stays
     await page.goto("/de/admin/customers/import");
     await uploadAndMap(page, csvFile(changed));
     await expect(visible(page, "preview-update")).toHaveText("3");
@@ -180,18 +174,20 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
     await visible(page, "import-commit").click();
     await expect(visible(page, "result-updated")).toHaveText("3");
     await expect(visible(page, "result-created")).toHaveText("0");
+    // The two changed addresses are geocoded again by the automatic step.
+    await expect(visible(page, "geocode-finished")).toBeVisible({ timeout: 60_000 });
     const after = await withDb((db) =>
       db.query(
-        `SELECT "customerNumber", street, name, lat, "pinConfirmed" FROM "Customer"
+        `SELECT "customerNumber", street, name, lat FROM "Customer"
           WHERE "customerNumber" LIKE $1 ORDER BY "customerNumber" LIMIT 4`,
         [`${prefix}%`],
       ),
     );
-    expect(after.rows.map((r) => [r.street, r.lat === null])).toEqual([
+    expect(after.rows.map((r) => [r.street, r.lat !== null])).toEqual([
       ["Neugasse 99", true],
       ["Neugasse 100", true],
-      ["Lindengasse 3", false],
-      ["Marktplatz 4", false],
+      ["Lindengasse 3", true],
+      ["Marktplatz 4", true],
     ]);
     expect(after.rows[2].name).toBe("Pizzeria Umbenannt");
     const total = await withDb((db) =>
@@ -201,34 +197,31 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
     );
     expect(total.rows[0].n).toBe(147);
 
-    // 7. Pin review queue: confirm, drag, skip. The two customers without a pin come first.
-    await visible(page, "review-link").click();
-    await expect(page).toHaveURL(/\/import\/review$/);
-    const position = visible(page, "review-position");
+    // 7. Parkplatz queue: the first customer is saved with ONE click (the map starts at the address
+    // point), the second is skipped, the third is placed by typing coordinates, the fourth by dragging.
+    await visible(page, "queue-link").click();
+    await expect(page).toHaveURL(/\/customers\/parking$/);
+    const position = visible(page, "queue-position");
     await expect(position).toContainText("Kunde 1 von");
-    await expect(visible(page, "review-name")).toContainText("Gasthaus Zum Löwen 1");
-    // No pin yet: the hint says so, confirming needs a pin.
-    await expect(visible(page, "review-hint")).toContainText("noch keinen Pin");
-    await expect(visible(page, "review-confirm")).toBeDisabled();
-    await visible(page, "review-find").click();
-    await expect(visible(page, "review-candidate")).toHaveCount(1);
-    await visible(page, "review-candidate").click();
+    await expect(visible(page, "queue-name")).toContainText("Gasthaus Zum Löwen 1");
+    await expect(visible(page, "queue-hint")).toContainText("Adresspunkt");
     await expect(page.getByTestId("pin-picker").locator(".leaflet-marker-icon")).toHaveCount(1);
-    await expect(visible(page, "review-confirm")).toBeEnabled();
-    await page.screenshot({ path: "test-results/customer-import-review.png", fullPage: true });
-    await visible(page, "review-confirm").click();
+    await expect(visible(page, "queue-confirm")).toBeEnabled();
+    await page.screenshot({
+      path: "test-results/customer-import-parking-queue.png",
+      fullPage: true,
+    });
+    await visible(page, "queue-confirm").click();
     await expect(position).toContainText("Kunde 2 von");
-    await expect(visible(page, "review-name")).toContainText("Trattoria Bella Vista 2");
+    await expect(visible(page, "queue-name")).toContainText("Trattoria Bella Vista 2");
 
-    // Skip the second one; the third one is moved by typing coordinates, then confirmed.
-    await visible(page, "review-skip").click();
+    await visible(page, "queue-skip").click();
     await expect(position).toContainText("Kunde 3 von");
     await visible(page, "pin-lat").fill("48.2");
     await visible(page, "pin-lng").fill("16.4");
-    await visible(page, "review-confirm").click();
+    await visible(page, "queue-confirm").click();
     await expect(position).toContainText("Kunde 4 von");
 
-    // The next one (geocoded by the batch) is dragged on the map, then confirmed.
     const marker = page.getByTestId("pin-picker").locator(".leaflet-marker-icon");
     await expect(marker).toHaveCount(1);
     const latBefore = await visible(page, "pin-lat").inputValue();
@@ -242,26 +235,30 @@ test("customer import: 150-row file with 3 invalid rows, re-import, address chan
       lat: Number(await visible(page, "pin-lat").inputValue()),
       lng: Number(await visible(page, "pin-lng").inputValue()),
     };
-    await visible(page, "review-confirm").click();
+    await visible(page, "queue-confirm").click();
     await expect(position).toContainText("Kunde 5 von");
 
-    const reviewed = await withDb((db) =>
+    const placed = await withDb((db) =>
       db.query(
-        `SELECT "customerNumber", lat, lng, "pinConfirmed" FROM "Customer"
-          WHERE "customerNumber" LIKE $1 ORDER BY "customerNumber" LIMIT 5`,
+        `SELECT c."customerNumber", c.lat AS clat, c.lng AS clng, s.lat, s.lng, s.active
+           FROM "Customer" c LEFT JOIN "ParkingSpot" s ON s."customerId" = c."id"
+          WHERE c."customerNumber" LIKE $1 ORDER BY c."customerNumber" LIMIT 5`,
         [`${prefix}%`],
       ),
     );
-    expect(reviewed.rows.map((r) => r.pinConfirmed)).toEqual([true, false, true, true, false]);
-    expect(reviewed.rows[2]).toMatchObject({ lat: 48.2, lng: 16.4 });
-    expect(reviewed.rows[3]).toMatchObject(dragged);
+    // 1: spot at the address point, 2: skipped (no spot), 3 and 4: the typed / dragged place.
+    expect(placed.rows[0]).toMatchObject({ lat: placed.rows[0].clat, lng: placed.rows[0].clng });
+    expect(placed.rows[1]).toMatchObject({ lat: null });
+    expect(placed.rows[2]).toMatchObject({ lat: 48.2, lng: 16.4 });
+    expect(placed.rows[3]).toMatchObject(dragged);
+    expect(placed.rows[4]).toMatchObject({ lat: null });
     expect(await noHorizontalScroll(page)).toBe(true);
   } finally {
     await removeCustomers(prefix);
   }
 });
 
-test("customer import: review queue to the end, skipped ones again, edited customer is refused", async ({
+test("customer import: the dashboard to-do opens the Parkplatz queue, saved spots leave it", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "runs at 1280 px");
@@ -275,45 +272,36 @@ test("customer import: review queue to the end, skipped ones again, edited custo
     await expect(visible(page, "preview-create")).toHaveText("3");
     await visible(page, "import-commit").click();
     await expect(visible(page, "result-created")).toHaveText("3");
-    await visible(page, "geocode-start").click();
     await expect(visible(page, "geocode-finished")).toBeVisible({ timeout: 60_000 });
 
-    await visible(page, "review-link").click();
-    const position = visible(page, "review-position");
-    await expect(visible(page, "review-name")).toContainText("Gasthaus Zum Löwen 1");
+    // Dashboard: "N Kunden ohne Parkplatz – Lieferung zur Adresse" links to the queue.
+    await page.goto("/de/admin");
+    const todo = visible(page, "attention-parking-missing");
+    await expect(todo).toContainText("ohne Parkplatz – Lieferung zur Adresse");
+    await todo.getByRole("link").click();
+    await expect(page).toHaveURL(/\/customers\/parking$/);
 
-    // Somebody edits customer 1 while the queue is open: confirming it is refused.
-    await withDb((db) =>
+    const position = visible(page, "queue-position");
+    await expect(visible(page, "queue-name")).toContainText("Gasthaus Zum Löwen 1");
+    // Skip customer 1, save customer 2 and 3 with one click each.
+    await visible(page, "queue-skip").click();
+    await expect(position).toContainText("Kunde 2 von");
+    await visible(page, "queue-confirm").click();
+    await expect(position).toContainText("Kunde 3 von");
+    await visible(page, "queue-confirm").click();
+    await expect(position).toContainText("Kunde 4 von");
+    const saved = await withDb((db) =>
       db.query(
-        `UPDATE "Customer" SET street = 'Anders 1', "updatedAt" = now() WHERE "customerNumber" = $1`,
-        [`${prefix}0001`],
+        `SELECT c."customerNumber" FROM "ParkingSpot" s JOIN "Customer" c ON c."id" = s."customerId"
+          WHERE c."customerNumber" LIKE $1 AND s.active ORDER BY c."customerNumber"`,
+        [`${prefix}%`],
       ),
     );
-    await visible(page, "review-confirm").click();
-    await expect(visible(page, "review-error")).toContainText("inzwischen geändert");
-    await visible(page, "review-skip").click();
+    expect(saved.rows.map((r) => r.customerNumber)).toEqual([`${prefix}0002`, `${prefix}0003`]);
 
-    await expect(position).toContainText("Kunde 2 von");
-    await visible(page, "review-confirm").click();
-    await expect(position).toContainText("Kunde 3 von");
-    await visible(page, "review-confirm").click();
-
-    // End of the queue (other specs' unconfirmed customers sort after ours).
-    for (let i = 0; i < 50; i += 1) {
-      // The last confirm may still be in flight (skip disabled, then replaced by the summary):
-      // wait for either state instead of clicking a button that is about to disappear.
-      const skip = visible(page, "review-skip");
-      const done = visible(page, "review-done");
-      await expect(skip.or(done)).toBeVisible();
-      if (await done.count()) break;
-      await skip.click({ timeout: 3000 }).catch(() => undefined);
-    }
-    await expect(visible(page, "review-done")).toBeVisible();
-    await expect(visible(page, "review-summary")).toContainText("2 bestätigt");
-
-    // Review the skipped ones again: our customer 1 (now with its new address) is among them.
-    await visible(page, "review-again").click();
-    await expect(position).toContainText("Kunde 1 von");
+    // A reload of the queue no longer offers the saved customers; the skipped one is still there.
+    await page.goto("/de/admin/customers/parking");
+    await expect(visible(page, "queue-name")).toContainText("Gasthaus Zum Löwen 1");
   } finally {
     await removeCustomers(prefix);
   }

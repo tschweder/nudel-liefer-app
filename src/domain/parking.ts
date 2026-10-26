@@ -20,6 +20,33 @@ export function defaultParkingSpot<T extends ParkingSpotLike>(spots: readonly T[
   return activeParkingSpots(spots)[0] ?? null;
 }
 
+export type ParkingPointLike = ParkingSpotLike & { lat: number; lng: number };
+export type RoutingPointSource = "parking" | "address";
+export type RoutingPoint = { lat: number; lng: number; source: RoutingPointSource };
+
+const isCoord = (value: number | null | undefined): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+/**
+ * The point a stop is optimised and navigated to (D22, NUD-141): the customer's default Parkplatz
+ * (first active spot by `sortOrder`), else the geocoded Lieferadresse (`Customer.lat/lng`), else
+ * `null` ("no location": only when geocoding failed and nobody set a point).
+ */
+export function routingPoint(customer: {
+  lat: number | null;
+  lng: number | null;
+  parkingSpots: readonly ParkingPointLike[];
+}): RoutingPoint | null {
+  const spot = defaultParkingSpot(
+    customer.parkingSpots.filter((s) => isCoord(s.lat) && isCoord(s.lng)),
+  );
+  if (spot) return { lat: spot.lat, lng: spot.lng, source: "parking" };
+  if (isCoord(customer.lat) && isCoord(customer.lng)) {
+    return { lat: customer.lat, lng: customer.lng, source: "address" };
+  }
+  return null;
+}
+
 /** Moves the element at `from` to `to` (both inside the list); returns a new array. */
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {

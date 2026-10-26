@@ -1,6 +1,6 @@
 /**
- * Pure customer rules (no framework imports): pin confirmation after address changes and the
- * suggested next customer number. Used by the server mutations and by the form, so the UI
+ * Pure customer rules (no framework imports): address comparison and the suggested next
+ * customer number. Used by the server mutations and by the form, so the UI
  * enforces exactly what the server enforces.
  */
 
@@ -28,33 +28,6 @@ export function addressChanged(before: CustomerAddress, after: CustomerAddress):
 export function samePin(a: Pin | null, b: Pin | null): boolean {
   if (a === null || b === null) return a === b;
   return a.lat === b.lat && a.lng === b.lng;
-}
-
-/**
- * May the admin confirm the pin for this form state? Needs a pin; and once the address of an
- * existing customer was changed, the pin must have been moved or searched again (a confirmation
- * given for the old address says nothing about the new one). `before` is `null` for a new customer.
- */
-export function canConfirmPin(
-  before: { address: CustomerAddress; pin: Pin | null } | null,
-  after: { address: CustomerAddress; pin: Pin | null },
-): boolean {
-  if (after.pin === null) return false;
-  if (before === null) return true;
-  if (!addressChanged(before.address, after.address)) return true;
-  return !samePin(before.pin, after.pin);
-}
-
-/**
- * The `pinConfirmed` value to store: the admin's explicit confirmation, but only where
- * `canConfirmPin` allows it. Changing the address without moving the pin therefore resets it.
- */
-export function resolvePinConfirmed(
-  requested: boolean,
-  before: { address: CustomerAddress; pin: Pin | null } | null,
-  after: { address: CustomerAddress; pin: Pin | null },
-): boolean {
-  return requested && canConfirmPin(before, after);
 }
 
 /**

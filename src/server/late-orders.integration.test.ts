@@ -86,7 +86,6 @@ describe.skipIf(!process.env.DATABASE_URL)(
             city: "Wien",
             lat: DEPOT.lat,
             lng: DEPOT.lng + lngOffset,
-            pinConfirmed: true,
             ...extra,
           },
         })
@@ -478,9 +477,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(p.tour?.diff?.added.map((s) => s.customerNumber)).toEqual(["C3"]);
     });
 
-    it("keeps customers without a confirmed pin out of the follow-up tour and says so", async () => {
+    it("keeps customers with no location at all out of the follow-up tour and says so", async () => {
       const { t1 } = await completedDay();
-      const noPin = await customer("C8", 0.8, { pinConfirmed: false });
+      const noPin = await customer("C8", 0.8, { lat: null, lng: null });
       await lateOrder(noPin, 2);
       let p = await plan();
       expect(p.late.lateOrders).toMatchObject([{ customerNumber: "C8", routable: false }]);
@@ -489,7 +488,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await followUp()).toMatchObject({
         ok: false,
         error: "no_late_orders",
-        warnings: [{ code: "PIN_UNCONFIRMED", customerNumber: "C8" }],
+        warnings: [{ code: "NO_LOCATION", customerNumber: "C8" }],
       });
       expect(await t.prisma.tour.count()).toBe(1);
 

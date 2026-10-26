@@ -198,9 +198,9 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     await loginAdmin(page);
     await page.goto("/de/admin/orders/new");
 
-    // Unconfirmed pin: warning, not an error.
+    // No pin warning any more (NUD-141): a customer without confirmation is orderable as usual.
     await pickCustomer(page, f.unconfirmed.number, new RegExp(f.unconfirmed.number));
-    await expect(page.getByTestId("warning-pin")).toContainText("nicht bestätigt");
+    await expect(page.getByTestId("warning-pin")).toHaveCount(0);
     await expect(page.getByTestId("warning-combined")).toHaveCount(0);
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
 

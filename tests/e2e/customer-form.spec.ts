@@ -44,7 +44,7 @@ async function fillCustomer(page: Page, tag: string, name: string) {
   await page.getByTestId("customer-city").fill("Wien");
 }
 
-test("customer: create with confirmed pin, find it, duplicate number, edit resets pin, archive", async ({
+test("customer: create (address point looked up by itself), find it, duplicate number, edit re-geocodes, Parkplatz flag, archive", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -59,22 +59,20 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await expect(page).toHaveURL(/\/de\/admin\/customers\/new$/);
     await expect(page.getByRole("heading", { name: "Neuer Kunde" })).toBeVisible();
     await expect(page.getByTestId("customer-number")).not.toHaveValue("");
-    await expect(page.getByTestId("pin-confirm")).toBeDisabled();
+    // There is no confirmation step any more (NUD-141, D22).
+    await expect(page.getByTestId("pin-confirm")).toHaveCount(0);
 
     await fillCustomer(page, tag, name);
     await page.getByTestId("customer-hours").fill("Mo-Fr 6-10 Uhr");
     await page.getByTestId("customer-notes").fill("Hintereingang im Hof");
 
-    // Find on map -> candidates -> choose -> pin appears; confirmation is required to set the flag.
+    // Find on map -> candidates -> choose -> the address point appears (optional: saving alone
+    // looks the address up by itself).
     await page.getByTestId("customer-find").click();
     await expect(page.getByTestId("candidate")).toHaveCount(1);
     await page.getByTestId("candidate").first().click();
     await expect(page.getByTestId("pin-picker").locator(".leaflet-marker-icon")).toHaveCount(1);
     await expect(page.getByTestId("pin-lat")).not.toHaveValue("");
-    const confirm = page.getByTestId("pin-confirm");
-    await expect(confirm).toBeEnabled();
-    await expect(confirm).not.toBeChecked();
-    await confirm.check();
     expect(await noHorizontalScroll(page)).toBe(true);
     await page.screenshot({ path: "test-results/customer-form.png", fullPage: true });
     await page.getByTestId("customer-save").click();
@@ -82,9 +80,10 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     // Detail page.
     await expect(page).toHaveURL(/\/de\/admin\/customers\/[^/]+$/);
     await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
-    await expect(page.getByTestId("detail-pin")).toContainText("Adresspunkt bestätigt");
+    await expect(page.getByTestId("detail-pin")).toContainText(/\d+\.\d+, \d+\.\d+/);
     await expect(page.getByTestId("detail-notes")).toHaveText("Hintereingang im Hof");
-    await expect(visible(page, "flag-pin-unconfirmed")).toHaveCount(0);
+    // No Parkplatz yet: flagged, but nothing is blocked.
+    await expect(visible(page, "flag-parking-missing")).toBeVisible();
     await expect(visible(page, "flag-photos-missing")).toBeVisible();
     await expect(page.getByTestId("photo-slots")).toBeVisible();
     await expect(page.getByTestId("orders-empty")).toBeVisible();
@@ -92,12 +91,12 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     await page.screenshot({ path: "test-results/customer-detail.png", fullPage: true });
     const detailUrl = page.url();
 
-    // Findable through the list search; the confirmed pin shows no pin flag there.
+    // Findable through the list search; the row carries the "Ohne Parkplatz" flag.
     await page.goto("/de/admin/customers");
     await page.getByTestId("customer-search").fill(`osteria gute ${tag}`);
     const rows = page.getByTestId("customer-row");
     await expect(rows).toHaveCount(1);
-    await expect(rows.first().getByTestId("flag-pin-unconfirmed")).toHaveCount(0);
+    await expect(rows.first().getByTestId("flag-parking-missing")).toBeVisible();
     await rows.first().getByTestId("customer-link").click();
     await expect(page).toHaveURL(detailUrl);
 
@@ -110,27 +109,31 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     );
     await expect(page).toHaveURL(/\/customers\/new$/);
 
-    // Editing the street withdraws the confirmation; saving shows the warning flag.
+    // Editing the street without touching the point: the new address is geocoded on save.
     await page.goto(`${detailUrl}/edit`);
-    await expect(page.getByTestId("pin-confirm")).toBeChecked();
+    const latBefore = await page.getByTestId("pin-lat").inputValue();
     await page.getByTestId("customer-street").fill("Andere Gasse 5");
-    await expect(page.getByTestId("pin-confirm")).not.toBeChecked();
-    await expect(page.getByTestId("pin-confirm")).toBeDisabled();
-    await expect(page.getByTestId("pin-hint")).toBeVisible();
     await page.getByTestId("customer-save").click();
     await expect(page).toHaveURL(detailUrl);
-    await expect(visible(page, "flag-pin-unconfirmed")).toBeVisible();
     await expect(page.getByTestId("detail-address")).toContainText("Andere Gasse 5");
+    await expect(page.getByTestId("detail-pin")).not.toContainText(latBefore);
 
-    // Moving the pin after an address change allows confirming again.
+    // Moving the point by hand after an address change keeps the hand-set coordinates.
     await page.goto(`${detailUrl}/edit`);
     await page.getByTestId("customer-street").fill("Dritte Gasse 9");
     await page.getByTestId("pin-lat").fill("48.2111");
-    await expect(page.getByTestId("pin-confirm")).toBeEnabled();
-    await page.getByTestId("pin-confirm").check();
     await page.getByTestId("customer-save").click();
     await expect(page).toHaveURL(detailUrl);
-    await expect(visible(page, "flag-pin-unconfirmed")).toHaveCount(0);
+    await expect(page.getByTestId("detail-pin")).toContainText("48.2111");
+
+    // A Parkplatz removes the flag.
+    await page.getByTestId("parking-add").click();
+    const dialog = page.getByTestId("parking-dialog");
+    await dialog.getByTestId("pin-lat").fill("48.21");
+    await dialog.getByTestId("pin-lng").fill("16.37");
+    await dialog.getByTestId("parking-save").click();
+    await expect(dialog).toBeHidden();
+    await expect(visible(page, "flag-parking-missing")).toHaveCount(0);
 
     // Archive (with confirmation) and reactivate; the row is never deleted.
     await page.getByTestId("customer-archive").click();
@@ -145,6 +148,10 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
   } finally {
     const client = new Client({ connectionString: process.env.DATABASE_URL });
     await client.connect();
+    await client.query(
+      `DELETE FROM "ParkingSpot" WHERE "customerId" IN (SELECT "id" FROM "Customer" WHERE "customerNumber" LIKE $1)`,
+      [`${tag}%`],
+    );
     await client.query(`DELETE FROM "Customer" WHERE "customerNumber" LIKE $1`, [`${tag}%`]);
     await client.end();
   }

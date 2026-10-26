@@ -95,7 +95,7 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
     const customers = await t.prisma.customer.findMany({ include: { photos: true } });
     expect(customers).toHaveLength(20);
     for (const c of customers) {
-      expect(c.pinConfirmed).toBe(true);
+      expect(c.lat).not.toBeNull();
       expect(c.photos.map((p) => p.kind).sort()).toEqual(["PARKING", "STORE"]);
       for (const p of c.photos) {
         expect(storage.has(p.storageKey)).toBe(true);

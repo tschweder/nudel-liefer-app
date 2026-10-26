@@ -40,10 +40,11 @@ first and then delegates with `getDb()`.
   case-insensitively (`number_taken` on a hit or a `P2002` unique violation). A
   customer is never deleted: `setCustomerActive` only toggles `active` (archive /
   reactivate).
-- Pin rules: `lat` and `lng` come as a pair or both `null`. `resolvePinConfirmed`
-  keeps the admin's `pinConfirmed` only where `canConfirmPin` allows it — changing
-  the address without moving the pin resets the confirmation (see
-  `src/domain/customer.ts`).
+- Address point rules (NUD-141, D22): `lat` and `lng` come as a pair or both `null`; there is no
+  confirmation step (`Customer.pinConfirmed` is unused and kept only so no migration drops data).
+  When the address is new or changed and the admin did not move the point, `createCustomer` /
+  `updateCustomer` geocode it (best effort via `customer-geocode.ts`; a geocoder failure never
+  blocks the save). Tours and navigation use the default Parkplatz (`routingPoint`).
 - Notes are stored as `LocalizedText` JSON (German source, Chinese translations);
   `prepareNotes` translates on save, see below.
 - Reads: `getCustomerDetail` (one customer plus whether a current STORE / PARKING
@@ -68,7 +69,7 @@ literally. `listCustomers` does no authorization itself; callers go through
 
 `parseCustomerListParams` / `customerListQuery` map between URL search params and
 `CustomerListInput`: `status` accepts `archived` / `all` (anything else is
-`active`), `photos=missing` and `pin=unconfirmed`, and `page` is clamped to
+`active`), `photos=missing` and `parking=missing` (customers without an active Parkplatz), and `page` is clamped to
 1..100000. The list input type comes from `customers.ts`.
 
 ## Customer photos (`customer-photos.ts`, `customer-actions.ts`)
@@ -114,23 +115,20 @@ and the text is never logged.
 - `retranslateNote` overwrites all three Chinese versions with a fresh machine
   translation; nothing is changed if the provider fails.
 
-## Pins and geocoding (`customer-pins.ts`, `customer-import-actions.ts`, `geocode-actions.ts`)
+## Address points, geocoding and the Parkplatz queue (`customer-pins.ts`, `customer-import-actions.ts`, `geocode-actions.ts`)
 
-- `listCustomerIdsWithoutPin` — active customers with no pin (the geocoding work
-  list, max `PIN_LIST_LIMIT` 2000).
+- `listCustomerIdsWithoutPin` — active customers with no address point (the geocoding work
+  list, max `PIN_LIST_LIMIT` 2000). The import wizard starts it by itself after an import.
 - `geocodeCustomers(db, geocoder, ids)` — one batch of at most
   `GEOCODE_BATCH_MAX` (5) customers, one geocoder call at a time with a pause
   between calls (`geocodeDelayMs`: `GEOCODE_BATCH_DELAY_MS` wins, otherwise 700 ms
   with a real provider when `ORS_API_KEY` is set, none for the Fake). The best
-  candidate is stored as the customer's pin but stays **unconfirmed**; only
-  active, pinless, unconfirmed customers are touched (an admin who placed a pin in
-  the meantime wins). Stops at the first rate limit (429/403) or after three
+  hit is stored as the customer's address point (no confirmation); only
+  active customers without a point are touched (a point set in the meantime wins). Stops at the first rate limit (429/403) or after three
   failures in a row. Logs a summary, never addresses.
-- Pin review queue: `listPinReviewQueue` / `countPinReviewQueue` return active
-  customers whose pin is unconfirmed. `confirmPin` stores the (possibly dragged)
-  coordinates and sets `pinConfirmed`, refused with `conflict` when the customer
-  was edited since the queue was loaded — a pin is never confirmed for an address
-  the admin has not seen.
+- Parkplatz queue: `listParkingQueue` / `countParkingQueue` return active customers without an
+  active Parkplatz (page `/admin/customers/parking`, dashboard to-do). The queue saves a spot with
+  `createParkingSpotAction` (audited, becomes the default); "skip" keeps the customer in the queue.
 - `geocode-actions.ts`: `geocodeAddressAction` is the admin-only "locate address"
   button of the pin picker, one address to candidate coordinates.
 
@@ -181,17 +179,17 @@ from the upload is stored; the server re-validates the rows at commit time.
   followed by the city at the end) and the address columns are stored as the
   billing address (`delivery_address_used`); without a postal code in the cell,
   postal code and city of the billing address are used and the row is flagged
-  `delivery_postal_assumed` for the office to check before confirming the pin.
+  `delivery_postal_assumed` for the office to check.
   A file whose only name column is "Firma"/"Company" keeps using it as the name.
 - `previewImport` (dry run, writes nothing) returns per-row plans and a
   `summarizePlan` summary.
 - `commitImport` writes the valid rows in one request: creates unknown customers
-  (pin not confirmed) and updates known ones. Invalid rows are skipped and
+  (the address point is looked up afterwards) and updates known ones. Invalid rows are skipped and
   reported; one failing row never stops the others. An update is refused
   (`changed_meanwhile`) when the customer was edited after the import started, and
-  an address change drops the stored pin and confirmation (NUD-014). Customers are
+  an address change drops the stored address point so it is looked up again (NUD-014). Customers are
   never deleted or reactivated. The result reports created / updated / unchanged /
-  failed counts plus `withoutPin` and `toReview` counts for the next workflow
+  failed counts plus `withoutPin` (no address point) and `withoutParking` (no Parkplatz) counts for the next workflow
   steps.
 
 ## Authorization

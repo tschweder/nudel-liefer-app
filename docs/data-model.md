@@ -44,7 +44,7 @@ The provider is `postgresql`; the generated client is emitted to
 - **`Settings`** — a singleton row (`id = 1`) holding depot name/address/coordinates,
   `depotPinConfirmed` (tour building requires it), `timezone`, `departureTime`,
   `serviceMinutesPerStop` and `deliveryWeekdays`.
-- **`Customer`** — addresses with `customerNumber` (unique), coordinates, `pinConfirmed`, and
+- **`Customer`** — addresses with `customerNumber` (unique), coordinates (the address point; `pinConfirmed` is unused since NUD-141), and
   `notes`/`deliveryHoursInfo`. Office-only master data (NUD-136): `companyName` ("Firma"), `vatId`
   ("UID") and `billingStreet`/`billingPostalCode`/`billingCity`, set only when the billing address
   differs; `street`/`postalCode`/`city` are always the **delivery** address (geocoded, routed, shown

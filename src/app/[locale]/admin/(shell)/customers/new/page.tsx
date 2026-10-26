@@ -35,7 +35,6 @@ async function Guarded({ locale }: { locale: string }) {
           city: "",
           country: "AT",
           pin: null,
-          pinConfirmed: false,
           deliveryHoursInfo: "",
           notes: "",
           office: EMPTY_OFFICE_VALUES,

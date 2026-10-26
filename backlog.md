@@ -295,7 +295,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | done |
 | NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | done |
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | done |
-| NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | todo |
+| NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | done |
 | NUD-142 | Customer key number (office + driver) | M2.6 | 139 | todo |
 | NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | todo |
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | todo |
@@ -2337,7 +2337,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-141 · Parkplatz is the routing point; no more pin confirmation
-**Status:** todo · **depends_on:** 125, 139 · F6, F7, F8 · implements **D22**
+**Status:** done · **depends_on:** 125, 139 · F6, F7, F8 · implements **D22**
 
 **Goal:** the point used for optimisation and navigation is the customer's **default Parkplatz**; without one, the geocoded **Lieferadresse**. Nobody is excluded from a tour for a missing confirmation.
 
@@ -2351,9 +2351,17 @@ General rules for every ticket in this block:
 - NUD-125 scope note "routing/optimisation keeps using the single customer pin" no longer applies.
 
 **Acceptance criteria**
-- [ ] A customer with a Parkplatz is optimised and navigated to the Parkplatz coordinates; without one to the address point (integration test).
-- [ ] A freshly imported customer (no confirmation, no Parkplatz) ends up on the tour with the flag.
-- [ ] Dashboard entry text and link to the queue; the queue sets a Parkplatz in ≤ 3 clicks per customer.
+- [x] A customer with a Parkplatz is optimised and navigated to the Parkplatz coordinates; without one to the address point (integration test). (Integration tests: tour-builder (optimize called with the Parkplatz coordinates, address point without), driver-today (navigation target = Parkplatz), tour-planning routing-point test.)
+- [x] A freshly imported customer (no confirmation, no Parkplatz) ends up on the tour with the flag. (Integration test import -> automatic geocoding -> tour with flag "Parkplatz fehlt"; e2e mvp-happy-path (new customer, no confirmation) shows the flag on the stop.)
+- [x] Dashboard entry text and link to the queue; the queue sets a Parkplatz in ≤ 3 clicks per customer. (e2e customer-import: dashboard to-do "ohne Parkplatz – Lieferung zur Adresse" links to /admin/customers/parking; first customer saved with 1 click (map starts at the address point), skip = 1 click, typed/dragged spot = 2-3 clicks.)
+
+**Implementation notes**
+- `routingPoint()` in `src/domain/parking.ts` (Parkplatz by sortOrder, else Adresspunkt, else null); used by tour builder, planning/reorder, re-release, late orders, driver payload. `pinConfirmed` is removed from every gate and UI; the column stays unused (comment in schema, no migration).
+- Tour builder: `partitionByLocation` -> routable / unrouted (NO_LOCATION warning, stop kept out) / withoutParking (non-blocking flag `stop-missing-parking-spot`, "Parkplatz fehlt").
+- Geocoding on customer save is best effort (never blocks) when the point is missing or the address changed and the point was not moved by hand; the import drops lat/lng on address change and its geocode step now starts by itself.
+- Parkplatz queue at `/admin/customers/parking` (replaces the pin review queue, `pin-review-queue.tsx` removed); saves via the audited `createParkingSpotAction`; dashboard to-do `attention-parking-missing`; customer list flag/filter "Ohne Parkplatz"; order-form pin warning removed. Texts in de/en/zh-Hans, help manual and docs updated.
+- Checks: lint (only the expected fontstub warning), typecheck, i18n:check, `pnpm test` (all green after fixing demo-seed test), fresh-DB migrate + seed ok, e2e desktop+mobile of customer-import/form/customers/mvp/orders/tours green. Full e2e run (408): 14 failures; settings, order-overview and mobile order-screenshot fail identically on the unchanged baseline (pre-existing); driver-photo, driver-usability, driver-outbox and desktop order-screenshot passed on rerun (flaky under the long run). 375 px / 1280 px: no horizontal scroll on queue, form, dashboard.
+- Not done here (stays NUD-126): Google waypoint/destination navigation URL.
 
 ---
 
@@ -2919,6 +2927,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-140 | Migration maps `zh_Hant_HK`/`zh_Hant_TW` users to `zh_Hans`; stored `LocalizedText` loses the Hant keys; a Hant-only text (source was Hant) is moved to `zh-Hans`; existing texts get `pendingTranslation` so the retry job fills en/sr-Latn/cs. | Nothing is deleted without a replacement; the job translates in the background. |
 | 2026-10-26 | NUD-140 | Driver problem notes (`Stop.problemNote`) are translated into German only (`PendingSource.targets = ["de"]`). `Product.name` becomes a pending source so a failed save-time translation is retried. | The office reads problem notes in German; translating them into four languages wastes quota. Product names are machine-filled for en/sr-Latn/cs on save when flagged auto or empty. |
 | 2026-10-26 | NUD-125 | Parking spot = optional label (80) + optional note (500) + required lat/lng; max 10 active per customer; order by `sortOrder`, first active = default; reorder via up/down buttons; "remove" sets `active=false`, no restore UI | Simplest option consistent with D22/D27: the first spot is the routing point (NUD-141), free text is listed in docs/privacy.md and kept out of the audit log |
+| 2026-10-26 | NUD-141 | Parkplatz queue at /admin/customers/parking saves through the existing audited createParkingSpotAction; geocoding on save is best effort and never blocks; pinConfirmed stays unused without migration; demo customers have no ParkingSpot so they show the flag | Simplest option consistent with D22: reuses the NUD-125 action and audit, no destructive migration, a geocoder outage must not block saving a customer |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

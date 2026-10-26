@@ -38,7 +38,7 @@ import {
  *
  * The "Zu erledigen" groups of §8.2.3 additionally reuse two existing read queries unchanged —
  * `orderOverviewQuery` (drafts of the next delivery day) and `listCustomersQuery` (customers whose
- * photos or map pin are missing) — passed with filter inputs and read for their counts only
+ * photos or Parkplatz are missing) — passed with filter inputs and read for their counts only
  * (`pageSize: 1`). No new aggregate and no new SQL: the same queries the Bestellungen and Kunden
  * pages use.
  */
@@ -48,10 +48,10 @@ async function Dashboard({ locale }: { locale: string }) {
   const fmt = createAppFormatters(await getFormatter({ locale }), await getFactoryTimezone());
   const nextDeliveryDate = await getDefaultDeliveryDate();
   const nextDeliveryDay = formatCalendarDate(nextDeliveryDate);
-  const [today, missingPhotos, pinUnconfirmed, drafts] = await Promise.all([
+  const [today, missingPhotos, parkingMissing, drafts] = await Promise.all([
     todayProgressQuery(),
     listCustomersQuery({ status: "active", photosMissing: true, pageSize: 1 }),
-    listCustomersQuery({ status: "active", pinUnconfirmed: true, pageSize: 1 }),
+    listCustomersQuery({ status: "active", parkingMissing: true, pageSize: 1 }),
     orderOverviewQuery({
       from: nextDeliveryDay,
       to: nextDeliveryDay,
@@ -62,7 +62,7 @@ async function Dashboard({ locale }: { locale: string }) {
   const activity = today.tour ? (await tourHistoryQuery(today.tour.id)).slice(0, 5) : [];
   const attention = {
     missingPhotos: missingPhotos.total,
-    pinUnconfirmed: pinUnconfirmed.total,
+    parkingMissing: parkingMissing.total,
     drafts: { count: drafts.rows.length, date: nextDeliveryDay },
   };
 
@@ -148,7 +148,7 @@ function AttentionPanel({
   today: TodayProgress;
   attention: {
     missingPhotos: number;
-    pinUnconfirmed: number;
+    parkingMissing: number;
     drafts: { count: number; date: string };
   };
   fmt: AppFormatters;
@@ -157,12 +157,12 @@ function AttentionPanel({
   const problems = today.tour?.problemStops ?? [];
   const late = today.lateOrderCount;
   const tourHref = `/admin/tours?date=${today.date}`;
-  const { missingPhotos, pinUnconfirmed, drafts } = attention;
+  const { missingPhotos, parkingMissing, drafts } = attention;
   const empty =
     problems.length === 0 &&
     late === 0 &&
     missingPhotos === 0 &&
-    pinUnconfirmed === 0 &&
+    parkingMissing === 0 &&
     drafts.count === 0;
 
   return (
@@ -240,16 +240,13 @@ function AttentionPanel({
                 hint={t("admin.dashboard.attention.missingPhotosHint")}
               />
             ) : null}
-            {pinUnconfirmed > 0 ? (
+            {parkingMissing > 0 ? (
               <AttentionItem
-                testId="attention-pin-unconfirmed"
+                testId="attention-parking-missing"
                 icon={MapPinOffIcon}
-                href={{
-                  pathname: "/admin/customers" as const,
-                  query: { pin: "unconfirmed" },
-                }}
-                label={t("admin.dashboard.attention.pinUnconfirmed", { count: pinUnconfirmed })}
-                hint={t("admin.dashboard.attention.pinUnconfirmedHint")}
+                href="/admin/customers/parking"
+                label={t("admin.dashboard.attention.parkingMissing", { count: parkingMissing })}
+                hint={t("admin.dashboard.attention.parkingMissingHint")}
               />
             ) : null}
           </ul>

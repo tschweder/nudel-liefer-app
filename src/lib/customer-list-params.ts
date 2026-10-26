@@ -11,7 +11,7 @@ export function parseCustomerListParams(raw: Raw): Required<CustomerListInput> {
     q: (first(raw.q) ?? "").slice(0, 100),
     status: status === "archived" || status === "all" ? status : "active",
     photosMissing: first(raw.photos) === "missing",
-    pinUnconfirmed: first(raw.pin) === "unconfirmed",
+    parkingMissing: first(raw.parking) === "missing",
     page: Number.isFinite(page) && page >= 1 ? Math.min(page, 100_000) : 1,
     pageSize: 25,
   };
@@ -21,14 +21,14 @@ export function parseCustomerListParams(raw: Raw): Required<CustomerListInput> {
 export function customerListQuery(
   input: Pick<
     Required<CustomerListInput>,
-    "q" | "status" | "photosMissing" | "pinUnconfirmed" | "page"
+    "q" | "status" | "photosMissing" | "parkingMissing" | "page"
   >,
 ): Record<string, string> {
   const query: Record<string, string> = {};
   if (input.q.trim()) query.q = input.q;
   if (input.status !== "active") query.status = input.status;
   if (input.photosMissing) query.photos = "missing";
-  if (input.pinUnconfirmed) query.pin = "unconfirmed";
+  if (input.parkingMissing) query.parking = "missing";
   if (input.page > 1) query.page = String(input.page);
   return query;
 }

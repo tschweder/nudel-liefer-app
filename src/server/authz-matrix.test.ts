@@ -273,10 +273,6 @@ const MATRIX: Record<string, Row> = {
   "src/server/customer-import-actions.ts#geocodeCustomersAction": adminAction("import", async () =>
     (await import("./customer-import-actions")).geocodeCustomersAction([]),
   ),
-  "src/server/customer-import-actions.ts#confirmCustomerPinAction": adminAction(
-    "import",
-    async () => (await import("./customer-import-actions")).confirmCustomerPinAction({}),
-  ),
   "src/server/order-actions.ts#createOrderAction": adminAction("orders", async () =>
     (await import("./order-actions")).createOrderAction({}),
   ),
