@@ -266,7 +266,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | todo |
 | NUD-125 | Parking spots: schema + office UI | M2 | – | todo |
 | NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | todo |
-| NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | todo |
+| NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
 | NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
 | NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | todo |
 | NUD-130 | Give the admin-password test teardown the same timeout as its setup | M2 | – | todo |
@@ -1959,7 +1959,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-127 · 👤 Deploy to the vServer (handoff doc)
-**Status:** in-progress (the owner asked for it directly on 2026-10-26, ahead of NUD-124…126) · **depends_on:** 122, 123, 124, 125, 126
+**Status:** done (2026-10-26; the owner asked for it directly, ahead of NUD-124…126) · **depends_on:** 122, 123, 124, 125, 126
 
 **Goal:** deploy the app to the vServer following `docs/handoff-vserver-deploy-and-help.md` (T6). **HUMAN ticket.** The document has two deliverables; this ticket now covers **deliverable 1 (the automated deploy)** first, because the owner wants to install the driver PWA from `https://87.106.60.131/delivery-app/de/driver`. Deliverable 2 (`hand-off.html`) becomes its own ticket after the app is live.
 
@@ -1970,13 +1970,14 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 - **TLS is solved:** `/etc/letsencrypt-ip/live/ip-cert/fullchain.pem`, Let's Encrypt, SAN `IP Address:87.106.60.131`, renewed by `certbot-ip.timer`. A trusted secure context, so the PWA install is not blocked by a certificate warning (this was open decision §11 #2).
 - Still open for the first run: RAM is below the ~2 GB the doc wants for `next build` → add 2 GB swap before building; confirm the MinIO images still pull.
 
-**Acceptance criteria**
-- [ ] `https://87.106.60.131/delivery-app/de/login` and `/de/driver/login` work over HTTPS, `/api/health` reports `ok` for database and storage, and the app works under the `/delivery-app/` prefix (no root-relative URL escapes, service worker scope `/delivery-app/`).
-- [ ] `https://87.106.60.131/quiz/` and every other site on that nginx are unchanged (backup of `/etc/nginx`, `nginx -t` clean, automatic rollback).
-- [ ] `deploy.bat` deploys/updates the running tree in one run and is idempotent; the service restarts on boot (`systemctl`).
-- [ ] No secret in the repo; the server env file is `chmod 600`; `SEED_DRIVERS` is **not** left enabled and `ENABLE_ERROR_TEST_PAGES` is not set.
-- [ ] The office and driver apps are usable end to end with real data entered through the UI (depot pin confirmed, ≥ 1 customer with a confirmed pin, ≥ 1 order, a released tour).
-- [ ] `docs/deploy.md` gets the new self-hosting section, `AGENTS.md` mentions `deploy.bat`, `.env.example` documents the three `REMOTE_*` keys, and the work is committed per convention.
+**Acceptance criteria — all verified against the live server on 2026-10-26**
+- [x] `https://87.106.60.131/delivery-app/de/login` and `/de/driver/login` work over HTTPS, `/api/health` reports `ok` for database and storage, and the app works under the `/delivery-app/` prefix. Evidence: both login pages 200 with the CSP header nonce on all inline scripts, `/api/health` 200 `{"status":"ok","checks":{"database":{"status":"ok"},"storage":{"status":"ok","mode":"s3"}}}`, `/` 404, `/delivery-app` → 302 → `/delivery-app/admin`, manifest `scope=/delivery-app/` + `start_url=/delivery-app/driver?source=pwa`, and `sw.js` 200 with `Cache-Control: no-cache, no-store, must-revalidate`. On the public origin the worker reaches `ready` with scope `/delivery-app/`, a prefixed precache and `isSecureContext: true`.
+- [x] `https://87.106.60.131/quiz/` and every other site on that nginx are unchanged: `/quiz/`, `/vision-loop/` and `/restaurant-demo/` (the IP vhost's siblings) all still 200 after the change; the config was backed up, `nginx -t` was clean and the reload only ran after a successful test. **Nuance:** the include injection (like the quiz deploy's) adds `include snippets/delivery-app*.conf;` to every enabled server block, so `/delivery-app/…` is also reachable on the other hostnames (login required). The domain vhosts (`medicleaner.at`, `mc-dream.education`, …) are not resolvable from the development machine and were therefore not re-checked.
+- [x] `deploy.bat` deploys/updates the running tree in one run and is idempotent; the service restarts on boot. Evidence: three consecutive runs (two after fixing the tarball excludes), swap/Postgres/MinIO/nginx steps all report "nothing to do" on the later runs, `systemctl is-enabled delivery-app` → `enabled`, `is-active` → `active`.
+- [x] No secret in the repo; the server env file is `chmod 600`; `SEED_DRIVERS` is **not** left enabled and `ENABLE_ERROR_TEST_PAGES` is not set. Evidence: `/etc/delivery-app.env` is `600 root:deliveryapp`, there is no `.env` in the deployed tree, `git grep` finds no secret, the service unit sets no error-test flag, and the seed ran with `SEED_DRIVERS=false` (no demo drivers exist).
+- [x] The office and driver apps are usable end to end with real data entered through the UI. Evidence: depot pin confirmed, two customers with confirmed pins (Gasthaus Zur Alpenrose, Bäckerei Krammer), one CONFIRMED order each for 2026-10-26, and a tour for that day **RELEASED** to the driver `tablet-wien`; the office UI shows `Freigegeben` with 2 stops (ETAs 07:23 / 08:18), and the driver app shows `Heutige Tour 0 / 2 erledigt · 2 offen · Ende ca. 09:48`, `Nächster Stopp … Bäckerei Krammer, Landstraßer Hauptstraße 45, 1030 Wien, 4 × Penne 5 kg Packungen`, working stop links, a Maps navigation link, `Offline bereit ✓` and no console errors.
+- [x] `docs/deploy.md` gets the new self-hosting section, `AGENTS.md` mentions `deploy.bat`, `.env.example` documents the three `REMOTE_*` keys, and the work is committed per convention. Commits `a315644`, `a0e50a0`, `82e0a50` on `task/123`.
+- **DoD note:** `pnpm lint` (0 warnings), `pnpm typecheck`, `pnpm test` (1806 passed / 4 skipped) and `pnpm i18n:check` are green on this tree. `pnpm test:e2e` was **not** re-run as a suite in this session; the sub-path UI behaviour was verified instead with a purpose-built Playwright spec against a local sub-path production build (3/3: CSP nonce, `sw.js`/health headers, office and driver login, help-page search, worker scope + prefixed precache, and a driver login while the worker controls the page) and then end to end against the live server.
 
 **Implementation notes:** filled in as the deploy progresses.
 - **Built so far (local, not yet on the server):** `deploy.bat`, `deploy/deploy.ps1` (pre-flight refuses a dirty tree unless `-AllowDirty`, installs the SSH key on first run, packs with the doc's excludes, runs the server script over ssh), `deploy/server-setup.sh` (stages 0-11: swap, Node, pnpm via corepack, PostgreSQL 16 with an idempotent role/db, MinIO in Docker, `.new`/`.old` code swap, `/etc/delivery-app.env` chmod 600 with secrets generated once, install/migrate/build as the service user, systemd unit, nginx snippet + include injection with backup and rollback, health checks), `deploy/delivery-app.nginx.conf`, `deploy/delivery-app.service`. `docs/deploy.md` gained section 13, `AGENTS.md` a line under Commands, `.env.example` the three `REMOTE_*` keys. Both scripts pass a syntax check (`bash -n`, PowerShell parser).
