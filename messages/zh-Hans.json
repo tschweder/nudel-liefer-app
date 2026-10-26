@@ -144,7 +144,8 @@
       "passwordRequired": "请输入密码"
     },
     "signedInAs": "当前用户：{name}",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "help": "帮助"
   },
   "admin": {
     "dashboard": {

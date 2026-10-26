@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOutIcon } from "lucide-react";
+import { HelpCircleIcon, LogOutIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 
@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { withBasePath } from "@/lib/base-path";
 import { logoutAction } from "@/server/auth/actions";
 
 /** Initials avatar (re-design.md §8.1: no image file, no `Avatar` dependency). */
@@ -51,6 +52,18 @@ export function UserMenu({ name, locale }: { name: string; locale: string }) {
           {t("auth.signedInAs", { name })}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          {/* Static file in public/, so it needs the base path explicitly (NUD-127). */}
+          <a
+            href={withBasePath("/hand-off.html")}
+            target="_blank"
+            rel="noopener"
+            data-testid="help-link"
+          >
+            <HelpCircleIcon aria-hidden />
+            {t("auth.help")}
+          </a>
+        </DropdownMenuItem>
         <DropdownMenuItem
           disabled={pending}
           data-testid="logout"

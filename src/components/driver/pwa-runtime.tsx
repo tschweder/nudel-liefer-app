@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { withBasePath } from "@/lib/base-path";
 import {
   type BeforeInstallPromptEvent,
   markInstalled,
@@ -25,7 +26,10 @@ export function PwaRuntime() {
     window.addEventListener("appinstalled", onInstalled);
 
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register(SW_URL, { scope: "/" }).catch((error) => {
+      // The scope must be the app root (`/` or `/delivery-app/`): the worker lives under the base
+      // path and may only control it. A scope of `/` under a sub-path is rejected with a
+      // SecurityError (the worker file is not at the origin root) and would claim the whole origin.
+      navigator.serviceWorker.register(SW_URL, { scope: withBasePath("/") }).catch((error) => {
         console.warn("Service worker registration failed", error);
       });
     }

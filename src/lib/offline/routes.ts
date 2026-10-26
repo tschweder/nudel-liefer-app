@@ -5,6 +5,9 @@ export type OfflineView = { view: "list" } | { view: "stop"; stopId: string };
 /**
  * Which driver screen a URL shows in the offline shell: `/<locale>/driver/stops/<id>` is a stop,
  * everything else (`/<locale>/driver`, the shell's own URL, unknown paths) the tour list.
+ *
+ * `pathname` is the browser's own pathname, so it may carry the base path
+ * (`/delivery-app/de/driver/stops/<id>`); `splitLocalePath` removes it before the locale is read.
  */
 export function parseOfflineView(pathname: string): OfflineView {
   const { rest } = splitLocalePath(pathname);

@@ -144,7 +144,8 @@
       "passwordRequired": "Bitte Passwort eingeben"
     },
     "signedInAs": "Angemeldet als {name}",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "help": "Hilfe"
   },
   "admin": {
     "dashboard": {

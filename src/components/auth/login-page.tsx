@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { PurgeOfflineData } from "@/components/driver/purge-offline-data";
+import { HelpLink } from "@/components/shared/help-link";
 
 import { LoginForm } from "./login-form";
 
@@ -29,6 +30,10 @@ export function LoginPageContent(props: Parameters<typeof Body>[0]) {
       <Suspense>
         <Body {...props} />
       </Suspense>
+      {/* Help page (NUD-127): reachable without a login, so it belongs on both login screens. */}
+      <p className="mt-4 text-center text-sm">
+        <HelpLink className="underline underline-offset-4" />
+      </p>
     </>
   );
 }

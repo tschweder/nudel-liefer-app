@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { CacheOnly, NetworkOnly, type PrecacheEntry, Serwist } from "serwist";
 
+import { withBasePath } from "../lib/base-path";
 import {
   OUTBOX_FLUSHED_MESSAGE,
   OUTBOX_SYNC_TAG,
@@ -81,7 +82,7 @@ const serwist = new Serwist({
       })),
       // Everything else (login, language picker, ...): precached generic page.
       {
-        url: "/offline.html",
+        url: withBasePath("/offline.html"),
         matcher: ({ request }) => request.destination === "document",
       },
     ],

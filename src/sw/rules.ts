@@ -12,16 +12,22 @@
  * - requests for `/api/driver/photo-cache/<photoId>` are answered from the Cache Storage bucket
  *   that the PAGE filled with the photos of the cached tour (the worker only reads it).
  */
+import { stripBasePath, withBasePath } from "../lib/base-path";
 import { OFFLINE_SHELL_SEGMENT, PHOTO_CACHE_PATH } from "../lib/offline/constants";
 
-/** Driver pages, with the locale prefix: /de/driver, /zh-Hans/driver/stops/42, ... */
+/**
+ * Driver pages, with the locale prefix: /de/driver, /zh-Hans/driver/stops/42, ...
+ * The service worker sees the browser's own pathname, so it carries the base path
+ * (`/delivery-app/de/driver`); `stripBasePath` removes it before the patterns run, so they are the
+ * same with and without a sub-path.
+ */
 // The locale list is duplicated on purpose (the worker bundle must stay tiny); rules.test.ts checks
 // that it matches `LOCALES`.
 export const SW_LOCALES = ["de", "zh-Hans", "zh-Hant-HK", "zh-Hant-TW"] as const;
 const DRIVER_PATH = new RegExp(`^/(${SW_LOCALES.join("|")})/driver(/|$)`);
 
 export function isDriverPath(pathname: string): boolean {
-  return DRIVER_PATH.test(pathname);
+  return DRIVER_PATH.test(stripBasePath(pathname));
 }
 
 /**
@@ -30,7 +36,8 @@ export function isDriverPath(pathname: string): boolean {
  * the `NEXT_LOCALE` cookie.
  */
 export function isDriverLaunchPath(pathname: string): boolean {
-  return pathname === "/driver" || pathname === "/driver/";
+  const path = stripBasePath(pathname);
+  return path === "/driver" || path === "/driver/";
 }
 
 /** A top-level page load of the driver area: network only; offline page when the network fails. */
@@ -42,25 +49,28 @@ export function isDriverNavigation(request: { mode: string }, url: URL): boolean
 
 /** Build assets with a content hash in the file name: safe to keep under the same URL forever. */
 export function isPrecachedStaticPath(pathname: string): boolean {
-  return pathname.startsWith("/_next/static/");
+  return pathname.startsWith(withBasePath("/_next/static/"));
 }
 
 const SHELL_ROUTE = new RegExp(`^/(${SW_LOCALES.join("|")})/driver(/stops/[^/]+)?/?$`);
 
 /** Driver screens that can be shown from the offline copy: the tour list and a stop detail. */
 export function isOfflineShellRoute(pathname: string): boolean {
-  return SHELL_ROUTE.test(pathname);
+  return SHELL_ROUTE.test(stripBasePath(pathname));
 }
 
-/** The precached shell page for the locale of `pathname`, or `null` for any other path. */
+/**
+ * The precached shell page for the locale of `pathname`, or `null` for any other path. The result is
+ * compared with the worker's own precache URLs, so it carries the base path.
+ */
 export function offlineShellUrl(pathname: string): string | null {
-  const match = SHELL_ROUTE.exec(pathname);
-  return match ? `/${match[1]}/${OFFLINE_SHELL_SEGMENT}` : null;
+  const match = SHELL_ROUTE.exec(stripBasePath(pathname));
+  return match ? withBasePath(`/${match[1]}/${OFFLINE_SHELL_SEGMENT}`) : null;
 }
 
 /** The precache entries (one shell per locale). */
 export function offlineShellUrls(): string[] {
-  return SW_LOCALES.map((locale) => `/${locale}/${OFFLINE_SHELL_SEGMENT}`);
+  return SW_LOCALES.map((locale) => withBasePath(`/${locale}/${OFFLINE_SHELL_SEGMENT}`));
 }
 
 /** Photos of the cached tour, served from Cache Storage only (never from the network). */

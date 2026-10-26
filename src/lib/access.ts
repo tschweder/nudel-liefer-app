@@ -1,3 +1,4 @@
+import { stripBasePath } from "./base-path";
 import { isAppLocale } from "./locale-resolution";
 
 export type AppRole = "ADMIN" | "DRIVER";
@@ -11,12 +12,22 @@ export function homePathFor(role: AppRole): string {
   return role === "ADMIN" ? "/admin" : "/driver";
 }
 
-/** Splits "/zh-Hans/admin/x" into `{ locale: "zh-Hans", rest: "/admin/x" }`; locale null if absent. */
+/**
+ * Splits "/zh-Hans/admin/x" into `{ locale: "zh-Hans", rest: "/admin/x" }`; locale null if absent.
+ *
+ * The base path is removed first, so a pathname that still carries it (`/delivery-app/de/admin`, as
+ * the browser and the service worker see it) is understood the same way: without this,
+ * `delivery-app` would be read as the locale and every route would look locale-less. `rest` is then
+ * always relative to the app root, what `decideAccess` and the callers expect. Middleware pathnames
+ * arrive already stripped (Next removes the base path from `request.nextUrl.pathname`), which makes
+ * the removal a no-op there.
+ */
 export function splitLocalePath(pathname: string): { locale: string | null; rest: string } {
-  const [, first = "", ...others] = pathname.split("/");
+  const path = stripBasePath(pathname);
+  const [, first = "", ...others] = path.split("/");
   if (isAppLocale(first))
     return { locale: first, rest: others.length ? `/${others.join("/")}` : "" };
-  return { locale: null, rest: pathname };
+  return { locale: null, rest: path };
 }
 
 const isSection = (rest: string, base: string) => rest === base || rest.startsWith(`${base}/`);

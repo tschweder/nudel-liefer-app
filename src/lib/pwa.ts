@@ -1,22 +1,28 @@
 /** Shared constants and the manifest builder for the driver PWA (NUD-080). */
 
+import { withBasePath } from "./base-path";
+
 /** Browser UI / splash colours. Light primary of `globals.css`; background = page background. */
 export const PWA_THEME_COLOR = "#9a3412";
 export const PWA_BACKGROUND_COLOR = "#ffffff";
 
-export const SW_URL = "/sw.js";
-export const OFFLINE_URL = "/offline.html";
+// Every value below becomes a URL the BROWSER fetches: Next applies `basePath` to `next/link` and
+// `redirect()` only, not to `register()`, `navigator` URLs or the web app manifest, so each one has
+// to carry the prefix explicitly (empty by default -> unchanged).
+export const SW_URL = withBasePath("/sw.js");
+export const OFFLINE_URL = withBasePath("/offline.html");
 
 export const PWA_ICONS = {
-  any192: "/icons/icon-192.png",
-  any512: "/icons/icon-512.png",
-  maskable192: "/icons/icon-maskable-192.png",
-  maskable512: "/icons/icon-maskable-512.png",
-  apple: "/icons/apple-touch-icon.png",
+  any192: withBasePath("/icons/icon-192.png"),
+  any512: withBasePath("/icons/icon-512.png"),
+  maskable192: withBasePath("/icons/icon-maskable-192.png"),
+  maskable512: withBasePath("/icons/icon-maskable-512.png"),
+  apple: withBasePath("/icons/apple-touch-icon.png"),
 } as const;
 
+/** Metadata URLs are not base-path aware either: the manifest link must carry the prefix. */
 export function manifestPath(locale: string): string {
-  return `/${locale}/manifest.webmanifest`;
+  return withBasePath(`/${locale}/manifest.webmanifest`);
 }
 
 /**
@@ -25,10 +31,10 @@ export function manifestPath(locale: string): string {
  * language switch after the installation is respected. `source=pwa` marks launches from the home
  * screen (also keeps the path distinct from a plain `/driver` visit in logs).
  */
-export const DRIVER_LAUNCH_PATH = "/driver?source=pwa";
+export const DRIVER_LAUNCH_PATH = withBasePath("/driver?source=pwa");
 
 export function driverHomePath(locale: string): string {
-  return `/${locale}/driver`;
+  return withBasePath(`/${locale}/driver`);
 }
 
 export type WebAppManifest = {
@@ -50,8 +56,10 @@ export type WebAppManifest = {
 /**
  * Manifest of one locale (only the localized texts and `lang` differ). `start_url` is the same
  * locale-neutral launch path for all locales (NUD-106), `id` is the same too so the browser treats
- * them as one app. `scope` is the whole origin so that the redirect to `/<locale>/driver` and a
- * later language switch do not leave the installed app's scope.
+ * them as one app. `scope` is the app root so that the redirect to `/<locale>/driver` and a later
+ * language switch do not leave the installed app's scope. Under a sub-path that root is the base
+ * path (`/delivery-app/`), never `/`: a scope of `/` would make the installed app claim the whole
+ * origin, including an unrelated app served at `/quiz`.
  */
 export function buildManifest(input: {
   locale: string;
@@ -66,14 +74,14 @@ export function buildManifest(input: {
     purpose,
   });
   return {
-    id: "/driver",
+    id: withBasePath("/driver"),
     name: input.name,
     short_name: input.shortName,
     description: input.description,
     lang: input.locale,
     dir: "ltr",
     start_url: DRIVER_LAUNCH_PATH,
-    scope: "/",
+    scope: withBasePath("/"),
     display: "standalone",
     orientation: "portrait",
     theme_color: PWA_THEME_COLOR,

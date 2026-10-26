@@ -1,0 +1,31 @@
+# systemd unit for the Nudel Liefer App (NUD-127). Kept in the repo for review; the deploy script
+# writes the same content to /etc/systemd/system/delivery-app.service.
+#
+# Port 3100, not 3000: the quiz app already holds 3000 on this server. HOSTNAME=127.0.0.1 keeps the
+# app off the public interface - nginx is the only ingress.
+[Unit]
+Description=Nudel Liefer App (Next.js)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deliveryapp
+Group=deliveryapp
+WorkingDirectory=/opt/delivery-app
+EnvironmentFile=/etc/delivery-app.env
+Environment=PORT=3100
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start
+Restart=always
+RestartSec=2
+# Hardening. .next must stay writable (Next writes its cache there at run time).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/delivery-app/.next /var/lib/delivery-app
+
+[Install]
+WantedBy=multi-user.target

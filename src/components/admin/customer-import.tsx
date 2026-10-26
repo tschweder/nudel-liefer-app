@@ -38,6 +38,7 @@ import {
 } from "@/domain/customer-import";
 import { IMPORT_LIMITS, type ParsedTable } from "@/domain/import-file";
 import { Link } from "@/i18n/navigation";
+import { withBasePath } from "@/lib/base-path";
 import type { CommitResult, PreviewResult, PreviewRow } from "@/server/customer-import";
 import {
   commitCustomerImportAction,
@@ -126,7 +127,7 @@ export function CustomerImport({ initialReviewCount }: { initialReviewCount: num
       try {
         const form = new FormData();
         form.set("file", file);
-        const response = await fetch("/api/admin/customers/import/parse", {
+        const response = await fetch(withBasePath("/api/admin/customers/import/parse"), {
           method: "POST",
           body: form,
         });

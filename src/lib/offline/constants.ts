@@ -1,7 +1,9 @@
 /**
- * Names shared by the page code and the service worker (NUD-081). Keep this file free of
- * imports: the worker bundles it.
+ * Names shared by the page code and the service worker (NUD-081). Keep this file free of imports
+ * beyond `../base-path` (also import-free): the worker bundles it.
  */
+
+import { withBasePath } from "../base-path";
 
 /** IndexedDB database holding the driver's tour of today (one record per user). */
 export const OFFLINE_DB_NAME = "nudel-driver-offline";
@@ -23,7 +25,7 @@ export const PHOTO_CACHE_NAME = "nudel-driver-photos-v1";
  * storage URL, which changes with every tour reload. Under `/api` so the proxy leaves it alone;
  * the service worker answers it from the photo cache, the network is never asked.
  */
-export const PHOTO_CACHE_PATH = "/api/driver/photo-cache/";
+export const PHOTO_CACHE_PATH = withBasePath("/api/driver/photo-cache/");
 
 export function photoCacheUrl(photoId: string): string {
   return `${PHOTO_CACHE_PATH}${encodeURIComponent(photoId)}`;
@@ -32,13 +34,13 @@ export function photoCacheUrl(photoId: string): string {
 /** Public, prerendered page without personal data that the worker serves for driver pages offline. */
 export const OFFLINE_SHELL_SEGMENT = "driver/offline-shell";
 
-export const TOUR_API_PATH = "/api/driver/tour/today";
+export const TOUR_API_PATH = withBasePath("/api/driver/tour/today");
 
 /** Batch sync endpoint (NUD-082). */
-export const SYNC_API_PATH = "/api/driver/sync";
+export const SYNC_API_PATH = withBasePath("/api/driver/sync");
 
 /** Registers an uploaded photo as the customer's current one (NUD-083). */
-export const PHOTO_REGISTER_API_PATH = "/api/driver/photos";
+export const PHOTO_REGISTER_API_PATH = withBasePath("/api/driver/photos");
 
 /** Background Sync API tag: the service worker flushes the outbox when the browser says "online". */
 export const OUTBOX_SYNC_TAG = "nudel-outbox";

@@ -8,6 +8,7 @@ import {
 } from "@/domain/driver-photo";
 import { isUsableUploadUrl } from "@/lib/upload-url";
 
+import { withBasePath } from "../base-path";
 import { PHOTO_REGISTER_API_PATH } from "./constants";
 import type { OutboxNotice } from "./outbox";
 import {
@@ -98,7 +99,7 @@ async function upload(
 ): Promise<{ kind: "ok"; storageKey: string } | Step> {
   let response: Response;
   try {
-    response = await deps.fetchImpl("/api/uploads", {
+    response = await deps.fetchImpl(withBasePath("/api/uploads"), {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",

@@ -402,3 +402,42 @@ Photos and screenshots are objects in the photo bucket and are **not** part of e
 6. If the Neon project is not on PostgreSQL 16, change `PG_MAJOR` at the top of `.github/workflows/backup.yml` to the project's major version (the script stops with a clear message when `pg_dump` is older than the server).
 
 The schedule is Sundays 02:23 UTC. A failed run sends GitHub's standard e-mail to the people who watch the repository's Actions; check that your address receives them (GitHub > Settings > Notifications > Actions). Do not rely on it alone: look at the _Actions_ tab once a month (`runbook.md` section 5.4, the restore drill).
+
+---
+
+## 13. Self-hosting on a vServer (sub-path `/delivery-app/`)
+
+This is the alternative to Vercel/Neon/R2 above: the app runs on the client's own vServer, behind the
+existing nginx, under the path prefix `https://<server>/delivery-app/`. The full specification, the
+server facts and the open decisions live in
+[`docs/handoff-vserver-deploy-and-help.md`](./handoff-vserver-deploy-and-help.md); this section is the
+short version.
+
+| Piece | Where |
+| --- | --- |
+| One-command deploy (Windows) | `deploy.bat` ? `deploy/deploy.ps1` (`REMOTE_IP` / `REMOTE_USER` / `REMOTE_PASSWORD` from `.env`, an SSH key is installed on first run) |
+| Server side | `deploy/server-setup.sh` (idempotent; Node 22, pnpm, swap, PostgreSQL 16, MinIO in Docker, build, systemd, nginx include, health check) |
+| nginx | `deploy/delivery-app.nginx.conf` (kept in the repo for review; the script writes the same snippet) |
+| systemd | `deploy/delivery-app.service`, port **3100**, `HOSTNAME=127.0.0.1` |
+| Sub-path build | `NEXT_PUBLIC_BASE_PATH=/delivery-app` — read by `next.config.ts` and inlined at build time; it must also be in the service env so `next start` routes the prefix |
+
+Layout on the server: `/opt/delivery-app` (built in place), `/opt/delivery-app.old` (rollback),
+`/var/lib/delivery-app`, `/etc/delivery-app.env` (`chmod 600`, root:deliveryapp), the systemd unit
+above and `/etc/nginx/snippets/delivery-app.conf`.
+
+Things that are different from the Vercel path and must not be forgotten:
+
+- **Object storage is mandatory** in production (`src/server/storage/index.ts` throws without `S3_*`).
+  The reference setup runs MinIO in Docker on `127.0.0.1:9000` and publishes **only the photo bucket**
+  through nginx (`location /nudel-photos/`), with `S3_ENDPOINT=https://<server>` (no path). Do not use a
+  path-prefixed proxy such as `/delivery-app-s3/`: presigned URLs are signed over the exact request
+  path, so a prefix-stripping proxy makes every upload fail with `SignatureDoesNotMatch`.
+- **A trusted certificate is required for the PWA.** Service workers only run in a secure context; on
+  this server the IP address has its own Let's Encrypt certificate (`/etc/letsencrypt-ip/`, renewed by
+  `certbot-ip.timer`). `nginx -t` plus a browser check must confirm it after any nginx change.
+- **`/quiz` and the other sites on that nginx must keep working**: the deploy backs up `/etc/nginx`,
+  only *adds* an `include` to the existing server blocks and rolls back automatically when `nginx -t`
+  fails.
+- Backups are a local `pg_dump` (there is no Neon PITR here); the retention jobs stay in `dry-run`
+  until the operator changes them.
+- After the first deploy the office has to confirm the **depot pin** before any tour can be created.

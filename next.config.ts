@@ -49,7 +49,17 @@ const allowedDevOrigins = ["127.0.0.1"]
   )
   .filter((hostname, index, all) => all.indexOf(hostname) === index);
 
+/**
+ * Self-hosting under a sub-path (`/delivery-app/`): empty (and therefore without any effect) unless
+ * `NEXT_PUBLIC_BASE_PATH` is set, so development and the Vercel deployment keep serving the origin
+ * root. It is a build-time value (Next inlines it into the client bundles) and must be the same for
+ * `pnpm build` and `pnpm start`. `src/lib/base-path.ts` normalises it exactly like this (no trailing
+ * slash); `scripts/build-pwa.ts` inlines it into the service worker.
+ */
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").trim().replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
+  basePath: basePath || undefined,
   poweredByHeader: false,
   allowedDevOrigins,
   // The build ID is part of the flight data inlined in static pages, whose script hashes the second
@@ -68,8 +78,17 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: sentryDsn ? sentryEnvironment(process.env) : "",
     NEXT_PUBLIC_SENTRY_RELEASE: sentryDsn ? (sentryRelease(process.env) ?? "") : "",
     CSP_SCRIPT_HASHES: cspBuildFile.hashes,
+    // Same value as `basePath` above, so server and client code read one build-time constant
+    // (src/lib/base-path.ts) instead of the raw environment.
+    NEXT_PUBLIC_BASE_PATH: basePath,
   },
   async headers() {
+    // Custom-route sources are prefixed with `basePath` by Next itself while the routes manifest is
+    // built - verified in the built `.next/routes-manifest.json`, where `/:path*` became
+    // `/delivery-app/:path*`. The sources below therefore stay UNPREFIXED: adding the prefix here
+    // doubles it (`/delivery-app/delivery-app/...`) and the rule never fires under a sub-path. The
+    // middleware matcher (src/proxy.ts) is prefixed the same way, which keeps the CSP source and the
+    // matcher the exact complement of each other with and without a base path.
     return [
       {
         // NUD-093: HSTS, framing, referrer and permissions policy for every response.
@@ -96,6 +115,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/:file(offline\\.html|offline\\.js)",
+        headers: [{ key: "Cache-Control", value: "no-cache" }],
+      },
+      {
+        // NUD-127: the help page is generated after `next build` and is not content-hashed, so a
+        // deploy has to reach the browser (same reasoning as offline.html / offline.js).
+        source: "/:file(hand-off\\.html|hand-off\\.css|hand-off\\.js|hand-off-data\\.js)",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
       },
     ];

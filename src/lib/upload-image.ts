@@ -1,3 +1,4 @@
+import { withBasePath } from "./base-path";
 import {
   computeTargetSize,
   isAllowedImageType,
@@ -98,7 +99,7 @@ export async function requestUploadGrant(
 ): Promise<UploadGrant> {
   let response: Response;
   try {
-    response = await fetchImpl("/api/uploads", {
+    response = await fetchImpl(withBasePath("/api/uploads"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ purpose, contentType: blob.type, size: blob.size }),

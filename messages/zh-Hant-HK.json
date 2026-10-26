@@ -145,7 +145,8 @@
       "passwordRequired": "請輸入密碼"
     },
     "signedInAs": "當前用户：{name}",
-    "logout": "退出登錄"
+    "logout": "退出登錄",
+    "help": "幫助"
   },
   "admin": {
     "dashboard": {

@@ -10,6 +10,7 @@ import path from "node:path";
 import { injectManifest } from "@serwist/build";
 import { build } from "esbuild";
 
+import { BASE_PATH } from "../src/lib/base-path";
 import { isTileCacheEnabled } from "../src/lib/map-config";
 import { PWA_THEME_COLOR } from "../src/lib/pwa";
 import { offlineShellUrls } from "../src/sw/rules";
@@ -22,6 +23,14 @@ import {
 
 const root = process.cwd();
 const publicDir = path.join(root, "public");
+
+/**
+ * The precache entries are URLs the browser fetches, so they carry the base path
+ * (`/delivery-app/_next/static/...`); the worker itself is inlined with the same value (esbuild
+ * `define` below) and `src/sw/rules.ts` builds its own URLs with it. Empty without a sub-path.
+ */
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const precachedStaticPrefix = `${BASE_PATH}/_next/static/`;
 
 function offlineTexts(): Record<(typeof OFFLINE_LOCALES)[number], OfflineTexts> {
   const entries = OFFLINE_LOCALES.map((locale) => {
@@ -56,6 +65,9 @@ async function main() {
     platform: "browser",
     define: {
       "process.env.NODE_ENV": '"production"',
+      // `src/lib/base-path.ts` (bundled into the worker, where `process` does not exist) reads the
+      // value at module load: esbuild has to inline it, exactly as Next inlines it elsewhere.
+      "process.env.NEXT_PUBLIC_BASE_PATH": JSON.stringify(BASE_PATH),
       // NUD-108: only an explicit MAP_TILE_CACHE=1 (with MAP_TILE_URL) makes the worker cache tiles.
       __TILE_CACHE_URL__: JSON.stringify(
         isTileCacheEnabled(process.env) ? process.env.MAP_TILE_URL!.trim() : "",
@@ -76,9 +88,12 @@ async function main() {
     ],
     globIgnores: ["**/*.map", "**/_buildManifest.js", "**/_ssgManifest.js"],
     globFollow: false,
-    modifyURLPrefix: { ".next/static/": "/_next/static/", "public/": "/" },
+    modifyURLPrefix: {
+      ".next/static/": `${BASE_PATH}/_next/static/`,
+      "public/": `${BASE_PATH}/`,
+    },
     // Files under /_next/static carry a content hash in their name: no extra revision needed.
-    dontCacheBustURLsMatching: /^\/_next\/static\//,
+    dontCacheBustURLsMatching: new RegExp(`^${escapeRegExp(precachedStaticPrefix)}`),
     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
     // The public offline shell pages (NUD-081, one per locale). The worker fetches them when it
     // installs; they are prerendered, carry no personal data and change with every build.

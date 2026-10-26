@@ -23,7 +23,7 @@ Conventions for coding agents. Source of truth: [`backlog.md`](./backlog.md) (re
 
 ## Commands
 
-`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` | `pnpm db:migrate` | `pnpm db:seed` | `pnpm db:embedded` (Postgres without Docker) | `pnpm build:vercel` (Vercel build: env check, `prisma migrate deploy`, `next build`). Deployment guide: `docs/deploy.md`; `GET /api/health` checks DB + storage.
+`pnpm dev` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `pnpm test:e2e` | `pnpm i18n:build` | `pnpm i18n:check` | `pnpm format` | `pnpm db:migrate` | `pnpm db:seed` | `pnpm db:embedded` (Postgres without Docker) | `pnpm build:vercel` (Vercel build: env check, `prisma migrate deploy`, `next build`). Deployment guide: `docs/deploy.md`; `GET /api/health` checks DB + storage. Self-hosted vServer deploy under the path `/delivery-app/`: `deploy.bat` → `deploy/deploy.ps1` + `deploy/server-setup.sh`, specified in `docs/handoff-vserver-deploy-and-help.md`.
 
 ## Definition of Done (backlog §5)
 

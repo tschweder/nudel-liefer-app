@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { withBasePath } from "@/lib/base-path";
 import { SESSION_COOKIE_NAMES, sessionEndedTarget } from "@/server/auth/session-ended";
 
 /**
@@ -11,7 +12,8 @@ export function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const target = sessionEndedTarget(searchParams.get("locale"), searchParams.get("section"));
   if (!target) return new NextResponse(null, { status: 400 });
-  const response = NextResponse.redirect(new URL(target, request.url));
+  // `new URL` resolves the root-absolute target against the origin and would drop the base path.
+  const response = NextResponse.redirect(new URL(withBasePath(target), request.url));
   response.headers.set("Cache-Control", "no-store");
   for (const name of SESSION_COOKIE_NAMES) {
     response.cookies.set(name, "", {

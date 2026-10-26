@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import createMiddleware from "next-intl/middleware";
 
 import { decideAccess, splitLocalePath } from "@/lib/access";
+import { withBasePath } from "@/lib/base-path";
 import { parseScriptHashManifest, scriptHashesFor } from "@/lib/csp-script-hashes";
 import { localeRedirectPath } from "@/lib/locale-redirect";
 import { LOCALE_COOKIE } from "@/lib/locale-resolution";
@@ -58,7 +59,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
       cookie: request.cookies.get(LOCALE_COOKIE)?.value,
       acceptLanguage: request.headers.get("accept-language"),
     });
-    const redirect = NextResponse.redirect(new URL(target, request.url));
+    // `new URL` resolves a root-absolute target against the origin and drops the base path, so the
+    // target has to carry it here (nextUrl-based redirects below keep it automatically).
+    const redirect = NextResponse.redirect(new URL(withBasePath(target), request.url));
     redirect.headers.set("Cache-Control", "no-store");
     redirect.headers.append("Vary", "Cookie, Accept-Language");
     return redirect;
@@ -70,6 +73,8 @@ async function route(request: NextRequest): Promise<NextResponse> {
     url.pathname = `/${locale}${decision.to}`;
     url.search = "";
     if (decision.withCallback) url.searchParams.set("callbackUrl", `${pathname}${search}`);
+    // `NextURL` keeps the base path it was parsed with and `formatPathname()` puts it back in front
+    // of the pathname set here: the prefix is not lost and must not be added twice.
     return NextResponse.redirect(url);
   }
   return handleI18n(request);
@@ -77,5 +82,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   // Everything except API routes, Next internals and files with an extension.
+  // Next prefixes this source with `basePath` while building the matcher and matches it against the
+  // full request pathname (`/delivery-app/...`), so it already excludes `/delivery-app/api/...`,
+  // `/delivery-app/_next/...` and `/delivery-app/sw.js`; `next.config.ts` has to prefix its own
+  // `headers()` source accordingly, because custom-route sources are NOT prefixed by Next.
   matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
 };
