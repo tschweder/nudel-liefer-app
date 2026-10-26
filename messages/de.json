@@ -665,6 +665,35 @@
       "actions": {
         "deactivate": "Deaktivieren",
         "reactivate": "Wiederherstellen"
+      },
+      "parking": {
+        "heading": "Parkplätze",
+        "hint": "Der erste Parkplatz ist der Standard: Touren und Navigation führen dorthin. Ohne Parkplatz wird die Lieferadresse angefahren.",
+        "empty": "Noch kein Parkplatz – Lieferung zur Adresse.",
+        "default": "Standard",
+        "fallbackName": "Parkplatz {n}",
+        "add": "Parkplatz hinzufügen",
+        "addTitle": "Parkplatz hinzufügen",
+        "editTitle": "Parkplatz bearbeiten",
+        "mapHint": "Auf die Karte klicken oder den Marker ziehen. Die Karte startet an der Lieferadresse.",
+        "labelField": "Bezeichnung",
+        "labelPlaceholder": "z. B. Hof, Gasse hinten",
+        "noteField": "Hinweis",
+        "notePlaceholder": "z. B. Einfahrt links, Tor 2",
+        "pointRequired": "Bitte den Parkplatz auf der Karte setzen.",
+        "moveUp": "{name} nach oben",
+        "moveDown": "{name} nach unten",
+        "editSpot": "{name} bearbeiten",
+        "removeSpot": "{name} entfernen",
+        "removeTitle": "Parkplatz entfernen?",
+        "removeDescription": "Der Parkplatz wird nicht mehr verwendet. Die Daten bleiben gespeichert.",
+        "saved": "Parkplatz gespeichert.",
+        "removed": "Parkplatz entfernt.",
+        "reordered": "Reihenfolge gespeichert.",
+        "errors": {
+          "limit": "Mehr als {max} Parkplätze pro Kunde sind nicht möglich.",
+          "conflict": "Die Liste wurde inzwischen geändert. Sie wird neu geladen."
+        }
       }
     },
     "products": {
@@ -1205,7 +1234,11 @@
         "stop_problem": "Problem gemeldet",
         "stop_undo": "Status zurückgenommen",
         "photo_add": "Foto hinzugefügt",
-        "photo_replace": "Foto ersetzt"
+        "photo_replace": "Foto ersetzt",
+        "parking_create": "Parkplatz hinzugefügt",
+        "parking_update": "Parkplatz geändert",
+        "parking_reorder": "Parkplätze neu geordnet",
+        "parking_deactivate": "Parkplatz entfernt"
       },
       "fields": {
         "status": "Status",
@@ -1535,6 +1568,7 @@
     "depotMarker": "Depot: {name}",
     "depotMarkerPlain": "Depot",
     "pinMarker": "Lieferadresse: {place}",
+    "parkingMarker": "Parkplatz: {place}",
     "pinMoved": "Standort: {lat}, {lng}",
     "cluster": "{count, plural, one {# Stopp} other {# Stopps}}: {names}",
     "clusterMore": "Erneut tippen zum Vergrößern",

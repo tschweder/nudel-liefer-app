@@ -665,6 +665,35 @@
       "actions": {
         "deactivate": "Deactivate",
         "reactivate": "Restore"
+      },
+      "parking": {
+        "heading": "Parking spots",
+        "hint": "The first parking spot is the default: tours and navigation lead there. Without one, the delivery address is used.",
+        "empty": "No parking spot yet – delivery goes to the address.",
+        "default": "Default",
+        "fallbackName": "Parking spot {n}",
+        "add": "Add parking spot",
+        "addTitle": "Add parking spot",
+        "editTitle": "Edit parking spot",
+        "mapHint": "Click the map or drag the marker. The map starts at the delivery address.",
+        "labelField": "Name",
+        "labelPlaceholder": "e.g. Courtyard, back alley",
+        "noteField": "Note",
+        "notePlaceholder": "e.g. Entrance on the left, gate 2",
+        "pointRequired": "Please set the parking spot on the map.",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "editSpot": "Edit {name}",
+        "removeSpot": "Remove {name}",
+        "removeTitle": "Remove parking spot?",
+        "removeDescription": "The parking spot is no longer used. Its data stays stored.",
+        "saved": "Parking spot saved.",
+        "removed": "Parking spot removed.",
+        "reordered": "Order saved.",
+        "errors": {
+          "limit": "More than {max} parking spots per customer are not possible.",
+          "conflict": "The list has changed in the meantime. It is being reloaded."
+        }
       }
     },
     "products": {
@@ -1205,7 +1234,11 @@
         "stop_problem": "Problem reported",
         "stop_undo": "Status reverted",
         "photo_add": "Photo added",
-        "photo_replace": "Photo replaced"
+        "photo_replace": "Photo replaced",
+        "parking_create": "Parking spot added",
+        "parking_update": "Parking spot changed",
+        "parking_reorder": "Parking spots reordered",
+        "parking_deactivate": "Parking spot removed"
       },
       "fields": {
         "status": "Status",
@@ -1535,6 +1568,7 @@
     "depotMarker": "Depot: {name}",
     "depotMarkerPlain": "Depot",
     "pinMarker": "Delivery address: {place}",
+    "parkingMarker": "Parking spot: {place}",
     "pinMoved": "Location: {lat}, {lng}",
     "cluster": "{count, plural, one {# stop} other {# stops}}: {names}",
     "clusterMore": "Tap again to zoom in",

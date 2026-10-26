@@ -4,11 +4,13 @@ import { Suspense } from "react";
 
 import { CustomerDetailView } from "@/components/admin/customer-detail";
 import { LoadingSkeleton } from "@/components/shared/states";
+import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
 import {
   customerPhotosQuery,
   getCustomerQuery,
   noteTranslationsQuery,
+  parkingSpotsQuery,
   upcomingOrdersQuery,
 } from "@/server/customer-queries";
 
@@ -40,16 +42,19 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const [orders, photos, noteTranslations] = await Promise.all([
+  const [orders, photos, noteTranslations, parkingSpots] = await Promise.all([
     upcomingOrdersQuery(id),
     customerPhotosQuery(id),
     noteTranslationsQuery(id),
+    parkingSpotsQuery(id),
   ]);
   return (
     <CustomerDetailView
       customer={customer}
       orders={orders}
       noteTranslations={noteTranslations}
+      parkingSpots={parkingSpots}
+      tiles={getMapTileConfig()}
       photos={{
         STORE: photos.STORE && toSlot(photos.STORE),
         PARKING: photos.PARKING && toSlot(photos.PARKING),

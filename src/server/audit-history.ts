@@ -392,6 +392,12 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
         const d = photoEntry.safeParse(row.diff);
         return d.success ? [{ kind: "photo", photoKind: d.data.kind, via: d.data.via }] : [];
       }
+      // Parking spot entries belong to the customer; no order or tour history shows them.
+      case "parking.create":
+      case "parking.update":
+      case "parking.reorder":
+      case "parking.deactivate":
+        return [];
     }
   };
 

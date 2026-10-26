@@ -14,7 +14,7 @@ import { AUDIT_ACTIONS } from "@/domain/audit";
 
 const ROOT = join(process.cwd(), "src");
 const WRITE =
-  /\b(?:order|orderItem|tour|stop|stopOrder|photo|screenshot)\.(?:create|createMany|update|updateMany|delete|deleteMany|upsert)\(/;
+  /\b(?:order|orderItem|tour|stop|stopOrder|photo|parkingSpot|screenshot)\.(?:create|createMany|update|updateMany|delete|deleteMany|upsert)\(/;
 
 /** Files that write these tables and are expected to record audit entries. */
 const AUDITED = [
@@ -24,6 +24,7 @@ const AUDITED = [
   "server/tour-rerelease.ts",
   "server/stop-status.ts",
   "server/customer-photos.ts",
+  "server/parking-spots.ts",
 ];
 
 /** Writes that are deliberately not audited, with the reason. */

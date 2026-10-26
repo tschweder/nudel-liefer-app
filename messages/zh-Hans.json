@@ -665,6 +665,35 @@
       "actions": {
         "deactivate": "停用",
         "reactivate": "恢复"
+      },
+      "parking": {
+        "heading": "停车位",
+        "hint": "第一个停车位为默认停车位：行程和导航都会前往该处。没有停车位时，使用送货地址。",
+        "empty": "暂无停车位 – 将送到地址。",
+        "default": "默认",
+        "fallbackName": "停车位 {n}",
+        "add": "添加停车位",
+        "addTitle": "添加停车位",
+        "editTitle": "编辑停车位",
+        "mapHint": "点击地图或拖动标记。地图从送货地址开始显示。",
+        "labelField": "名称",
+        "labelPlaceholder": "例如：院子、后巷",
+        "noteField": "备注",
+        "notePlaceholder": "例如：入口在左侧、2号门",
+        "pointRequired": "请在地图上设置停车位。",
+        "moveUp": "上移 {name}",
+        "moveDown": "下移 {name}",
+        "editSpot": "编辑 {name}",
+        "removeSpot": "移除 {name}",
+        "removeTitle": "移除停车位？",
+        "removeDescription": "该停车位将不再使用，数据仍会保留。",
+        "saved": "停车位已保存。",
+        "removed": "停车位已移除。",
+        "reordered": "顺序已保存。",
+        "errors": {
+          "limit": "每位客户最多 {max} 个停车位。",
+          "conflict": "列表已被更改，正在重新加载。"
+        }
       }
     },
     "products": {
@@ -1205,7 +1234,11 @@
         "stop_problem": "报告问题",
         "stop_undo": "撤销状态",
         "photo_add": "添加照片",
-        "photo_replace": "更换照片"
+        "photo_replace": "更换照片",
+        "parking_create": "已添加停车位",
+        "parking_update": "已修改停车位",
+        "parking_reorder": "已调整停车位顺序",
+        "parking_deactivate": "已移除停车位"
       },
       "fields": {
         "status": "状态",
@@ -1535,6 +1568,7 @@
     "depotMarker": "仓库：{name}",
     "depotMarkerPlain": "仓库",
     "pinMarker": "送货地址：{place}",
+    "parkingMarker": "停车位：{place}",
     "pinMoved": "位置：{lat}, {lng}",
     "cluster": "{count} 个站点：{names}",
     "clusterMore": "再次点击可放大",

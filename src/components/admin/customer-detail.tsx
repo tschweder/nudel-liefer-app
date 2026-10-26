@@ -16,13 +16,16 @@ import { type PhotoKind, photosMissing as photosMissingFor } from "@/domain/phot
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
+import type { MapTileConfig } from "@/lib/map-config";
 import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
 import type { NoteTranslationsView } from "@/server/customer-notes";
+import type { ParkingSpotView } from "@/server/parking-spots";
 
 import { CustomerArchiveButton } from "./customer-archive-button";
 import { CustomerPhotoSlots, type PhotoSlotValue } from "./customer-photo-slots";
 import { NoteTranslations } from "./note-translations";
 import { PageHeader } from "./page-header";
+import { ParkingSpotsManager } from "./parking-spots-manager";
 
 function Field({
   label,
@@ -58,12 +61,17 @@ export function CustomerDetailView({
   orders,
   photos,
   noteTranslations,
+  parkingSpots,
+  tiles,
 }: {
   customer: CustomerDetail;
   orders: UpcomingOrder[];
   photos: Record<PhotoKind, PhotoSlotValue | null>;
   /** The four versions of the driver note; `null` when the customer has no note. */
   noteTranslations: NoteTranslationsView | null;
+  /** Active Parkplätze in display order (NUD-125). */
+  parkingSpots: ParkingSpotView[];
+  tiles: MapTileConfig;
 }) {
   const t = useTranslations("admin.customers");
   const td = useTranslations("admin.customers.detail");
@@ -202,6 +210,17 @@ export function CustomerDetailView({
               </dl>
             </CardContent>
           </Card>
+
+          <ParkingSpotsManager
+            customerId={customer.id}
+            spots={parkingSpots}
+            tiles={tiles}
+            addressPoint={
+              customer.lat !== null && customer.lng !== null
+                ? { lat: customer.lat, lng: customer.lng }
+                : null
+            }
+          />
 
           <section className="flex flex-col gap-3" aria-labelledby="d-photos">
             <h2 id="d-photos" className="text-lg font-semibold">

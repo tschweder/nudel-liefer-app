@@ -440,6 +440,7 @@
     "depotMarker": "Depo: {name}",
     "depotMarkerPlain": "Depo",
     "pinMarker": "Adresa doručení: {place}",
+    "parkingMarker": "Parkoviště: {place}",
     "pinMoved": "Poloha: {lat}, {lng}",
     "cluster": "{count, plural, one {# zastávka} few {# zastávky} many {# zastávky} other {# zastávek}}: {names}",
     "clusterMore": "Klepnutím znovu přiblížíte",

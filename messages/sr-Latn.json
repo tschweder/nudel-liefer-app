@@ -440,6 +440,7 @@
     "depotMarker": "Depo: {name}",
     "depotMarkerPlain": "Depo",
     "pinMarker": "Adresa isporuke: {place}",
+    "parkingMarker": "Parking mesto: {place}",
     "pinMoved": "Lokacija: {lat}, {lng}",
     "cluster": "{count, plural, one {# stanica} few {# stanice} other {# stanica}}: {names}",
     "clusterMore": "Dodirnite ponovo za uvećanje",

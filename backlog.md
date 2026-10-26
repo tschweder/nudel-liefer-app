@@ -279,7 +279,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | done |
 | NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | superseded → NUD-138 |
-| NUD-125 | Parking spots: schema + office UI | M2 | – | todo |
+| NUD-125 | Parking spots: schema + office UI | M2 | – | done |
 | NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | todo |
 | NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
 | NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
@@ -1960,7 +1960,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-125 · Parking spots: schema + office UI
-**Status:** todo · **depends_on:** –
+**Status:** done · **depends_on:** –
 
 **Goal:** a customer has a **list** of parking spots (new `ParkingSpot` table) instead of today's single `PARKING` photo / single `lat`/`lng` pin. The office manages the list. ~~Routing and optimisation keep using the single customer pin~~ — **changed 2026-10-26 (D22): the default parking spot becomes the routing point, see NUD-141.** Still one point per stop.
 
@@ -1970,10 +1970,17 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 - Office UI on the customer detail page (add / edit / reorder / remove, first one is the default); new text in `de` + `zh-Hans`.
 
 **Acceptance criteria**
-- [ ] Migration is committed and `pnpm db:seed` still works on a fresh DB.
-- [ ] The office can create, edit, reorder and deactivate parking spots; every write has an audit entry.
-- [ ] Wrong-role access is rejected (authorization test + `authz-matrix.test.ts` rows).
-- [ ] `docs/privacy.md` updated if a spot stores free text; screens checked at 1280 px with no horizontal scroll.
+- [x] Migration is committed and `pnpm db:seed` still works on a fresh DB. (migration 20261026200000_parking_spots; fresh-DB migrate + seed verified)
+- [x] The office can create, edit, reorder and deactivate parking spots; every write has an audit entry. (parking-spots.integration.test.ts + e2e parking-spots.spec.ts, desktop and mobile)
+- [x] Wrong-role access is rejected (authorization test + `authz-matrix.test.ts` rows). (authz-matrix rows for the 4 actions + parking-spots.integration.test.ts)
+- [x] `docs/privacy.md` updated if a spot stores free text; screens checked at 1280 px with no horizontal scroll. (section 2 and 6; 1280 px and 375 px screens checked, no horizontal scroll)
+
+**Implementation notes**
+- `ParkingSpot` (customer, optional label/note, lat/lng, sortOrder, active, createdById); migration `20261026200000_parking_spots`, nothing migrated or deleted (existing PARKING photo and `Customer.lat/lng` untouched).
+- `src/domain/parking.ts` (default = first active by `sortOrder`), `src/server/parking-spots.ts` (service, customer row lock, audit in the same transaction), `src/server/parking-actions.ts` (4 admin actions), `parkingSpotsQuery`.
+- Audit: entity `Customer`, actions `parking.create/update/reorder/deactivate`; free text (label, note) is not copied into the log. Office UI: "Parkplätze" card on the customer detail page (`parking-spots-manager.tsx`): add/edit in a dialog with map + coordinate inputs, up/down reorder, remove with confirmation (soft delete). Text in de, en, zh-Hans (+ `maps.parkingMarker` in all five locales).
+- Routing, optimisation and the pin-confirmed gate are untouched: that is NUD-141. The driver side is NUD-126.
+- Follow-up not done here: no UI to restore a removed spot (the row stays with `active=false`).
 
 ---
 
@@ -2911,6 +2918,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-140 | Read fallback chain is requested locale -> `de` -> `meta.source`. DeepL codes: sources DE/EN/CS/ZH, targets DE/EN-GB/CS/ZH-HANS; non-German pairs pivot through German. | Matches the ticket (`pick()` fallback) and keeps one provider call per language. |
 | 2026-10-26 | NUD-140 | Migration maps `zh_Hant_HK`/`zh_Hant_TW` users to `zh_Hans`; stored `LocalizedText` loses the Hant keys; a Hant-only text (source was Hant) is moved to `zh-Hans`; existing texts get `pendingTranslation` so the retry job fills en/sr-Latn/cs. | Nothing is deleted without a replacement; the job translates in the background. |
 | 2026-10-26 | NUD-140 | Driver problem notes (`Stop.problemNote`) are translated into German only (`PendingSource.targets = ["de"]`). `Product.name` becomes a pending source so a failed save-time translation is retried. | The office reads problem notes in German; translating them into four languages wastes quota. Product names are machine-filled for en/sr-Latn/cs on save when flagged auto or empty. |
+| 2026-10-26 | NUD-125 | Parking spot = optional label (80) + optional note (500) + required lat/lng; max 10 active per customer; order by `sortOrder`, first active = default; reorder via up/down buttons; "remove" sets `active=false`, no restore UI | Simplest option consistent with D22/D27: the first spot is the routing point (NUD-141), free text is listed in docs/privacy.md and kept out of the audit log |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -42,6 +42,8 @@ export type PinPickerMapProps = {
   /** Geocodes an address (an admin-only server action). Without it no locate button is shown. */
   onLocate?: (address: string) => Promise<LocateResult>;
   labels: PinPickerLabels;
+  /** Accessible name of the marker: the delivery address (default) or a Parkplatz. */
+  markerKind?: "address" | "parking";
   /**
    * Asks the map to centre on a point (e.g. a geocoder candidate chosen outside the map).
    * A new `nonce` triggers a new move, even to the same point.
@@ -81,6 +83,7 @@ export function PinPickerMap({
   address = "",
   onLocate,
   labels,
+  markerKind = "address",
   focus,
   className,
 }: PinPickerMapProps) {
@@ -140,7 +143,7 @@ export function PinPickerMap({
   const center = value ?? fallbackCenter;
   // The accessible name of the pin: the typed address if there is one, otherwise the coordinates.
   const markerTitle = value
-    ? t("pinMarker", {
+    ? t(markerKind === "parking" ? "parkingMarker" : "pinMarker", {
         place: address.trim() || `${value.lat.toFixed(6)}, ${value.lng.toFixed(6)}`,
       })
     : "";

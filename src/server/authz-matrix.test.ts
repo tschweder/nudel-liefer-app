@@ -219,6 +219,20 @@ const MATRIX: Record<string, Row> = {
     "customer photos",
     async () => (await import("./customer-actions")).addCustomerPhotoAction({}),
   ),
+  "src/server/parking-actions.ts#createParkingSpotAction": adminAction("parking spots", async () =>
+    (await import("./parking-actions")).createParkingSpotAction({}),
+  ),
+  "src/server/parking-actions.ts#updateParkingSpotAction": adminAction("parking spots", async () =>
+    (await import("./parking-actions")).updateParkingSpotAction({}),
+  ),
+  "src/server/parking-actions.ts#reorderParkingSpotsAction": adminAction(
+    "parking spots",
+    async () => (await import("./parking-actions")).reorderParkingSpotsAction({}),
+  ),
+  "src/server/parking-actions.ts#deactivateParkingSpotAction": adminAction(
+    "parking spots",
+    async () => (await import("./parking-actions")).deactivateParkingSpotAction({}),
+  ),
   "src/server/customer-actions.ts#saveNoteTranslationsAction": adminAction(
     "translations",
     async () => (await import("./customer-actions")).saveNoteTranslationsAction({}),

@@ -95,6 +95,8 @@ model User {
   screenshots Screenshot[]
   orders      Order[]
   tours       Tour[]
+
+  parkingSpots ParkingSpot[]
 }
 
 /// Singleton row (id = 1).
@@ -140,11 +142,36 @@ model Customer {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  photos Photo[]
-  orders Order[]
-  stops  Stop[]
+  photos       Photo[]
+  orders       Order[]
+  stops        Stop[]
+  parkingSpots ParkingSpot[]
 
   @@index([name])
+}
+
+/// Where the driver parks and unloads at a customer (NUD-125, D22). A customer has a list; the first
+/// active one by `sortOrder` is the default and becomes the routing / navigation point (NUD-141).
+/// Soft delete only (`active=false`).
+model ParkingSpot {
+  id          String   @id @default(cuid())
+  customerId  String
+  /// Short name shown to the office and the driver ("Hof", "Gasse hinten"); optional.
+  label       String?
+  /// Free text typed by the office or a driver (docs/privacy.md section 6); optional.
+  note        String?
+  lat         Float
+  lng         Float
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, active, sortOrder])
 }
 
 model Photo {

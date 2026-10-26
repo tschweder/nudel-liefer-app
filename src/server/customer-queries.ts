@@ -5,6 +5,7 @@ import { getCustomerPhotos } from "./customer-photos";
 import { countPinReviewQueue, listPinReviewQueue } from "./customer-pins";
 import { listCustomers } from "./customers";
 import { getDb } from "./db";
+import { listParkingSpots } from "./parking-spots";
 import { getFactoryTimezone } from "./settings";
 import { getStorage } from "./storage";
 
@@ -57,4 +58,10 @@ export async function pinReviewQueueQuery() {
 export async function pinReviewCountQuery() {
   await requireRole("ADMIN");
   return countPinReviewQueue(getDb());
+}
+
+/** Active Parkplätze of one customer in display order, first = default (admin only). */
+export async function parkingSpotsQuery(id: unknown) {
+  await requireRole("ADMIN");
+  return listParkingSpots(getDb(), id);
 }
