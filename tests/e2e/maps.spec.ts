@@ -34,7 +34,7 @@ test("dev maps page: pin picker (click, drag, locate) and tour map", async ({ pa
 
   const picker = page.getByTestId("pin-picker");
   const value = page.getByTestId("pin-value");
-  await expect(value).toHaveText("Noch kein Pin gesetzt.");
+  await expect(value).toHaveText("Noch kein Adresspunkt gesetzt.");
 
   // Click-to-place -> 6-decimal coordinates.
   const map = picker.locator(".leaflet-container");

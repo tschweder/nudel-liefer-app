@@ -167,7 +167,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await admin.getByTestId("customer-save").click();
     await expect(admin).toHaveURL(/\/de\/admin\/customers\/[^/]+$/);
     await expect(admin.getByRole("heading", { name, level: 1 })).toBeVisible();
-    await expect(admin.getByTestId("detail-pin")).toContainText("Pin bestätigt");
+    await expect(admin.getByTestId("detail-pin")).toContainText("Adresspunkt bestätigt");
 
     await admin.goto("/de/admin/orders/new");
     await admin.locator("#order-customer").click();
@@ -202,7 +202,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     const rows = admin.locator('[data-testid="stop-row"]:visible');
     await expect(rows).toHaveCount(1);
     await expect(rows.first().getByTestId("stop-name")).toHaveText(name);
-    await expect(rows.first().getByTestId("stop-items")).toHaveText("2 Positionen");
+    await expect(rows.first().getByTestId("stop-items")).toHaveText("2 Produkte");
     await expect(visible(admin, "tour-status")).toHaveText("Optimiert");
     await expect(visible(admin, "tour-release")).toBeDisabled();
     await visible(admin, "tour-driver").selectOption(driverRow!.id);

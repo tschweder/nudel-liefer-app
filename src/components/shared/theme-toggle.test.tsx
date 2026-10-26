@@ -47,3 +47,43 @@ describe("ThemeToggle", () => {
     }
   });
 });
+
+describe("ThemeToggle shows the action, not the state (NUD-139)", () => {
+  it("labeled/row: day mode offers the night mode and night mode offers the day mode", () => {
+    for (const variant of ["labeled", "row"] as const) {
+      const { unmount } = render(<ThemeToggle variant={variant} />);
+      // The visible text follows the `dark` class through CSS: the moon + "night" pair is the one
+      // that is hidden in dark mode, the sun + "day" pair the one that is only shown there.
+      const night = screen.getByTestId("theme-action-night");
+      const day = screen.getByTestId("theme-action-day");
+      expect(night).toHaveTextContent("night");
+      expect(night.className).toContain("dark:hidden");
+      expect(day).toHaveTextContent("day");
+      expect(day.className).toContain("hidden dark:inline");
+      const button = screen.getByTestId("theme-toggle");
+      expect(button.querySelector("svg.dark\\:hidden")).not.toBeNull(); // moon, day mode
+      expect(button.querySelector("svg.hidden.dark\\:block")).not.toBeNull(); // sun, night mode
+      unmount();
+    }
+  });
+
+  it("icon: aria-label and tooltip name the action and flip with the mode", async () => {
+    render(<ThemeToggle />);
+    const button = screen.getByTestId("theme-toggle");
+    expect(button).toHaveAttribute("aria-label", "toggleToNight");
+    expect(button).toHaveAttribute("title", "toggleToNight");
+    fireEvent.click(button);
+    await waitFor(() => expect(button).toHaveAttribute("aria-label", "toggleToDay"));
+    expect(button).toHaveAttribute("title", "toggleToDay");
+    fireEvent.click(button);
+    await waitFor(() => expect(button).toHaveAttribute("aria-label", "toggleToNight"));
+  });
+
+  it("icon: starts with the day-mode label when the page is already dark", async () => {
+    document.documentElement.classList.add("dark");
+    render(<ThemeToggle />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-toggle")).toHaveAttribute("aria-label", "toggleToDay"),
+    );
+  });
+});

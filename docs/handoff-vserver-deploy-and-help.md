@@ -494,14 +494,14 @@ Minimum coverage (one topic each; the labels are exact strings from `messages/de
 1. Produkt anlegen (`Produkte` → `Neues Produkt`) — search: `waren typ hinzufügen`, `produkt anlegen`, `nudelsorte`, `neuer artikel`, `添加产品`, `新建产品`, `货号`, `sku`
 2. Produkt bearbeiten / Namen (vereinfachtes Chinesisch Pflicht, traditionell automatisch) / `Neu aus vereinfachtem Namen ableiten`
 3. Produkt deaktivieren/aktivieren (`Deaktivieren`, `Aktivieren`) und Reihenfolge (`nach oben`/`nach unten`)
-4. Kunde anlegen (`Kunden` → `Neuer Kunde`) mit Adresse und Kartenpunkt
-5. Kartenpunkt setzen und bestätigen (`Auf Karte suchen`, `Pin geprüft: …`) — search: `pin`, `karte`, `adresse suchen`, `地图标记`
+4. Kunde anlegen (`Kunden` → `Neuer Kunde`) mit Adresse
+5. Adresspunkt setzen und bestätigen (`Auf Karte suchen`, `Adresspunkt geprüft: …`) — search: `adresspunkt`, `karte`, `adresse suchen`, `地址点`
 6. Kundenfotos hochladen/ersetzen (`Geschäft / Eingang`, `Parken / Entladen`, `Foto ersetzen`, `Bild auswählen`, Strg+V) — search: `foto hochladen`, `bild`, `eingang`, `parken`
 7. Kunden importieren (4 Schritte `Datei`/`Spalten`/`Vorschau`/`Ergebnis`; Limits 5 MB, 2000 Zeilen) — search: `import`, `csv`, `excel`, `kundenliste`, `导入`
-8. Pins prüfen nach Import (`Pins prüfen`, `Pin bestätigen`, `Überspringen`)
+8. Adresspunkte prüfen nach Import (`Adresspunkte prüfen`, `Adresspunkt bestätigen`, `Überspringen`)
 9. Kunde archivieren/wiederherstellen (`Archivieren`, `Wiederherstellen`, Filter `Archivierte`)
-10. Kunden suchen und filtern (`Suche`, `Fotos fehlen`, `Pin unbestätigt`)
-11. Bestellung anlegen (`Bestellungen` → `Neue Bestellung`, `Position hinzufügen`, `Menge`, `Bestätigt speichern` / `Als Entwurf speichern`) — search: `bestellung anlegen`, `order`, `menge`, `新建订单`
+10. Kunden suchen und filtern (`Suche`, `Fotos fehlen`, `Adresspunkt unbestätigt`)
+11. Bestellung anlegen (`Bestellungen` → `Neue Bestellung`, `Produkt hinzufügen`, `Menge`, `Bestätigt speichern` / `Als Entwurf speichern`) — search: `bestellung anlegen`, `order`, `menge`, `新建订单`
 12. Screenshot zur Bestellung hochladen (`Screenshot`, Strg+V)
 13. Bestellung bearbeiten / `Auf anderes Datum kopieren` / `Stornieren`
 14. Bestellungen filtern und `Summen je Liefertag` lesen
@@ -514,7 +514,7 @@ Minimum coverage (one topic each; the labels are exact strings from `messages/de
 21. Fahrer anlegen + PIN (`Fahrer anlegen`, `PIN für {name}`, `PIN kopieren`, `Drucken`, `PIN zurücksetzen`)
 22. Fahrer deaktivieren/reaktivieren und seine Sprache ändern (`Sprache bearbeiten`)
 23. Admin anlegen (`Admin anlegen`, E-Mail + Passwort ≥ 10 Zeichen)
-24. Einstellungen: Depot-Pin + Bestätigungshäkchen, `Standard-Abfahrtszeit`, `Minuten pro Stopp`, `Liefertage`
+24. Einstellungen: Depot-Standort + Bestätigungshäkchen, `Standard-Abfahrtszeit`, `Minuten pro Stopp`, `Liefertage`
 25. `Verlauf` lesen (append-only, wer wann was geändert hat)
 26. Notizen übersetzen (Kunden-Tab `Übersetzungen`, `Übersetzungen speichern`, `Neu übersetzen`, `Als geprüft markieren`)
 27. Büro-Anmeldung / Abmelden / Sprache wechseln
@@ -524,7 +524,7 @@ Minimum coverage (one topic each; the labels are exact strings from `messages/de
 29. Erster Start: Sprachauswahl (vier Knöpfe) — search: `sprache`, `chinesisch`, `语言`
 30. Tages-Tour ansehen (`Heutige Tour`, `Nächster Stopp`, `Ankunft ca.`, `Fortschritt`, `Alle Stopps`, `Liste`/`Karte`)
 31. Stopp-Details (`Lieferung`, `Gesamt`, `Hinweis`, `Lieferzeiten`, `Fotos`, `Adresse kopieren`)
-32. `Navigation starten` (Google Maps / `Apple Karten`, navigiert zum Pin)
+32. `Navigation starten` (Google Maps / `Apple Karten`, navigiert zum Adresspunkt)
 33. `Geliefert` melden, `Rückgängig` (nur 5 Minuten)
 34. `Problem melden` — die sieben Gründe + `Anmerkung (freiwillig)`
 35. Foto aufnehmen/ersetzen (`Foto aufnehmen`, `Foto verwenden`, `Neu aufnehmen`, `Wartet auf Versand`, `Gesendet`)
@@ -539,8 +539,8 @@ Minimum coverage (one topic each; the labels are exact strings from `messages/de
 42. Keine Verbindung / `Offline nicht verfügbar` / `Keine gespeicherte Tour`
 43. Karte leer (`Kartenhintergrund nicht verfügbar` / `offline nicht verfügbar`; Stopps und Route bleiben)
 44. `Näherungswerte`-Badge erklären (kein Routing-Dienst verbunden)
-45. Warum eine Tour nicht erstellt werden kann (Depot-Pin, `Kein Stopps`-Gründe, `Zu viele Stopps`)
-46. Warum ein Kunde nicht in der Tour ist (`Nicht in der Tour: Kartenpunkt nicht bestätigt`)
+45. Warum eine Tour nicht erstellt werden kann (Depot-Standort, `Kein Stopps`-Gründe, `Zu viele Stopps`)
+46. Warum ein Kunde nicht in der Tour ist (`Nicht in der Tour: Adresspunkt nicht bestätigt`)
 47. `/delivery-app-health` (Betrieb), Kontakt/Support-Hinweis
 
 **Glossar**
@@ -596,7 +596,7 @@ export type HandOffContent = { topics: HandOffTopic[]; glossary: { de: string; z
 
 Use these; they are taken from `messages/zh-Hans.json` where that file has the term, so the help page and the app agree. Build the glossary from this list, and add the ones the app itself uses in the printed load sheet.
 
-Büro 办公室 · Fahrer 司机 · Übersicht 总览 · Bestellungen 订单 · Bestellposition 订单明细 · Touren 配送线路 (admin) / 行程 (driver) · Stopp 站点 · Tour planen 规划行程 · Tour erstellen 生成配送线路 · Freigabe / freigeben 发布 · Erneut freigeben 重新发布 · Folgetour 补充线路 · Nachbestellung 补单 · Kunde 客户 · Kundennummer 客户编号 · Produkt / Nudelsorte 产品 · Artikelnummer (SKU) 货号（SKU）· Einheit 单位 · kg 公斤 · Packung 包 · Kiste 箱 · Stück 件 · Menge 数量 · Lieferdatum 送货日期 · Liefertag 送货日 · Lieferung 送货内容 · Lieferadresse 送货地址 · Lieferzeiten 送货时间 · Problem 问题 · Problem melden 报告问题 · Grund 原因 · Notiz 备注 · Interne Notiz 内部备注 · Hinweis 提示 · Archiv / archivieren 归档 · Import 导入 · Ladeliste 装车单 · Foto 照片 · Synchronisierung 同步 · Offline 离线 · Kartenpunkt (Pin) 地图标记 · Pin bestätigen 确认地图标记 · Adresse suchen 查找地址 · Depot / Fabrik 仓库（工厂）· Einstellungen 设置 · Berechtigung 权限 · Verlauf 变更记录 · Entwurf 草稿 · Bestätigt 已确认 · Storniert 已取消 · Freigegeben 已发布 · Abgeschlossen 已完成 · Offen 待送 · Geliefert 已送达 · Standard-Abfahrtszeit 默认出发时间 · Zeitzone 时区 · Summen 合计 · Kennzahlen 关键指标 · Zu erledigen 待处理 · Letzte Aktivität 最近活动 · Nächster Stopp 下一站 · Navigation starten 开始导航 · Foto aufnehmen 拍照 · Gesendet 已发送 · Wartet auf Versand 等待发送 · Rückgängig 撤销 · Anmerkung 补充说明 · Screenshot 截图 · Manuell 手动录入 · PIN PIN码 · PIN zurücksetzen 重置PIN码 · Passwort 密码 · Benutzername 用户名 · E-Mail 电子邮箱 · Anmelden 登录 · Abmelden 退出登录 · Sprache 语言 · Administratoren 管理员 · Gesamtmenge 总数量 · Beladereihenfolge 装车顺序
+Büro 办公室 · Fahrer 司机 · Übersicht 总览 · Bestellungen 订单 · Produkt (in einer Bestellung) 订单中的产品 · Touren 配送线路 (admin) / 行程 (driver) · Stopp 站点 · Tour planen 规划行程 · Tour erstellen 生成配送线路 · Freigabe / freigeben 发布 · Erneut freigeben 重新发布 · Folgetour 补充线路 · Nachbestellung 补单 · Kunde 客户 · Kundennummer 客户编号 · Produkt / Nudelsorte 产品 · Artikelnummer (SKU) 货号（SKU）· Einheit 单位 · kg 公斤 · Beutel 袋 · Karton 纸箱 · Stück 件 · Menge 数量 · Lieferdatum 送货日期 · Liefertag 送货日 · Lieferung 送货内容 · Lieferadresse 送货地址 · Lieferzeiten 送货时间 · Problem 问题 · Problem melden 报告问题 · Grund 原因 · Notiz 备注 · Interne Notiz 内部备注 · Hinweis 提示 · Archiv / archivieren 归档 · Import 导入 · Ladeliste 装车单 · Foto 照片 · Synchronisierung 同步 · Offline 离线 · Adresspunkt 地址点 · Adresspunkt bestätigen 确认地址点 · Adresse suchen 查找地址 · Depot / Fabrik 仓库（工厂）· Einstellungen 设置 · Berechtigung 权限 · Verlauf 变更记录 · Entwurf 草稿 · Bestätigt 已确认 · Storniert 已取消 · Freigegeben 已发布 · Abgeschlossen 已完成 · Offen 待送 · Geliefert 已送达 · Standard-Abfahrtszeit 默认出发时间 · Zeitzone 时区 · Summen 合计 · Kennzahlen 关键指标 · Zu erledigen 待处理 · Letzte Aktivität 最近活动 · Nächster Stopp 下一站 · Navigation starten 开始导航 · Foto aufnehmen 拍照 · Gesendet 已发送 · Wartet auf Versand 等待发送 · Rückgängig 撤销 · Anmerkung 补充说明 · Screenshot 截图 · Manuell 手动录入 · PIN PIN码 · PIN zurücksetzen 重置PIN码 · Passwort 密码 · Benutzername 用户名 · E-Mail 电子邮箱 · Anmelden 登录 · Abmelden 退出登录 · Sprache 语言 · Administratoren 管理员 · Gesamtmenge 总数量 · Beladereihenfolge 装车顺序
 
 (Tour differs by area on purpose — that is how the app's own Chinese files do it. Do not "fix" it; mention it in the glossary note.)
 

@@ -96,7 +96,7 @@ describe("SettingsForm", () => {
   it("keeps the ids the settings spec drives and labels its fields", () => {
     renderForm();
     expect(screen.getByTestId("section-title")).toHaveTextContent("Einstellungen");
-    expect(screen.getByTestId("depot-status")).toHaveTextContent("Pin nicht bestätigt");
+    expect(screen.getByTestId("depot-status")).toHaveTextContent("Standort nicht bestätigt");
     // `getByLabelText` folds the required `*` into the label text; the Playwright specs query by
     // accessible name (which excludes the aria-hidden marker), so match on the prefix here.
     expect(screen.getByLabelText(/^Name/)).toHaveValue("Nudelfabrik");
@@ -114,7 +114,7 @@ describe("SettingsForm", () => {
     renderForm();
     fireEvent.click(screen.getByTestId("settings-save"));
     expect(await screen.findByTestId("settings-error")).toHaveTextContent(
-      "Bitte bestätigen, dass der Pin am richtigen Ort liegt.",
+      "Bitte bestätigen, dass der Standort am richtigen Ort liegt.",
     );
     expect(saveSettingsAction).not.toHaveBeenCalled();
   });

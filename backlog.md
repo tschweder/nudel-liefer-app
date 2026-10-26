@@ -293,7 +293,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
 | NUD-137 | Whole-number quantities | M2.6 | – | done |
 | NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | done |
-| NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | todo |
+| NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | done |
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | todo |
 | NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | todo |
 | NUD-142 | Customer key number (office + driver) | M2.6 | 139 | todo |
@@ -2276,7 +2276,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-139 · Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle
-**Status:** todo · **depends_on:** – · F6, F9, F19
+**Status:** done · **depends_on:** – · F6, F9, F19
 
 **Scope**
 - **Order lines (F9):** "Positionen/Position" → "Produkte/Produkt" in every order context: list column, drawer, detail, form ("Produkt hinzufügen", "Produkt {n} entfernen"), counts (`{count, plural, one {# Produkt} other {# Produkte}}`), "Keine Produkte". ~15 keys in `messages/de.json` (lines ~813–1149 at the time of the test) + the matching `zh-Hans` keys.
@@ -2285,9 +2285,17 @@ General rules for every ticket in this block:
 - Glossary §3 is already amended; keep code identifiers (`OrderItem`, `lat/lng`) unchanged.
 
 **Acceptance criteria**
-- [ ] `grep -riE "Position|Pin\b|Kartenpunkt" messages/de.json` returns no order-line or customer-location string.
-- [ ] Toggle label and icon match the action in both modes (component test).
-- [ ] `pnpm i18n:check` green.
+- [x] `grep -riE "Position|Pin\b|Kartenpunkt" messages/de.json` returns no order-line or customer-location string. (`src/lib/forbidden-words.test.ts` fails if "Pin", "Kartenpunkt", "Position(en)", "Kiste", "Packung" or 箱子/筐 appear in `de.json` or `zh-Hans.json`; the login "PIN" (6-digit code) is a different word and stays)
+- [x] Toggle label and icon match the action in both modes (component test). (`theme-toggle.test.tsx`)
+- [x] `pnpm i18n:check` green.
+
+**Implementation notes**
+- Order lines are "Produkte" everywhere (list column, drawer, detail, form "Produkt hinzufügen" / "Produkt {n} entfernen", counts, tour print "Keine Produkte"); zh-Hans "产品".
+- Customer location: "Pin" / "Kartenpunkt" / "Position" became **Adresspunkt** (the geocoded point of the Lieferadresse; filters, flags, review queue, import, tour warnings, driver "Kein Adresspunkt – bitte beim Büro nachfragen"). The depot uses **Standort** ("Standort auf der Karte", "Standort bestätigt"). **Parkplatz** is introduced with the parking-spot feature in NUD-141; no string promises it before that.
+- Day/night toggle shows the action: moon + "Nachtmodus" in day mode, sun + "Tagmodus" in night mode (login, driver menu). The admin icon button carries the same text as `aria-label` and tooltip ("Zum Nachtmodus wechseln" / "Zum Tagmodus wechseln"); the mode is read from the `dark` class on `<html>` with `useSyncExternalStore`, so the first paint stays correct without a hydration mismatch. The keys `label`, `toggle`, `light`, `dark` were removed.
+- The in-app help manual (`content/hand-off/index.ts`, de + zh) and `docs/uat.md` quote the UI labels; both were updated (its test checks every label against `messages/de.json`).
+- Code identifiers (`OrderItem`, `pin*` keys, `lat/lng`) are unchanged on purpose.
+- Pre-existing e2e failure, not caused by this ticket: `settings.spec` cannot find the "Name" field (settings page layout changed since NUD-012, cf. NUD-128).
 
 ---
 
@@ -2889,6 +2897,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-138 | Both Nudeln products have the same name "Nudeln"; the order picker tells them apart by the SKU in its label (`NUDELN-BEUTEL`, `NUDELN-KARTON`) | Simplest option consistent with D23; the unit is shown right next to the quantity on every line |
 | 2026-10-26 | NUD-138 | Wantan-Teig is "馄饨皮" (zh-Hans) / "餛飩皮" (Hant); the old kilogram Ravioli demo lines moved to Beutel | No Chinese name was given; the standard written form is used and can be edited on the product form. Kilogram lines have no equivalent among the three products |
 | 2026-10-26 | NUD-138 | Quantity sums that have no product name next to them (driver totals, office sums card, tour diff, history) show "Stück" for pieces, not "×" | "3 ×" without a name is meaningless; "×" only exists in front of a product name (glossary §3) |
+| 2026-10-26 | NUD-139 | The driver login code stays "PIN" (6 digits); only the map "Pin" is retired | "PIN" is the security code of the driver account and the glossary only retires the map word; the forbidden-words test matches the map word case-sensitively |
+| 2026-10-26 | NUD-139 | Customer map point = "Adresspunkt", depot map point = "Standort"; "Parkplatz" waits for NUD-141 | The glossary names the point of the Lieferadresse "Adresspunkt"; a Parkplatz does not exist as data yet, so naming it now would be wrong |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

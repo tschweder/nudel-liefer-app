@@ -82,7 +82,7 @@ test("customer: create with confirmed pin, find it, duplicate number, edit reset
     // Detail page.
     await expect(page).toHaveURL(/\/de\/admin\/customers\/[^/]+$/);
     await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
-    await expect(page.getByTestId("detail-pin")).toContainText("Pin bestätigt");
+    await expect(page.getByTestId("detail-pin")).toContainText("Adresspunkt bestätigt");
     await expect(page.getByTestId("detail-notes")).toHaveText("Hintereingang im Hof");
     await expect(visible(page, "flag-pin-unconfirmed")).toHaveCount(0);
     await expect(visible(page, "flag-photos-missing")).toBeVisible();

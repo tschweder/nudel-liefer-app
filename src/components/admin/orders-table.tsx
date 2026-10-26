@@ -95,7 +95,7 @@ export function OrdersTable({
         // Tighter padding so all seven columns fit next to the totals rail (1280 px), and a row
         // with the two lines of the customer cell stays inside the 48–52 px density budget
         // (§8.10). Auto table layout on purpose: the customer cell is capped, so the leftover width
-        // goes to the Positionen column instead of being shared out evenly.
+        // goes to the Produkte column instead of being shared out evenly.
         className="[&_td]:px-2 [&_td]:py-0.5 [&_th]:px-2"
         containerClassName="max-h-[70dvh] overflow-auto"
         aria-label={t("title")}
@@ -208,7 +208,7 @@ function OrderRow({
       ) : null}
 
       {/* A floor, not a cap: the customer name may wrap to two lines, and everything the fixed
-          columns leave goes to the Positionen column (round-3 review: that column carries the order
+          columns leave goes to the Produkte column (round-3 review: that column carries the order
           content). Without the floor the greedy chip column squeezed the name to three lines. */}
       <TableCell className="min-w-[12rem]">
         <Link

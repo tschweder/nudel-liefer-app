@@ -45,7 +45,7 @@ test("settings: depot pin by keyboard, confirmation, weekdays, persistence", asy
   await expect(confirm).not.toBeChecked();
   await page.getByTestId("settings-save").click();
   await expect(page.getByTestId("settings-error")).toHaveText(
-    "Bitte bestätigen, dass der Pin am richtigen Ort liegt.",
+    "Bitte bestätigen, dass der Standort am richtigen Ort liegt.",
   );
 
   await confirm.check();
@@ -55,7 +55,7 @@ test("settings: depot pin by keyboard, confirmation, weekdays, persistence", asy
     await page.getByTestId(`weekday-${day}`).setChecked(day <= 4);
   }
   await page.getByTestId("settings-save").click();
-  await expect(page.getByTestId("depot-status")).toHaveText("Pin bestätigt");
+  await expect(page.getByTestId("depot-status")).toHaveText("Standort bestätigt");
 
   // Persisted: reload shows the saved values.
   await page.reload();

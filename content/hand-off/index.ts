@@ -65,8 +65,8 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Die «Einheit» wählen: kg, Packung, Kiste oder Stück.",
-            zh: "选择「单位」：公斤、包、箱或件。",
+            de: "Die «Einheit» wählen: kg, Beutel, Karton oder Stück.",
+            zh: "选择「单位」：公斤、袋、纸箱或件。",
           },
           label: "Einheit",
         },
@@ -170,7 +170,10 @@ export const HAND_OFF: HandOffContent = {
     {
       id: "produkt-status-reihenfolge",
       area: "buero",
-      title: { de: "Produkt deaktivieren, aktivieren und sortieren", zh: "停用、启用产品并调整排序" },
+      title: {
+        de: "Produkt deaktivieren, aktivieren und sortieren",
+        zh: "停用、启用产品并调整排序",
+      },
       summary: {
         de: "Ein Produkt aus der Bestellauswahl nehmen oder wieder aufnehmen und seine Reihenfolge ändern.",
         zh: "将产品从订单选择中移除或恢复，并调整它的顺序。",
@@ -227,8 +230,8 @@ export const HAND_OFF: HandOffContent = {
       area: "buero",
       title: { de: "Kunde anlegen", zh: "新增客户" },
       summary: {
-        de: "Einen neuen Kunden mit Nummer, Name, Lieferadresse und Kartenpunkt erfassen.",
-        zh: "创建新客户，填写编号、名称、送货地址和地图标记。",
+        de: "Einen neuen Kunden mit Nummer, Name, Lieferadresse erfassen.",
+        zh: "创建新客户，填写编号、名称和送货地址。",
       },
       path: {
         de: "Seitenleiste → Stammdaten → Kunden → «Neuer Kunde»",
@@ -291,22 +294,22 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Der Hinweis für den Fahrer wird später in die Fahrersprachen übersetzt. Der Kartenpunkt wird danach gesetzt und bestätigt.",
-        zh: "给司机的备注稍后会翻译成司机使用的语言。地图标记需要在之后设置并确认。",
+        de: "Der Hinweis für den Fahrer wird später in die Fahrersprachen übersetzt. Der Adresspunkt wird danach gesetzt und bestätigt.",
+        zh: "给司机的备注稍后会翻译成司机使用的语言。地址点需要在之后设置并确认。",
       },
       route: "/de/admin/customers/new",
     },
     {
       id: "kartenpunkt-setzen-und-bestaetigen",
       area: "buero",
-      title: { de: "Kartenpunkt (Pin) setzen und bestätigen", zh: "设置并确认地图标记" },
+      title: { de: "Adresspunkt setzen und bestätigen", zh: "设置并确认地址点" },
       summary: {
-        de: "Die Adresse auf der Karte suchen, den Pin genau auf den Eingang schieben und bestätigen.",
+        de: "Die Adresse auf der Karte suchen, den Adresspunkt genau auf den Eingang schieben und bestätigen.",
         zh: "在地图上查找地址，把标记拖到入口，然后确认。",
       },
       path: {
-        de: "Seitenleiste → Stammdaten → Kunden → Kunde öffnen → «Kartenpunkt (Pin)»",
-        zh: "侧边栏 → 基础数据 → 客户 → 打开客户 →「地图标记（位置）」",
+        de: "Seitenleiste → Stammdaten → Kunden → Kunde öffnen → «Adresspunkt auf der Karte»",
+        zh: "侧边栏 → 基础数据 → 客户 → 打开客户 →「地图上的地址点」",
       },
       search: {
         de: [
@@ -319,15 +322,15 @@ export const HAND_OFF: HandOffContent = {
           "pin prüfen",
           "kartenpunkt bestätigen",
         ],
-        zh: ["地图标记", "标记", "查找地址", "确认地图标记", "地图定位点"],
+        zh: ["地址点", "查找地址", "确认地址点"],
       },
       steps: [
         {
           text: {
-            de: "Im Kundenformular den Abschnitt «Kartenpunkt (Pin)» öffnen.",
-            zh: "在客户表单中打开「地图标记（位置）」部分。",
+            de: "Im Kundenformular den Abschnitt «Adresspunkt auf der Karte» öffnen.",
+            zh: "在客户表单中打开「地图上的地址点」部分。",
           },
-          label: "Kartenpunkt (Pin)",
+          label: "Adresspunkt auf der Karte",
         },
         {
           text: {
@@ -345,23 +348,23 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Unter «Gefundene Positionen – bitte eine auswählen» den passenden Treffer anklicken.",
-            zh: "在「找到的位置，请选择一个」中点击正确的结果。",
+            de: "Unter «Gefundene Adresspunkte – bitte einen auswählen» den passenden Treffer anklicken.",
+            zh: "在「找到的地址点，请选择一个」中点击正确的结果。",
           },
-          label: "Gefundene Positionen – bitte eine auswählen",
+          label: "Gefundene Adresspunkte – bitte einen auswählen",
         },
         {
           text: {
-            de: "Den Pin auf der Karte genau auf den Eingang bzw. die Lieferstelle ziehen.",
-            zh: "把地图上的标记拖到入口或卸货点的准确位置。",
+            de: "Den Adresspunkt auf der Karte genau auf den Eingang bzw. die Lieferstelle ziehen.",
+            zh: "把地图上的地址点拖到入口或卸货点的准确位置。",
           },
         },
         {
           text: {
-            de: "Das Kästchen «Pin geprüft: Der Pin liegt an der richtigen Stelle der Lieferadresse.» anhaken.",
-            zh: "勾选「已核对：标记位于送货地址的正确位置。」",
+            de: "Das Kästchen «Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.» anhaken.",
+            zh: "勾选「已核对：地址点位于送货地址的正确位置。」",
           },
-          label: "Pin geprüft: Der Pin liegt an der richtigen Stelle der Lieferadresse.",
+          label: "Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.",
         },
         {
           text: {
@@ -373,7 +376,7 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Erst nach dem Bestätigen gilt der Pin als geprüft. Ein unbestätigter Pin hält den Kunden aus jeder Tour heraus.",
+        de: "Erst nach dem Bestätigen gilt der Adresspunkt als geprüft. Ein unbestätigter Adresspunkt hält den Kunden aus jeder Tour heraus.",
         zh: "只有确认后标记才算已核对。标记未确认的客户不会出现在任何配送线路中。",
       },
       route: "/de/admin/customers",
@@ -501,49 +504,49 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ändert sich die Adresse eines Kunden, werden Pin und Bestätigung zurückgesetzt. Danach mit «Pins prüfen» die Punkte kontrollieren.",
-        zh: "如果客户地址发生变化，地图标记和确认状态会被重置。之后请用「检查地图标记」逐个检查。",
+        de: "Ändert sich die Adresse eines Kunden, werden Adresspunkt und Bestätigung zurückgesetzt. Danach mit «Adresspunkte prüfen» die Punkte kontrollieren.",
+        zh: "如果客户地址发生变化，地址点和确认状态会被重置。之后请用「检查地址点」逐个检查。",
       },
       route: "/de/admin/customers/import",
     },
     {
       id: "pins-pruefen",
       area: "buero",
-      title: { de: "Pins nach dem Import prüfen", zh: "导入后检查地图标记" },
+      title: { de: "Adresspunkte nach dem Import prüfen", zh: "导入后检查地址点" },
       summary: {
-        de: "Neue oder geänderte Kartenpunkte der Reihe nach kontrollieren und bestätigen.",
-        zh: "逐个检查新建或变更的地图标记并确认。",
+        de: "Neue oder geänderte Adresspunkte der Reihe nach kontrollieren und bestätigen.",
+        zh: "逐个检查新建或变更的地址点并确认。",
       },
       path: {
-        de: "Kunden → Import → «Pins prüfen»",
-        zh: "客户 → 导入 →「检查地图标记」",
+        de: "Kunden → Import → «Adresspunkte prüfen»",
+        zh: "客户 → 导入 →「检查地址点」",
       },
       search: {
         de: ["pins prüfen", "pin bestätigen", "überspringen", "kartenpunkt prüfen", "nach import"],
-        zh: ["检查地图标记", "确认地图标记", "跳过", "位置未确认"],
+        zh: ["检查地址点", "确认地址点", "跳过", "地址点未确认"],
       },
       steps: [
         {
           text: {
-            de: "Nach dem Import auf «Pins prüfen» klicken.",
-            zh: "导入完成后点击「检查地图标记」。",
+            de: "Nach dem Import auf «Adresspunkte prüfen» klicken.",
+            zh: "导入完成后点击「检查地址点」。",
           },
-          label: "Pins prüfen",
+          label: "Adresspunkte prüfen",
         },
         {
           text: {
-            de: "Bei Bedarf «Adresse auf der Karte suchen» nutzen und den Pin auf den Eingang ziehen.",
+            de: "Bei Bedarf «Adresse auf der Karte suchen» nutzen und den Adresspunkt auf den Eingang ziehen.",
             zh: "需要时使用「在地图上查找地址」，并把标记拖到入口。",
           },
           label: "Adresse auf der Karte suchen",
         },
         {
           text: {
-            de: "Auf «Pin bestätigen» klicken.",
-            zh: "点击「确认地图标记」。",
+            de: "Auf «Adresspunkt bestätigen» klicken.",
+            zh: "点击「确认地址点」。",
           },
-          label: "Pin bestätigen",
-          result: "Pin bestätigt.",
+          label: "Adresspunkt bestätigen",
+          result: "Adresspunkt bestätigt.",
         },
         {
           text: {
@@ -561,7 +564,7 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ein nicht bestätigter Pin hält den Kunden aus jeder Tour heraus, bis er geprüft wurde.",
+        de: "Ein nicht bestätigter Adresspunkt hält den Kunden aus jeder Tour heraus, bis er geprüft wurde.",
         zh: "标记未确认的客户在核对之前不会进入任何配送线路。",
       },
       route: "/de/admin/customers/import/review",
@@ -625,8 +628,8 @@ export const HAND_OFF: HandOffContent = {
       area: "buero",
       title: { de: "Kunden suchen und filtern", zh: "搜索和筛选客户" },
       summary: {
-        de: "Kunden über die Suche finden und nach fehlenden Fotos oder unbestätigtem Pin filtern.",
-        zh: "通过搜索找到客户，并按缺少照片或位置未确认进行筛选。",
+        de: "Kunden über die Suche finden und nach fehlenden Fotos oder unbestätigtem Adresspunkt filtern.",
+        zh: "通过搜索找到客户，并按缺少照片或地址点未确认进行筛选。",
       },
       path: {
         de: "Seitenleiste → Stammdaten → Kunden → «Suche»",
@@ -642,7 +645,7 @@ export const HAND_OFF: HandOffContent = {
           "kunde finden",
           "kundenliste",
         ],
-        zh: ["搜索客户", "搜索", "筛选", "缺少照片", "位置未确认"],
+        zh: ["搜索客户", "搜索", "筛选", "缺少照片", "地址点未确认"],
       },
       steps: [
         {
@@ -661,10 +664,10 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Den Filter «Pin unbestätigt» einschalten, um Kunden mit unbestätigtem Kartenpunkt zu sehen.",
-            zh: "打开「位置未确认」筛选，查看地图标记未确认的客户。",
+            de: "Den Filter «Adresspunkt unbestätigt» einschalten, um Kunden mit unbestätigtem Adresspunkt zu sehen.",
+            zh: "打开「地址点未确认」筛选，查看地址点未确认的客户。",
           },
-          label: "Pin unbestätigt",
+          label: "Adresspunkt unbestätigt",
         },
         {
           text: {
@@ -685,8 +688,8 @@ export const HAND_OFF: HandOffContent = {
       area: "buero",
       title: { de: "Bestellung anlegen", zh: "新建订单" },
       summary: {
-        de: "Für einen Kunden und einen Liefertag Positionen erfassen und bestätigt oder als Entwurf speichern.",
-        zh: "为客户和送货日录入明细，并保存为已确认或草稿。",
+        de: "Für einen Kunden und einen Liefertag Produkte erfassen und bestätigt oder als Entwurf speichern.",
+        zh: "为客户和送货日录入产品，并保存为已确认或草稿。",
       },
       path: {
         de: "Seitenleiste → Betrieb → Bestellungen → «Neue Bestellung»",
@@ -701,7 +704,7 @@ export const HAND_OFF: HandOffContent = {
           "position hinzufügen",
           "bestellung erfassen",
         ],
-        zh: ["新建订单", "创建订单", "订单", "数量", "添加明细行"],
+        zh: ["新建订单", "创建订单", "订单", "数量", "订单产品"],
       },
       steps: [
         {
@@ -727,15 +730,15 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Unter «Positionen» mit «Position hinzufügen» eine Zeile anlegen und «Produkt» und «Menge» eintragen.",
-            zh: "在「订单明细」中点击「添加明细行」，选择「产品」并填写「数量」。",
+            de: "Unter «Produkte» mit «Produkt hinzufügen» eine Zeile anlegen, das Produkt wählen und die «Menge» eintragen.",
+            zh: "在「产品」中点击「添加产品」，选择产品并填写「数量」。",
           },
-          label: "Position hinzufügen",
+          label: "Produkt hinzufügen",
         },
         {
           text: {
-            de: "Weitere Zeilen hinzufügen — die Taste Enter fügt direkt die nächste Position hinzu.",
-            zh: "继续添加明细行——按回车键会直接添加下一行。",
+            de: "Weitere Zeilen hinzufügen — die Taste Enter fügt direkt das nächste Produkt hinzu.",
+            zh: "继续添加产品——按回车键会直接添加下一行。",
           },
           label: "Menge",
         },
@@ -949,7 +952,15 @@ export const HAND_OFF: HandOffContent = {
         zh: "侧边栏 → 运营 → 配送线路 →「生成配送线路」",
       },
       search: {
-        de: ["tour erstellen", "tour planen", "route", "liefertour", "tour anlegen", "planen", "tour"],
+        de: [
+          "tour erstellen",
+          "tour planen",
+          "route",
+          "liefertour",
+          "tour anlegen",
+          "planen",
+          "tour",
+        ],
         zh: ["生成配送线路", "规划行程", "配送线路", "路线"],
       },
       steps: [
@@ -976,8 +987,8 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Fehlt der Depot-Pin, zuerst in den «Einstellungen» den Depot-Pin setzen und bestätigen.",
-            zh: "如果没有仓库标记点，请先在「设置」中设置并确认仓库位置。",
+            de: "Fehlt der Depot-Standort, zuerst in den «Einstellungen» den Depot-Standort setzen und bestätigen.",
+            zh: "如果没有仓库位置，请先在「设置」中设置并确认仓库位置。",
           },
           label: "Einstellungen",
         },
@@ -1062,7 +1073,14 @@ export const HAND_OFF: HandOffContent = {
         zh: "配送线路 → 线路 →「司机」→「发布配送线路」",
       },
       search: {
-        de: ["fahrer zuweisen", "tour freigeben", "fahrer wählen", "kein fahrer", "freigabe", "freigeben"],
+        de: [
+          "fahrer zuweisen",
+          "tour freigeben",
+          "fahrer wählen",
+          "kein fahrer",
+          "freigabe",
+          "freigeben",
+        ],
         zh: ["指派司机", "发布配送线路", "选择司机", "发布"],
       },
       steps: [
@@ -1234,8 +1252,8 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Im Abschnitt «Zu erledigen» offene Punkte sehen, z. B. Kunden mit unbestätigtem Pin.",
-            zh: "在「待处理」中查看未完成事项，例如地图标记未确认的客户。",
+            de: "Im Abschnitt «Zu erledigen» offene Punkte sehen, z. B. Kunden mit unbestätigtem Adresspunkt.",
+            zh: "在「待处理」中查看未完成事项，例如地址点未确认的客户。",
           },
           label: "Zu erledigen",
         },
@@ -1394,7 +1412,14 @@ export const HAND_OFF: HandOffContent = {
         zh: "司机页面 →「管理员」部分 →「新增管理员」",
       },
       search: {
-        de: ["admin anlegen", "administrator", "büro konto", "passwort", "benutzer anlegen", "administratoren"],
+        de: [
+          "admin anlegen",
+          "administrator",
+          "büro konto",
+          "passwort",
+          "benutzer anlegen",
+          "administratoren",
+        ],
         zh: ["新增管理员", "管理员", "密码", "创建账号"],
       },
       steps: [
@@ -1436,10 +1461,13 @@ export const HAND_OFF: HandOffContent = {
     {
       id: "einstellungen-depot-planung",
       area: "buero",
-      title: { de: "Einstellungen: Depot, Abfahrtszeit und Liefertage", zh: "设置：仓库、出发时间和配送日" },
+      title: {
+        de: "Einstellungen: Depot, Abfahrtszeit und Liefertage",
+        zh: "设置：仓库、出发时间和配送日",
+      },
       summary: {
-        de: "Depot-Pin bestätigen und die Planungswerte festlegen, mit denen Touren berechnet werden.",
-        zh: "确认仓库标记点，并设置用于计算线路的规划参数。",
+        de: "Depot-Standort bestätigen und die Planungswerte festlegen, mit denen Touren berechnet werden.",
+        zh: "确认仓库位置，并设置用于计算线路的规划参数。",
       },
       path: {
         de: "Seitenleiste → System → Einstellungen",
@@ -1475,10 +1503,10 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Im Abschnitt «Kartenpunkt (Pin)» den Pin setzen und «Ich habe geprüft, dass der Pin am richtigen Ort liegt.» anhaken.",
-            zh: "在「地图标记点」部分设置标记，并勾选「我已核实标记点位置正确。」",
+            de: "Im Abschnitt «Standort auf der Karte» den Standort setzen und «Ich habe geprüft, dass der Standort am richtigen Ort liegt.» anhaken.",
+            zh: "在「地图上的仓库位置」部分设置位置，并勾选「我已核实位置正确。」",
           },
-          label: "Ich habe geprüft, dass der Pin am richtigen Ort liegt.",
+          label: "Ich habe geprüft, dass der Standort am richtigen Ort liegt.",
         },
         {
           text: {
@@ -1497,8 +1525,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Solange der Depot-Pin nicht bestätigt ist, meldet die App «Der Depot-Pin ist noch nicht bestätigt» und es kann keine Tour erstellt werden.",
-        zh: "只要仓库标记点尚未确认，应用就会提示「仓库位置尚未确认」，并且无法生成配送线路。",
+        de: "Solange der Depot-Standort nicht bestätigt ist, meldet die App «Der Depot-Standort ist noch nicht bestätigt» und es kann keine Tour erstellt werden.",
+        zh: "只要仓库位置尚未确认，应用就会提示「仓库位置尚未确认」，并且无法生成配送线路。",
       },
       route: "/de/admin/settings",
     },
@@ -1619,7 +1647,10 @@ export const HAND_OFF: HandOffContent = {
     {
       id: "buero-anmelden-abmelden",
       area: "konto",
-      title: { de: "Büro: Anmelden, Sprache wechseln, abmelden", zh: "办公室：登录、切换语言、退出登录" },
+      title: {
+        de: "Büro: Anmelden, Sprache wechseln, abmelden",
+        zh: "办公室：登录、切换语言、退出登录",
+      },
       summary: {
         de: "Mit E-Mail und Passwort ins Büro kommen, die Sprache wechseln und sich abmelden.",
         zh: "使用电子邮箱和密码登录办公室，切换语言并退出登录。",
@@ -1685,7 +1716,10 @@ export const HAND_OFF: HandOffContent = {
     {
       id: "fahrer-anmelden",
       area: "konto",
-      title: { de: "Fahrer: Anmelden mit Benutzername und PIN", zh: "司机：使用用户名和 PIN 码登录" },
+      title: {
+        de: "Fahrer: Anmelden mit Benutzername und PIN",
+        zh: "司机：使用用户名和 PIN 码登录",
+      },
       summary: {
         de: "Mit Benutzername und sechsstelliger PIN in die Fahrer-App kommen.",
         zh: "使用用户名和 6 位 PIN 码登录司机应用。",
@@ -2041,14 +2075,14 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Die Navigation führt zum Pin des Kunden, nicht zur getippten Adresse.",
-            zh: "导航会指向客户的地图标记，而不是输入的地址。",
+            de: "Die Navigation führt zum Adresspunkt des Kunden, nicht zur getippten Adresse.",
+            zh: "导航会指向客户的地址点，而不是输入的地址。",
           },
         },
       ],
       after: {
-        de: "Fehlt der Pin («Kein Kartenpunkt – bitte beim Büro nachfragen»), führt die Navigation nicht zum richtigen Ort.",
-        zh: "如果没有地图标记（「没有地图定位点，请联系办公室」），导航无法带你到正确位置。",
+        de: "Fehlt der Adresspunkt («Kein Adresspunkt – bitte beim Büro nachfragen»), führt die Navigation nicht zum richtigen Ort.",
+        zh: "如果没有地址点（「没有地址点，请联系办公室」），导航无法带你到正确位置。",
       },
       route: "/de/driver/stops/[stopId]",
     },
@@ -2234,7 +2268,13 @@ export const HAND_OFF: HandOffContent = {
         zh: "今日行程 →「所有站点已完成」→「返回仓库」",
       },
       search: {
-        de: ["tour abschließen", "alle stopps erledigt", "zurück zum depot", "tour beenden", "abschluss"],
+        de: [
+          "tour abschließen",
+          "alle stopps erledigt",
+          "zurück zum depot",
+          "tour beenden",
+          "abschluss",
+        ],
         zh: ["结束线路", "所有站点已完成", "返回仓库", "完成配送"],
       },
       steps: [
@@ -2440,7 +2480,10 @@ export const HAND_OFF: HandOffContent = {
     {
       id: "offline-nicht-verfuegbar",
       area: "system",
-      title: { de: "Keine Verbindung / «Offline nicht verfügbar»", zh: "没有网络 /「无法离线使用」" },
+      title: {
+        de: "Keine Verbindung / «Offline nicht verfügbar»",
+        zh: "没有网络 /「无法离线使用」",
+      },
       summary: {
         de: "Was es bedeutet, wenn offline keine Tour gespeichert ist.",
         zh: "离线时没有保存线路是什么意思。",
@@ -2568,7 +2611,8 @@ export const HAND_OFF: HandOffContent = {
             de: "Beim Darüberfahren bzw. Antippen erscheint «Die Strecke wurde geschätzt (kein Routing-Dienst): Zeiten, Entfernungen und Linie sind nur ungefähr.»",
             zh: "鼠标悬停或点击时会显示「配送线路是估算的（未使用路线服务）：时间、距离和线路都只是大致数值。」",
           },
-          label: "Die Strecke wurde geschätzt (kein Routing-Dienst): Zeiten, Entfernungen und Linie sind nur ungefähr.",
+          label:
+            "Die Strecke wurde geschätzt (kein Routing-Dienst): Zeiten, Entfernungen und Linie sind nur ungefähr.",
         },
       ],
       after: {
@@ -2582,8 +2626,8 @@ export const HAND_OFF: HandOffContent = {
       area: "system",
       title: { de: "Warum keine Tour erstellt werden kann", zh: "为什么无法生成配送线路" },
       summary: {
-        de: "Die drei häufigen Gründe: kein Depot-Pin, keine Stopps, zu viele Stopps.",
-        zh: "三个常见原因：没有仓库标记点、没有站点、站点太多。",
+        de: "Die drei häufigen Gründe: kein Depot-Standort, keine Stopps, zu viele Stopps.",
+        zh: "三个常见原因：没有仓库位置、没有站点、站点太多。",
       },
       path: {
         de: "Touren → «Tour erstellen» → Fehlermeldung",
@@ -2597,20 +2641,21 @@ export const HAND_OFF: HandOffContent = {
           "zu viele stopps",
           "tour erstellen fehler",
         ],
-        zh: ["无法生成", "仓库标记点", "没有站点", "站点太多"],
+        zh: ["无法生成", "仓库位置", "没有站点", "站点太多"],
       },
       steps: [
         {
           text: {
-            de: "Meldet die App «Der Depot-Pin ist noch nicht bestätigt», zuerst in den «Einstellungen» den Depot-Pin bestätigen.",
-            zh: "如果提示「仓库位置尚未确认」，请先在「设置」中确认仓库标记点。",
+            de: "Meldet die App «Der Depot-Standort ist noch nicht bestätigt», zuerst in den «Einstellungen» den Depot-Standort bestätigen.",
+            zh: "如果提示「仓库位置尚未确认」，请先在「设置」中确认仓库位置。",
           },
-          label: "Der Depot-Pin ist noch nicht bestätigt. Solange das so ist, können keine Touren erstellt werden.",
+          label:
+            "Der Depot-Standort ist noch nicht bestätigt. Solange das so ist, können keine Touren erstellt werden.",
         },
         {
           text: {
-            de: "Erscheint «Keine Stopps», gibt es keine bestätigten Bestellungen mit bestätigtem Kartenpunkt für diesen Tag.",
-            zh: "如果出现「没有站点」，说明该日期没有已确认订单且定位点已确认的客户。",
+            de: "Erscheint «Keine Stopps», gibt es keine bestätigten Bestellungen mit bestätigtem Adresspunkt für diesen Tag.",
+            zh: "如果出现「没有站点」，说明该日期没有已确认订单且地址点已确认的客户。",
           },
           label: "Keine Stopps",
         },
@@ -2623,8 +2668,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Ein unbestätigter Kunden-Pin ist der häufigste Grund, warum eine Bestellung in keiner Tour landet.",
-        zh: "客户标记点未确认，是订单无法进入线路的最常见原因。",
+        de: "Ein unbestätigter Adresspunkt ist der häufigste Grund, warum eine Bestellung in keiner Tour landet.",
+        zh: "客户地址点未确认，是订单无法进入线路的最常见原因。",
       },
       route: "/de/admin/tours",
     },
@@ -2633,12 +2678,12 @@ export const HAND_OFF: HandOffContent = {
       area: "system",
       title: { de: "Warum ein Kunde nicht in der Tour ist", zh: "为什么客户不在线路中" },
       summary: {
-        de: "Bestätigte Bestellung, aber der Kunde fehlt in der Tour — meistens wegen des Kartenpunkts.",
-        zh: "订单已确认但客户不在线路中——通常是地图标记的问题。",
+        de: "Bestätigte Bestellung, aber der Kunde fehlt in der Tour — meistens wegen des Adresspunkts.",
+        zh: "订单已确认但客户不在线路中——通常是地址点的问题。",
       },
       path: {
-        de: "Touren → Hinweis «Nicht in der Tour: Kartenpunkt nicht bestätigt»",
-        zh: "配送线路 → 提示「未纳入配送线路：地图定位点未确认」",
+        de: "Touren → Hinweis «Nicht in der Tour: Adresspunkt nicht bestätigt»",
+        zh: "配送线路 → 提示「未纳入配送线路：地址点未确认」",
       },
       search: {
         de: [
@@ -2647,15 +2692,15 @@ export const HAND_OFF: HandOffContent = {
           "nicht in der tour",
           "warnung tour",
         ],
-        zh: ["客户不在线路中", "位置未确认", "未纳入配送线路"],
+        zh: ["客户不在线路中", "地址点未确认", "未纳入配送线路"],
       },
       steps: [
         {
           text: {
-            de: "In der Tour den Abschnitt «Nicht in der Tour: Kartenpunkt nicht bestätigt» lesen.",
-            zh: "在线路页面查看「未纳入配送线路：地图定位点未确认」部分。",
+            de: "In der Tour den Abschnitt «Nicht in der Tour: Adresspunkt nicht bestätigt» lesen.",
+            zh: "在线路页面查看「未纳入配送线路：地址点未确认」部分。",
           },
-          label: "Nicht in der Tour: Kartenpunkt nicht bestätigt",
+          label: "Nicht in der Tour: Adresspunkt nicht bestätigt",
         },
         {
           text: {
@@ -2666,10 +2711,10 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Dort den Pin prüfen, mit «Pin geprüft: Der Pin liegt an der richtigen Stelle der Lieferadresse.» bestätigen und speichern.",
-            zh: "在那里检查标记，勾选「已核对：标记位于送货地址的正确位置。」并保存。",
+            de: "Dort den Adresspunkt prüfen, mit «Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.» bestätigen und speichern.",
+            zh: "在那里检查地址点，勾选「已核对：地址点位于送货地址的正确位置。」并保存。",
           },
-          label: "Pin geprüft: Der Pin liegt an der richtigen Stelle der Lieferadresse.",
+          label: "Adresspunkt geprüft: Er liegt an der richtigen Stelle der Lieferadresse.",
         },
         {
           text: {
@@ -2680,8 +2725,8 @@ export const HAND_OFF: HandOffContent = {
         },
       ],
       after: {
-        de: "Erst mit bestätigtem Kartenpunkt nimmt die Tour den Kunden auf.",
-        zh: "只有标记点已确认，线路才会纳入该客户。",
+        de: "Erst mit bestätigtem Adresspunkt nimmt die Tour den Kunden auf.",
+        zh: "只有地址点已确认，线路才会纳入该客户。",
       },
       route: "/de/admin/tours",
     },
@@ -2704,8 +2749,8 @@ export const HAND_OFF: HandOffContent = {
       steps: [
         {
           text: {
-            de: "Im Browser «/api/health» öffnen; die Antwort enthält «\"status\":\"ok\"», wenn Datenbank und Speicher laufen.",
-            zh: "在浏览器中打开「/api/health」；如果数据库和存储正常，返回内容会包含「\"status\":\"ok\"」。",
+            de: 'Im Browser «/api/health» öffnen; die Antwort enthält «"status":"ok"», wenn Datenbank und Speicher laufen.',
+            zh: '在浏览器中打开「/api/health」；如果数据库和存储正常，返回内容会包含「"status":"ok"」。',
           },
           label: "status",
         },
@@ -2939,13 +2984,7 @@ export const HAND_OFF: HandOffContent = {
         zh: "帮助 →「术语表」",
       },
       search: {
-        de: [
-          "glossar",
-          "begriffe",
-          "wörterbuch",
-          "übersetzung begriffe",
-          "ladeliste begriffe",
-        ],
+        de: ["glossar", "begriffe", "wörterbuch", "übersetzung begriffe", "ladeliste begriffe"],
         zh: ["术语表", "词汇", "对照表", "翻译", "德语词汇"],
       },
       steps: [
@@ -2981,7 +3020,7 @@ export const HAND_OFF: HandOffContent = {
     { de: "Fahrer", zh: "司机" },
     { de: "Übersicht", zh: "总览" },
     { de: "Bestellungen", zh: "订单" },
-    { de: "Bestellposition", zh: "订单明细" },
+    { de: "Produkt (in einer Bestellung)", zh: "订单中的产品" },
     { de: "Touren (Büro)", zh: "配送线路" },
     { de: "Tour (Fahrer)", zh: "行程" },
     { de: "Stopp", zh: "站点" },
@@ -2997,8 +3036,8 @@ export const HAND_OFF: HandOffContent = {
     { de: "Artikelnummer (SKU)", zh: "货号（SKU）" },
     { de: "Einheit", zh: "单位" },
     { de: "kg", zh: "公斤" },
-    { de: "Packung", zh: "包" },
-    { de: "Kiste", zh: "箱" },
+    { de: "Beutel", zh: "袋" },
+    { de: "Karton", zh: "纸箱" },
     { de: "Stück", zh: "件" },
     { de: "Menge", zh: "数量" },
     { de: "Lieferdatum", zh: "送货日期" },
@@ -3018,8 +3057,8 @@ export const HAND_OFF: HandOffContent = {
     { de: "Foto", zh: "照片" },
     { de: "Synchronisierung", zh: "同步" },
     { de: "Offline", zh: "离线" },
-    { de: "Kartenpunkt (Pin)", zh: "地图标记" },
-    { de: "Pin bestätigen", zh: "确认地图标记" },
+    { de: "Adresspunkt", zh: "地址点" },
+    { de: "Adresspunkt bestätigen", zh: "确认地址点" },
     { de: "Adresse suchen", zh: "查找地址" },
     { de: "Depot / Fabrik", zh: "仓库（工厂）" },
     { de: "Einstellungen", zh: "设置" },

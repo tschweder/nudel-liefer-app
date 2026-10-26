@@ -2,11 +2,19 @@
 
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useSyncExternalStore, useTransition } from "react";
 
 import { otherTheme, type Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { setThemeAction } from "@/server/theme-actions";
+
+/** The `dark` class on `<html>` is the source of truth (see the component comment). */
+function subscribeToThemeClass(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => observer.disconnect();
+}
+const isDarkNow = () => document.documentElement.classList.contains("dark");
 
 type Variant = "icon" | "row" | "labeled";
 
@@ -18,6 +26,10 @@ type Variant = "icon" | "row" | "labeled";
  * inline script (the production CSP forbids inline scripts). Clicking flips the class immediately and
  * then persists the choice through a server action, so the next page load is already correct - the
  * class is the source of truth for what is on screen right now.
+ *
+ * The button shows the **action**, not the current state (F19): in day mode a moon and "Nachtmodus",
+ * in night mode a sun and "Tagmodus". The icon-only variant carries the same text as `aria-label`
+ * and tooltip.
  *
  * `icon`: admin header (40 px). `row`: driver overflow sheet (48 px, the driver touch floor).
  * `labeled`: login screens, where the theme should be reachable before signing in.
@@ -31,6 +43,22 @@ export function ThemeToggle({
 }) {
   const t = useTranslations("common.theme");
   const [pending, startTransition] = useTransition();
+  // Only the accessible name and the tooltip need the state in JS; icon and visible text follow the
+  // `dark` class through CSS, so the first paint is right without a hydration mismatch.
+  const dark = useSyncExternalStore(subscribeToThemeClass, isDarkNow, () => false);
+  const actionLabel = dark ? t("toggleToDay") : t("toggleToNight");
+
+  /** Visible text: the mode the click switches to. */
+  const actionText = (
+    <>
+      <span className="dark:hidden" data-testid="theme-action-night">
+        {t("night")}
+      </span>
+      <span className="hidden dark:inline" data-testid="theme-action-day">
+        {t("day")}
+      </span>
+    </>
+  );
 
   const toggle = () => {
     const current: Theme = document.documentElement.classList.contains("dark") ? "dark" : "light";
@@ -61,11 +89,7 @@ export function ThemeToggle({
         )}
       >
         {icons}
-        <span className="flex-1 text-start">{t("label")}</span>
-        <span className="text-sm text-muted-foreground">
-          <span className="dark:hidden">{t("light")}</span>
-          <span className="hidden dark:inline">{t("dark")}</span>
-        </span>
+        <span className="flex-1 text-start">{actionText}</span>
       </button>
     );
   }
@@ -83,10 +107,7 @@ export function ThemeToggle({
         )}
       >
         {icons}
-        <span>
-          <span className="dark:hidden">{t("day")}</span>
-          <span className="hidden dark:inline">{t("night")}</span>
-        </span>
+        <span>{actionText}</span>
       </button>
     );
   }
@@ -97,8 +118,8 @@ export function ThemeToggle({
       onClick={toggle}
       disabled={pending}
       data-testid="theme-toggle"
-      aria-label={t("toggle")}
-      title={t("toggle")}
+      aria-label={actionLabel}
+      title={actionLabel}
       className={cn(
         "inline-flex size-10 items-center justify-center rounded-md hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
         className,
