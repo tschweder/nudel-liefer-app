@@ -62,7 +62,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await db?.$disconnect();
       await admin?.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`).catch(() => {});
       await admin?.end();
-    });
+    }, 120_000); // same budget as beforeAll: DROP ... WITH (FORCE) can be slow while Postgres is under load
 
     const login = (identifier: string, secret: string) =>
       authenticate({ db, kind: "admin", identifier, secret, ip: null });
