@@ -296,7 +296,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-139 | Wording: Produkte, Parkplatz/Lieferadresse, day/night toggle | M2.6 | – | done |
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | done |
 | NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | done |
-| NUD-142 | Customer key number (office + driver) | M2.6 | 139 | todo |
+| NUD-142 | Customer key number (office + driver) | M2.6 | 139 | done |
 | NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | todo |
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | todo |
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
@@ -2366,7 +2366,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-142 · Customer key number (office + driver)
-**Status:** todo · **depends_on:** 139 · F4, F22 · D27
+**Status:** done · **depends_on:** 139 · F4, F22 · D27
 
 **Scope**
 - Prisma: `Customer.hasKey Boolean?` (null = unknown) and `Customer.keyNumber String?` (max 20), `keyUpdatedById`, `keyUpdatedAt`; migration; audit entries for every change (before/after).
@@ -2375,9 +2375,17 @@ General rules for every ticket in this block:
 - Include `hasKey`/`keyNumber` in the cached driver tour payload (NUD-081).
 
 **Acceptance criteria**
-- [ ] Driver sets a missing key number → office sees it with driver name/date; audit entry has the diff.
-- [ ] Driver corrects an existing number → old value visible in the history.
-- [ ] Key chip readable at 375 px; touch target ≥ 48 px; works offline (queued).
+- [x] Driver sets a missing key number → office sees it with driver name/date; audit entry has the diff. (e2e driver-key.spec + integration test customer-key.integration.test.ts: office detail shows "Geändert von <Fahrer>, <Datum>"; audit customer.key holds hasKey/keyNumber from->to.)
+- [x] Driver corrects an existing number → old value visible in the history. (Key history list on customer detail (audit customer.key) shows old and new values; covered in integration + e2e.)
+- [x] Key chip readable at 375 px; touch target ≥ 48 px; works offline (queued). (Chip >= 48x48 px asserted in e2e (375 px); entry goes through the outbox (sync entry type key) and is queued offline, applied on reconnect.)
+
+**Implementation notes**
+- Schema: Customer.hasKey/keyNumber/keyUpdatedById/keyUpdatedAt, StopMutationKind.KEY; migration 20261027090000_customer_key.
+- Server: src/server/customer-key.ts (setCustomerKey office path, applyDriverKey sync path; row lock + audit in one transaction; idempotent via StopMutation KEY). Audit action customer.key with via office|driver and clientCreatedAt.
+- Driver: KeyChip/KeySheet (src/components/driver/customer-key.tsx) on next-stop card and stop detail (interactive), display-only on stop-list rows (rows are links). Tour payload carries hasKey/keyNumber (defaults keep old caches valid); sync response patches the stored tour; optimistic overlay shows queued entries.
+- Office: Schlüssel section in the customer form (sent only if edited, so stale pages never overwrite a driver entry) and detail card with history.
+- i18n: driver.key.* in de/en/zh-Hans/sr-Latn/cs; admin keys in de/en/zh-Hans. Docs updated (offline, customers-and-imports, privacy, data-model).
+- Tests: unit, component (35), integration (10), e2e driver-key.spec. Offline e2e specs (outbox/photo) showed occasional timing flakes in long sequences, also on the NUD-141 baseline; clean on rerun.
 
 ---
 
@@ -2928,6 +2936,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-26 | NUD-140 | Driver problem notes (`Stop.problemNote`) are translated into German only (`PendingSource.targets = ["de"]`). `Product.name` becomes a pending source so a failed save-time translation is retried. | The office reads problem notes in German; translating them into four languages wastes quota. Product names are machine-filled for en/sr-Latn/cs on save when flagged auto or empty. |
 | 2026-10-26 | NUD-125 | Parking spot = optional label (80) + optional note (500) + required lat/lng; max 10 active per customer; order by `sortOrder`, first active = default; reorder via up/down buttons; "remove" sets `active=false`, no restore UI | Simplest option consistent with D22/D27: the first spot is the routing point (NUD-141), free text is listed in docs/privacy.md and kept out of the audit log |
 | 2026-10-26 | NUD-141 | Parkplatz queue at /admin/customers/parking saves through the existing audited createParkingSpotAction; geocoding on save is best effort and never blocks; pinConfirmed stays unused without migration; demo customers have no ParkingSpot so they show the flag | Simplest option consistent with D22: reuses the NUD-125 action and audit, no destructive migration, a geocoder outage must not block saving a customer |
+| 2026-10-27 | NUD-142 | Driver sheet requires a number for "Ja"; office may leave it blank. Chip: number, "?" unknown, "–" none, "✓" present without number. | Simplest display consistent with D27; drivers need the number, office may only know that a key exists. |
+| 2026-10-27 | NUD-142 | Key entries reuse /api/driver/sync (type key) and StopMutation kind KEY; no conflict rule, last write by sync order wins. | D27: driver field knowledge wins; reuses existing idempotent outbox. |
+| 2026-10-27 | NUD-142 | Stop-list rows show a display-only key chip (rows are links); chip is interactive on next-stop card and stop detail. Office form sends key fields only when edited. | Avoids nested interactive elements (axe) and stale-page overwrites. |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

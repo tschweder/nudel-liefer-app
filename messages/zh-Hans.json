@@ -409,7 +409,16 @@
           "billingStreet": "发票地址：街道和门牌号",
           "billingPostalCode": "发票地址：邮编",
           "billingCity": "发票地址：城市"
-        }
+        },
+        "keyHeading": "钥匙",
+        "keyHint": "可选。工厂是否持有该店铺的钥匙？司机也可以在停靠点填写或更正。",
+        "hasKey": "有钥匙",
+        "hasKeyOptions": {
+          "unknown": "未知",
+          "yes": "是",
+          "no": "否"
+        },
+        "keyNumber": "钥匙编号"
       },
       "detail": {
         "number": "客户编号 {number}",
@@ -443,7 +452,27 @@
         "photoByDriver": "由司机 {name} 于 {date} 更新",
         "photoAddHint": "拍照或上传照片。",
         "billingAddress": "发票地址",
-        "billingSameAsDelivery": "与送货地址相同"
+        "billingSameAsDelivery": "与送货地址相同",
+        "key": {
+          "heading": "钥匙",
+          "current": "钥匙",
+          "changed": "最近更改",
+          "never": "尚未填写",
+          "changedBy": "由 {who} 更改，{date}",
+          "by": {
+            "ADMIN": "{name}（办公室）",
+            "DRIVER": "司机 {name}",
+            "unknown": "未知"
+          },
+          "history": "历史记录（{count}）",
+          "change": "{from} → {to}",
+          "states": {
+            "unknown": "未知",
+            "none": "没有钥匙",
+            "present": "有钥匙",
+            "number": "钥匙编号 {number}"
+          }
+        }
       },
       "translations": {
         "tabDetails": "详情",
@@ -1228,7 +1257,8 @@
         "parking_create": "已添加停车位",
         "parking_update": "已修改停车位",
         "parking_reorder": "已调整停车位顺序",
-        "parking_deactivate": "已移除停车位"
+        "parking_deactivate": "已移除停车位",
+        "customer_key": "钥匙已更改"
       },
       "fields": {
         "status": "状态",
@@ -1507,13 +1537,33 @@
       "outboxSending": "{count} 条内容正在发送…",
       "preparingShort": "保存中",
       "errorShort": "错误",
-      "pendingShort": "{count}"
+      "pendingShort": "{count}",
+      "mutationKey": "钥匙"
     },
     "unitsTotal": {
       "KG": "公斤",
       "PACK": "袋",
       "CRATE": "纸箱",
       "PIECE": "件"
+    },
+    "key": {
+      "chip": {
+        "unknown": "钥匙情况未知",
+        "none": "没有钥匙",
+        "present": "有钥匙",
+        "number": "钥匙编号 {number}"
+      },
+      "title": "有钥匙吗？",
+      "description": "{name} · 立即保存。",
+      "yes": "是",
+      "no": "否",
+      "numberLabel": "编号",
+      "save": "保存",
+      "cancel": "取消",
+      "saved": "钥匙已保存：{name}",
+      "errors": {
+        "storage": "操作未成功，请重试。"
+      }
     }
   },
   "pwa": {

@@ -58,6 +58,9 @@ export type NewMutation = {
   stopId: string;
   reason?: string;
   note?: string;
+  /** Type "key" only (NUD-142). */
+  hasKey?: boolean;
+  keyNumber?: string;
   customerName: string;
 };
 
@@ -154,12 +157,20 @@ export function createOutboxController(deps: OutboxControllerDeps) {
     return serial(async () => {
       const queued = sortEntries((await deps.store.entries()).filter((e) => e.userId === userId));
       // A second tap on the same thing (double tap) is the same intent: keep the first entry.
-      const last = queued.filter((e) => e.stopId === mutation.stopId).at(-1);
+      // Key entries are compared with the newest key entry (they are not stop completions).
+      const last = queued
+        .filter(
+          (e) => e.stopId === mutation.stopId && (e.type === "key") === (mutation.type === "key"),
+        )
+        .at(-1);
       if (
         last &&
         last.type === mutation.type &&
         mutation.type !== "undo" &&
-        !state.inFlight.has(last.clientMutationId)
+        !state.inFlight.has(last.clientMutationId) &&
+        (mutation.type !== "key" ||
+          (last.hasKey === mutation.hasKey &&
+            (last.keyNumber ?? "") === (mutation.keyNumber ?? "")))
       ) {
         return last;
       }
@@ -170,6 +181,10 @@ export function createOutboxController(deps: OutboxControllerDeps) {
         stopId: mutation.stopId,
         ...(mutation.reason ? { reason: mutation.reason } : {}),
         ...(mutation.note ? { note: mutation.note } : {}),
+        ...(mutation.type === "key" && mutation.hasKey !== undefined
+          ? { hasKey: mutation.hasKey }
+          : {}),
+        ...(mutation.type === "key" && mutation.keyNumber ? { keyNumber: mutation.keyNumber } : {}),
         createdAt: deps.now().toISOString(),
         seq: nextSeq(queued),
         customerName: mutation.customerName,

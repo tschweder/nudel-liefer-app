@@ -389,13 +389,33 @@
       "outboxSending": "{count, plural, one {Odesílá se # zápis …} few {Odesílají se # zápisy …} many {Odesílá se # zápisu …} other {Odesílá se # zápisů …}}",
       "preparingShort": "Ukládá se",
       "errorShort": "Chyba",
-      "pendingShort": "{count}"
+      "pendingShort": "{count}",
+      "mutationKey": "klíč"
     },
     "unitsTotal": {
       "KG": "kg",
       "PACK": "Sáčků",
       "CRATE": "Kartonů",
       "PIECE": "Kusů"
+    },
+    "key": {
+      "chip": {
+        "unknown": "Klíč neznámý",
+        "none": "Žádný klíč",
+        "present": "Klíč je k dispozici",
+        "number": "Klíč č. {number}"
+      },
+      "title": "Je k dispozici klíč?",
+      "description": "{name} · Uloží se okamžitě.",
+      "yes": "Ano",
+      "no": "Ne",
+      "numberLabel": "Číslo",
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "saved": "Klíč uložen: {name}",
+      "errors": {
+        "storage": "Nepodařilo se. Zkuste to znovu."
+      }
     }
   },
   "pwa": {

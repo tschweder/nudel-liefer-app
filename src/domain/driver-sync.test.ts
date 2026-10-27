@@ -52,6 +52,38 @@ describe("parseSyncResponse", () => {
     expect(parseSyncResponse(good)).toEqual(good);
   });
 
+  it("carries the customer's key per stop when the server sends it (NUD-142)", () => {
+    const withKey = {
+      ...good,
+      tours: [
+        {
+          ...good.tours[0]!,
+          stops: [{ ...good.tours[0]!.stops[0]!, hasKey: true, keyNumber: "17" }],
+        },
+      ],
+    };
+    expect(parseSyncResponse(withKey)).toEqual(withKey);
+    const unknown = {
+      ...good,
+      tours: [
+        {
+          ...good.tours[0]!,
+          stops: [{ ...good.tours[0]!.stops[0]!, hasKey: null, keyNumber: null }],
+        },
+      ],
+    };
+    expect(parseSyncResponse(unknown)).toEqual(unknown);
+  });
+
+  it("rejects a key that is not a boolean / string", () => {
+    const bad = (extra: object) => ({
+      ...good,
+      tours: [{ ...good.tours[0]!, stops: [{ ...good.tours[0]!.stops[0]!, ...extra }] }],
+    });
+    expect(parseSyncResponse(bad({ hasKey: "yes" }))).toBeNull();
+    expect(parseSyncResponse(bad({ keyNumber: 17 }))).toBeNull();
+  });
+
   it.each([
     ["not an object", "x"],
     ["no results", { tours: [] }],

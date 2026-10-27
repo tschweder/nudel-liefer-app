@@ -21,19 +21,19 @@ The provider is `postgresql`; the generated client is emitted to
 
 ### Enums
 
-| Enum               | Values                                                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `Role`             | `ADMIN`, `DRIVER`                                                                                                           |
-| `Locale`           | `de`, `en`, `sr_Latn` (`@map("sr-Latn")`), `cs`, `zh_Hans` (`@map("zh-Hans")`) — BCP-47 tags |
-| `Unit`             | `KG`, `PACK`, `CRATE`, `PIECE`                                                                                              |
-| `PhotoKind`        | `STORE`, `PARKING`                                                                                                          |
-| `OrderSource`      | `MANUAL`, `SCREENSHOT`                                                                                                      |
-| `OrderStatus`      | `DRAFT`, `CONFIRMED`, `CANCELLED`                                                                                           |
-| `TourStatus`       | `DRAFT`, `OPTIMIZED`, `RELEASED`, `IN_PROGRESS`, `COMPLETED`                                                                |
-| `StopChange`       | `ADDED`, `CHANGED`                                                                                                          |
-| `StopStatus`       | `PENDING`, `DELIVERED`, `PROBLEM`                                                                                           |
-| `ProblemReason`    | `CLOSED`, `NOBODY_THERE`, `NO_PARKING`, `WRONG_QUANTITY`, `REFUSED`, `ADDRESS_NOT_FOUND`, `OTHER`                           |
-| `StopMutationKind` | `COMPLETE`, `UNDO`                                                                                                          |
+| Enum               | Values                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| `Role`             | `ADMIN`, `DRIVER`                                                                                 |
+| `Locale`           | `de`, `en`, `sr_Latn` (`@map("sr-Latn")`), `cs`, `zh_Hans` (`@map("zh-Hans")`) — BCP-47 tags      |
+| `Unit`             | `KG`, `PACK`, `CRATE`, `PIECE`                                                                    |
+| `PhotoKind`        | `STORE`, `PARKING`                                                                                |
+| `OrderSource`      | `MANUAL`, `SCREENSHOT`                                                                            |
+| `OrderStatus`      | `DRAFT`, `CONFIRMED`, `CANCELLED`                                                                 |
+| `TourStatus`       | `DRAFT`, `OPTIMIZED`, `RELEASED`, `IN_PROGRESS`, `COMPLETED`                                      |
+| `StopChange`       | `ADDED`, `CHANGED`                                                                                |
+| `StopStatus`       | `PENDING`, `DELIVERED`, `PROBLEM`                                                                 |
+| `ProblemReason`    | `CLOSED`, `NOBODY_THERE`, `NO_PARKING`, `WRONG_QUANTITY`, `REFUSED`, `ADDRESS_NOT_FOUND`, `OTHER` |
+| `StopMutationKind` | `COMPLETE`, `UNDO`, `KEY`                                                                         |
 
 ### Models
 
@@ -44,7 +44,7 @@ The provider is `postgresql`; the generated client is emitted to
 - **`Settings`** — a singleton row (`id = 1`) holding depot name/address/coordinates,
   `depotPinConfirmed` (tour building requires it), `timezone`, `departureTime`,
   `serviceMinutesPerStop` and `deliveryWeekdays`.
-- **`Customer`** — addresses with `customerNumber` (unique), coordinates (the address point; `pinConfirmed` is unused since NUD-141), and
+- **`Customer`** — addresses with `customerNumber` (unique), coordinates (the address point; `pinConfirmed` is unused since NUD-141), the optional key (`hasKey`, `keyNumber`, `keyUpdatedById`, `keyUpdatedAt`; NUD-142), and
   `notes`/`deliveryHoursInfo`. Office-only master data (NUD-136): `companyName` ("Firma"), `vatId`
   ("UID") and `billingStreet`/`billingPostalCode`/`billingCity`, set only when the billing address
   differs; `street`/`postalCode`/`city` are always the **delivery** address (geocoded, routed, shown
@@ -81,7 +81,7 @@ The provider is `postgresql`; the generated client is emitted to
   `customerId` is `Restrict`.
 - **`StopMutation`** — one row per accepted driver stop-status mutation (NUD-053), keyed by the
   client-generated `id`: replaying the same id returns the stored `result` without a second state
-  change. `kind` is `COMPLETE` or `UNDO`. Cascades with its stop.
+  change. `kind` is `COMPLETE` or `UNDO` (`KEY` for a driver's customer-key entry, NUD-142). Cascades with its stop.
 - **`StopOrder`** — the many-to-many link between stops and orders (composite PK). Stops cascade;
   orders restrict.
 - **`LoginAttempt`** — failed logins for rate limiting (NUD-004), keyed

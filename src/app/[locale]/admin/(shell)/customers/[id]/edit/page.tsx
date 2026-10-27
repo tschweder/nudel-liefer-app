@@ -82,6 +82,10 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
             billingPostalCode: customer.billingPostalCode ?? "",
             billingCity: customer.billingCity ?? "",
           },
+          key: {
+            hasKey: customer.hasKey === null ? "unknown" : customer.hasKey ? "yes" : "no",
+            keyNumber: customer.keyNumber ?? "",
+          },
         }}
       />
     </div>

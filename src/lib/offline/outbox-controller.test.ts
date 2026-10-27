@@ -336,3 +336,88 @@ describe("start", () => {
     expect([...store.entryRows.keys()]).toEqual(["other"]);
   });
 });
+
+describe("customer key entries (NUD-142)", () => {
+  const keyTap = (stopId: string, hasKey: boolean, keyNumber?: string) => ({
+    type: "key" as const,
+    stopId,
+    hasKey,
+    ...(keyNumber ? { keyNumber } : {}),
+    customerName: `Customer ${stopId}`,
+  });
+
+  it("queues the key with its fields and sends it in the batch", async () => {
+    const { controller, requests } = setup((entries) =>
+      json({
+        results: entries.map((e) => ({ clientMutationId: e.clientMutationId, outcome: "applied" })),
+        tours: [
+          {
+            tourId: "t1",
+            status: "RELEASED",
+            stops: [
+              {
+                id: "s1",
+                status: "PENDING",
+                problemReason: null,
+                completedAt: null,
+                hasKey: true,
+                keyNumber: "17",
+              },
+            ],
+          },
+        ],
+        serverTime: "2099-07-02T10:00:00.000Z",
+      } satisfies SyncResponse),
+    );
+    await controller.start("u1");
+    const queued = await controller.enqueue(keyTap("s1", true, "17"));
+    expect(queued).toMatchObject({ type: "key", hasKey: true, keyNumber: "17" });
+    const outcome = await controller.flush();
+    expect(outcome).toMatchObject({ kind: "ran", applied: 1, rejected: 0, failure: null });
+    expect(requests[0]).toEqual([
+      expect.objectContaining({ type: "key", stopId: "s1", hasKey: true, keyNumber: "17" }),
+    ]);
+    expect(controller.getState().confirmed.s1).toMatchObject({ hasKey: true, keyNumber: "17" });
+    expect(controller.getState().entries).toEqual([]);
+  });
+
+  it("keeps one entry for a double tap with the same value but queues a different value", async () => {
+    const { controller, store } = setup();
+    await controller.start("u1");
+    const a = await controller.enqueue(keyTap("s1", true, "17"));
+    const b = await controller.enqueue(keyTap("s1", true, "17"));
+    expect(b.clientMutationId).toBe(a.clientMutationId);
+    await controller.enqueue(keyTap("s1", true, "71"));
+    expect(store.entryRows.size).toBe(2);
+  });
+
+  it("a key entry does not break the double-tap rule of the delivery taps", async () => {
+    const { controller, store } = setup();
+    await controller.start("u1");
+    const first = await controller.enqueue(tap("s1"));
+    await controller.enqueue(keyTap("s1", true, "17"));
+    const again = await controller.enqueue(tap("s1"));
+    expect(again.clientMutationId).toBe(first.clientMutationId);
+    expect(store.entryRows.size).toBe(2);
+  });
+
+  it("turns a rejected key entry into a notice", async () => {
+    const { controller } = setup((entries) =>
+      json({
+        results: entries.map((e) => ({
+          clientMutationId: e.clientMutationId,
+          outcome: "rejected",
+          error: "not_found",
+        })),
+        tours: [],
+        serverTime: "2099-07-02T10:00:00.000Z",
+      } satisfies SyncResponse),
+    );
+    await controller.start("u1");
+    await controller.enqueue(keyTap("s1", false));
+    await controller.flush();
+    expect(controller.getState().notices).toMatchObject([
+      { type: "key", error: "not_found", stopId: "s1" },
+    ]);
+  });
+});

@@ -29,7 +29,8 @@ export function effectiveMutationTime(createdAt: Date, now: Date): Date {
   return new Date(Math.min(Math.max(time, now.getTime() - SYNC_MAX_AGE_MS), now.getTime()));
 }
 
-export type SyncMutationType = "delivered" | "problem" | "undo";
+/** `key`: the driver set or corrected the customer's key (NUD-142); the others change the stop status. */
+export type SyncMutationType = "delivered" | "problem" | "undo" | "key";
 
 /** One queued mutation as sent to the server. */
 export type SyncEntry = {
@@ -39,6 +40,9 @@ export type SyncEntry = {
   /** `ProblemReason` (type "problem" only). */
   reason?: string;
   note?: string;
+  /** Type "key" only: a key exists (`true`) or not (`false`); the number only goes with `true`. */
+  hasKey?: boolean;
+  keyNumber?: string;
   /** ISO time of the driver's tap on the device. */
   createdAt: string;
 };
@@ -66,6 +70,12 @@ export type SyncStopState = {
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   problemReason: string | null;
   completedAt: string | null;
+  /**
+   * The customer's key as the server holds it after the batch (NUD-142); absent in answers of
+   * older servers, which the client then ignores.
+   */
+  hasKey?: boolean | null;
+  keyNumber?: string | null;
 };
 
 /** The authoritative state of every stop of a tour the batch touched. */
@@ -123,7 +133,9 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         typeof s.status !== "string" ||
         !STATUSES.includes(s.status) ||
         !isNullableString(s.problemReason) ||
-        !isNullableString(s.completedAt)
+        !isNullableString(s.completedAt) ||
+        (s.hasKey !== undefined && s.hasKey !== null && typeof s.hasKey !== "boolean") ||
+        (s.keyNumber !== undefined && !isNullableString(s.keyNumber))
       ) {
         return null;
       }
@@ -132,6 +144,8 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         status: s.status as SyncStopState["status"],
         problemReason: s.problemReason,
         completedAt: s.completedAt,
+        ...(s.hasKey !== undefined ? { hasKey: s.hasKey as boolean | null } : {}),
+        ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber as string | null } : {}),
       });
     }
     tours.push({ tourId: t.tourId, status: t.status, stops });

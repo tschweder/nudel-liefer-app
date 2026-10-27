@@ -54,6 +54,8 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
         lng: null,
         notes: text,
         deliveryHoursInfo: null,
+        hasKey: null,
+        keyNumber: null,
         photos: { STORE: photo(id), PARKING: null },
         items: [],
       })),

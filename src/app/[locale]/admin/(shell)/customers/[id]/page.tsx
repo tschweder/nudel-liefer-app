@@ -7,6 +7,7 @@ import { LoadingSkeleton } from "@/components/shared/states";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
 import {
+  customerKeyHistoryQuery,
   customerPhotosQuery,
   getCustomerQuery,
   noteTranslationsQuery,
@@ -42,11 +43,12 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const [orders, photos, noteTranslations, parkingSpots] = await Promise.all([
+  const [orders, photos, noteTranslations, parkingSpots, keyHistory] = await Promise.all([
     upcomingOrdersQuery(id),
     customerPhotosQuery(id),
     noteTranslationsQuery(id),
     parkingSpotsQuery(id),
+    customerKeyHistoryQuery(id),
   ]);
   return (
     <CustomerDetailView
@@ -54,6 +56,7 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
       orders={orders}
       noteTranslations={noteTranslations}
       parkingSpots={parkingSpots}
+      keyHistory={keyHistory}
       tiles={getMapTileConfig()}
       photos={{
         STORE: photos.STORE && toSlot(photos.STORE),

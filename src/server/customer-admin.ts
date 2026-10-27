@@ -1,17 +1,19 @@
 import { z } from "zod";
 
 import { addressChanged, samePin, suggestNextCustomerNumber } from "@/domain/customer";
+import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import { calendarDayIn } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
 import { localizedTextSchema } from "@/lib/localized-text";
 
 import { geocodeAddress } from "./customer-geocode";
+import { setCustomerKey } from "./customer-key";
 import { notesJson, prepareNotes } from "./customer-notes";
 import { type Geocoder, MAX_ADDRESS_LENGTH } from "./geocoder";
 import type { Translator } from "./translator/types";
 
-type CustomerDb = Pick<PrismaClient, "customer" | "order" | "photo">;
+type CustomerDb = Pick<PrismaClient, "customer" | "order" | "photo" | "$transaction" | "auditLog">;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) =>
@@ -51,6 +53,13 @@ export const customerInputSchema = z
     billingStreet: optionalText(160),
     billingPostalCode: optionalText(16),
     billingCity: optionalText(100),
+    /**
+     * Customer key (NUD-142): `undefined` leaves the stored key alone (the form only sends it when
+     * the office changed it, so a driver's newer entry is not overwritten by an old page); `null` =
+     * unknown. The number only counts while `hasKey` is true. Written through `setCustomerKey`.
+     */
+    hasKey: z.boolean().nullable().optional(),
+    keyNumber: z.string().trim().max(KEY_NUMBER_MAX).optional(),
   })
   .refine((v) => (v.lat === null) === (v.lng === null), { message: "pin" })
   .refine((v) => `${v.street}, ${v.postalCode} ${v.city}`.length <= MAX_ADDRESS_LENGTH, {
@@ -91,7 +100,30 @@ export function notesText(notes: unknown): string {
  * geocoder that looks up the Adresspunkt when the address is new or changed (NUD-141; without one
  * the point is not looked up).
  */
-export type NotesOptions = { translator?: Translator; now?: Date; geocoder?: Geocoder };
+export type NotesOptions = {
+  translator?: Translator;
+  now?: Date;
+  geocoder?: Geocoder;
+  /** The office user saving the form; needed to record a key change (NUD-142). */
+  actorId?: string;
+};
+
+/** Writes the key fields of the form (audited), when the form carried them and the actor is known. */
+async function saveKey(
+  db: CustomerDb,
+  customerId: string,
+  v: z.output<typeof customerInputSchema>,
+  options: NotesOptions,
+): Promise<void> {
+  if (!options.actorId || v.hasKey === undefined) return;
+  await setCustomerKey(db, {
+    actorId: options.actorId,
+    customerId,
+    hasKey: v.hasKey,
+    keyNumber: v.keyNumber,
+    via: "office",
+  });
+}
 
 async function lookUpAddressPoint(
   geocoder: Geocoder | undefined,
@@ -141,6 +173,7 @@ export async function createCustomer(
       },
       select: { id: true },
     });
+    await saveKey(db, row.id, v, options);
     return { ok: true, id: row.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
@@ -191,6 +224,7 @@ export async function updateCustomer(
         notes: notesJson(await prepareNotes(stored.notes, v.notes, options)),
       },
     });
+    await saveKey(db, stored.id, v, options);
     return { ok: true, id: stored.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
@@ -237,6 +271,12 @@ export type CustomerDetail = {
   billingStreet: string | null;
   billingPostalCode: string | null;
   billingCity: string | null;
+  /** Customer key (NUD-142): `hasKey` null = unknown. */
+  hasKey: boolean | null;
+  keyNumber: string | null;
+  /** Who last changed the key and when (office or driver); `null` while it was never set. */
+  keyUpdatedBy: { name: string; role: "ADMIN" | "DRIVER" } | null;
+  keyUpdatedAt: Date | null;
   active: boolean;
   hasStorePhoto: boolean;
   hasParkingPhoto: boolean;
@@ -252,6 +292,7 @@ export async function getCustomerDetail(
     where: { id: id.data },
     include: {
       photos: { where: { isCurrent: true }, select: { kind: true } },
+      keyUpdatedBy: { select: { displayName: true, role: true } },
     },
   });
   if (!row) return null;
@@ -272,6 +313,12 @@ export async function getCustomerDetail(
     billingStreet: row.billingStreet,
     billingPostalCode: row.billingPostalCode,
     billingCity: row.billingCity,
+    hasKey: row.hasKey,
+    keyNumber: row.keyNumber,
+    keyUpdatedBy: row.keyUpdatedBy
+      ? { name: row.keyUpdatedBy.displayName, role: row.keyUpdatedBy.role }
+      : null,
+    keyUpdatedAt: row.keyUpdatedAt,
     active: row.active,
     hasStorePhoto: row.photos.some((p) => p.kind === "STORE"),
     hasParkingPhoto: row.photos.some((p) => p.kind === "PARKING"),

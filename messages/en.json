@@ -409,7 +409,16 @@
           "billingStreet": "Billing address: street and house number",
           "billingPostalCode": "Billing address: postal code",
           "billingCity": "Billing address: city"
-        }
+        },
+        "keyHeading": "Key",
+        "keyHint": "Optional. Does the factory hold a key to the shop? Drivers can also enter or correct this at the stop.",
+        "hasKey": "Key available",
+        "hasKeyOptions": {
+          "unknown": "Unknown",
+          "yes": "Yes",
+          "no": "No"
+        },
+        "keyNumber": "Key number"
       },
       "detail": {
         "number": "Customer number {number}",
@@ -443,7 +452,27 @@
         "photoByDriver": "Updated by driver {name} on {date}",
         "photoAddHint": "Take or upload a photo.",
         "billingAddress": "Billing address",
-        "billingSameAsDelivery": "same as delivery address"
+        "billingSameAsDelivery": "same as delivery address",
+        "key": {
+          "heading": "Key",
+          "current": "Key",
+          "changed": "Last changed",
+          "never": "Never entered",
+          "changedBy": "Changed by {who}, {date}",
+          "by": {
+            "ADMIN": "{name} (office)",
+            "DRIVER": "Driver {name}",
+            "unknown": "Unknown"
+          },
+          "history": "History ({count})",
+          "change": "{from} → {to}",
+          "states": {
+            "unknown": "Unknown",
+            "none": "No key",
+            "present": "Key available",
+            "number": "Key no. {number}"
+          }
+        }
       },
       "translations": {
         "tabDetails": "Details",
@@ -1228,7 +1257,8 @@
         "parking_create": "Parking spot added",
         "parking_update": "Parking spot changed",
         "parking_reorder": "Parking spots reordered",
-        "parking_deactivate": "Parking spot removed"
+        "parking_deactivate": "Parking spot removed",
+        "customer_key": "Key changed"
       },
       "fields": {
         "status": "Status",
@@ -1507,13 +1537,33 @@
       "outboxSending": "{count, plural, one {Sending # entry …} other {Sending # entries …}}",
       "preparingShort": "Saving",
       "errorShort": "Error",
-      "pendingShort": "{count}"
+      "pendingShort": "{count}",
+      "mutationKey": "key"
     },
     "unitsTotal": {
       "KG": "kg",
       "PACK": "Bag",
       "CRATE": "Carton",
       "PIECE": "Pieces"
+    },
+    "key": {
+      "chip": {
+        "unknown": "Key unknown",
+        "none": "No key",
+        "present": "Key available",
+        "number": "Key no. {number}"
+      },
+      "title": "Is there a key?",
+      "description": "{name} · Saved right away.",
+      "yes": "Yes",
+      "no": "No",
+      "numberLabel": "Number",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Key saved: {name}",
+      "errors": {
+        "storage": "That did not work. Please try again."
+      }
     }
   },
   "pwa": {

@@ -409,7 +409,16 @@
           "billingStreet": "Rechnungsadresse: Straße und Hausnummer",
           "billingPostalCode": "Rechnungsadresse: PLZ",
           "billingCity": "Rechnungsadresse: Ort"
-        }
+        },
+        "keyHeading": "Schlüssel",
+        "keyHint": "Optional. Hat die Fabrik einen Schlüssel zum Geschäft? Fahrer können das beim Stopp ebenfalls eintragen oder korrigieren.",
+        "hasKey": "Schlüssel vorhanden",
+        "hasKeyOptions": {
+          "unknown": "Unbekannt",
+          "yes": "Ja",
+          "no": "Nein"
+        },
+        "keyNumber": "Schlüsselnummer"
       },
       "detail": {
         "number": "Kundennummer {number}",
@@ -443,7 +452,27 @@
         "photoByDriver": "Aktualisiert von Fahrer {name} am {date}",
         "photoAddHint": "Foto aufnehmen oder hochladen.",
         "billingAddress": "Rechnungsadresse",
-        "billingSameAsDelivery": "wie Lieferadresse"
+        "billingSameAsDelivery": "wie Lieferadresse",
+        "key": {
+          "heading": "Schlüssel",
+          "current": "Schlüssel",
+          "changed": "Zuletzt geändert",
+          "never": "Noch nie eingetragen",
+          "changedBy": "Geändert von {who}, {date}",
+          "by": {
+            "ADMIN": "{name} (Büro)",
+            "DRIVER": "Fahrer {name}",
+            "unknown": "Unbekannt"
+          },
+          "history": "Verlauf ({count})",
+          "change": "{from} → {to}",
+          "states": {
+            "unknown": "Unbekannt",
+            "none": "Kein Schlüssel",
+            "present": "Schlüssel vorhanden",
+            "number": "Schlüssel Nr. {number}"
+          }
+        }
       },
       "translations": {
         "tabDetails": "Details",
@@ -1228,7 +1257,8 @@
         "parking_create": "Parkplatz hinzugefügt",
         "parking_update": "Parkplatz geändert",
         "parking_reorder": "Parkplätze neu geordnet",
-        "parking_deactivate": "Parkplatz entfernt"
+        "parking_deactivate": "Parkplatz entfernt",
+        "customer_key": "Schlüssel geändert"
       },
       "fields": {
         "status": "Status",
@@ -1507,13 +1537,33 @@
       "outboxSending": "{count, plural, one {# Eingabe wird gesendet …} other {# Eingaben werden gesendet …}}",
       "preparingShort": "Speichert",
       "errorShort": "Fehler",
-      "pendingShort": "{count}"
+      "pendingShort": "{count}",
+      "mutationKey": "Schlüssel"
     },
     "unitsTotal": {
       "KG": "kg",
       "PACK": "Beutel",
       "CRATE": "Karton",
       "PIECE": "Stück"
+    },
+    "key": {
+      "chip": {
+        "unknown": "Schlüssel unbekannt",
+        "none": "Kein Schlüssel",
+        "present": "Schlüssel vorhanden",
+        "number": "Schlüssel Nr. {number}"
+      },
+      "title": "Gibt es einen Schlüssel?",
+      "description": "{name} · Wird sofort gespeichert.",
+      "yes": "Ja",
+      "no": "Nein",
+      "numberLabel": "Nummer",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "saved": "Schlüssel gespeichert: {name}",
+      "errors": {
+        "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
+      }
     }
   },
   "pwa": {

@@ -1,5 +1,6 @@
 import { requireRole } from "./auth/guards";
 import { getCustomerDetail, listUpcomingOrders, nextCustomerNumber } from "./customer-admin";
+import { getCustomerKeyHistory } from "./customer-key";
 import { getNoteTranslations } from "./customer-notes";
 import { getCustomerPhotos } from "./customer-photos";
 import { countParkingQueue, listParkingQueue } from "./customer-pins";
@@ -64,4 +65,10 @@ export async function parkingQueueCountQuery() {
 export async function parkingSpotsQuery(id: unknown) {
   await requireRole("ADMIN");
   return listParkingSpots(getDb(), id);
+}
+
+/** Key changes of one customer, newest first, so a corrected number can still be read (admin only). */
+export async function customerKeyHistoryQuery(id: unknown) {
+  await requireRole("ADMIN");
+  return getCustomerKeyHistory(getDb(), id);
 }

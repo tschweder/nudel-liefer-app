@@ -22,7 +22,14 @@ function withOverlay<T extends StopLike>(
     ? stops.map((s) => {
         const c = confirmed[s.id];
         return c
-          ? { ...s, status: c.status, problemReason: c.problemReason, completedAt: c.completedAt }
+          ? {
+              ...s,
+              status: c.status,
+              problemReason: c.problemReason,
+              completedAt: c.completedAt,
+              ...(c.hasKey !== undefined ? { hasKey: c.hasKey } : {}),
+              ...(c.keyNumber !== undefined ? { keyNumber: c.keyNumber } : {}),
+            }
           : s;
       })
     : stops;

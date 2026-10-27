@@ -389,13 +389,33 @@
       "outboxSending": "{count, plural, one {Šalje se # unos …} few {Šalju se # unosa …} other {Šalje se # unosa …}}",
       "preparingShort": "Čuva se",
       "errorShort": "Greška",
-      "pendingShort": "{count}"
+      "pendingShort": "{count}",
+      "mutationKey": "ključ"
     },
     "unitsTotal": {
       "KG": "kg",
       "PACK": "Kesa",
       "CRATE": "Karton",
       "PIECE": "Komada"
+    },
+    "key": {
+      "chip": {
+        "unknown": "Ključ nepoznat",
+        "none": "Nema ključa",
+        "present": "Ključ postoji",
+        "number": "Ključ br. {number}"
+      },
+      "title": "Da li postoji ključ?",
+      "description": "{name} · Odmah se čuva.",
+      "yes": "Da",
+      "no": "Ne",
+      "numberLabel": "Broj",
+      "save": "Sačuvaj",
+      "cancel": "Otkaži",
+      "saved": "Ključ sačuvan: {name}",
+      "errors": {
+        "storage": "Nije uspelo. Pokušajte ponovo."
+      }
     }
   },
   "pwa": {

@@ -33,6 +33,7 @@ export const AUDIT_ACTIONS = [
   "parking.update",
   "parking.reorder",
   "parking.deactivate",
+  "customer.key",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

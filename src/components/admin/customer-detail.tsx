@@ -1,16 +1,18 @@
-import { ArchiveIcon, ImageOffIcon, MapPinOffIcon, PencilIcon } from "lucide-react";
+import { ArchiveIcon, ImageOffIcon, KeyRoundIcon, MapPinOffIcon, PencilIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type CustomerKey, keyDisplay } from "@/domain/customer-key";
 import { type PhotoKind, photosMissing as photosMissingFor } from "@/domain/photos";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { MapTileConfig } from "@/lib/map-config";
 import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
+import type { KeyHistoryEntry } from "@/server/customer-key";
 import type { NoteTranslationsView } from "@/server/customer-notes";
 import type { ParkingSpotView } from "@/server/parking-spots";
 
@@ -55,6 +57,7 @@ export function CustomerDetailView({
   photos,
   noteTranslations,
   parkingSpots,
+  keyHistory,
   tiles,
 }: {
   customer: CustomerDetail;
@@ -64,6 +67,8 @@ export function CustomerDetailView({
   noteTranslations: NoteTranslationsView | null;
   /** Active Parkplätze in display order (NUD-125). */
   parkingSpots: ParkingSpotView[];
+  /** Key changes, newest first (NUD-142). */
+  keyHistory: KeyHistoryEntry[];
   tiles: MapTileConfig;
 }) {
   const t = useTranslations("admin.customers");
@@ -75,6 +80,15 @@ export function CustomerDetailView({
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());
+  const tk = useTranslations("admin.customers.detail.key");
+  const keyText = (key: CustomerKey) => {
+    const display = keyDisplay(key);
+    return display.kind === "number"
+      ? tk("states.number", { number: display.number })
+      : tk(`states.${display.kind}`);
+  };
+  const actorText = (actor: { name: string; role: "ADMIN" | "DRIVER" } | null) =>
+    actor ? tk(`by.${actor.role}`, { name: actor.name }) : tk("by.unknown");
   const photosMissing = photosMissingFor(
     (Object.keys(photos) as PhotoKind[]).filter((kind) => photos[kind] !== null),
   );
@@ -186,6 +200,47 @@ export function CustomerDetailView({
                   )}
                 </Field>
               </dl>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <h2 id="d-key" className="flex items-center gap-2 text-lg font-semibold">
+                <KeyRoundIcon className="size-5" aria-hidden />
+                {tk("heading")}
+              </h2>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <dl className="grid gap-4 sm:grid-cols-2" aria-labelledby="d-key">
+                <Field label={tk("current")} testId="detail-key">
+                  {keyText(customer)}
+                </Field>
+                <Field label={tk("changed")} testId="detail-key-meta">
+                  {customer.keyUpdatedAt
+                    ? tk("changedBy", {
+                        who: actorText(customer.keyUpdatedBy),
+                        date: fmt.dateTime(customer.keyUpdatedAt),
+                      })
+                    : tk("never")}
+                </Field>
+              </dl>
+              {keyHistory.length > 0 ? (
+                <details data-testid="key-history">
+                  <summary className="cursor-pointer text-base font-medium">
+                    {tk("history", { count: keyHistory.length })}
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {keyHistory.map((entry) => (
+                      <li key={entry.id} className="text-base" data-testid="key-history-row">
+                        <span className="block text-sm text-muted-foreground">
+                          {fmt.dateTime(new Date(entry.at))} · {actorText(entry.actor)}
+                        </span>
+                        {tk("change", { from: keyText(entry.from), to: keyText(entry.to) })}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </CardContent>
           </Card>
 

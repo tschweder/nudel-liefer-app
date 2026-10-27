@@ -87,6 +87,8 @@ export async function getDriverTourResponse(
         parkingSpots: parkingSpotsForRouting,
         notes: true,
         deliveryHoursInfo: true,
+        hasKey: true,
+        keyNumber: true,
       },
     }),
     db.tour.findUnique({ where: { id: tour.id }, select: { depotSnapshot: true, geometry: true } }),
@@ -144,6 +146,8 @@ export async function getDriverTourResponse(
       lng: point?.lng ?? null,
       notes: notes.success ? notes.data : null,
       deliveryHoursInfo: customer?.deliveryHoursInfo?.trim() || null,
+      hasKey: customer?.hasKey ?? null,
+      keyNumber: customer?.keyNumber ?? null,
       photos: { STORE: photos?.STORE ?? null, PARKING: photos?.PARKING ?? null },
       items: stop.items.map((item) => {
         const name = localizedTextSchema.safeParse(item.name);

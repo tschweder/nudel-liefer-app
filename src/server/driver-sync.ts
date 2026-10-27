@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import {
   effectiveMutationTime,
   SYNC_MAX_BODY_BYTES,
@@ -14,6 +15,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 import { type Actor, authErrorStatus, requireRole } from "./auth/guards";
 import { rejectCrossOrigin } from "./csrf";
+import { applyDriverKey } from "./customer-key";
 import { getDb } from "./db";
 import { readTextLimited } from "./http-body";
 import { scheduleProblemNoteTranslation } from "./problem-note-translation";
@@ -40,6 +42,12 @@ export const syncRequestSchema = z.strictObject({
           note: z.string().max(PROBLEM_NOTE_MAX).optional(),
         }),
         z.strictObject({ type: z.literal("undo"), ...entryFields }),
+        z.strictObject({
+          type: z.literal("key"),
+          ...entryFields,
+          hasKey: z.boolean(),
+          keyNumber: z.string().max(KEY_NUMBER_MAX).optional(),
+        }),
       ]),
     )
     .min(1)
@@ -97,6 +105,24 @@ export async function applySyncBatch(
     delete mutation.createdAt; // `applyStopMutation` is strict: the time goes in as `now`
     let result: StopStatusResult;
     try {
+      if (entry.type === "key") {
+        // The customer's key is not part of the stop status: no tour progress, no translation.
+        const keyResult = await applyDriverKey(db, actor, mutation, at, { clientCreatedAt: at });
+        results.set(
+          entry.clientMutationId,
+          keyResult.ok
+            ? {
+                clientMutationId: entry.clientMutationId,
+                outcome: keyResult.replayed ? "replayed" : "applied",
+              }
+            : {
+                clientMutationId: entry.clientMutationId,
+                outcome: "rejected",
+                error: keyResult.error,
+              },
+        );
+        continue;
+      }
       result = await applyStopMutation(db, actor, mutation, at, { clientCreatedAt: at });
     } catch {
       failedStops.add(entry.stopId);
@@ -143,7 +169,13 @@ async function touchedTours(
       status: true,
       stops: {
         orderBy: { sequence: "asc" },
-        select: { id: true, status: true, problemReason: true, completedAt: true },
+        select: {
+          id: true,
+          status: true,
+          problemReason: true,
+          completedAt: true,
+          customer: { select: { hasKey: true, keyNumber: true } },
+        },
       },
     },
   });
@@ -155,6 +187,8 @@ async function touchedTours(
       status: s.status,
       problemReason: s.problemReason,
       completedAt: s.completedAt?.toISOString() ?? null,
+      hasKey: s.customer.hasKey,
+      keyNumber: s.customer.keyNumber,
     })),
   }));
 }

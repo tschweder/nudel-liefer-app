@@ -1,16 +1,17 @@
 ---
 covers:
-- src/server/customer*.ts
-- src/server/customers.ts
-- src/server/import-xlsx.ts
-- src/server/geocode-actions.ts
-- src/domain/customer*.ts
-- src/domain/import-file.ts
-- src/lib/customer-list-params.ts
+  - src/server/customer*.ts
+  - src/server/customers.ts
+  - src/server/import-xlsx.ts
+  - src/server/geocode-actions.ts
+  - src/domain/customer*.ts
+  - src/domain/import-file.ts
+  - src/lib/customer-list-params.ts
 stamp: dd72570c4a7975a6316241e8fb731c5fcaa3c12b1baa56978be18cc61f5ea038
 status: fresh
 stale_since: null
 ---
+
 # Customers and imports
 
 This module covers the customer master data: reading and writing customers, the
@@ -21,13 +22,13 @@ input.
 
 ## Files
 
-| Area | Files |
-| --- | --- |
+| Area                     | Files                                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Server actions & queries | `src/server/customer-actions.ts`, `customer-queries.ts`, `customer-admin.ts`, `customer-notes.ts`, `customer-photos.ts`, `customer-pins.ts`, `customers.ts` |
-| Import | `src/server/customer-import.ts`, `customer-import-actions.ts`, `customer-import-upload.ts`, `import-xlsx.ts` |
-| Geocoding | `src/server/geocode-actions.ts`, `customer-pins.ts` (geocoding half) |
-| Pure domain rules | `src/domain/customer.ts`, `customer-import.ts`, `import-file.ts` |
-| List URL parsing | `src/lib/customer-list-params.ts` |
+| Import                   | `src/server/customer-import.ts`, `customer-import-actions.ts`, `customer-import-upload.ts`, `import-xlsx.ts`                                                |
+| Geocoding                | `src/server/geocode-actions.ts`, `customer-pins.ts` (geocoding half)                                                                                        |
+| Pure domain rules        | `src/domain/customer.ts`, `customer-import.ts`, `import-file.ts`                                                                                            |
+| List URL parsing         | `src/lib/customer-list-params.ts`                                                                                                                           |
 
 ## Customer master data (`customer-admin.ts`, `customer-actions.ts`)
 
@@ -45,6 +46,7 @@ first and then delegates with `getDb()`.
   When the address is new or changed and the admin did not move the point, `createCustomer` /
   `updateCustomer` geocode it (best effort via `customer-geocode.ts`; a geocoder failure never
   blocks the save). Tours and navigation use the default Parkplatz (`routingPoint`).
+- Key (NUD-142): `Customer.hasKey` (`null` = unknown) and `keyNumber` (max 20 characters, only while `hasKey` is true) with `keyUpdatedById` / `keyUpdatedAt`. The customer form has a "Schlüssel" section; it sends the key only when the office changed it, so an old page never overwrites a driver's newer entry. Both the form and the drivers go through `setCustomerKey` / `applyDriverKey` (`customer-key.ts`): one transaction with the audit entry `customer.key` (`hasKey` / `keyNumber` from-to, `via` office / driver / sync). The detail page shows the current key, "Geändert von <name>, <date>" and the history (`getCustomerKeyHistory`), so a corrected number stays readable. The import does not touch the key.
 - Notes are stored as `LocalizedText` JSON (German source, Chinese translations);
   `prepareNotes` translates on save, see below.
 - Reads: `getCustomerDetail` (one customer plus whether a current STORE / PARKING

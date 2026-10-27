@@ -10,6 +10,7 @@ import { PinPickerMapLazy } from "@/components/maps/lazy";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import type { PhotoKind } from "@/domain/photos";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { LatLng } from "@/lib/coords";
@@ -33,7 +34,13 @@ export type CustomerFormValues = {
   notes: string;
   /** Office-only master data (NUD-136): legal entity, VAT id, billing address if different. */
   office: OfficeValues;
+  /** Customer key (NUD-142). */
+  key: KeyValues;
 };
+
+export type KeyValues = { hasKey: "unknown" | "yes" | "no"; keyNumber: string };
+
+export const EMPTY_KEY_VALUES: KeyValues = { hasKey: "unknown", keyNumber: "" };
 
 export type OfficeValues = {
   companyName: string;
@@ -72,6 +79,8 @@ type Props = {
 };
 
 const LOW_CONFIDENCE = 0.5;
+const selectClass =
+  "h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background";
 const textareaClass =
   "flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background aria-invalid:border-destructive";
 
@@ -119,6 +128,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
   const [hours, setHours] = useState(initial.deliveryHoursInfo);
   const [notes, setNotes] = useState(initial.notes);
   const [office, setOffice] = useState(initial.office);
+  const [keyValues, setKeyValues] = useState(initial.key);
   const [pin, setPin] = useState(initial.pin);
   const [search, setSearch] = useState<Search>({ state: "idle" });
   const [focus, setFocus] = useState<{ point: LatLng; nonce: number } | null>(null);
@@ -145,6 +155,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     hours: initial.deliveryHoursInfo,
     notes: initial.notes,
     office: initial.office,
+    key: initial.key,
     lat: initial.pin?.lat ?? null,
     lng: initial.pin?.lng ?? null,
   };
@@ -159,6 +170,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       hours,
       notes,
       office,
+      key: keyValues,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
     }) !== JSON.stringify(initialValues);
@@ -185,6 +197,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     setHours(initial.deliveryHoursInfo);
     setNotes(initial.notes);
     setOffice(initial.office);
+    setKeyValues(initial.key);
     setPin(initial.pin);
     setSearch({ state: "idle" });
     setFocus(null);
@@ -242,6 +255,14 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       deliveryHoursInfo: hours,
       notes,
       ...office,
+      // Only a key the office actually edited is sent: an older page must not overwrite a newer
+      // entry of a driver (NUD-142).
+      ...(JSON.stringify(keyValues) === JSON.stringify(initial.key)
+        ? {}
+        : {
+            hasKey: keyValues.hasKey === "unknown" ? null : keyValues.hasKey === "yes",
+            keyNumber: keyValues.hasKey === "yes" ? keyValues.keyNumber : "",
+          }),
     };
     startTransition(async () => {
       let result;
@@ -519,6 +540,42 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
             data-testid="customer-notes"
           />
         </FieldRow>
+      </section>
+
+      <section className="flex flex-col gap-6" aria-labelledby="cust-key">
+        <div className="flex flex-col gap-1">
+          <h2 id="cust-key" className="text-xl font-semibold">
+            {t("keyHeading")}
+          </h2>
+          <p className="max-w-prose text-sm text-muted-foreground">{t("keyHint")}</p>
+        </div>
+        <FieldRow id="cust-has-key" label={t("hasKey")}>
+          <select
+            id="cust-has-key"
+            className={selectClass}
+            value={keyValues.hasKey}
+            onChange={(e) =>
+              setKeyValues({ ...keyValues, hasKey: e.target.value as KeyValues["hasKey"] })
+            }
+            data-testid="customer-has-key"
+          >
+            <option value="unknown">{t("hasKeyOptions.unknown")}</option>
+            <option value="yes">{t("hasKeyOptions.yes")}</option>
+            <option value="no">{t("hasKeyOptions.no")}</option>
+          </select>
+        </FieldRow>
+        {keyValues.hasKey === "yes" ? (
+          <FieldRow id="cust-key-number" label={t("keyNumber")}>
+            <Input
+              id="cust-key-number"
+              className="max-w-xs"
+              value={keyValues.keyNumber}
+              maxLength={KEY_NUMBER_MAX}
+              onChange={(e) => setKeyValues({ ...keyValues, keyNumber: e.target.value })}
+              data-testid="customer-key-number"
+            />
+          </FieldRow>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-6" aria-labelledby="cust-office">

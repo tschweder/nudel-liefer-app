@@ -24,6 +24,9 @@ export type OutboxEntry = {
   /** `ProblemReason` (type "problem" only). */
   reason?: string;
   note?: string;
+  /** Type "key" only (NUD-142): a key exists / does not; the number only goes with `true`. */
+  hasKey?: boolean;
+  keyNumber?: string;
   /** ISO time of the tap on the device; the server treats this as the time of the action. */
   createdAt: string;
   /** Monotonic order within the queue, breaks ties between taps in the same millisecond. */
@@ -70,6 +73,8 @@ export function toSyncEntry(entry: OutboxEntry): SyncEntry {
     stopId: entry.stopId,
     ...(entry.type === "problem" && entry.reason ? { reason: entry.reason } : {}),
     ...(entry.type === "problem" && entry.note ? { note: entry.note } : {}),
+    ...(entry.type === "key" && entry.hasKey !== undefined ? { hasKey: entry.hasKey } : {}),
+    ...(entry.type === "key" && entry.keyNumber ? { keyNumber: entry.keyNumber } : {}),
     createdAt: entry.createdAt,
   };
 }
@@ -97,7 +102,8 @@ export function planUndo(
   stopId: string,
   inFlight: ReadonlySet<string>,
 ): UndoPlan {
-  const last = sortEntries(entries.filter((e) => e.stopId === stopId)).at(-1);
+  // A queued key entry is not a completion: it neither gets cancelled nor hides one.
+  const last = sortEntries(entries.filter((e) => e.stopId === stopId && e.type !== "key")).at(-1);
   if (!last) return { action: "enqueue" };
   if (last.type === "undo") return { action: "none" };
   if (inFlight.has(last.clientMutationId)) return { action: "enqueue" };
@@ -111,11 +117,17 @@ type StopLike = {
   completedAt: string | null;
 };
 
-/** The stop after the queued taps (in order) are applied to the state the server last told us. */
+/**
+ * The stop after the queued taps (in order) are applied to the state the server last told us. A
+ * queued key entry (NUD-142) shows the new key at once; it is independent of the stop status.
+ */
 export function overlayStop<T extends StopLike>(stop: T, entries: readonly OutboxEntry[]): T {
   let next = stop;
   for (const entry of sortEntries(entries.filter((e) => e.stopId === stop.id))) {
-    if (entry.type === "undo") {
+    if (entry.type === "key") {
+      const hasKey = entry.hasKey ?? null;
+      next = { ...next, hasKey, keyNumber: hasKey === true ? (entry.keyNumber ?? null) : null };
+    } else if (entry.type === "undo") {
       next = { ...next, status: "PENDING", problemReason: null, completedAt: null };
     } else if (next.status === "PENDING") {
       // The server would refuse a second completion; the screen mirrors that.
@@ -198,6 +210,8 @@ type PatchableTour = {
       status: StopStatus;
       problemReason: string | null;
       completedAt: string | null;
+      hasKey?: boolean | null;
+      keyNumber?: string | null;
     }>;
   };
 };
@@ -229,6 +243,8 @@ export function patchTourStates<T extends PatchableTour>(
               status: s.status,
               problemReason: s.problemReason,
               completedAt: s.completedAt,
+              ...(s.hasKey !== undefined ? { hasKey: s.hasKey } : {}),
+              ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber } : {}),
             }
           : stop;
       }),

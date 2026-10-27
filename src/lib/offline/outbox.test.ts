@@ -251,3 +251,80 @@ describe("backoff", () => {
     expect(mayAttempt(NO_BACKOFF, 0, false)).toBe(true);
   });
 });
+
+describe("customer key entries (NUD-142)", () => {
+  const key = (stopId: string, hasKey: boolean, keyNumber?: string) =>
+    entry({ type: "key", stopId, hasKey, ...(keyNumber ? { keyNumber } : {}) });
+
+  it("sends the key fields, and only for key entries", () => {
+    expect(toSyncEntry(key("s1", true, "17"))).toEqual({
+      clientMutationId: expect.any(String),
+      type: "key",
+      stopId: "s1",
+      hasKey: true,
+      keyNumber: "17",
+      createdAt: expect.any(String),
+    });
+    expect(toSyncEntry(key("s1", false))).not.toHaveProperty("keyNumber");
+    expect(
+      toSyncEntry(entry({ type: "delivered", stopId: "s1", hasKey: true })),
+    ).not.toHaveProperty("hasKey");
+  });
+
+  it("overlays the new key at once, independent of the stop status", () => {
+    const stop = { ...pending, hasKey: null as boolean | null, keyNumber: null as string | null };
+    const out = overlayStop(stop, [key("s1", true, "17")]);
+    expect(out).toMatchObject({ status: "PENDING", hasKey: true, keyNumber: "17" });
+    const closed = overlayStop(stop, [
+      entry({ type: "delivered", stopId: "s1" }),
+      key("s1", true, "17"),
+    ]);
+    expect(closed).toMatchObject({ status: "DELIVERED", hasKey: true, keyNumber: "17" });
+    // the newest key entry wins; "no key" drops the number
+    expect(overlayStop(stop, [key("s1", true, "17"), key("s1", false)])).toMatchObject({
+      hasKey: false,
+      keyNumber: null,
+    });
+  });
+
+  it("does not let an undo cancel a queued key entry or hide a queued completion", () => {
+    const done = entry({ type: "delivered", stopId: "s1" });
+    const k = key("s1", true, "17");
+    expect(planUndo([done, k], "s1", new Set())).toEqual({
+      action: "cancel",
+      clientMutationId: done.clientMutationId,
+    });
+    expect(planUndo([k], "s1", new Set())).toEqual({ action: "enqueue" });
+  });
+
+  it("writes the authoritative key into the stored tour", () => {
+    const data = {
+      tour: {
+        id: "t1",
+        status: "RELEASED",
+        stops: [
+          { id: "s1", status: "PENDING" as const, problemReason: null, completedAt: null },
+          { id: "s2", status: "PENDING" as const, problemReason: null, completedAt: null },
+        ],
+      },
+    };
+    const out = patchTourStates(data, [
+      {
+        tourId: "t1",
+        status: "RELEASED",
+        stops: [
+          {
+            id: "s1",
+            status: "PENDING",
+            problemReason: null,
+            completedAt: null,
+            hasKey: true,
+            keyNumber: "17",
+          },
+        ],
+      },
+    ]);
+    expect(out.tour!.stops[0]).toMatchObject({ hasKey: true, keyNumber: "17" });
+    expect(out.tour!.stops[1]).not.toHaveProperty("hasKey");
+  });
+});

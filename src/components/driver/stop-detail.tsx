@@ -33,6 +33,7 @@ import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
 import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
+import { KeyChip } from "./customer-key";
 import { localizeDeliveryHours } from "./delivery-hours";
 import { driverTime } from "./driver-time";
 import { RefreshOnFocus } from "./refresh-on-focus";
@@ -144,6 +145,12 @@ export function StopDetail({
         </div>
 
         <CopyAddress address={address} />
+
+        {stop.hasKey !== undefined ? (
+          <div>
+            <KeyChip stop={stop} interactive />
+          </div>
+        ) : null}
 
         {stop.etaAt || hours ? (
           <p className="flex items-start gap-2 text-base">

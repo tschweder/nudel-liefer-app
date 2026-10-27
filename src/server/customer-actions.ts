@@ -19,16 +19,16 @@ import { getStorage } from "./storage";
  */
 
 export async function createCustomerAction(input: unknown): Promise<CustomerSaveResult> {
-  await requireRole("ADMIN");
-  return createCustomer(getDb(), input, { geocoder: getGeocoder() });
+  const actor = await requireRole("ADMIN");
+  return createCustomer(getDb(), input, { geocoder: getGeocoder(), actorId: actor.id });
 }
 
 export async function updateCustomerAction(
   id: unknown,
   input: unknown,
 ): Promise<CustomerSaveResult> {
-  await requireRole("ADMIN");
-  return updateCustomer(getDb(), id, input, { geocoder: getGeocoder() });
+  const actor = await requireRole("ADMIN");
+  return updateCustomer(getDb(), id, input, { geocoder: getGeocoder(), actorId: actor.id });
 }
 
 export async function setCustomerActiveAction(id: unknown, active: unknown) {

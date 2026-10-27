@@ -97,6 +97,7 @@ model User {
   tours       Tour[]
 
   parkingSpots ParkingSpot[]
+  keyUpdates   Customer[]    @relation("CustomerKeyUpdatedBy")
 }
 
 /// Singleton row (id = 1).
@@ -137,6 +138,13 @@ model Customer {
   billingStreet     String?
   billingPostalCode String?
   billingCity       String?
+  /// Key to the shop (NUD-142, D27): `null` = unknown, `true` = the factory holds a key, `false` = none.
+  /// Office and drivers maintain it; every change is audited (`customer.key`).
+  hasKey            Boolean?
+  /// Number on the key tag, max 20 characters; only set while `hasKey` is true.
+  keyNumber         String?
+  keyUpdatedById    String?
+  keyUpdatedAt      DateTime?
   active            Boolean  @default(true)
   /// Accent-folded number/name/address for search. Maintained by a DB trigger (migration NUD-013); never write it.
   searchText        String   @default("")
@@ -147,6 +155,7 @@ model Customer {
   orders       Order[]
   stops        Stop[]
   parkingSpots ParkingSpot[]
+  keyUpdatedBy User?         @relation("CustomerKeyUpdatedBy", fields: [keyUpdatedById], references: [id], onDelete: Restrict)
 
   @@index([name])
 }
@@ -346,6 +355,8 @@ model StopMutation {
 enum StopMutationKind {
   COMPLETE
   UNDO
+  /// Customer key number set by the driver at this stop (NUD-142); shares the idempotency table.
+  KEY
 }
 
 model StopOrder {

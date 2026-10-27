@@ -397,6 +397,8 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
       case "parking.update":
       case "parking.reorder":
       case "parking.deactivate":
+      // Key entries (NUD-142) are shown in the customer's own key history, not here.
+      case "customer.key":
         return [];
     }
   };

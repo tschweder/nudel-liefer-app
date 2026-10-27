@@ -45,6 +45,7 @@ import { useOverlaidStops } from "@/lib/offline/use-overlay";
 import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
+import { KeyChip } from "./customer-key";
 import { driverTime } from "./driver-time";
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { useSeenRevision } from "./seen-revision";
@@ -316,12 +317,18 @@ function NextStopCard({
           {stop.customerName}
         </p>
       </div>
-      <p className="flex items-start gap-1.5 text-base" data-testid="next-stop-address">
-        <MapPinIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
-        <span className="min-w-0">
-          {stop.street}, {stop.postalCode} {stop.city}
-        </span>
-      </p>
+      <div className="flex items-center gap-2">
+        <p
+          className="flex min-w-0 flex-1 items-start gap-1.5 text-base"
+          data-testid="next-stop-address"
+        >
+          <MapPinIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            {stop.street}, {stop.postalCode} {stop.city}
+          </span>
+        </p>
+        <KeyChip stop={stop} interactive className="shrink-0 bg-background" />
+      </div>
       <ItemSummary items={stop.items} />
       {stop.noteText ? <NoteStrip text={stop.noteText} /> : null}
       {unseen ? <ChangeHighlight stop={stop} /> : null}
@@ -434,8 +441,9 @@ function StopRow({
             {stop.street}, {stop.postalCode} {stop.city}
           </span>
         )}
-        <span className="mt-0.5">
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusLabel status={stop.status} />
+          <KeyChip stop={stop} />
         </span>
       </span>
       {/* Reserved right column (80 px): the summary stacks inside it, so it can never spill onto

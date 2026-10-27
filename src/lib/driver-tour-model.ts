@@ -87,6 +87,12 @@ export const payloadStopSchema = z.object({
   lng: z.number().nullable(),
   notes: localizedTextSchema.nullable(),
   deliveryHoursInfo: z.string().nullable(),
+  /**
+   * The customer's key (NUD-142): `hasKey` null = unknown. Caches written before NUD-142 lack both
+   * fields; they read as "unknown" until the next refresh replaces the copy.
+   */
+  hasKey: z.boolean().nullable().default(null),
+  keyNumber: z.string().nullable().default(null),
   photos: z.object({
     STORE: payloadPhotoSchema.nullable(),
     PARKING: payloadPhotoSchema.nullable(),
@@ -170,6 +176,12 @@ export type TodayStop = {
    * (screens that never show a note) stay valid. Only the "today" list shows it as a strip.
    */
   noteText?: string | null;
+  /**
+   * The customer's key (NUD-142), `hasKey` null = unknown. Optional like `noteText`: `undefined`
+   * (hand-built values) means "not known to this screen" and shows no key chip at all.
+   */
+  hasKey?: boolean | null;
+  keyNumber?: string | null;
   items: TodayItem[];
 };
 
@@ -244,6 +256,8 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     lat: stop.lat,
     lng: stop.lng,
     noteText: stop.notes ? pick(stop.notes, locale).trim() || null : null,
+    hasKey: stop.hasKey,
+    keyNumber: stop.keyNumber,
     items: stop.items.map((item) => ({
       productId: item.productId,
       name: pickName(item.name, item.sku, locale),
