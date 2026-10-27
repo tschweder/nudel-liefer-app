@@ -20,14 +20,25 @@ export type OfflineStatus = {
   /** When the stored copy was loaded from the server (ISO), `null` without a copy. */
   savedAt: string | null;
   timezone: string | null;
+  /** Id of the tour in the stored copy (NUD-118: tells a switch to the follow-up tour), `null` without a copy. */
+  tourId: string | null;
   photos: { total: number; cached: number };
 };
+
+/**
+ * True when a sync replaced the stored tour by another one (NUD-118: the follow-up tour of the day
+ * was released). `before` is `null` when no copy was known yet: that is the first load, not a switch.
+ */
+export function tourSwitched(before: string | null, after: string | null): boolean {
+  return before !== null && after !== null && before !== after;
+}
 
 const INITIAL: OfflineStatus = {
   phase: "idle",
   syncing: false,
   savedAt: null,
   timezone: null,
+  tourId: null,
   photos: { total: 0, cached: 0 },
 };
 
@@ -70,7 +81,12 @@ async function runSync(userId: string): Promise<boolean> {
     fetchImpl: (input, init) => fetch(input, init),
     now: () => new Date(),
     onStored: (record) =>
-      setStatus({ savedAt: record.savedAt, timezone: record.data.timezone, phase: "partial" }),
+      setStatus({
+        savedAt: record.savedAt,
+        timezone: record.data.timezone,
+        tourId: record.data.tour?.id ?? null,
+        phase: "partial",
+      }),
   });
   switch (outcome.kind) {
     case "saved": {
@@ -79,6 +95,7 @@ async function runSync(userId: string): Promise<boolean> {
         phase: complete ? "ready" : "partial",
         savedAt: outcome.record.savedAt,
         timezone: outcome.record.data.timezone,
+        tourId: outcome.record.data.tour?.id ?? null,
         photos: { total: outcome.photos.total, cached: outcome.photos.cached },
       });
       break;
@@ -88,6 +105,7 @@ async function runSync(userId: string): Promise<boolean> {
         phase: "no-tour",
         savedAt: null,
         timezone: null,
+        tourId: null,
         photos: { total: 0, cached: 0 },
       });
       break;
@@ -137,7 +155,12 @@ export async function loadOfflineStatus(userId?: string): Promise<void> {
   try {
     const record = await loadCurrentRecord(getOfflineStore(), new Date(), userId);
     if (record && !running) {
-      setStatus({ savedAt: record.savedAt, timezone: record.data.timezone, phase: "partial" });
+      setStatus({
+        savedAt: record.savedAt,
+        timezone: record.data.timezone,
+        tourId: record.data.tour?.id ?? null,
+        phase: "partial",
+      });
     }
   } catch {
     // no storage: nothing to show

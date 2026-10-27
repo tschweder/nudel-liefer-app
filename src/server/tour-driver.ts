@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { pickDriverTour } from "@/domain/day-tours";
+import { pickDriverTour, sortDayTours } from "@/domain/day-tours";
 import { parseCalendarDate } from "@/domain/order";
 import { isReleasedStatus } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -64,6 +64,12 @@ export type DriverTour = {
   status: "RELEASED" | "IN_PROGRESS" | "COMPLETED";
   /** 1 = first release; +1 for every re-release that changed something. */
   revision: number;
+  /**
+   * Position of this tour among the driver's released tours of the day, oldest first (NUD-118:
+   * 2 = the follow-up tour after a finished one), and how many there are.
+   */
+  tourNumber: number;
+  tourCount: number;
   /** True once the tour was re-released: show the "Tour was updated" banner. */
   updated: boolean;
   reReleasedAt: string | null;
@@ -93,15 +99,16 @@ export async function getDriverTour(
   if (!date) return null;
   // A day can have several tours of this driver (a completed one and a follow-up tour, NUD-099):
   // the active one wins over the completed one, whatever their creation order.
-  const tour = pickDriverTour(
-    await db.tour.findMany({
-      where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
-      include: {
-        stops: { orderBy: { sequence: "asc" }, include: { vehicle: { select: { name: true } } } },
-      },
-    }),
-  );
+  const dayTours = await db.tour.findMany({
+    where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
+    include: {
+      stops: { orderBy: { sequence: "asc" }, include: { vehicle: { select: { name: true } } } },
+    },
+  });
+  const tour = pickDriverTour(dayTours);
   if (!tour || !isReleasedStatus(tour.status)) return null;
+  // "Tour 2 of 2": the position among the driver's released tours of the day, oldest first.
+  const tourNumber = sortDayTours(dayTours).findIndex((t) => t.id === tour.id) + 1;
 
   const snapshots = tour.stops.map((s) => ({ stop: s, items: readStopItems(s.items) }));
   const productIds = new Set(snapshots.flatMap(({ items }) => items.map((i) => i.productId)));
@@ -120,6 +127,8 @@ export async function getDriverTour(
     status: tour.status as DriverTour["status"],
     revision: tour.releaseRevision,
     updated: tour.reReleasedAt !== null,
+    tourNumber,
+    tourCount: dayTours.length,
     reReleasedAt: tour.reReleasedAt?.toISOString() ?? null,
     removedCustomers: removed.success ? removed.data.removed : [],
     stops: snapshots.map(({ stop, items }) => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { DRIVER_TOUR_SCHEMA_VERSION, type DriverTourResponse } from "@/lib/driver-tour-model";
 
+import { tourSwitched } from "./browser";
 import { photoCacheUrl } from "./constants";
 import { type PhotoCache, syncPhotos } from "./photos";
 import {
@@ -31,6 +32,8 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
       status: "RELEASED",
       revision: 1,
       updated: false,
+      tourNumber: 1,
+      tourCount: 1,
       removedCustomers: [],
       depot: null,
       geometry: null,
@@ -261,10 +264,41 @@ describe("syncDriverTour", () => {
     expect(store.rows.size).toBe(1);
   });
 
+  it("switches the stored copy and the photos to the released follow-up tour (NUD-118)", async () => {
+    const first = response("2099-07-02", ["a", "b"]);
+    const finished = { ...first, tour: { ...first.tour!, status: "COMPLETED" as const } };
+    const followUp = response("2099-07-02", ["b", "c"]);
+    const second = {
+      ...followUp,
+      tour: { ...followUp.tour!, id: "t2", tourNumber: 2, tourCount: 2 },
+    };
+    const d = deps(routed(finished));
+    await syncDriverTour("u1", d);
+    const photos = d.photoCache as MemoryPhotos;
+    expect([...photos.map.keys()].sort()).toHaveLength(2);
+
+    const out = await syncDriverTour("u1", { ...d, fetchImpl: routed(second) });
+    expect(out).toMatchObject({ kind: "saved", photos: { total: 2, cached: 2 } });
+    const stored = (await loadCurrentRecord(d.store, now(), "u1"))!;
+    expect(stored.data.tour).toMatchObject({ id: "t2", tourNumber: 2, tourCount: 2 });
+    expect([...d.store.rows.keys()]).toEqual(["u1"]);
+    // The finished tour's own photo is gone, the shared one stays, the new one is stored.
+    expect([...photos.map.keys()].map((k) => k.split("/").pop()).sort()).toEqual(["b", "c"]);
+  });
+
   it("a different user on the phone replaces the previous driver's data", async () => {
     const d = deps(routed(response("2099-07-02")));
     await d.store.put(record("old", "2099-07-02"));
     await syncDriverTour("new", d);
     expect([...d.store.rows.keys()]).toEqual(["new"]);
+  });
+});
+
+describe("tourSwitched", () => {
+  it("is true only when a known tour was replaced by another one", () => {
+    expect(tourSwitched("t1", "t2")).toBe(true);
+    expect(tourSwitched("t1", "t1")).toBe(false);
+    expect(tourSwitched(null, "t1")).toBe(false);
+    expect(tourSwitched("t1", null)).toBe(false);
   });
 });

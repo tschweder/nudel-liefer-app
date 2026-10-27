@@ -185,6 +185,8 @@ export async function getDriverTourResponse(
       status: tour.status,
       revision: tour.revision,
       updated: tour.updated,
+      tourNumber: tour.tourNumber,
+      tourCount: tour.tourCount,
       removedCustomers: tour.removedCustomers,
       stops,
       depot: depot.success ? depot.data : null,

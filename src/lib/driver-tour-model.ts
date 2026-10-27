@@ -129,6 +129,9 @@ export const driverTourSchema = z.object({
   /** 1 = first release; +1 per re-release that changed something (NUD-043). */
   revision: z.number().int(),
   updated: z.boolean(),
+  /** Position among the driver's released tours of the day (NUD-118); old caches read as the only tour. */
+  tourNumber: z.number().int().min(1).default(1),
+  tourCount: z.number().int().min(1).default(1),
   removedCustomers: z.array(
     z.object({ customerId: z.string(), customerNumber: z.string(), name: z.string() }),
   ),
@@ -232,6 +235,9 @@ export type DriverToday = {
   tourStatus: DriverTourData["status"];
   revision: number;
   updated: boolean;
+  /** Tour n of m of the driver's day (NUD-118); optional like the other fields of hand-built values. */
+  tourNumber?: number;
+  tourCount?: number;
   removedCustomers: DriverTourData["removedCustomers"];
   stops: TodayStop[];
   depot: { name: string; lat: number; lng: number } | null;
@@ -333,6 +339,8 @@ export function toDriverToday(response: DriverTourResponse, locale: AppLocale): 
     tourStatus: tour.status,
     revision: tour.revision,
     updated: tour.updated,
+    tourNumber: tour.tourNumber,
+    tourCount: tour.tourCount,
     removedCustomers: tour.removedCustomers,
     stops: tour.stops.map((stop) => todayStop(stop, locale)),
     depot: tour.depot,

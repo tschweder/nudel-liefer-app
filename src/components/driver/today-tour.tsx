@@ -15,6 +15,7 @@ import {
   PencilLineIcon,
   PlusCircleIcon,
   RefreshCwIcon,
+  RouteIcon,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
@@ -802,6 +803,21 @@ export function TodayTour({
             {t("updatedConfirm")}
           </Button>
         </div>
+      ) : null}
+
+      {/* NUD-118: a driver with a second tour on the same day sees which one this is. */}
+      {(today.tourCount ?? 1) > 1 ? (
+        <p
+          className="flex min-h-12 items-center gap-2 rounded-xl bg-info-soft px-3 text-base font-semibold text-info-soft-foreground"
+          data-testid="tour-badge"
+          data-tour-number={today.tourNumber ?? 1}
+        >
+          <RouteIcon className="size-5 shrink-0" aria-hidden />
+          <span>
+            {t("tourBadge", { number: today.tourNumber ?? 1, count: today.tourCount ?? 1 })}
+            {(today.tourNumber ?? 1) > 1 ? ` · ${t("followUpHint")}` : ""}
+          </span>
+        </p>
       ) : null}
 
       {view === "list" ? (

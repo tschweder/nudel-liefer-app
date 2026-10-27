@@ -240,6 +240,20 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.queryByTestId("stop-change")).toBeNull();
   });
 
+  it("labels a second tour of the day and shows no label for a single tour (NUD-118)", () => {
+    const { unmount } = renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
+    expect(screen.queryByTestId("tour-badge")).toBeNull();
+    unmount();
+    renderIn(
+      locale,
+      <TodayTour today={today([stop(1)], { tourNumber: 2, tourCount: 2 })} tiles={TILES} />,
+    );
+    const badge = screen.getByTestId("tour-badge");
+    expect(badge).toHaveAttribute("data-tour-number", "2");
+    expect(badge.textContent).toMatch(/2/);
+    expect(screen.queryByTestId("all-done")).toBeNull();
+  });
+
   it("toggles between list and map", () => {
     renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
     expect(screen.getByTestId("stop-list")).toBeInTheDocument();

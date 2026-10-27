@@ -181,6 +181,8 @@
     },
     "today": {
       "pageTitle": "Dnešní trasa",
+      "tourBadge": "Trasa {number} z {count}",
+      "followUpHint": "Navazující trasa téhož dne",
       "emptyTitle": "Dnes žádná trasa",
       "emptyDescription": "Jakmile kancelář trasu uvolní, objeví se zde.",
       "progressLabel": "Průběh",

@@ -1588,6 +1588,8 @@
     },
     "today": {
       "pageTitle": "Today’s tour",
+      "tourBadge": "Tour {number} of {count}",
+      "followUpHint": "Follow-up tour on the same day",
       "emptyTitle": "No tour today",
       "emptyDescription": "As soon as the office releases a tour, it appears here.",
       "progressLabel": "Progress",

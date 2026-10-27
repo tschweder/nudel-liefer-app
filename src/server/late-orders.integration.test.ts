@@ -363,11 +363,22 @@ describe.skipIf(!process.env.DATABASE_URL)(
       if (!result.ok) throw new Error(result.error);
 
       // Not released yet: the driver still has the finished tour.
-      expect((await getDriverTour(t.prisma, driverId, DAY_TEXT))?.id).toBe(t1);
+      expect(await getDriverTour(t.prisma, driverId, DAY_TEXT)).toMatchObject({
+        id: t1,
+        tourNumber: 1,
+        tourCount: 1,
+      });
 
       await release(result.tourId);
       const driverTour = await getDriverTour(t.prisma, driverId, DAY_TEXT);
-      expect(driverTour).toMatchObject({ id: result.tourId, status: "RELEASED", updated: false });
+      // NUD-118: the app labels it "Tour 2 of 2".
+      expect(driverTour).toMatchObject({
+        id: result.tourId,
+        status: "RELEASED",
+        updated: false,
+        tourNumber: 2,
+        tourCount: 2,
+      });
       expect(driverTour?.stops.map((s) => s.items.map((i) => i.quantity))).toEqual([[3]]);
 
       // Delivering the follow-up stop completes that tour; the driver's choice is stable.
