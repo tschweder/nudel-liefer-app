@@ -1,6 +1,6 @@
 "use client";
 
-import { RouteIcon, TriangleAlertIcon } from "lucide-react";
+import { PlusIcon, RouteIcon, TriangleAlertIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
-import { createFollowUpTourAction } from "@/server/tour-actions";
+import { createEmptyTourAction, createFollowUpTourAction } from "@/server/tour-actions";
 import type { TourPlan } from "@/server/tour-planning";
 
 import { TourDiffList } from "./tour-diff-list";
@@ -115,13 +115,35 @@ export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
   );
 }
 
-/** Tabs of the tours of one day (shown when there are several). */
+/**
+ * Tabs of the tours of one day (NUD-135): always shown once the day has a tour, also for a single
+ * one ("Tour 1 · Anna"), plus a "+ Tour" tab that creates an empty tour for the date.
+ */
 export function TourTabs({ plan }: { plan: TourPlan }) {
   const t = useTranslations("admin.tours.tabs");
+  const te = useTranslations("admin.tours.errors");
   const tc = useTranslations("common");
-  if (plan.tours.length < 2) return null;
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  if (plan.tours.length === 0) return null;
+
+  function addTour() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await createEmptyTourAction({ date: plan.date });
+        if (!result.ok) return setError(result.error);
+        toast.success(t("added"));
+        router.push({ pathname: "/admin/tours", query: { date: plan.date, tour: result.tourId } });
+      } catch {
+        setError("generic");
+      }
+    });
+  }
+
   return (
-    <nav aria-label={t("label")} data-testid="tour-tabs">
+    <nav aria-label={t("label")} data-testid="tour-tabs" className="flex flex-col gap-2">
       <ul className="flex flex-wrap gap-2">
         {plan.tours.map((tab) => {
           const current = tab.id === plan.tour?.id;
@@ -138,7 +160,9 @@ export function TourTabs({ plan }: { plan: TourPlan }) {
                   (current ? "border-primary bg-primary text-primary-foreground" : "bg-background")
                 }
               >
-                {tab.number === 1 ? t("first") : t("followUp", { number: tab.number })}
+                {tab.driverName
+                  ? t("withDriver", { number: tab.number, driver: tab.driverName })
+                  : t("tour", { number: tab.number })}
                 <span className="text-sm font-normal">
                   {tc(`statuses.tour.${tab.status}`)} · {t("stops", { count: tab.stopCount })}
                 </span>
@@ -146,7 +170,25 @@ export function TourTabs({ plan }: { plan: TourPlan }) {
             </li>
           );
         })}
+        <li>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addTour}
+            disabled={pending}
+            className="min-h-10"
+            data-testid="tour-add"
+          >
+            <PlusIcon aria-hidden />
+            {t("add")}
+          </Button>
+        </li>
       </ul>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive" data-testid="tour-add-error">
+          {te.has(error) ? te(error) : te("generic")}
+        </p>
+      ) : null}
     </nav>
   );
 }

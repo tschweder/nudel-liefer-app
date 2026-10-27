@@ -1060,7 +1060,7 @@
       "driverInactive": "{name} (inactive)",
       "release": "Release tour",
       "releasedAt": "Released on {time}",
-      "releasedNotice": "This tour is released and can no longer be changed here.",
+      "releasedNotice": "This tour is released. Change the driver, the order and the assignment of stops with “Edit”.",
       "approximate": "Approximate values",
       "approximateHint": "The route was estimated (no routing service): times, distances and line are only approximate.",
       "outdatedTitle": "Orders were changed",
@@ -1135,7 +1135,11 @@
         "outdated": "Orders were changed. Please create the tour again first.",
         "not_released": "This tour has not been released yet.",
         "follow_up_not_allowed": "A follow-up tour is only possible when all tours of this day are completed.",
-        "no_late_orders": "There is no late order with a parking spot or address point that can go into a follow-up tour."
+        "no_late_orders": "There is no late order with a parking spot or address point that can go into a follow-up tour.",
+        "stop_locked": "A stop that is already completed cannot be moved. The page is reloading.",
+        "target_invalid": "The target tour is no longer available. Please reload the page.",
+        "customer_in_target": "The target tour already has a stop for this customer.",
+        "too_many_tours": "A day can have at most 10 tours."
       },
       "change": {
         "title": "Orders changed since the release – check and release again",
@@ -1220,9 +1224,28 @@
       },
       "tabs": {
         "label": "Tours of this day",
-        "first": "Tour 1",
-        "followUp": "Tour {number} (follow-up tour)",
-        "stops": "{count, plural, one {# stop} other {# stops}}"
+        "stops": "{count, plural, one {# stop} other {# stops}}",
+        "tour": "Tour {number}",
+        "withDriver": "Tour {number} · {driver}",
+        "add": "+ Tour",
+        "added": "Empty tour created."
+      },
+      "edit": {
+        "title": "Edit tour",
+        "description": "Change the driver, the order of the open stops and the tour of each stop. The date of the tour stays as it is.",
+        "releasedNote": "This tour is released. After saving, the driver sees “Tour updated”. Completed stops stay unchanged.",
+        "locked": "Done, locked",
+        "tourOf": "Tour of {name}",
+        "stay": "Stays in this tour",
+        "moveTo": "Move to {tour}",
+        "noOtherTour": "There is no other tour on this day to move stops to. Use “+ Tour” to create an empty one.",
+        "save": "Save changes",
+        "saving": "Saving …",
+        "toast": {
+          "saved": "Tour saved.",
+          "savedReleased": "Tour saved (version {revision}). The driver sees “Tour updated”.",
+          "nothingChanged": "No changes."
+        }
       }
     },
     "history": {
@@ -1258,7 +1281,9 @@
         "parking_update": "Parking spot changed",
         "parking_reorder": "Parking spots reordered",
         "parking_deactivate": "Parking spot removed",
-        "customer_key": "Key changed"
+        "customer_key": "Key changed",
+        "tour_move_stop": "Stop moved to another tour",
+        "tour_create_empty": "Empty tour created"
       },
       "fields": {
         "status": "Status",

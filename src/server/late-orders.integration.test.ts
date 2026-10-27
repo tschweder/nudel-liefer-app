@@ -208,7 +208,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await tourRow(t1)).toMatchObject({ status: "COMPLETED", isOutdated: false });
 
       const p = await plan();
-      expect(p.tours).toEqual([{ id: t1, number: 1, status: "COMPLETED", stopCount: 2 }]);
+      expect(p.tours).toMatchObject([{ id: t1, number: 1, status: "COMPLETED", stopCount: 2 }]);
       expect(p.tour?.id).toBe(t1);
       expect(p.late.lateOrderCount).toBe(2);
       expect(p.late.canCreateFollowUp).toBe(true);

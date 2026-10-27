@@ -14,6 +14,7 @@ import {
   LockOpenIcon,
   MapPinIcon,
   MapPinOffIcon,
+  PencilIcon,
   PrinterIcon,
   RefreshCwIcon,
   RocketIcon,
@@ -52,6 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { canEditTour } from "@/domain/tour-edit";
 import { durationParts, isTourEditable, moveItem, releaseBlocker } from "@/domain/tour-plan";
 import { isLiveStatus, showsStopResults, summarizeProgress } from "@/domain/tour-progress";
 import { isReReleasable } from "@/domain/tour-status";
@@ -61,6 +63,7 @@ import type { MapTileConfig } from "@/lib/map-config";
 import { cn } from "@/lib/utils";
 import {
   assignDriverAction,
+  editTourAction,
   generateTourAction,
   releaseTourAction,
   reorderStopsAction,
@@ -72,6 +75,7 @@ import type { PlanStop, TourPlan } from "@/server/tour-planning";
 import { LateOrdersBanner, TourTabs } from "./late-orders-banner";
 import { ProblemNote } from "./problem-note";
 import { TourDiffList } from "./tour-diff-list";
+import { TourEditDialog, type TourEditPayload } from "./tour-edit-dialog";
 
 const selectClass = "h-10 min-w-56 rounded-md border border-input bg-background px-3 text-base";
 
@@ -148,6 +152,7 @@ export function TourPlanner({
   const [dragId, setDragId] = useState<string | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [reReleaseOpen, setReReleaseOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   // List <-> map linkage (re-design.md §6): purely visual, it never changes the stored plan.
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -173,7 +178,7 @@ export function TourPlanner({
   function run<R extends { ok: boolean }>(
     call: () => Promise<R>,
     onOk: (result: Extract<R, { ok: true }>) => void,
-    onFail?: () => void,
+    onFail?: (code: string) => void,
   ) {
     setError(null);
     startTransition(async () => {
@@ -181,12 +186,12 @@ export function TourPlanner({
       try {
         result = await call();
       } catch {
-        onFail?.();
+        onFail?.("generic");
         return setError({ code: "generic" });
       }
       if (!result.ok) {
-        onFail?.();
         const failure = result as unknown as { error: string; maxStops?: number };
+        onFail?.(failure.error);
         setError({ code: failure.error, max: failure.maxStops });
         if (["stops_changed", "conflict", "tour_not_editable"].includes(failure.error)) {
           router.refresh();
@@ -312,6 +317,31 @@ export function TourPlanner({
     );
   }
 
+  function edit(payload: TourEditPayload) {
+    run(
+      () => editTourAction({ tourId: tour!.id, version: tour!.version, ...payload }),
+      (result) => {
+        const r = result as unknown as { changed: boolean; revision: number };
+        setEditOpen(false);
+        toast.success(
+          !r.changed
+            ? t("edit.toast.nothingChanged")
+            : isReReleasable(tour!.status)
+              ? t("edit.toast.savedReleased", { revision: r.revision })
+              : t("edit.toast.saved"),
+        );
+        router.refresh();
+      },
+      // The page is out of date: close the form; the page is re-read and shows the error. Any other
+      // refusal (inactive driver, customer already on the target tour) keeps the form for a fix.
+      (code) => {
+        if (["stops_changed", "conflict", "tour_not_editable", "not_found"].includes(code)) {
+          setEditOpen(false);
+        }
+      },
+    );
+  }
+
   function release() {
     run(
       () => releaseTourAction({ tourId: tour!.id, version: tour!.version }),
@@ -356,6 +386,24 @@ export function TourPlanner({
       tour.diff.changed.length +
       tour.diff.completedChanged.length ===
       0;
+
+  const canEdit = canEditTour(tour.status);
+  const editButton = canEdit ? (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        setError(null);
+        setEditOpen(true);
+      }}
+      disabled={busy}
+      aria-label={tc("actions.edit")}
+      data-testid="tour-edit"
+    >
+      <PencilIcon aria-hidden />
+      {tc("actions.edit")}
+    </Button>
+  ) : null;
 
   const printLink = (
     <Button asChild variant={editable ? "outline" : "primary"}>
@@ -445,7 +493,10 @@ export function TourPlanner({
 
           <div className="flex flex-wrap items-center gap-2">
             {!editable ? (
-              printLink
+              <>
+                {editButton}
+                {printLink}
+              </>
             ) : hasStops ? (
               <>
                 <Button
@@ -457,18 +508,22 @@ export function TourPlanner({
                   <RocketIcon aria-hidden />
                   {t("release")}
                 </Button>
+                {editButton}
                 {printLink}
               </>
             ) : (
-              <Button
-                type="button"
-                onClick={generate}
-                disabled={busy || plan.confirmedOrderCount === 0}
-                data-testid="tour-generate"
-              >
-                <RouteIcon aria-hidden />
-                {pending ? t("generating") : t("generate")}
-              </Button>
+              <>
+                {editButton}
+                <Button
+                  type="button"
+                  onClick={generate}
+                  disabled={busy || plan.confirmedOrderCount === 0}
+                  data-testid="tour-generate"
+                >
+                  <RouteIcon aria-hidden />
+                  {pending ? t("generating") : t("generate")}
+                </Button>
+              </>
             )}
             {editable && blocker === "driver_required" ? (
               <p className="basis-full text-sm text-muted-foreground" data-testid="release-hint">
@@ -872,6 +927,16 @@ export function TourPlanner({
             </ol>
           </div>
         </div>
+
+        <TourEditDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          plan={plan}
+          tour={tour}
+          pending={pending}
+          error={<ErrorAlert error={error} errorText={errorText} />}
+          onSave={edit}
+        />
 
         <Dialog open={reReleaseOpen} onOpenChange={setReReleaseOpen}>
           <DialogContent data-testid="rerelease-dialog">

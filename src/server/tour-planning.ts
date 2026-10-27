@@ -110,6 +110,8 @@ export type PlanTourTab = {
   number: number;
   status: PlanTour["status"];
   stopCount: number;
+  /** Display name of the assigned driver (NUD-135: "Tour 1 · Anna"); `null` while unassigned. */
+  driverName: string | null;
 };
 
 export type TourPlan = {
@@ -154,7 +156,7 @@ function readProblemNote(value: unknown): PlanStop["problemNote"] {
   };
 }
 
-function readDepot(value: unknown): PlanTour["depot"] {
+export function readDepot(value: unknown): PlanTour["depot"] {
   const parsed = z
     .object({
       name: z.string(),
@@ -184,7 +186,13 @@ export async function getTourPlan(
   const dayTours = sortDayTours(
     await db.tour.findMany({
       where: { date },
-      select: { id: true, status: true, createdAt: true, _count: { select: { stops: true } } },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        driver: { select: { displayName: true } },
+        _count: { select: { stops: true } },
+      },
     }),
   );
   const selected = (tourId && dayTours.find((t) => t.id === tourId)) || pickDefaultTour(dayTours);
@@ -261,6 +269,7 @@ export async function getTourPlan(
       number: index + 1,
       status: t.status,
       stopCount: t._count.stops,
+      driverName: t.driver?.displayName ?? null,
     })),
     late: await getLateOrdersView(db, date),
     confirmedOrderCount: orders.length,
@@ -338,7 +347,13 @@ export type PlanError =
   | "driver_required"
   | "driver_invalid"
   | "outdated"
-  | "not_released";
+  | "not_released"
+  /** Edit (NUD-135): a stop to move is already completed. */
+  | "stop_locked"
+  /** Edit: the target tour does not exist, is another day's or is completed. */
+  | "target_invalid"
+  /** Edit: the target tour already has a stop of this customer. */
+  | "customer_in_target";
 
 export type PlanResult<T = object> = ({ ok: true } & T) | { ok: false; error: PlanError };
 

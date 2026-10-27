@@ -203,6 +203,12 @@ const MATRIX: Record<string, Row> = {
   "src/server/tour-actions.ts#reReleaseTourAction": adminAction("tour planning", async () =>
     (await import("./tour-actions")).reReleaseTourAction({}),
   ),
+  "src/server/tour-actions.ts#editTourAction": adminAction("tour planning", async () =>
+    (await import("./tour-actions")).editTourAction({}),
+  ),
+  "src/server/tour-actions.ts#createEmptyTourAction": adminAction("tour planning", async () =>
+    (await import("./tour-actions")).createEmptyTourAction({}),
+  ),
   "src/server/settings-actions.ts#saveSettingsAction": adminAction("settings", async () =>
     (await import("./settings-actions")).saveSettingsAction({}),
   ),

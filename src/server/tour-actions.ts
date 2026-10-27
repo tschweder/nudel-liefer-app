@@ -5,8 +5,14 @@ import { z } from "zod";
 import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
 import { getRoutingProvider } from "./routing";
-import { getSettings } from "./settings";
+import { getSettings, requireDepotConfigured } from "./settings";
 import { generateFollowUpTour, generateTour, type GenerateTourResult } from "./tour-builder";
+import {
+  type CreateEmptyTourResult,
+  createEmptyTourWith,
+  type EditTourOk,
+  editTourWith,
+} from "./tour-edit";
 import {
   assignDriverWith,
   type PlanResult,
@@ -85,6 +91,34 @@ export async function reReleaseTourAction(input: unknown): Promise<PlanResult<Re
   const actor = await requireRole("ADMIN");
   return reReleaseTourWith(
     { db: getDb(), actorId: actor.id, provider: getRoutingProvider(), loadSettings: getSettings },
+    input,
+  );
+}
+
+/**
+ * Admin-only "Bearbeiten" (NUD-135, D29): driver, order of the pending stops and moves of stops to
+ * another tour of the same date, also on released tours (revision +1, the driver sees "tour was
+ * updated"). `{tourId, version, driverId, orderedStopIds, moves}`; the date is not editable and a
+ * COMPLETED tour or a completed stop is refused.
+ */
+export async function editTourAction(input: unknown): Promise<PlanResult<EditTourOk>> {
+  const actor = await requireRole("ADMIN");
+  return editTourWith(
+    { db: getDb(), actorId: actor.id, provider: getRoutingProvider(), loadSettings: getSettings },
+    input,
+  );
+}
+
+/** Admin-only: the "+ Tour" tab, an empty tour for the day (`{date}`); stops come by moving them. */
+export async function createEmptyTourAction(input: unknown): Promise<CreateEmptyTourResult> {
+  const actor = await requireRole("ADMIN");
+  return createEmptyTourWith(
+    {
+      db: getDb(),
+      actorId: actor.id,
+      requireDepot: requireDepotConfigured,
+      loadSettings: getSettings,
+    },
     input,
   );
 }

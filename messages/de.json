@@ -1060,7 +1060,7 @@
       "driverInactive": "{name} (inaktiv)",
       "release": "Tour freigeben",
       "releasedAt": "Freigegeben am {time}",
-      "releasedNotice": "Diese Tour ist freigegeben und kann hier nicht mehr geändert werden.",
+      "releasedNotice": "Diese Tour ist freigegeben. Fahrer, Reihenfolge und Zuordnung der Stopps ändern Sie über „Bearbeiten“.",
       "approximate": "Näherungswerte",
       "approximateHint": "Die Strecke wurde geschätzt (kein Routing-Dienst): Zeiten, Entfernungen und Linie sind nur ungefähr.",
       "outdatedTitle": "Bestellungen wurden geändert",
@@ -1135,7 +1135,11 @@
         "outdated": "Bestellungen wurden geändert. Bitte die Tour zuerst neu erstellen.",
         "not_released": "Diese Tour ist noch nicht freigegeben.",
         "follow_up_not_allowed": "Eine Folgetour ist nur möglich, wenn alle Touren dieses Tages abgeschlossen sind.",
-        "no_late_orders": "Es gibt keine Nachbestellung mit Parkplatz oder Adresspunkt, die in eine Folgetour kann."
+        "no_late_orders": "Es gibt keine Nachbestellung mit Parkplatz oder Adresspunkt, die in eine Folgetour kann.",
+        "stop_locked": "Ein bereits erledigter Stopp kann nicht verschoben werden. Die Seite wird neu geladen.",
+        "target_invalid": "Die Ziel-Tour ist nicht mehr verfügbar. Bitte die Seite neu laden.",
+        "customer_in_target": "Die Ziel-Tour hat schon einen Stopp für diesen Kunden.",
+        "too_many_tours": "An einem Tag sind höchstens 10 Touren möglich."
       },
       "change": {
         "title": "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben",
@@ -1220,9 +1224,28 @@
       },
       "tabs": {
         "label": "Touren dieses Tages",
-        "first": "Tour 1",
-        "followUp": "Tour {number} (Folgetour)",
-        "stops": "{count, plural, one {# Stopp} other {# Stopps}}"
+        "stops": "{count, plural, one {# Stopp} other {# Stopps}}",
+        "tour": "Tour {number}",
+        "withDriver": "Tour {number} · {driver}",
+        "add": "+ Tour",
+        "added": "Leere Tour angelegt."
+      },
+      "edit": {
+        "title": "Tour bearbeiten",
+        "description": "Fahrer, Reihenfolge der offenen Stopps und die Tour jedes Stopps ändern. Das Datum der Tour bleibt unverändert.",
+        "releasedNote": "Diese Tour ist freigegeben. Nach dem Speichern sieht der Fahrer „Tour aktualisiert“. Erledigte Stopps bleiben unverändert.",
+        "locked": "Erledigt, gesperrt",
+        "tourOf": "Tour von {name}",
+        "stay": "Bleibt in dieser Tour",
+        "moveTo": "Nach {tour} verschieben",
+        "noOtherTour": "Es gibt keine weitere Tour an diesem Tag, in die Stopps verschoben werden können. Mit „+ Tour“ lässt sich eine leere Tour anlegen.",
+        "save": "Änderungen speichern",
+        "saving": "Speichert …",
+        "toast": {
+          "saved": "Tour gespeichert.",
+          "savedReleased": "Tour gespeichert (Version {revision}). Der Fahrer sieht „Tour aktualisiert“.",
+          "nothingChanged": "Keine Änderungen."
+        }
       }
     },
     "history": {
@@ -1258,7 +1281,9 @@
         "parking_update": "Parkplatz geändert",
         "parking_reorder": "Parkplätze neu geordnet",
         "parking_deactivate": "Parkplatz entfernt",
-        "customer_key": "Schlüssel geändert"
+        "customer_key": "Schlüssel geändert",
+        "tour_move_stop": "Stopp in andere Tour verschoben",
+        "tour_create_empty": "Leere Tour angelegt"
       },
       "fields": {
         "status": "Status",

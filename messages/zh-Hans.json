@@ -1060,7 +1060,7 @@
       "driverInactive": "{name}（已停用）",
       "release": "发布配送线路",
       "releasedAt": "发布时间：{time}",
-      "releasedNotice": "此配送线路已发布，不能在此处再修改。",
+      "releasedNotice": "此线路已发布。司机、站点顺序和站点归属请通过“编辑”更改。",
       "approximate": "估算值",
       "approximateHint": "配送线路是估算的（未使用路线服务）：时间、距离和线路都只是大致数值。",
       "outdatedTitle": "订单已更改",
@@ -1135,7 +1135,11 @@
         "outdated": "订单已更改，请先重新生成配送线路。",
         "not_released": "此配送线路尚未发布。",
         "follow_up_not_allowed": "只有当天所有配送线路都已完成时，才能创建补充线路。",
-        "no_late_orders": "没有带停车位或地址点、可编入补充线路的补单。"
+        "no_late_orders": "没有带停车位或地址点、可编入补充线路的补单。",
+        "stop_locked": "已完成的站点不能移动。页面将重新加载。",
+        "target_invalid": "目标线路已不可用。请重新加载页面。",
+        "customer_in_target": "目标线路已有该客户的站点。",
+        "too_many_tours": "每天最多 10 条线路。"
       },
       "change": {
         "title": "发布后订单已更改——请检查并重新发布",
@@ -1220,9 +1224,28 @@
       },
       "tabs": {
         "label": "当天的配送线路",
-        "first": "线路 1",
-        "followUp": "线路 {number}（补充线路）",
-        "stops": "{count, plural, other {# 个站点}}"
+        "stops": "{count, plural, other {# 个站点}}",
+        "tour": "线路 {number}",
+        "withDriver": "线路 {number} · {driver}",
+        "add": "+ 线路",
+        "added": "已创建空线路。"
+      },
+      "edit": {
+        "title": "编辑线路",
+        "description": "可更改司机、未完成站点的顺序以及每个站点所属的线路。线路日期保持不变。",
+        "releasedNote": "此线路已发布。保存后，司机会看到“线路已更新”。已完成的站点保持不变。",
+        "locked": "已完成，已锁定",
+        "tourOf": "{name} 所属线路",
+        "stay": "保留在本线路",
+        "moveTo": "移至{tour}",
+        "noOtherTour": "当天没有其他线路可供移动站点。可用“+ 线路”创建一条空线路。",
+        "save": "保存更改",
+        "saving": "正在保存…",
+        "toast": {
+          "saved": "线路已保存。",
+          "savedReleased": "线路已保存（版本 {revision}）。司机会看到“线路已更新”。",
+          "nothingChanged": "没有更改。"
+        }
       }
     },
     "history": {
@@ -1258,7 +1281,9 @@
         "parking_update": "已修改停车位",
         "parking_reorder": "已调整停车位顺序",
         "parking_deactivate": "已移除停车位",
-        "customer_key": "钥匙已更改"
+        "customer_key": "钥匙已更改",
+        "tour_move_stop": "站点已移至其他线路",
+        "tour_create_empty": "已创建空线路"
       },
       "fields": {
         "status": "状态",

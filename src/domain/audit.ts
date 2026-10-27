@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = [
   "tour.lock",
   "tour.unlock",
   "tour.assign_driver",
+  "tour.move_stop",
+  "tour.create_empty",
   "tour.release",
   "tour.rerelease",
   "stop.delivered",

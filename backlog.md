@@ -289,7 +289,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-132 | Brighter design with a light/dark toggle of its own | M2 | – | done |
 | NUD-133 | Six committed tests import locale fixtures that are not in git | M2 | – | todo |
 | NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
-| NUD-135 | Edit an existing tour from the admin view | M2 | – | todo |
+| NUD-135 | Edit an existing tour from the admin view | M2 | – | done |
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
 | NUD-137 | Whole-number quantities | M2.6 | – | done |
 | NUD-138 | Product catalog: 3 real products with weight per unit | M2.6 | 137 | done |
@@ -308,6 +308,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | todo |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
+| NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2173,7 +2174,7 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 ---
 
 #### NUD-135 · Edit an existing tour from the admin view
-**Status:** todo · **depends_on:** – · asked for by the owner together with the NUD-134 fixes ("im Admin-Bereich bitte einen Bearbeiten-Button für die Touren, um sie bei Bedarf zu bearbeiten").
+**Status:** done · **depends_on:** – · asked for by the owner together with the NUD-134 fixes ("im Admin-Bereich bitte einen Bearbeiten-Button für die Touren, um sie bei Bedarf zu bearbeiten").
 
 **Goal:** the tour page offers reorder/lock/reoptimize/assign/release but no way to correct a tour itself. Add an explicit **Bearbeiten** entry point that leads to a real edit form.
 
@@ -2182,12 +2183,22 @@ Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the 
 ~~**Open question (blocks the design):** what may be edited?~~ Candidates, in increasing risk: (a) only driver assignment and departure time, (b) also the stop order and which stops belong to the tour, (c) everything including the date, moving the orders along. Nothing is built until this is answered: a wrong guess writes to released tours that drivers may already be working on, and the release-revision rules (D19, "stop changed after release") must stay honest.
 
 **Acceptance criteria**
-- [ ] The owner has answered what "Bearbeiten" may change.
-- [ ] The entry point exists on the tour with an accessible label and a test id, and is only offered where editing is allowed.
-- [ ] Editing a released tour keeps the release/history rules intact (same "orders changed after release" signal as the existing flows, or a clear refusal).
-- [ ] Server-side role check + zod validation; a new server action gets its row in `src/server/authz-matrix.test.ts`; integration test for the edit.
-- [ ] The driver sees a change through the existing "tour was updated" path, or the edit is refused when it would alter a stop the driver already completed.
-- [ ] Screens checked at 1280 px (admin) and 375 px (driver, unchanged).
+- [x] The owner has answered what "Bearbeiten" may change.
+- [x] The entry point exists on the tour with an accessible label and a test id, and is only offered where editing is allowed. (button `tour-edit`, label "Bearbeiten", shown for every tour except COMPLETED)
+- [x] Editing a released tour keeps the release/history rules intact (same "orders changed after release" signal as the existing flows, or a clear refusal). (revision +1, `reReleasedAt` / `lastChange`, `ADDED` marker on arriving stops; integration + e2e)
+- [x] Server-side role check + zod validation; a new server action gets its row in `src/server/authz-matrix.test.ts`; integration test for the edit. (`editTourAction` and `createEmptyTourAction`: requireRole(ADMIN), zod strict with .max(), authz-matrix rows, `tour-edit.integration.test.ts` (16 tests))
+- [x] The driver sees a change through the existing "tour was updated" path, or the edit is refused when it would alter a stop the driver already completed. ("tour was updated" path; completed stops cannot be moved (`stop_locked`) and keep their slot)
+- [x] Screens checked at 1280 px (admin) and 375 px (driver, unchanged). (1280 px screenshots of the form (unreleased + released) and no-horizontal-scroll asserts in `tour-edit.spec.ts`; driver screens untouched)
+
+**Implementation notes**
+- **What was built:** a **Bearbeiten** button on the tour header (`data-testid="tour-edit"`, every tour but COMPLETED) opens `TourEditDialog` (`src/components/admin/tour-edit-dialog.tsx`): driver select, the stops in order with up/down buttons, and per open stop a select "Bleibt in dieser Tour" / "Nach Tour N verschieben" (other tours of the same date that are not COMPLETED). Completed stops are listed as "Erledigt, gesperrt" and keep their slot. The date is not part of the form (D29). One action, `editTourAction({tourId, version, driverId, orderedStopIds, moves})` -> `editTourWith` in `src/server/tour-edit.ts`; pure rules in `src/domain/tour-edit.ts` (`mergePendingOrder`, `canEditTour`).
+- **Tabs and "+ Tour":** `TourTabs` is shown as soon as the day has a tour (also for one), labelled "Tour N · Fahrer", plus a "+ Tour" button (`createEmptyTourAction`) that creates an empty OPTIMIZED tour for the date (no routing call, max 10 per day, not for past days) and opens it. The old tab label "Tour 2 (Folgetour)" became "Tour 2"; `PlanTourTab` got `driverName`.
+- **Released tours:** driver / order / moves raise `releaseRevision`, set `reReleasedAt` and `lastChange` (leaving stops are listed as removed, the driver app shows them), an arriving stop gets `changeKind ADDED`. All touched tours are re-routed with `route()` (legs, ETAs, geometry, totals; completed stops only change place), a tour whose last open stop leaves becomes COMPLETED (`deriveTourStatus`). Everything runs in one transaction behind the per-date advisory lock; the version of the edited tour plus the stop signature of every touched tour are re-checked (`conflict`).
+- **Audit:** reuses `tour.reorder` and `tour.assign_driver`, adds `tour.move_stop` (entry on both tours) and `tour.create_empty` (labels in de/en/zh-Hans, history rendering in `audit-history.ts`, `tour-edit.ts` listed in `audit-coverage.test.ts`).
+- **Strings:** `admin.tours.edit.*`, `admin.tours.tabs.*`, four new `errors.*`, `history.actions.*` (de, en, zh-Hans; admin-only, so no sr-Latn/cs). `releasedNotice` now points to "Bearbeiten". Forbidden words checked.
+- **Tests:** `tour-edit.test.ts` (domain), `tour-edit.integration.test.ts` (16: unreleased edit, no-op, move, empty source, released reorder / driver hand-over / move between two released tours seen through `getDriverTour`, completed slots, auto-COMPLETED, all refusals, "+ Tour" rules, action authorization), e2e `tour-edit.spec.ts` (desktop only, like the planning screen); `late-orders.spec.ts` / `late-orders.integration.test.ts` adjusted to the always-on tabs. Run here: lint (only the known fontstub warning), typecheck, `pnpm test` (2061 passed), i18n:check, `pnpm build`, e2e tours / late-orders / tour-rerelease / admin-progress / load-sheet / mvp-happy-path / tour-edit on desktop + mobile projects (17 passed, 15 skipped by design), fresh-DB seed. No migration needed.
+- **Not in this ticket:** the vehicle select (NUD-146 depends on this ticket and adds it to the form); merging a moved stop into an existing stop of the same customer (refused instead).
+- **Follow-up:** NUD-154 (new orders are in the scope of every open tour of a day; with "+ Tour" two open tours are now easy to reach).
 
 ---
 
@@ -2585,6 +2596,22 @@ General rules for every ticket in this block:
 
 ---
 
+#### NUD-154 · A new order is offered to every open tour of its day
+**Status:** todo · **depends_on:** 135 · found while building NUD-135 ("+ Tour" and moving stops make several open tours per day reachable); run before NUD-153. Overlaps with NUD-147 (order scope per tour): do it there if NUD-147 is started first.
+
+**Problem:** `listConfirmedOrdersForDate(db, date, { tourId })` scopes a tour to "orders not on a stop of another tour". A freshly confirmed order is on no stop, so it is in the scope of **every** open tour of the day, and `markOutdatedForDate` flags all open tours. With two open tours (tour A has other customers, tour B already has a stop of customer X), a new order of X shows up in A's diff as a new stop for X and in B's diff as a changed quantity; releasing or re-releasing both would put X on two tours.
+
+**Scope**
+- A new order of a customer that already has a stop (on an open tour) belongs to that stop's tour only; a new order of a customer on no stop stays in the scope of the tour the office picks (default: the selected / newest open tour).
+- `markOutdatedForDate` flags only the tour(s) the order belongs to.
+
+**Acceptance criteria**
+- [ ] Two open tours, a new order of a customer on tour B: only B is flagged outdated and only B's diff lists it (integration test).
+- [ ] A new order of a customer on no stop does not appear as "new stop" on more than one tour at release time.
+- [ ] Existing late-order / follow-up behaviour (NUD-099) is unchanged.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
@@ -2966,6 +2993,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-144 | A Parkplatz set by the driver is appended to the list: it is the default (routing / navigation point) only if the customer had none; no label or note. | D27 says no approval, and "becomes the default if none exists" in the ticket; a driver must not silently reorder the office's list. Simplest: append, office can reorder. |
 | 2026-10-27 | NUD-144 | Permissions-Policy now allows `geolocation=(self)` (was `()`). | The position fix needs it; one-off request on a button tap, no tracking, so D19 stands. Documented in deploy.md and privacy.md. |
 | 2026-10-27 | NUD-144 | Driver Parkplatz entries use the existing sync queue (`type: parking`, StopMutation kind PARKING) and audit action `parking.create` with `via`. | Reuses the idempotent outbox like NUD-142; no new route or audit action. |
+| 2026-10-27 | NUD-135 | Bearbeiten is one dialog (driver, order of the open stops, tour of each open stop) saved by one action `editTourAction`; a moved stop is appended at the end of the target tour and keeps its id, order links and quantities; a target tour that already has a stop of that customer is refused (`customer_in_target`) | Simplest consistent with D29: merging two stops would mean merging quantities and re-linking orders; the office reorders the target tour afterwards |
+| 2026-10-27 | NUD-135 | On a RELEASED / IN_PROGRESS tour every driver-visible edit (driver, order, stop moved in or out) raises `releaseRevision`, sets `reReleasedAt` / `lastChange`; an arriving stop gets `ADDED`, a leaving one is listed as removed; the driver of a released tour cannot be cleared; completed stops keep their slot and cannot be moved (`stop_locked`) | D29: released tours are edited through the existing "tour was updated" path; completed stops are locked |
+| 2026-10-27 | NUD-135 | "+ Tour" creates an empty OPTIMIZED tour (no routing call, at most 10 per day, not for past days); the tour tabs are always shown and read "Tour N · Fahrer" (the word "Folgetour" is dropped from the tab) | Owner F14/F15; the status machine cannot release a DRAFT tour, and a manual tab is not always a follow-up |
+| 2026-10-27 | NUD-135 | Vehicle is not in the edit form yet; NUD-146 (depends on 135) adds the select. Audit reuses `tour.reorder` / `tour.assign_driver` and adds `tour.move_stop` (on both tours) and `tour.create_empty` | Vehicles do not exist before NUD-146; one audit vocabulary instead of a parallel `tour.edit` |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -213,7 +213,8 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   await adminPage.goto(`/de/admin/tours?date=${today}`);
   await expect(visible(adminPage, "tour-status")).toHaveText("Abgeschlossen");
   await expect(visible(adminPage, "late-orders-banner")).toHaveCount(0);
-  await expect(visible(adminPage, "tour-tab")).toHaveCount(0);
+  // NUD-135: the tour tabs are shown for a single tour too.
+  await expect(visible(adminPage, "tour-tab")).toHaveCount(1);
 
   // ------------------------------------------------------------------ the late order (order form)
   await adminPage.goto("/de/admin/orders/new");
@@ -269,7 +270,7 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   const tabs = adminPage.locator('[data-testid="tour-tab"]:visible');
   await expect(tabs.nth(0)).toContainText("Tour 1");
   await expect(tabs.nth(0)).toContainText("Abgeschlossen");
-  await expect(tabs.nth(1)).toContainText("Tour 2 (Folgetour)");
+  await expect(tabs.nth(1)).toContainText("Tour 2");
   await expect(tabs.nth(1)).toHaveAttribute("aria-current", "page");
   await expect(visible(adminPage, "tour-status")).toHaveText("Optimiert");
   const rows = adminPage.locator('[data-testid="stop-row"]:visible');

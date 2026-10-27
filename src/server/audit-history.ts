@@ -101,6 +101,7 @@ const tourBuild = z.object({
 });
 const tourReorder = z.object({ customerIdsAfter: z.array(z.string()) });
 const tourLock = z.object({ locked: z.object({ from: z.boolean(), to: z.boolean() }) });
+const tourMove = z.object({ customerId: z.string() });
 const tourAssign = z.object({ driverId: changeSchema });
 const tourRelease = z.object({ stopCount: z.number(), driverId: z.string().nullable() });
 const tourRerelease = z.object({
@@ -335,6 +336,12 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
             ]
           : [];
       }
+      case "tour.move_stop": {
+        const d = tourMove.safeParse(row.diff);
+        return d.success ? [customerDetail(d.data.customerId)] : [];
+      }
+      case "tour.create_empty":
+        return [];
       case "tour.release": {
         const d = tourRelease.safeParse(row.diff);
         return d.success
