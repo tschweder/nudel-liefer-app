@@ -310,6 +310,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
+| NUD-156 | Self-hosted OpenRouteService (geocoding + routing without a quota) | M2.6 | – | in-progress |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2704,6 +2705,41 @@ Overlap with NUD-147 checked: NUD-147 does not cover this (it only adds a whole-
 - **Output:** table (row, number, customer, city, product, qty, note action, OK/ERROR), warnings, summary with file sha256; apply prints orders created, notes changed, order ids and the office steps (Touren > Touren planen > Freigeben). Never prints secrets: only `host:port/database`.
 - **Open for humans:** copy the script (and the CSV) to the server, run the dry run, check names against the sheet, then `--apply`; check on the real server that `/etc/delivery-app.env` has `DATABASE_URL` and (for translations) the retry cron from deploy.md 13.1 runs. NUD-152 untouched.
 - Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2310 passed / 4 skipped, i18n:check (no message changed). No UI change, so no e2e.
+
+---
+
+#### NUD-156 · Self-hosted OpenRouteService (geocoding + routing without a quota)
+**Status:** in-progress · **depends_on:** – · owner decision 2026-10-27 after the hosted ORS free key ran out of quota during the bulk geocoding of the 195 active customers. The 94 customers that are still without an Adresspunkt wait for this ticket.
+
+**Problem**
+The app calls the hosted ORS for two different jobs: geocoding (`src/server/geocoder/ors.ts`, `/geocode/search`) and tour planning (`src/server/routing/ors.ts`, `/optimization` VROOM + `/v2/directions`). On 2026-10-27 the free key answered `429` after ~80 lookups and then `403 "Quota exceeded"`; the real daily quota of that key is around 100 requests, not the 1000/day `.env.example` and `docs/deploy.md` assume. Today's tour is not blocked — `FallbackRoutingProvider` ([`src/server/routing/index.ts`](./src/server/routing/index.ts)) silently falls back to `LocalHeuristicProvider` and flags the tour `approximate` — but a bulk geocoding of the customer master data is, and any busy planning day can be.
+Self-hosting ORS removes the quota for both callers; only the endpoint changes.
+
+**Scope**
+- Make the endpoint configurable: `ORS_BASE_URL` (default `https://api.openrouteservice.org`) read in [`src/server/geocoder/index.ts`](./src/server/geocoder/index.ts) and [`src/server/routing/index.ts`](./src/server/routing/index.ts) and passed into `OrsGeocoder` / `OrsRoutingProvider` — both classes already take a `baseUrl`, it is simply never fed from the environment. Document it in `.env.example`, `docs/env.md`, `docs/deploy.md` (section 5) and write it into `/etc/delivery-app.env`.
+- Deploy ORS beside the app: the official `openrouteservice/openrouteservice` image, a graph built from an OSM extract, a persistent graph volume, a restart policy, and a listener on `127.0.0.1` only — the box hosts other sites, so its nginx server blocks are not touched except for the delivery-app snippet.
+- Re-run the customer geocoding against the local instance for the customers that still have no Adresspunkt (the office button, or the operator path used on 2026-10-27) and compare the hit rate with the hosted API.
+
+**Acceptance criteria**
+- [ ] `ORS_BASE_URL` is the only new knob; unset keeps today's hosted behaviour exactly. Unit tests assert the request URL for the geocoder and for the routing provider (directions and optimization) with the variable set and unset.
+- [ ] A local ORS answers `/geocode/search`, `/v2/directions` and `/optimization`; the app runs against it end to end (geocode one customer, plan one tour) with `approximate: false`.
+- [ ] The instance listens on `127.0.0.1` only, survives a restart of the box, and its graph can be rebuilt from a documented command.
+- [ ] `docs/runbook.md` gains the start/stop/health/rebuild steps; `docs/deploy.md` the RAM and disk requirement; `.env.example` and `docs/env.md` the new variable.
+- [ ] Definition of Done (lint, typecheck, test, i18n:check) green; no migration (no schema change).
+
+**Implementation notes**
+- 2026-10-27 (operator session, no code changed yet): the ticket exists and is scoped, but nothing was implemented — the host decision below is the blocker, and the local pnpm shim on the owner's PC is broken (`node_modules` and the tools are present, `pnpm -v` itself fails), so the Definition of Done cannot be run locally until that is fixed or the work runs on the server with `deploy/server-setup.sh`'s toolchain.
+- Measured today on the real box: `429` after ~80 lookups, `403 "Quota exceeded"` from the first request of the next minute; 103 of 197 active customers have a real Adresspunkt, 94 do not. `/opt/delivery-app.old` is the broken attempt-1 tree from the 2026-10-27 deploy, so it is **not** a rollback target; rebuild from a tarball instead.
+
+**Open decisions (owner)**
+- **Host.** Recommended: raise the existing vServer to 8 GB RAM and run ORS next to the app (61 GB disk free; an Austria-only extract is ~1 GB and the graph build needs the RAM only while it runs). Alternative: a separate VM. A home PC is fine for a local experiment but not for production — the vServer must reach the geocoder 24/7 while a driver is out in the field.
+- **Extract.** Austria only (small, fast — every customer is in AT) or AT + DE/Bavaria (larger, slower, covers German customers).
+- **Quality.** A self-hosted geocoder answers from the graph's OSM data alone, so the hit rate can be lower than the hosted API, which merges further sources. Measure it on the 195 addresses; if it is worse, keep the hosted key as the fallback for the office button.
+
+**Risks**
+- RAM: 2 vCPU / 2 GB today, and the build already needs swap (`deploy/server-setup.sh`, NUD-155 era). ORS wants more than the app does — do not start the deployment before the host decision, or the box will swap itself to death while drivers are working.
+- Disk: a DE extract plus its graph can exceed 20 GB; check `df -h /` before downloading.
+- The endpoint swap does not change planning quality (same VROOM behind `/optimization`); only the quota disappears.
 
 ---
 
