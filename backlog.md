@@ -284,11 +284,11 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | done |
 | NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
 | NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
-| NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | todo |
-| NUD-130 | Give the admin-password test teardown the same timeout as its setup | M2 | – | todo |
+| NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | done |
+| NUD-130 | Give the admin-password test teardown the same timeout as its setup | M2 | – | done |
 | NUD-131 | The dev server serves 127.0.0.1 a page whose buttons do nothing | M2 | – | done |
 | NUD-132 | Brighter design with a light/dark toggle of its own | M2 | – | done |
-| NUD-133 | Six committed tests import locale fixtures that are not in git | M2 | – | todo |
+| NUD-133 | Six committed tests import locale fixtures that are not in git | M2 | – | done |
 | NUD-134 | Load sheet: Deutsch/中文 printout, readable in dark mode | M2 | – | done |
 | NUD-135 | Edit an existing tour from the admin view | M2 | – | done |
 | NUD-136 | Customer master data from the factory list (Firma, UID, billing address) + number-less import | M2 | 090 | done |
@@ -315,6 +315,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
+| NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | todo |
+| NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2081,7 +2083,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-129 · Admin order list overflows horizontally at phone width
-**Status:** todo · **depends_on:** –
+**Status:** done · **depends_on:** –
 
 **Goal:** `orders.spec.ts` asserts "no horizontal scroll" on the order list and fails on the `mobile` project (Pixel 7, 393 px) after a **successful** save: the list renders wider than the viewport. Measured while working NUD-123; the order itself was created correctly, so this is layout only.
 
@@ -2090,24 +2092,32 @@ Overflowing elements reported by the spec's own check: `DIV.flex flex-col gap-1`
 Note: the admin area is specified for 1280 px (§5 DoD), but the suite runs the admin specs on the `mobile` project too, so either the list is made to fit (preferred — a phone is what the office uses while looking at a WhatsApp screenshot, D6) or the spec's expectation is scoped to desktop **with a comment explaining why**.
 
 **Acceptance criteria**
-- [ ] Reproduce at 393 px, identify the element that pushes the width (no `overflow-x` masking).
-- [ ] `orders.spec.ts` passes on both projects.
-- [ ] No horizontal scroll at 393 px on the order list and the order detail; screenshots added.
-- [ ] If the decision is "desktop only", the spec says so explicitly instead of silently skipping the check.
+- [x] Reproduce at 393 px, identify the element that pushes the width (no `overflow-x` masking).
+- [x] `orders.spec.ts` passes on both projects.
+- [x] No horizontal scroll at 393 px on the order list and the order detail; screenshots added.
+- [x] If the decision is "desktop only", the spec says so explicitly instead of silently skipping the check.
+
+**Implementation notes**
+- Commit 7b5971a. Cause: the Status/Source chip groups were `w-auto shrink-0` (five chips pushed the page wider), the range quick-pick had `overflow-x-auto` masking it (removed), and the `PageHeader` actions wrapper on the order detail was `shrink-0` with no max width. All now wrap (`order-filters.tsx`, `page-header.tsx`; the latter is shared by all admin pages, width constraint only). `orders.spec.ts` also opens the order detail, asserts no horizontal scroll and takes a screenshot. Measured 393/393 and 1280/1280 scrollWidth/clientWidth. One mobile-only ECONNRESET flake on the shared Postgres, passed on retry.
 
 ---
 
+
 #### NUD-130 · Give the admin-password test teardown the same timeout as its setup
-**Status:** todo · **depends_on:** –
+**Status:** done · **depends_on:** –
 
 **Goal:** `src/server/admin-password.integration.test.ts` fails `pnpm test` at random with `Error: Hook timed out in 10000ms` in its `afterAll` (`DROP DATABASE IF EXISTS "…" WITH (FORCE)`) while **all** tests pass (seen on 2026-10-26: `Test Files 1 failed | 164 passed`, `Tests 1790 passed`; the same file passes in isolation in 9.7 s). The `beforeAll` already passes an explicit timeout, the teardown does not.
 
 **Acceptance criteria**
-- [ ] The `afterAll` gets an explicit timeout (or the file sets `hookTimeout`), with a one-line reason.
+- [x] The `afterAll` gets an explicit timeout (or the file sets `hookTimeout`), with a one-line reason.
 - [ ] `pnpm test` is green three times in a row with a warm dev server and Postgres under load.
-- [ ] No test behaviour is weakened — only the teardown's timeout changes.
+- [x] No test behaviour is weakened — only the teardown's timeout changes.
+
+**Implementation notes**
+- Commit 5236598. `afterAll(..., 120_000)`; one line. The "`pnpm test` green three times in a row" criterion is **not ticked**: it was not run and is not reproducible while other jobs share this Postgres. On the merged tree one `vitest run --maxWorkers=2 --hookTimeout=60000` run was 199 files green.
 
 ---
+
 
 #### NUD-131 · The dev server serves 127.0.0.1 a page whose buttons do nothing
 **Status:** done · **depends_on:** –
@@ -2870,19 +2880,46 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 
 ---
 
+#### NUD-160 · `pnpm db:seed --demo` exits 1 with `key_in_use`
+**Status:** todo · **depends_on:** – · found by the NUD-159 worker (2026-10-27); not checked whether it also fails at the previous baseline.
+
+**Goal:** `pnpm db:seed --demo` prints "Seed finished" and then exits 1 with `Photo D-005/STORE not saved: key_in_use` (customer-photo storage, `src/server/demo-seed.ts` around line 207). Find the cause (re-run on an already seeded DB?) and make the seed idempotent.
+
+**Acceptance criteria**
+- [ ] Root cause identified; `pnpm db:seed --demo` exits 0 on a fresh and on an already seeded DB.
+
+---
+
+#### NUD-161 · Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout
+**Status:** todo · **depends_on:** – · found by the NUD-159/129 workers.
+
+**Goal:** with `CI=1` `playwright.config.ts` runs the double `next build` on every run (about 150 s here), leaving no margin under the 180 s webServer timeout; the first e2e attempt times out on this machine. Make the timeout sufficient or let a prebuilt build be reused explicitly (env switch), without weakening `reuseExistingServer: !CI` (the guard against testing a foreign app on a busy port).
+
+**Acceptance criteria**
+- [ ] `CI=1 PORT=<free> pnpm test:e2e <spec>` starts reliably on a cold checkout.
+- [ ] Running against an already running foreign server still fails loudly.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
-**Status:** todo · **depends_on:** – · found while deploying NUD-132.
+**Status:** done · **depends_on:** – · found while deploying NUD-132.
 
 **Goal:** `src/components/admin/order-totals.test.tsx`, `products-table.test.tsx`, `settings-form.test.tsx`, `users-manager.test.tsx`, `src/components/auth/login-form.test.tsx` and `src/components/maps/tour-map.test.tsx` import `../../../messages/_fragments/*.json`, and `messages/_fragments/` is **not tracked** (150+ files, with timestamped `_merged/` copies). A clean checkout therefore cannot type-check or build: `next build` type-checks test files, so the deploy of NUD-127 failed with `Cannot find module '../../../messages/_fragments/A2.json'` until the tarball was made to include the untracked directory.
 
 **Acceptance criteria**
-- [ ] Decide: commit the fixtures, replace them with inline objects, or move them under `tests/fixtures/` and commit that.
-- [ ] `git clean -xdf` (or a fresh clone) followed by `pnpm typecheck` and `pnpm build` succeeds without any untracked file.
-- [ ] `deploy/deploy.ps1` no longer needs to ship an untracked directory for the build to pass.
+- [x] Decide: commit the fixtures, replace them with inline objects, or move them under `tests/fixtures/` and commit that.
+- [x] `git clean -xdf` (or a fresh clone) followed by `pnpm typecheck` and `pnpm build` succeeds without any untracked file.
+- [x] `deploy/deploy.ps1` no longer needs to ship an untracked directory for the build to pass.
 
 **Also worth a look (found in the same run):** a deploy that printed every stage, passed `nginx -t`, took the nginx backup, and reported "Done." together with successful health checks still ended with **exit code 1** (twice now). The deployment itself was verified healthy both times, so the script's own exit status is misleading — the last command of the ssh session probably returns non-zero.
+
+**Implementation notes**
+- Commit 7f7b8a5. Only four of the six tests imported `_fragments` (order-totals, products-table, settings-form, users-manager); login-form and tour-map already had their keys inline and only had misleading comments fixed. Fixtures copied to `tests/fixtures/locale/orders-totals.json` and `admin-forms.json`. Verified in a worktree without `messages/_fragments`: typecheck, build, lint, the six tests green. `deploy.ps1` tars `git ls-files` only (792 files, tar exit 0 tested locally; the script itself was parse-checked, not run against the server).
+- **Exit code 1: NOT confirmed fixed.** Hypothesis: stale `$LASTEXITCODE` from ssh/scp stderr; an explicit `exit 0` was added. A human must confirm on the next real deploy (exit code 0, build passes from the tracked-only tarball).
+- Follow-up idea: `deploy/server-setup.sh` has no explicit `exit 0` (hardening only).
+
 
 #### NUD-100 · AI screenshot extraction (review required)
 **Status:** superseded → NUD-150 (owner test 2026-10-26) · **depends_on:** 031
@@ -3293,7 +3330,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-158 | Vehicle switch = 5 min constant at the depot (`VEHICLE_SWITCH_MINUTES`, not a setting), reload stays 20 min | Same simplest-model choice as the reload time in NUD-147; NUD-152 may make both settings |
 | 2026-10-27 | NUD-158 | Drivers get whole vehicle chains, longest first to the driver with the least work (LPT); a vehicle is never shared by two drivers | Simplest balanced rule; avoids two drivers needing the same vehicle at the same time |
 | 2026-10-27 | NUD-158 | Too many stops for one planning run: plan the compact cluster around the depot (Prim-style growth), list the rest as "Heute nicht eingeplant" from the live data (orders of a planned day on no tour) — nothing stored | Owner: never block the day; the list must survive a page reload without a new column |
-- 2026-10-27 · NUD-159 · German unit words are Sackerl (PACK) and Kiste (CRATE), replacing Beutel and Karton in de.json, docs, the hand-off page and comments; the label stays invariant after a number. Identifiers (PACK/CRATE, SKUs, parseKarton) and the other four locales are unchanged. Import CSV header column 3 is `Kiste`; `Karton` stays a legacy alias. Forbidden-words guard inverted.
+| 2026-10-27 | NUD-159 | German unit words are Sackerl (PACK) and Kiste (CRATE), replacing Beutel and Karton in de.json, docs, the hand-off page and comments; the label stays invariant after a number. Identifiers (PACK/CRATE, SKUs, parseKarton) and the other four locales are unchanged. Import CSV header column 3 is `Kiste`; `Karton` stays a legacy alias. Forbidden-words guard inverted. | Owner request; amends D23 |
+| 2026-10-27 | NUD-133 | Fixtures committed under `tests/fixtures/locale/` with descriptive names (orders-totals.json, admin-forms.json); deploy tarball built from `git ls-files` (tracked files only); `deploy.ps1` ends with an explicit `exit 0` | Simplest option; root cause of the exit code 1 not reproduced, unconfirmed until the next real deploy |
+| 2026-10-27 | NUD-129 | Order list and detail made to fit 393 px (filter chip groups and page-header actions wrap) instead of scoping the spec to desktop | Office uses a phone for WhatsApp screenshots (D6) |
+| 2026-10-27 | NUD-130 | Only the `afterAll` gets an explicit 120 s timeout (same as `beforeAll`); no file-level hookTimeout | Smallest change |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
