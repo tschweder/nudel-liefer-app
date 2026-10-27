@@ -103,6 +103,12 @@ describe.skipIf(!process.env.DATABASE_URL)("saveSettingsAction", { timeout: 60_0
     expect(await saveSettingsAction({ ...valid, deliveryWeekdays: [3] })).toEqual({ ok: true });
     expect(await t.prisma.settings.count()).toBe(1);
     expect((await readSettings(t.prisma))?.deliveryWeekdays).toEqual([3]);
+    // The recurring lead time defaults to 14 days, is editable and kept when a save omits it.
+    expect((await readSettings(t.prisma))?.recurringLeadDays).toBe(14);
+    expect(await saveSettingsAction({ ...valid, recurringLeadDays: 21 })).toEqual({ ok: true });
+    expect((await readSettings(t.prisma))?.recurringLeadDays).toBe(21);
+    expect(await saveSettingsAction(valid)).toEqual({ ok: true });
+    expect((await readSettings(t.prisma))?.recurringLeadDays).toBe(21);
   });
 
   it.each([
@@ -117,6 +123,8 @@ describe.skipIf(!process.env.DATABASE_URL)("saveSettingsAction", { timeout: 60_0
     ["negative service minutes", { serviceMinutesPerStop: -1 }],
     ["fractional service minutes", { serviceMinutesPerStop: 1.5 }],
     ["too many service minutes", { serviceMinutesPerStop: 181 }],
+    ["zero recurring lead days", { recurringLeadDays: 0 }],
+    ["too many recurring lead days", { recurringLeadDays: 61 }],
     ["blank name", { depotName: "   " }],
   ])("rejects invalid input (%s) and keeps the old values", async (_label, patch) => {
     state.session = { user: { id: adminId } };

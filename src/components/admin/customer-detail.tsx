@@ -1,4 +1,11 @@
-import { ArchiveIcon, ImageOffIcon, KeyRoundIcon, MapPinOffIcon, PencilIcon } from "lucide-react";
+import {
+  ArchiveIcon,
+  ImageOffIcon,
+  KeyRoundIcon,
+  MapPinOffIcon,
+  PencilIcon,
+  RepeatIcon,
+} from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,12 +22,14 @@ import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
 import type { KeyHistoryEntry } from "@/server/customer-key";
 import type { NoteTranslationsView } from "@/server/customer-notes";
 import type { ParkingSpotView } from "@/server/parking-spots";
+import type { RecurringRuleView } from "@/server/recurring-orders";
 
 import { CustomerArchiveButton } from "./customer-archive-button";
 import { CustomerPhotoSlots, type PhotoSlotValue } from "./customer-photo-slots";
 import { NoteTranslations } from "./note-translations";
 import { PageHeader } from "./page-header";
 import { ParkingSpotsManager } from "./parking-spots-manager";
+import { RecurringOrdersCard, type RecurringProductChoice } from "./recurring-orders-card";
 
 function Field({
   label,
@@ -59,6 +68,9 @@ export function CustomerDetailView({
   parkingSpots,
   keyHistory,
   tiles,
+  recurringRules,
+  recurringProducts,
+  today,
 }: {
   customer: CustomerDetail;
   orders: UpcomingOrder[];
@@ -70,6 +82,11 @@ export function CustomerDetailView({
   /** Key changes, newest first (NUD-142). */
   keyHistory: KeyHistoryEntry[];
   tiles: MapTileConfig;
+  /** Recurring orders of the customer (NUD-149). */
+  recurringRules: RecurringRuleView[];
+  recurringProducts: RecurringProductChoice[];
+  /** `YYYY-MM-DD` in the factory time zone. */
+  today: string;
 }) {
   const t = useTranslations("admin.customers");
   const td = useTranslations("admin.customers.detail");
@@ -141,6 +158,7 @@ export function CustomerDetailView({
               customerId={customer.id}
               active={customer.active}
               upcomingOrders={orders.length}
+              runningRules={recurringRules.filter((r) => r.state === "active").length}
             />
           </>
         }
@@ -255,6 +273,14 @@ export function CustomerDetailView({
             }
           />
 
+          <RecurringOrdersCard
+            customerId={customer.id}
+            customerActive={customer.active}
+            rules={recurringRules}
+            products={recurringProducts}
+            today={today}
+          />
+
           <section className="flex flex-col gap-3" aria-labelledby="d-photos">
             <h2 id="d-photos" className="text-lg font-semibold">
               {td("photosHeading")}
@@ -287,6 +313,12 @@ export function CustomerDetailView({
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{fmt.calendarDate(order.deliveryDate)}</span>
+                        {order.fromRecurring ? (
+                          <Badge variant="outline" data-testid="order-from-recurring">
+                            <RepeatIcon aria-hidden />
+                            {td("fromRecurring")}
+                          </Badge>
+                        ) : null}
                         <Badge variant={order.status === "CONFIRMED" ? "success" : "secondary"}>
                           {tc(`statuses.order.${order.status}`)}
                         </Badge>

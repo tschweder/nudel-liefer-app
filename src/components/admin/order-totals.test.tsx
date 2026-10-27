@@ -112,6 +112,7 @@ const rows: OrderOverviewRow[] = [
     },
     status: "CONFIRMED",
     source: "MANUAL",
+    fromRecurring: false,
     customer: { id: "c1", customerNumber: "K-1", name: "Osteria A" },
     items: [],
     tour: { tourId: "tour-1", stopId: "stop-1" },

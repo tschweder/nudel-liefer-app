@@ -11,7 +11,10 @@ import { retranslateNote, saveNoteTranslations } from "./customer-notes";
 import { addCustomerPhoto } from "./customer-photos";
 import { getDb } from "./db";
 import { getGeocoder } from "./geocoder";
+import { todayIn } from "./orders";
+import { getFactoryTimezone } from "./settings";
 import { getStorage } from "./storage";
+import { getTourService } from "./tour-service";
 
 /**
  * Admin-only server actions for customer master data. The role is checked against the database
@@ -32,8 +35,12 @@ export async function updateCustomerAction(
 }
 
 export async function setCustomerActiveAction(id: unknown, active: unknown) {
-  await requireRole("ADMIN");
-  return setCustomerActive(getDb(), id, active);
+  const actor = await requireRole("ADMIN");
+  return setCustomerActive(getDb(), id, active, {
+    actorId: actor.id,
+    today: todayIn(await getFactoryTimezone()),
+    tours: getTourService(),
+  });
 }
 
 /**

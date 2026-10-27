@@ -110,6 +110,11 @@ export function OrderDetailView({
           <dt className="text-sm text-muted-foreground">{t("columns.source")}</dt>
           <dd className="text-base" data-testid="detail-source">
             {t(`source.${order.source}`)}
+            {order.fromRecurring ? (
+              <span className="block text-sm text-muted-foreground" data-testid="detail-recurring">
+                {t("fromRecurring")}
+              </span>
+            ) : null}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">

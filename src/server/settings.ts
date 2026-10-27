@@ -22,6 +22,7 @@ export type AppSettings = DepotSettings &
   PlanningSettings & {
     departureTime: string;
     serviceMinutesPerStop: number;
+    recurringLeadDays: number;
   };
 
 const SETTINGS_ID = 1;
@@ -45,6 +46,8 @@ export const settingsInputSchema = z.object({
   timezone: z.string().trim().min(1).max(64).refine(isValidTimezone),
   departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   serviceMinutesPerStop: z.number().int().min(0).max(180),
+  /** Days ahead the daily job generates recurring orders (NUD-149); omitted = unchanged. */
+  recurringLeadDays: z.number().int().min(1).max(60).optional(),
   deliveryWeekdays: z
     .array(z.number().int().min(1).max(7))
     .min(1)
@@ -70,6 +73,7 @@ export async function readSettings(db: SettingsDb): Promise<AppSettings | null> 
     timezone: row.timezone,
     departureTime: row.departureTime,
     serviceMinutesPerStop: row.serviceMinutesPerStop,
+    recurringLeadDays: row.recurringLeadDays,
     deliveryWeekdays: row.deliveryWeekdays,
   };
 }

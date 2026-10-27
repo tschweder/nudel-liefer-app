@@ -4,6 +4,8 @@ import { Suspense } from "react";
 
 import { CustomerDetailView } from "@/components/admin/customer-detail";
 import { LoadingSkeleton } from "@/components/shared/states";
+import { formatCalendarDate } from "@/domain/order";
+import { type AppLocale, pick } from "@/lib/localized-text";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
 import {
@@ -12,8 +14,12 @@ import {
   getCustomerQuery,
   noteTranslationsQuery,
   parkingSpotsQuery,
+  recurringOrdersQuery,
   upcomingOrdersQuery,
 } from "@/server/customer-queries";
+import { todayIn } from "@/server/orders";
+import { activeProductsQuery } from "@/server/product-queries";
+import { getFactoryTimezone } from "@/server/settings";
 
 const toSlot = ({
   id,
@@ -43,13 +49,17 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const [orders, photos, noteTranslations, parkingSpots, keyHistory] = await Promise.all([
-    upcomingOrdersQuery(id),
-    customerPhotosQuery(id),
-    noteTranslationsQuery(id),
-    parkingSpotsQuery(id),
-    customerKeyHistoryQuery(id),
-  ]);
+  const [orders, photos, noteTranslations, parkingSpots, keyHistory, rules, products, timezone] =
+    await Promise.all([
+      upcomingOrdersQuery(id),
+      customerPhotosQuery(id),
+      noteTranslationsQuery(id),
+      parkingSpotsQuery(id),
+      customerKeyHistoryQuery(id),
+      recurringOrdersQuery(id),
+      activeProductsQuery(),
+      getFactoryTimezone(),
+    ]);
   return (
     <CustomerDetailView
       customer={customer}
@@ -58,6 +68,13 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
       parkingSpots={parkingSpots}
       keyHistory={keyHistory}
       tiles={getMapTileConfig()}
+      recurringRules={rules}
+      recurringProducts={products.map((p) => ({
+        id: p.id,
+        label: `${pick(p.name, locale as AppLocale)} (${p.sku})`,
+        unit: p.unit,
+      }))}
+      today={formatCalendarDate(todayIn(timezone))}
       photos={{
         STORE: photos.STORE && toSlot(photos.STORE),
         PARKING: photos.PARKING && toSlot(photos.PARKING),

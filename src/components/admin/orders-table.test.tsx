@@ -50,6 +50,7 @@ const row = (
   },
   status: "CONFIRMED",
   source: "MANUAL",
+  fromRecurring: false,
   customer: { id: `c-${id}`, customerNumber: `K-${id}`, name: `Kunde ${id}` },
   items: [
     {

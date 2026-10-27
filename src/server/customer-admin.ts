@@ -7,13 +7,31 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
 import { localizedTextSchema } from "@/lib/localized-text";
 
+import { recordAudit } from "./audit";
 import { geocodeAddress } from "./customer-geocode";
 import { setCustomerKey } from "./customer-key";
 import { notesJson, prepareNotes } from "./customer-notes";
 import { type Geocoder, MAX_ADDRESS_LENGTH } from "./geocoder";
+import type { TourHook } from "./orders";
+import {
+  cascadeCustomerInactive,
+  generateRecurringOrders,
+  resumeCustomerRules,
+} from "./recurring-orders";
 import type { Translator } from "./translator/types";
 
-type CustomerDb = Pick<PrismaClient, "customer" | "order" | "photo" | "$transaction" | "auditLog">;
+type CustomerDb = Pick<
+  PrismaClient,
+  | "customer"
+  | "order"
+  | "photo"
+  | "$transaction"
+  | "auditLog"
+  | "recurringOrder"
+  | "tour"
+  | "settings"
+  | "product"
+>;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const optionalText = (max: number) =>
@@ -232,20 +250,74 @@ export async function updateCustomer(
   }
 }
 
-/** Archive (`active = false`) or reactivate; customers are never deleted (backlog 4.3). */
+export type CustomerActiveResult =
+  | {
+      ok: true;
+      /** Future open orders cancelled and rules paused / resumed by this change (NUD-149). */
+      cancelledOrders: number;
+      pausedRules: number;
+      resumedRules: number;
+    }
+  | { ok: false; error: "invalid" | "not_found" };
+
+/**
+ * Archive (`active = false`) or reactivate; customers are never deleted (backlog 4.3). Setting a
+ * customer inactive pauses all his recurring rules and cancels every future order that is not yet
+ * delivered (D25, NUD-149), in the same transaction and audited. Reactivating resumes the rules
+ * that were paused with him; cancelled orders stay cancelled.
+ */
 export async function setCustomerActive(
   db: CustomerDb,
   rawId: unknown,
   rawActive: unknown,
-): Promise<{ ok: true } | { ok: false; error: "invalid" | "not_found" }> {
+  ctx: { actorId: string; today: Date; tours: TourHook },
+): Promise<CustomerActiveResult> {
   const id = idSchema.safeParse(rawId);
   const active = z.boolean().safeParse(rawActive);
   if (!id.success || !active.success) return { ok: false, error: "invalid" };
-  const result = await db.customer.updateMany({
-    where: { id: id.data },
-    data: { active: active.data },
+  const outcome = await db.$transaction(async (tx) => {
+    const stored = await tx.customer.findUnique({
+      where: { id: id.data },
+      select: { id: true, active: true },
+    });
+    if (!stored) return null;
+    if (stored.active === active.data) {
+      return { cancelledOrders: 0, pausedRules: 0, resumed: [] as string[] };
+    }
+    await tx.customer.update({ where: { id: stored.id }, data: { active: active.data } });
+    const cascade = active.data
+      ? { cancelledOrders: 0, pausedRules: 0 }
+      : await cascadeCustomerInactive(tx, ctx.tours, ctx.actorId, stored.id, ctx.today);
+    const resumed = active.data ? await resumeCustomerRules(tx, ctx.actorId, stored.id) : [];
+    await recordAudit(tx, {
+      actorId: ctx.actorId,
+      entity: "Customer",
+      entityId: stored.id,
+      action: active.data ? "customer.activate" : "customer.deactivate",
+      diff: {
+        active: { from: stored.active, to: active.data },
+        cancelledOrders: cascade.cancelledOrders,
+        pausedRules: cascade.pausedRules,
+        resumedRules: resumed.length,
+      },
+    });
+    return { ...cascade, resumed };
   });
-  return result.count === 0 ? { ok: false, error: "not_found" } : { ok: true };
+  if (!outcome) return { ok: false, error: "not_found" };
+  if (outcome.resumed.length > 0) {
+    // Rules that run again get their orders now instead of at the next daily run.
+    await generateRecurringOrders(db, {
+      today: ctx.today,
+      tours: ctx.tours,
+      ruleIds: outcome.resumed,
+    });
+  }
+  return {
+    ok: true,
+    cancelledOrders: outcome.cancelledOrders,
+    pausedRules: outcome.pausedRules,
+    resumedRules: outcome.resumed.length,
+  };
 }
 
 /** Next free customer number to prefill the "new customer" form. */
@@ -330,6 +402,8 @@ export type UpcomingOrder = {
   /** `DATE` value as UTC midnight. */
   deliveryDate: Date;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+  /** Generated from a recurring rule ("aus Dauerbestellung", NUD-149). */
+  fromRecurring: boolean;
   items: Array<{ id: string; productName: unknown; unit: string; quantity: number }>;
 };
 
@@ -366,6 +440,7 @@ export async function listUpcomingOrders(
     id: o.id,
     deliveryDate: o.deliveryDate,
     status: o.status,
+    fromRecurring: o.recurringOrderId !== null,
     items: o.items.map((i) => ({
       id: i.id,
       productName: i.product.name,

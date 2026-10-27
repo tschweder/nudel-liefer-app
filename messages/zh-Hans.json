@@ -449,7 +449,7 @@
           "object_missing": "找不到已上传的图片，请重新上传。",
           "key_in_use": "该图片已被使用，请重新上传。"
         },
-        "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待处理订单}}。这些订单会保留，但不会自动取消，请先检查。",
+        "archiveUpcoming": "{count, plural, other {注意：该客户还有 # 个待送订单}}。未完成的订单将被取消，不会删除任何数据。包含这些订单的路线需要重新发布。",
         "photoByDriver": "由司机 {name} 于 {date} 更新",
         "photoAddHint": "拍照或上传照片。",
         "billingAddress": "发票地址",
@@ -473,7 +473,10 @@
             "present": "有钥匙",
             "number": "钥匙编号 {number}"
           }
-        }
+        },
+        "fromRecurring": "来自长期订单",
+        "archivedCancelled": "{count, plural, other {客户已归档，已取消 # 个未完成订单。}}",
+        "archiveRules": "{count, plural, other {其 # 个长期订单将被暂停}}。恢复客户后会继续生效。"
       },
       "translations": {
         "tabDetails": "详情",
@@ -715,6 +718,65 @@
           "limit": "每位客户最多 {max} 个停车位。",
           "conflict": "列表已被更改，正在重新加载。"
         }
+      },
+      "recurring": {
+        "heading": "长期订单",
+        "new": "新建长期订单",
+        "empty": "还没有长期订单。长期订单只需确认一次，之后系统会自动生成订单。",
+        "customerInactive": "该客户已归档。其长期订单已暂停，不会生成订单。",
+        "saved": "{count, plural, =0 {长期订单已保存。} other {长期订单已保存，已生成 # 个订单。}}",
+        "resumed": "{count, plural, =0 {长期订单已恢复。} other {长期订单已恢复，已生成 # 个订单。}}",
+        "paused": "长期订单已暂停。已生成的订单保持不变。",
+        "state": {
+          "active": "生效中",
+          "paused": "已暂停",
+          "customer_inactive": "已暂停（客户已归档）"
+        },
+        "schedule": {
+          "weekly": "每周：{days}",
+          "everyN": "每 {n} 周：{days}"
+        },
+        "from": "自 {date} 起",
+        "seasonText": "仅限 {from} 至 {to}",
+        "exceptionsCount": "{count, plural, other {# 个例外}}",
+        "next": "接下来的送货日：{dates}",
+        "confirmedBy": "由 {name} 确认，{date}",
+        "pause": "暂停",
+        "resume": "恢复",
+        "form": {
+          "newTitle": "新建长期订单",
+          "editTitle": "编辑长期订单",
+          "hint": "只需确认一次：之后系统会提前自动生成订单（设置，计划）。",
+          "weekdays": "送货日",
+          "every": "间隔（周）",
+          "everyHint": "1 = 每周，2 = 每两周，…",
+          "anchor": "开始日期",
+          "anchorHint": "该日期所在的一周是间隔周期的起点。",
+          "season": "季节",
+          "seasonOnly": "仅在某个季节送货",
+          "seasonTo": "至",
+          "seasonHint": "季节之外（例如夏季）不会生成订单。可以设置为九月至五月。",
+          "month": "月",
+          "day": "日",
+          "exceptions": "例外日期",
+          "exceptionsHint": "这些日期不送货。",
+          "products": "产品",
+          "product": "产品",
+          "productPlaceholder": "选择产品",
+          "quantity": "数量",
+          "addProduct": "添加产品",
+          "editNote": "已生成的订单保持不变。修改只对尚无订单的日期生效。",
+          "saving": "正在保存…",
+          "confirm": "确认并保存"
+        },
+        "errors": {
+          "weekdays": "请至少选择一个送货日。",
+          "every": "间隔必须在 1 到 {max} 周之间。",
+          "anchor": "请选择有效的开始日期。",
+          "lines": "请为每个产品填写不小于 1 的整数数量。",
+          "customerInactive": "该客户已归档。",
+          "generic": "保存失败，请重试。"
+        }
       }
     },
     "products": {
@@ -834,7 +896,9 @@
         "serviceMinutes": "每个站点停留分钟数",
         "serviceMinutesHint": "在每位客户处计划停留的时间（0 至 180）。",
         "weekdays": "配送日",
-        "weekdaysHint": "仅在这些星期几配送。新订单默认使用下一个配送日。"
+        "weekdaysHint": "仅在这些星期几配送。新订单默认使用下一个配送日。",
+        "recurringLeadDays": "长期订单提前天数",
+        "recurringLeadDaysHint": "系统提前这么多天根据长期订单生成订单（1 至 60）。"
       },
       "save": "保存",
       "saving": "正在保存…",
@@ -1057,7 +1121,8 @@
       },
       "window": {
         "label": "送货时间段"
-      }
+      },
+      "fromRecurring": "来自长期订单"
     },
     "tours": {
       "title": "配送线路",
@@ -1368,7 +1433,13 @@
         "vehicle_create": "车辆已创建",
         "vehicle_update": "车辆已更改",
         "vehicle_activate": "车辆已启用",
-        "vehicle_deactivate": "车辆已停用"
+        "vehicle_deactivate": "车辆已停用",
+        "customer_deactivate": "客户已归档",
+        "customer_activate": "客户已恢复",
+        "recurring_create": "已创建长期订单",
+        "recurring_update": "已修改长期订单",
+        "recurring_pause": "已暂停长期订单",
+        "recurring_resume": "已恢复长期订单"
       },
       "fields": {
         "status": "状态",

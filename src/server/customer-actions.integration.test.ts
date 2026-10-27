@@ -308,10 +308,20 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
 
   it("archives and reactivates (soft delete, the row stays)", async () => {
     const { id } = await create({ customerNumber: "ARC-1" });
-    expect(await setCustomerActiveAction(id, false)).toEqual({ ok: true });
+    expect(await setCustomerActiveAction(id, false)).toEqual({
+      ok: true,
+      cancelledOrders: 0,
+      pausedRules: 0,
+      resumedRules: 0,
+    });
     expect((await t.prisma.customer.findUniqueOrThrow({ where: { id } })).active).toBe(false);
     expect((await getCustomerQuery(id))?.active).toBe(false);
-    expect(await setCustomerActiveAction(id, true)).toEqual({ ok: true });
+    expect(await setCustomerActiveAction(id, true)).toEqual({
+      ok: true,
+      cancelledOrders: 0,
+      pausedRules: 0,
+      resumedRules: 0,
+    });
     expect((await t.prisma.customer.findUniqueOrThrow({ where: { id } })).active).toBe(true);
   });
 

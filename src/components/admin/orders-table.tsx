@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLinkIcon, type LucideIcon, PencilIcon, UserIcon } from "lucide-react";
+import { ExternalLinkIcon, type LucideIcon, PencilIcon, RepeatIcon, UserIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 
@@ -317,10 +317,14 @@ function OrderRow({
           data-source={order.source}
         >
           <SourceMark
-            icon={orderSourceIcon(order.source)}
+            icon={order.fromRecurring ? RepeatIcon : orderSourceIcon(order.source)}
             className="size-4 text-muted-foreground"
           />
-          {t(`source.${order.source}`)}
+          {order.fromRecurring ? (
+            <span data-testid="order-from-recurring">{t("fromRecurring")}</span>
+          ) : (
+            t(`source.${order.source}`)
+          )}
         </span>
       </TableCell>
 
@@ -461,10 +465,10 @@ function OrderDrawer({
                 <dt className="text-muted-foreground">{t("columns.source")}</dt>
                 <dd className="inline-flex items-center gap-1.5">
                   <SourceMark
-                    icon={orderSourceIcon(order.source)}
+                    icon={order.fromRecurring ? RepeatIcon : orderSourceIcon(order.source)}
                     className="size-4 text-muted-foreground"
                   />
-                  {t(`source.${order.source}`)}
+                  {order.fromRecurring ? t("fromRecurring") : t(`source.${order.source}`)}
                 </dd>
                 <dt className="text-muted-foreground">{t("columns.tour")}</dt>
                 <dd>

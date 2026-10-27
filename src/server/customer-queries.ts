@@ -6,7 +6,9 @@ import { getCustomerPhotos } from "./customer-photos";
 import { countParkingQueue, listParkingQueue } from "./customer-pins";
 import { listCustomers } from "./customers";
 import { getDb } from "./db";
+import { todayIn } from "./orders";
 import { listParkingSpots } from "./parking-spots";
+import { listRecurringOrders } from "./recurring-orders";
 import { getFactoryTimezone } from "./settings";
 import { getStorage } from "./storage";
 
@@ -71,4 +73,10 @@ export async function parkingSpotsQuery(id: unknown) {
 export async function customerKeyHistoryQuery(id: unknown) {
   await requireRole("ADMIN");
   return getCustomerKeyHistory(getDb(), id);
+}
+
+/** Recurring rules (Dauerbestellungen) of one customer (admin only, NUD-149). */
+export async function recurringOrdersQuery(id: unknown) {
+  await requireRole("ADMIN");
+  return listRecurringOrders(getDb(), id, todayIn(await getFactoryTimezone()));
 }

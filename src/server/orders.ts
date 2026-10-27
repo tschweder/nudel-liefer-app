@@ -289,6 +289,8 @@ export type OrderOverviewRow = {
   window: OrderWindow;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
   source: "MANUAL" | "SCREENSHOT";
+  /** Generated from a recurring rule ("aus Dauerbestellung", NUD-149). */
+  fromRecurring: boolean;
   customer: { id: string; customerNumber: string; name: string };
   items: Array<{ id: string; productName: unknown; unit: string; quantity: number }>;
   /** The tour this order is part of (through its stop), or `null` while no tour contains it. */
@@ -340,6 +342,7 @@ export async function listOrderOverview(
       window: rowWindow(o),
       status: o.status,
       source: o.source,
+      fromRecurring: o.recurringOrderId !== null,
       customer: o.customer,
       items: o.items.map((i) => ({
         id: i.id,
@@ -498,6 +501,8 @@ export type OrderDetail = {
   window: OrderWindow;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
   source: "MANUAL" | "SCREENSHOT";
+  /** Generated from a recurring rule (NUD-149). */
+  fromRecurring: boolean;
   internalNote: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -565,6 +570,7 @@ export async function getOrderDetail(
     window: rowWindow(o),
     status: o.status,
     source: o.source,
+    fromRecurring: o.recurringOrderId !== null,
     internalNote: o.internalNote,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,

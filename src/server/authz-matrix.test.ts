@@ -227,6 +227,18 @@ const MATRIX: Record<string, Row> = {
   "src/server/customer-actions.ts#setCustomerActiveAction": adminAction("customers", async () =>
     (await import("./customer-actions")).setCustomerActiveAction("x", false),
   ),
+  "src/server/recurring-actions.ts#createRecurringOrderAction": adminAction(
+    "recurring orders",
+    async () => (await import("./recurring-actions")).createRecurringOrderAction({}),
+  ),
+  "src/server/recurring-actions.ts#updateRecurringOrderAction": adminAction(
+    "recurring orders",
+    async () => (await import("./recurring-actions")).updateRecurringOrderAction("x", {}),
+  ),
+  "src/server/recurring-actions.ts#setRecurringOrderActiveAction": adminAction(
+    "recurring orders",
+    async () => (await import("./recurring-actions")).setRecurringOrderActiveAction("x", false),
+  ),
   "src/server/customer-actions.ts#addCustomerPhotoAction": adminAction(
     "customer photos",
     async () => (await import("./customer-actions")).addCustomerPhotoAction({}),
@@ -424,6 +436,14 @@ const MATRIX: Record<string, Row> = {
     expect: SECRET_ONLY,
     call: async () =>
       (await import("@/app/api/cron/orphan-cleanup/route")).GET(get("/api/cron/orphan-cleanup")),
+  },
+  "src/app/api/cron/recurring-orders/route.ts#GET": {
+    note: "Vercel cron (NUD-149): Authorization Bearer CRON_SECRET",
+    expect: SECRET_ONLY,
+    call: async () =>
+      (await import("@/app/api/cron/recurring-orders/route")).GET(
+        get("/api/cron/recurring-orders"),
+      ),
   },
   "src/app/api/monitoring/test-error/route.ts#GET": {
     note: "NUD-094 forced Sentry test error: Authorization Bearer CRON_SECRET",
@@ -704,6 +724,7 @@ describe("authorization matrix", { timeout: 60_000 }, () => {
       ["audit-retention", (await import("@/app/api/cron/audit-retention/route")).GET],
       ["data-retention", (await import("@/app/api/cron/data-retention/route")).GET],
       ["orphan-cleanup", (await import("@/app/api/cron/orphan-cleanup/route")).GET],
+      ["recurring-orders", (await import("@/app/api/cron/recurring-orders/route")).GET],
     ];
     handlers.push([
       "../monitoring/test-error",

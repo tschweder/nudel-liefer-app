@@ -22,6 +22,10 @@
       "schedule": "47 3 * * *"
     },
     {
+      "path": "/api/cron/recurring-orders",
+      "schedule": "27 2 * * *"
+    },
+    {
       "path": "/api/cron/orphan-cleanup",
       "schedule": "7 4 * * 0"
     }

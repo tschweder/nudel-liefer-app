@@ -449,7 +449,7 @@
           "object_missing": "The uploaded image was not found. Please upload it again.",
           "key_in_use": "This image has already been used. Please upload it again."
         },
-        "archiveUpcoming": "{count, plural, one {Attention: this customer still has # upcoming order} other {Attention: this customer still has # upcoming orders}}. They remain but are not cancelled automatically. Please check them first.",
+        "archiveUpcoming": "{count, plural, one {Attention: this customer still has # upcoming order} other {Attention: this customer still has # upcoming orders}}. Open orders are cancelled, nothing is deleted. Tours that contain them must be released again.",
         "photoByDriver": "Updated by driver {name} on {date}",
         "photoAddHint": "Take or upload a photo.",
         "billingAddress": "Billing address",
@@ -473,7 +473,10 @@
             "present": "Key available",
             "number": "Key no. {number}"
           }
-        }
+        },
+        "fromRecurring": "from standing order",
+        "archivedCancelled": "{count, plural, one {Customer archived. # open order cancelled.} other {Customer archived. # open orders cancelled.}}",
+        "archiveRules": "{count, plural, one {His standing order will be paused} other {His # standing orders will be paused}}. They continue when he is restored."
       },
       "translations": {
         "tabDetails": "Details",
@@ -715,6 +718,65 @@
           "limit": "More than {max} parking spots per customer are not possible.",
           "conflict": "The list has changed in the meantime. It is being reloaded."
         }
+      },
+      "recurring": {
+        "heading": "Standing orders",
+        "new": "New standing order",
+        "empty": "No standing order yet. A standing order is confirmed once, then the system creates the orders automatically.",
+        "customerInactive": "The customer is archived. His standing orders are paused and no orders are created.",
+        "saved": "{count, plural, =0 {Standing order saved.} one {Standing order saved. # order created.} other {Standing order saved. # orders created.}}",
+        "resumed": "{count, plural, =0 {Standing order resumed.} one {Standing order resumed. # order created.} other {Standing order resumed. # orders created.}}",
+        "paused": "Standing order paused. Orders that were already created stay.",
+        "state": {
+          "active": "Active",
+          "paused": "Paused",
+          "customer_inactive": "Paused (customer archived)"
+        },
+        "schedule": {
+          "weekly": "Every week: {days}",
+          "everyN": "Every {n} weeks: {days}"
+        },
+        "from": "from {date}",
+        "seasonText": "only from {from} to {to}",
+        "exceptionsCount": "{count, plural, one {# exception} other {# exceptions}}",
+        "next": "Next deliveries: {dates}",
+        "confirmedBy": "Confirmed by {name}, {date}",
+        "pause": "Pause",
+        "resume": "Resume",
+        "form": {
+          "newTitle": "New standing order",
+          "editTitle": "Edit standing order",
+          "hint": "Confirm once: the system then creates the orders automatically ahead of time (Settings, Planning).",
+          "weekdays": "Delivery days",
+          "every": "Interval in weeks",
+          "everyHint": "1 = every week, 2 = every second week, …",
+          "anchor": "Starts on",
+          "anchorHint": "The week of this date is the start of the interval.",
+          "season": "Season",
+          "seasonOnly": "Deliver in a season only",
+          "seasonTo": "to",
+          "seasonHint": "Nothing is created outside the season, for example in summer. September to May is possible.",
+          "month": "Month",
+          "day": "Day",
+          "exceptions": "Exceptions",
+          "exceptionsHint": "No delivery on these days.",
+          "products": "Products",
+          "product": "Product",
+          "productPlaceholder": "Choose a product",
+          "quantity": "Quantity",
+          "addProduct": "Add product",
+          "editNote": "Orders that were already created stay unchanged. The change applies to days without an order.",
+          "saving": "Saving …",
+          "confirm": "Confirm and save"
+        },
+        "errors": {
+          "weekdays": "Please choose at least one delivery day.",
+          "every": "The interval must be between 1 and {max} weeks.",
+          "anchor": "Please choose a valid start date.",
+          "lines": "Please enter a whole quantity of 1 or more for every product.",
+          "customerInactive": "The customer is archived.",
+          "generic": "Saving failed. Please try again."
+        }
       }
     },
     "products": {
@@ -834,7 +896,9 @@
         "serviceMinutes": "Minutes per stop",
         "serviceMinutesHint": "Planned time at each customer (0 to 180).",
         "weekdays": "Delivery days",
-        "weekdaysHint": "Deliveries are made on these weekdays. New orders suggest the next delivery day."
+        "weekdaysHint": "Deliveries are made on these weekdays. New orders suggest the next delivery day.",
+        "recurringLeadDays": "Standing orders ahead (days)",
+        "recurringLeadDaysHint": "The system creates orders from standing orders this many days ahead (1 to 60)."
       },
       "save": "Save",
       "saving": "Saving …",
@@ -1057,7 +1121,8 @@
       },
       "window": {
         "label": "Delivery window"
-      }
+      },
+      "fromRecurring": "from standing order"
     },
     "tours": {
       "title": "Tours",
@@ -1368,7 +1433,13 @@
         "vehicle_create": "Vehicle created",
         "vehicle_update": "Vehicle changed",
         "vehicle_activate": "Vehicle activated",
-        "vehicle_deactivate": "Vehicle deactivated"
+        "vehicle_deactivate": "Vehicle deactivated",
+        "customer_deactivate": "Customer archived",
+        "customer_activate": "Customer restored",
+        "recurring_create": "Standing order created",
+        "recurring_update": "Standing order changed",
+        "recurring_pause": "Standing order paused",
+        "recurring_resume": "Standing order resumed"
       },
       "fields": {
         "status": "Status",

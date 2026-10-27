@@ -22,11 +22,14 @@ export function CustomerArchiveButton({
   customerId,
   active,
   upcomingOrders = 0,
+  runningRules = 0,
 }: {
   customerId: string;
   active: boolean;
-  /** Not cancelled orders from today on: archiving shows a warning (they are not cancelled). */
+  /** Not cancelled orders from today on: archiving cancels the open ones (D25, NUD-149). */
   upcomingOrders?: number;
+  /** Running recurring rules: archiving pauses them. */
+  runningRules?: number;
 }) {
   const t = useTranslations("admin.customers.detail");
   const tc = useTranslations("common");
@@ -44,7 +47,13 @@ export function CustomerArchiveButton({
       }
       if (!result.ok) return void toast.error(tc("errors.generic"));
       setOpen(false);
-      toast.success(t(next ? "restored" : "archived"));
+      toast.success(
+        next
+          ? t("restored")
+          : result.cancelledOrders > 0
+            ? t("archivedCancelled", { count: result.cancelledOrders })
+            : t("archived"),
+      );
       router.refresh();
     });
   }
@@ -88,6 +97,11 @@ export function CustomerArchiveButton({
             >
               <AlertTriangleIcon className="mt-0.5 size-5 shrink-0" aria-hidden />
               {t("archiveUpcoming", { count: upcomingOrders })}
+            </p>
+          ) : null}
+          {runningRules > 0 ? (
+            <p className="text-base text-muted-foreground" data-testid="archive-rules-note">
+              {t("archiveRules", { count: runningRules })}
             </p>
           ) : null}
           <DialogFooter>

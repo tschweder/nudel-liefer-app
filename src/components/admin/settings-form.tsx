@@ -30,6 +30,7 @@ export type SettingsFormValues = {
   timezone: string;
   departureTime: string;
   serviceMinutesPerStop: number;
+  recurringLeadDays: number;
   deliveryWeekdays: number[];
 };
 
@@ -64,6 +65,7 @@ export function SettingsForm({
   const [timezone, setTimezone] = useState(initial.timezone);
   const [departure, setDeparture] = useState(initial.departureTime);
   const [minutes, setMinutes] = useState(String(initial.serviceMinutesPerStop));
+  const [leadDays, setLeadDays] = useState(String(initial.recurringLeadDays));
   const [weekdays, setWeekdays] = useState(initial.deliveryWeekdays);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,9 +88,10 @@ export function SettingsForm({
       timezone !== initial.timezone ||
       departure !== initial.departureTime ||
       minutes !== String(initial.serviceMinutesPerStop) ||
+      leadDays !== String(initial.recurringLeadDays) ||
       !sameDays
     );
-  }, [name, address, pin, confirmed, timezone, departure, minutes, weekdays, initial]);
+  }, [name, address, pin, confirmed, timezone, departure, minutes, leadDays, weekdays, initial]);
 
   const sections = [
     { id: "settings-depot", label: t("depot.heading") },
@@ -109,6 +112,7 @@ export function SettingsForm({
     setTimezone(initial.timezone);
     setDeparture(initial.departureTime);
     setMinutes(String(initial.serviceMinutesPerStop));
+    setLeadDays(String(initial.recurringLeadDays));
     setWeekdays(initial.deliveryWeekdays);
     setError(null);
   }
@@ -132,6 +136,7 @@ export function SettingsForm({
       timezone,
       departureTime: departure,
       serviceMinutesPerStop: minutes.trim() === "" ? Number.NaN : Number(minutes),
+      recurringLeadDays: leadDays.trim() === "" ? Number.NaN : Number(leadDays),
       deliveryWeekdays: weekdays,
     };
     startTransition(async () => {
@@ -341,6 +346,26 @@ export function SettingsForm({
                     step={1}
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value)}
+                    required
+                  />
+                </FormField>
+                <FormField
+                  label={t("planning.recurringLeadDays")}
+                  htmlFor="recurring-lead-days"
+                  required
+                  className="w-44"
+                  description={t("planning.recurringLeadDaysHint")}
+                >
+                  <Input
+                    id="recurring-lead-days"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={60}
+                    step={1}
+                    value={leadDays}
+                    onChange={(e) => setLeadDays(e.target.value)}
+                    data-testid="recurring-lead-days"
                     required
                   />
                 </FormField>

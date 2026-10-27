@@ -29,6 +29,8 @@ const AUDITED = [
   "server/parking-spots.ts",
   "server/customer-key.ts",
   "server/vehicles.ts",
+  "server/recurring-orders.ts",
+  "server/customer-admin.ts",
 ];
 
 /** Writes that are deliberately not audited, with the reason. */

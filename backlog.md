@@ -303,7 +303,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | done |
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | done |
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | done |
-| NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | todo |
+| NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | done |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | todo |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
@@ -2559,7 +2559,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-149 · Recurring orders (Dauerbestellungen)
-**Status:** todo · **depends_on:** 148 · F12 · D25 · **supersedes NUD-101**
+**Status:** done · **depends_on:** 148 · F12 · D25 · **supersedes NUD-101**
 
 **Scope**
 - `RecurringOrder { customerId, items (productId, quantity), weekdays Int[], everyNWeeks Int @default(1), anchorDate, seasonFrom (MM-DD)?, seasonTo (MM-DD)?, exceptions Date[], active, confirmedById, confirmedAt }`.
@@ -2569,9 +2569,17 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 - **Customer set inactive:** all rules paused and every future, not yet delivered order of that customer → `CANCELLED` (no delete); orders on a released tour flag the tour outdated (NUD-043) so it is re-released. Reactivation resumes rules; cancelled orders stay cancelled.
 
 **Acceptance criteria**
-- [ ] Unit tests for the schedule function (weekdays, every N weeks, season across the year boundary, exceptions).
-- [ ] Cron run twice → no duplicates.
-- [ ] Deactivating a customer cancels his future orders and pauses his rules (integration test).
+- [x] Unit tests for the schedule function (weekdays, every N weeks, season across the year boundary, exceptions). ((src/domain/recurring-order.test.ts: weekdays, every N weeks, season across the year boundary, exceptions))
+- [x] Cron run twice → no duplicates. ((integration recurring-orders: second run and two concurrent cron calls create nothing; unique key per rule and date))
+- [x] Deactivating a customer cancels his future orders and pauses his rules (integration test). ((integration: future DRAFT/CONFIRMED orders cancelled, delivered/past kept, rules paused, released tour flagged outdated, reactivation resumes rules))
+
+**Implementation notes**
+- **Data:** migration `20261028090000_recurring_orders`: `RecurringOrder` (+ `RecurringOrderItem`, CHECKs for weekdays/season/interval), `Order.recurringOrderId/recurringDate` with a unique key (one order per rule and day, also after cancelling), `Settings.recurringLeadDays` (default 14, 1..60, editable under Einstellungen > Planung).
+- **Pure schedule** `src/domain/recurring-order.ts`: `occursOn`, `scheduleDates`, `inSeason` (MM-DD, wraps over New Year), week counting from the Monday of `anchorDate`, input schema.
+- **Server** `src/server/recurring-orders.ts`: create/update/pause/resume (audited), `generateRecurringOrders` (also run right after a rule is saved/resumed), `cascadeCustomerInactive` / `resumeCustomerRules` used by `setCustomerActive` in one transaction. Cron `GET /api/cron/recurring-orders` (vercel.json, authz-matrix SECRET_ONLY). Actions create/update/setActive (ADMIN, matrix rows). Audit: entity `RecurringOrder`, actions `recurring.*`, `customer.activate/deactivate`.
+- **UI:** customer detail card "Dauerbestellungen" (list, dialog, pause/resume), badge "aus Dauerbestellung" in customer orders, order list/drawer/detail; archive dialog explains cancel + pause. de/en/zh-Hans.
+- Editing/pausing a rule leaves already generated orders alone (cancel them on the order page). Generated orders are CONFIRMED, whole-day window, created by the person who confirmed the rule; a new order on a day with a released tour flags it outdated.
+- E2E: new `recurring-orders.spec` (desktop); customers, customer-form, orders, order-window, parking-spots green on desktop and mobile.
 
 ---
 
@@ -3056,6 +3064,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-148 | Order input: `deliveryDate` alone still means a whole-day window (compatible with old callers/tests/duplicate); the form sends the window and leaves the planned day empty (= automatic). On edit the planned day is kept unless the window changed and the day was not touched (then planned again) | Keeps existing flows and e2e specs working; the office can always override the day, outside the window with a warning (toast + inline hint) |
 | 2026-10-27 | NUD-148 | Time windows reach the optimiser as VROOM `time_windows` (+ vehicle `time_window` from the departure); when they cannot all be met ORS plans again without them (`optimize` on NO_ROUTE, `distribute` when jobs stay unassigned) and the tour shows the stops whose ETA misses the window as warnings (badge `stop-time-window` in the tour planner, computed from stored ETA, so it also holds after reorder/edit). The heuristic ignores the windows | Infeasible windows are reported, never silently drop a stop or turn it into a reload trip; windows are not in the generate/plan-day result toasts (kept to the tour view) |
 | 2026-10-27 | NUD-148 | Order list and filters stay on the PLANNED day (what is produced/loaded that day, totals unchanged); the window is shown in the list (customer cell, only when it differs from the planned day), drawer and detail. Audit log records `window` as text `YYYY-MM-DD..YYYY-MM-DD HH:MM-HH:MM` | Totals and tours are per planned day; filtering by window overlap would double-count orders |
+| 2026-10-28 | NUD-149 | Customer inactive: rules get active=false + pausedByCustomer=true (reactivation resumes only those); cancelled orders are not regenerated (unique rule+date) | Keeps office-paused rules paused and honours 'cancelled orders stay cancelled' |
+| 2026-10-28 | NUD-149 | Generated orders are attributed (createdBy/audit actor) to the rule's confirmer; edits/pauses do not touch already generated orders; saving a rule also generates immediately | Cron has no user; simplest predictable behaviour, office cancels single orders |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
