@@ -17,7 +17,7 @@ import {
   RefreshCwIcon,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { TourMapLazy } from "@/components/maps/lazy";
 import { ProgressBar } from "@/components/shared/progress-bar";
@@ -31,9 +31,11 @@ import {
   isUnseenChange,
   nextPendingStop,
   progressOf,
+  reloadBeforeStops,
   remainingSeconds,
   roundedMinutes,
   summarizeItems,
+  tripLoadItems,
 } from "@/domain/driver-today";
 import { Link } from "@/i18n/navigation";
 import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model";
@@ -48,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { KeyChip } from "./customer-key";
 import { driverTime } from "./driver-time";
 import { RefreshOnFocus } from "./refresh-on-focus";
+import { ReloadStop } from "./reload-stop";
 import { useSeenRevision } from "./seen-revision";
 
 type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
@@ -621,6 +624,7 @@ export function TodayTour({
   const next = nextPendingStop(stops);
   const { done, total } = progressOf(stops);
   const remaining = roundedMinutes(remainingSeconds(stops, today.serviceSecondsPerStop));
+  const reloadBefore = reloadBeforeStops(stops);
   const open = stops.filter((s) => s.status === "PENDING");
   const closed = stops.filter((s) => s.status !== "PENDING");
   const problems = stops.filter((s) => s.status === "PROBLEM").length;
@@ -666,16 +670,23 @@ export function TodayTour({
           </li>
         ) : null}
         {open.map((stop) => (
-          <StopRow
-            key={stop.id}
-            stop={stop}
-            timezone={today.timezone}
-            isNext={stop.id === next?.id}
-            unseen={unseen(stop)}
-            waiting={waitingIds.has(stop.id)}
-            selected={selectedId === stop.id}
-            onFocus={onFocus}
-          />
+          <Fragment key={stop.id}>
+            {reloadBefore.has(stop.id) ? (
+              <ReloadStop
+                trip={reloadBefore.get(stop.id)!}
+                items={tripLoadItems(stops, reloadBefore.get(stop.id)!)}
+              />
+            ) : null}
+            <StopRow
+              stop={stop}
+              timezone={today.timezone}
+              isNext={stop.id === next?.id}
+              unseen={unseen(stop)}
+              waiting={waitingIds.has(stop.id)}
+              selected={selectedId === stop.id}
+              onFocus={onFocus}
+            />
+          </Fragment>
         ))}
         {closed.length > 0 ? (
           <DoneGroup stops={closed} open={doneOpen} onToggle={toggleDone}>

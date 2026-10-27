@@ -16,6 +16,8 @@ import { readStopItems } from "./tour-rerelease";
 export type TourPrintStop = {
   id: string;
   sequence: number;
+  /** Trip of the tour (NUD-147): 1 = first trip, higher numbers follow a reload at the depot. */
+  trip: number;
   customerNumber: string;
   name: string;
   street: string;
@@ -86,6 +88,7 @@ export async function getTourPrint(db: PrismaClient, rawId: unknown): Promise<To
   const stops: TourPrintStop[] = tour.stops.map((s) => ({
     id: s.id,
     sequence: s.sequence,
+    trip: s.trip,
     customerNumber: s.customer.customerNumber,
     name: s.customer.name,
     street: s.customer.street,

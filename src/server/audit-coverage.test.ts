@@ -22,6 +22,7 @@ const AUDITED = [
   "server/tour-builder.ts",
   "server/tour-planning.ts",
   "server/tour-edit.ts",
+  "server/day-planner.ts",
   "server/tour-rerelease.ts",
   "server/stop-status.ts",
   "server/customer-photos.ts",

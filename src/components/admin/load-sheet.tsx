@@ -1,5 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { groupByTrip, normalizeTrips } from "@/domain/fleet";
 import { loadOrder, loadSheetTotals } from "@/domain/load-sheet";
 import { type AppLocale } from "@/lib/localized-text";
 import { productLabel } from "@/lib/product-label";
@@ -29,8 +30,10 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
     return productLabel(p?.name ?? null, p?.sku ?? "?", locale);
   };
 
-  const totals = loadSheetTotals(tour.stops, tour.products);
-  const stops = loadOrder(tour.stops);
+  const trips = groupByTrip(
+    [...tour.stops].sort((a, b) => a.sequence - b.sequence),
+    normalizeTrips([...tour.stops].sort((a, b) => a.sequence - b.sequence).map((x) => x.trip)),
+  );
   const dateText = format.dateTime(new Date(`${tour.date}T00:00:00Z`), {
     weekday: "long",
     day: "numeric",
@@ -49,6 +52,114 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
       </>
     );
   };
+
+  const renderTotals = (sheetStops: TourPrint["stops"], heading: string) => (
+    <section className="mb-6" data-testid="load-sheet-totals">
+      <h2 className="mb-1 text-lg font-bold">{heading}</h2>
+      <table className="w-full table-fixed border-collapse">
+        <thead>
+          <tr className="border-y-2 border-black text-start">
+            <th scope="col" className="w-[30%] py-1 pe-2 text-start">
+              {t("quantity")}
+            </th>
+            <th scope="col" className="w-[70%] py-1 text-start">
+              {t("product")}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {loadSheetTotals(sheetStops, tour.products).map((row) => (
+            <tr
+              key={`${row.productId}-${row.unit}`}
+              className="border-b border-neutral-400"
+              data-testid="load-sheet-total-row"
+              data-product-id={row.productId}
+            >
+              {/* "22 Beutel Nudeln", "3 × Wantan-Teig": quantity and unit lead the name. */}
+              <td className="py-1 pe-2 text-lg font-bold whitespace-nowrap">
+                <span data-testid="load-sheet-total-qty">{quantity(row.quantity)}</span>{" "}
+                <span className="text-[0.85em] font-semibold">
+                  {unitText(row.unit, row.quantity)}
+                </span>
+              </td>
+              <td className="break-words py-1">{renderName(row.productId)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+  const renderStops = (sheetStops: TourPrint["stops"]) => (
+    <section data-testid="load-sheet-stops">
+      <h2 className="text-lg font-bold">{t("stopsHeading")}</h2>
+      <p className="mb-1 text-[0.9em] text-neutral-700">{t("stopsHint")}</p>
+      <table className="w-full table-fixed border-collapse">
+        <thead>
+          <tr className="border-y-2 border-black">
+            <th scope="col" className="w-[9%] py-1 pe-1 text-start">
+              {t("loadPosition")}
+            </th>
+            <th scope="col" className="w-[9%] py-1 pe-1 text-start">
+              {t("stop")}
+            </th>
+            <th scope="col" className="w-[34%] py-1 pe-2 text-start">
+              {t("customer")}
+            </th>
+            <th scope="col" className="w-[48%] py-1 text-start">
+              {t("items")}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {loadOrder(sheetStops).map((stop) => (
+            <tr
+              key={stop.id}
+              className="border-b border-neutral-500 align-top"
+              data-testid="load-sheet-stop-row"
+              data-sequence={stop.sequence}
+            >
+              <td className="py-1.5 pe-1 text-lg font-bold">{stop.loadPosition}</td>
+              <td className="py-1.5 pe-1 text-lg font-bold" data-testid="load-sheet-stop-seq">
+                {stop.sequence}
+              </td>
+              <td className="break-words py-1.5 pe-2">
+                <span className="font-semibold">{stop.name}</span>
+                <span className="block text-[0.85em] text-neutral-700">
+                  {stop.customerNumber} · {stop.street}, {stop.postalCode} {stop.city}
+                </span>
+              </td>
+              <td className="py-1.5">
+                {stop.items.length === 0 ? (
+                  <span className="text-neutral-700">{t("noItems")}</span>
+                ) : (
+                  <ul className="flex flex-col gap-0.5">
+                    {stop.items.map((item) => {
+                      const unit = products.get(item.productId)?.unit ?? "";
+                      return (
+                        <li
+                          key={item.productId}
+                          className="flex items-baseline gap-2"
+                          data-testid="load-sheet-item"
+                        >
+                          <span className="shrink-0 font-bold whitespace-nowrap">
+                            {quantity(item.quantity)}{" "}
+                            <span className="text-[0.85em] font-semibold">
+                              {unitText(unit, item.quantity)}
+                            </span>
+                          </span>
+                          <span className="min-w-0 break-words">{renderName(item.productId)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 
   return (
     <article
@@ -93,114 +204,31 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
         <p className="py-6 text-center" data-testid="load-sheet-empty">
           {t("empty")}
         </p>
+      ) : trips.length > 1 ? (
+        // Reload trips (NUD-147): one block per trip, each with its own totals and load order.
+        trips.map((tripStops, index) => (
+          <section
+            key={index}
+            className="mb-8 break-inside-avoid-page"
+            data-testid="load-sheet-trip"
+            data-trip={index + 1}
+          >
+            <h2 className="mb-2 border-b-2 border-black pb-1 text-xl font-bold">
+              {t("tripHeading", { n: index + 1, count: trips.length })}
+            </h2>
+            {renderTotals(tripStops, t("tripLoad"))}
+            {renderStops(tripStops)}
+            {index < trips.length - 1 ? (
+              <p className="mt-2 font-semibold" data-testid="load-sheet-reload">
+                {t("reloadNote")}
+              </p>
+            ) : null}
+          </section>
+        ))
       ) : (
         <>
-          <section className="mb-6" data-testid="load-sheet-totals">
-            <h2 className="mb-1 text-lg font-bold">{t("totalsHeading")}</h2>
-            <table className="w-full table-fixed border-collapse">
-              <thead>
-                <tr className="border-y-2 border-black text-start">
-                  <th scope="col" className="w-[30%] py-1 pe-2 text-start">
-                    {t("quantity")}
-                  </th>
-                  <th scope="col" className="w-[70%] py-1 text-start">
-                    {t("product")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {totals.map((row) => (
-                  <tr
-                    key={`${row.productId}-${row.unit}`}
-                    className="border-b border-neutral-400"
-                    data-testid="load-sheet-total-row"
-                    data-product-id={row.productId}
-                  >
-                    {/* "22 Beutel Nudeln", "3 × Wantan-Teig": quantity and unit lead the name. */}
-                    <td className="py-1 pe-2 text-lg font-bold whitespace-nowrap">
-                      <span data-testid="load-sheet-total-qty">{quantity(row.quantity)}</span>{" "}
-                      <span className="text-[0.85em] font-semibold">
-                        {unitText(row.unit, row.quantity)}
-                      </span>
-                    </td>
-                    <td className="break-words py-1">{renderName(row.productId)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-
-          <section data-testid="load-sheet-stops">
-            <h2 className="text-lg font-bold">{t("stopsHeading")}</h2>
-            <p className="mb-1 text-[0.9em] text-neutral-700">{t("stopsHint")}</p>
-            <table className="w-full table-fixed border-collapse">
-              <thead>
-                <tr className="border-y-2 border-black">
-                  <th scope="col" className="w-[9%] py-1 pe-1 text-start">
-                    {t("loadPosition")}
-                  </th>
-                  <th scope="col" className="w-[9%] py-1 pe-1 text-start">
-                    {t("stop")}
-                  </th>
-                  <th scope="col" className="w-[34%] py-1 pe-2 text-start">
-                    {t("customer")}
-                  </th>
-                  <th scope="col" className="w-[48%] py-1 text-start">
-                    {t("items")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {stops.map((stop) => (
-                  <tr
-                    key={stop.id}
-                    className="border-b border-neutral-500 align-top"
-                    data-testid="load-sheet-stop-row"
-                    data-sequence={stop.sequence}
-                  >
-                    <td className="py-1.5 pe-1 text-lg font-bold">{stop.loadPosition}</td>
-                    <td className="py-1.5 pe-1 text-lg font-bold" data-testid="load-sheet-stop-seq">
-                      {stop.sequence}
-                    </td>
-                    <td className="break-words py-1.5 pe-2">
-                      <span className="font-semibold">{stop.name}</span>
-                      <span className="block text-[0.85em] text-neutral-700">
-                        {stop.customerNumber} · {stop.street}, {stop.postalCode} {stop.city}
-                      </span>
-                    </td>
-                    <td className="py-1.5">
-                      {stop.items.length === 0 ? (
-                        <span className="text-neutral-700">{t("noItems")}</span>
-                      ) : (
-                        <ul className="flex flex-col gap-0.5">
-                          {stop.items.map((item) => {
-                            const unit = products.get(item.productId)?.unit ?? "";
-                            return (
-                              <li
-                                key={item.productId}
-                                className="flex items-baseline gap-2"
-                                data-testid="load-sheet-item"
-                              >
-                                <span className="shrink-0 font-bold whitespace-nowrap">
-                                  {quantity(item.quantity)}{" "}
-                                  <span className="text-[0.85em] font-semibold">
-                                    {unitText(unit, item.quantity)}
-                                  </span>
-                                </span>
-                                <span className="min-w-0 break-words">
-                                  {renderName(item.productId)}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          {renderTotals(tour.stops, t("totalsHeading"))}
+          {renderStops(tour.stops)}
         </>
       )}
     </article>

@@ -1,20 +1,22 @@
 import { z } from "zod";
 
+import { normalizeTrips } from "@/domain/fleet";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
-import { computeSchedule, departureInstant } from "@/domain/tour";
+import { departureInstant } from "@/domain/tour";
 import { isStopMovable, mergePendingOrder } from "@/domain/tour-edit";
 import { sameOrder } from "@/domain/tour-plan";
 import { canTransition, deriveTourStatus, isReReleasable } from "@/domain/tour-status";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
 import { recordAudit } from "./audit";
-import { type RouteResult, RoutingError, type RoutingProvider } from "./routing";
+import { RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect } from "./routing-points";
 import type { AppSettings } from "./settings";
 import { type PlanResult, readDepot } from "./tour-planning";
 import { readStopItems } from "./tour-rerelease";
+import { type RoutedTrips, routeTrips, scheduleTrips } from "./tour-routing";
 
 /**
  * "Bearbeiten" (NUD-135, D29): the office changes the driver of a tour, the order of its stops and
@@ -93,7 +95,9 @@ function signature(tour: EditTour): string {
 type Routed = {
   /** Final stops in order. */
   stops: EditStop[];
-  route: RouteResult | null;
+  /** Trip of each final stop (reload trips, NUD-147; normalized). */
+  trips: number[];
+  route: RoutedTrips | null;
   legs: Array<{ distanceM: number; durationS: number }>;
   etas: Date[];
   totalDurationS: number | null;
@@ -103,11 +107,13 @@ async function routeStops(
   deps: EditTourDeps,
   tour: EditTour,
   stops: EditStop[],
+  rawTrips: readonly number[],
   settings: Pick<AppSettings, "timezone" | "departureTime" | "serviceMinutesPerStop">,
 ): Promise<Routed | "invalid" | "pin_missing" | "too_many_stops"> {
   if (stops.length === 0) {
-    return { stops, route: null, legs: [], etas: [], totalDurationS: null };
+    return { stops, trips: [], route: null, legs: [], etas: [], totalDurationS: null };
   }
+  const trips = normalizeTrips(rawTrips);
   const depot = readDepot(tour.depotSnapshot);
   if (!depot) return "invalid";
   const points: Array<{ lat: number; lng: number }> = [];
@@ -116,31 +122,25 @@ async function routeStops(
     if (!point) return "pin_missing";
     points.push({ lat: point.lat, lng: point.lng });
   }
-  let route: RouteResult;
+  let route: RoutedTrips;
   try {
-    route = await deps.provider.route({
-      depot: { lat: depot.lat, lng: depot.lng },
-      orderedStops: points,
-    });
+    route = await routeTrips(deps.provider, { lat: depot.lat, lng: depot.lng }, points, trips);
   } catch (error) {
     if (error instanceof RoutingError && error.code === "TOO_MANY_STOPS") return "too_many_stops";
     throw error;
   }
-  if (route.legs.length !== stops.length + 1) {
-    throw new Error(
-      `Routing provider returned ${route.legs.length} legs, expected ${stops.length + 1}`,
-    );
-  }
-  const legs = route.legs.map((l) => ({
-    distanceM: Math.round(l.distanceM),
-    durationS: Math.round(l.durationS),
-  }));
-  const schedule = computeSchedule({
+  const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
-    legDurationsS: legs.map((l) => l.durationS),
     serviceSecondsPerStop: settings.serviceMinutesPerStop * 60,
   });
-  return { stops, route, legs, etas: schedule.etas, totalDurationS: schedule.totalDurationS };
+  return {
+    stops,
+    trips,
+    route,
+    legs: route.stopLegs,
+    etas: schedule.etas,
+    totalDurationS: schedule.totalDurationS,
+  };
 }
 
 const lockKey = (date: Date) => `tour:${date.toISOString().slice(0, 10)}`;
@@ -249,12 +249,22 @@ export async function editTourWith(
   const targetRouted = new Map<string, Routed>();
   if (needsRoute) {
     const finalStops = finalIds.map((id) => stopById.get(id)!);
-    const result = await routeStops(deps, tour, finalStops, settings);
+    // Trip boundaries stay at their positions; moved-away stops leave the trips they were in.
+    const stayingTrips = tour.stops.filter((s) => !movedIds.has(s.id)).map((s) => s.trip);
+    const result = await routeStops(deps, tour, finalStops, stayingTrips, settings);
     if (typeof result === "string") return fail(result);
     sourceRouted = result;
     for (const [id, add] of incoming) {
       const target = targets.get(id)!;
-      const routed = await routeStops(deps, target, [...target.stops, ...add], settings);
+      // An arriving stop joins the last trip of the target tour.
+      const lastTrip = Math.max(1, ...target.stops.map((s) => s.trip));
+      const routed = await routeStops(
+        deps,
+        target,
+        [...target.stops, ...add],
+        [...target.stops.map((s) => s.trip), ...add.map(() => lastTrip)],
+        settings,
+      );
       if (typeof routed === "string") return fail(routed);
       targetRouted.set(id, routed);
     }
@@ -309,6 +319,7 @@ export async function editTourWith(
                 data: {
                   tourId: current.id,
                   sequence,
+                  trip: routed.trips[index],
                   etaAt: routed.etas[index],
                   legDistanceM: routed.legs[index].distanceM,
                   legDurationS: routed.legs[index].durationS,
@@ -322,13 +333,17 @@ export async function editTourWith(
                 where: { id: stop.id },
                 data: {
                   sequence,
+                  trip: routed.trips[index],
                   etaAt: routed.etas[index],
                   legDistanceM: routed.legs[index].distanceM,
                   legDurationS: routed.legs[index].durationS,
                 },
               });
-            } else if (stop.sequence !== sequence) {
-              await tx.stop.update({ where: { id: stop.id }, data: { sequence } });
+            } else if (stop.sequence !== sequence || stop.trip !== routed.trips[index]) {
+              await tx.stop.update({
+                where: { id: stop.id },
+                data: { sequence, trip: routed.trips[index] },
+              });
             }
           }
         };
@@ -341,9 +356,7 @@ export async function editTourWith(
           }
           return {
             geometry: routed.route?.geometry ?? Prisma.DbNull,
-            totalDistanceM: routed.route
-              ? Math.round(routed.legs.reduce((sum, l) => sum + l.distanceM, 0))
-              : null,
+            totalDistanceM: routed.route ? routed.route.totalDistanceM : null,
             totalDurationS: routed.totalDurationS,
             approximate: routed.route?.approximate ?? false,
             status,

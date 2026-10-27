@@ -1,4 +1,6 @@
 import type {
+  DistributeInput,
+  DistributeResult,
   OptimizeInput,
   OptimizeResult,
   RouteInput,
@@ -28,6 +30,10 @@ export class FallbackRoutingProvider implements RoutingProvider {
 
   route(input: RouteInput): Promise<RouteResult> {
     return this.run((p) => p.route(input), "route");
+  }
+
+  distribute(input: DistributeInput): Promise<DistributeResult> {
+    return this.run((p) => p.distribute(input), "distribute");
   }
 
   private async run<T>(call: (p: RoutingProvider) => Promise<T>, name: string): Promise<T> {

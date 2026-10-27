@@ -304,6 +304,7 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
           : [];
       }
       case "tour.generate":
+      case "tour.plan_day":
       case "tour.followup":
       case "tour.reoptimize": {
         const d = tourBuild.safeParse(row.diff);

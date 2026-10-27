@@ -498,6 +498,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
         return out;
       },
       route: provider.route.bind(provider),
+      distribute: provider.distribute.bind(provider),
     };
     const result = await generateTourWith({ ...deps(), provider: slow }, DAY);
     expect(result).toMatchObject({ ok: false, error: "conflict" });

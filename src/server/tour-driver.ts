@@ -37,6 +37,8 @@ export type DriverStopItem = {
 export type DriverStop = {
   id: string;
   sequence: number;
+  /** Trip of the tour (NUD-147): a higher number than the stop before it means a reload at the depot in between. */
+  trip: number;
   customerId: string;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   /** Why the stop is a PROBLEM (NUD-053), else `null`. */
@@ -120,6 +122,7 @@ export async function getDriverTour(
       return {
         id: stop.id,
         sequence: stop.sequence,
+        trip: stop.trip,
         customerId: stop.customerId,
         status: stop.status,
         problemReason: stop.problemReason,

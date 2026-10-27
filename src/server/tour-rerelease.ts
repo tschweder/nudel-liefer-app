@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 import { toAuditQuantity } from "@/domain/audit";
+import { normalizeTrips } from "@/domain/fleet";
 import { routingPoint } from "@/domain/parking";
-import { computeSchedule, departureInstant, type StopItem } from "@/domain/tour";
+import { departureInstant, type StopItem } from "@/domain/tour";
 import {
   type ItemChange,
   planReRelease,
@@ -24,6 +25,7 @@ import { RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { PlanResult } from "./tour-planning";
+import { routeTrips, scheduleTrips } from "./tour-routing";
 
 /**
  * Re-release (NUD-043): a released tour whose orders changed (`isOutdated`) is updated in place
@@ -411,27 +413,26 @@ export async function reReleaseTourWith(
     if (!point) return fail("pin_missing");
     points.push(point);
   }
+  // Reload trips (NUD-147): kept stops keep their trip, a new stop joins the last trip.
+  const tripByStop = new Map(tour.stops.map((s) => [s.id, s.trip]));
+  let lastTrip = 1;
+  const rawTrips = plan.entries.map((entry) => {
+    if (entry.kind !== "new") lastTrip = Math.max(lastTrip, tripByStop.get(entry.stopId) ?? 1);
+    return entry.kind === "new" ? lastTrip : (tripByStop.get(entry.stopId) ?? 1);
+  });
+  const trips = normalizeTrips(rawTrips);
   let route;
   try {
-    route = await provider.route({ depot: depot.data, orderedStops: points });
+    route = await routeTrips(provider, depot.data, points, trips);
   } catch (error) {
     if (error instanceof RoutingError && error.code === "TOO_MANY_STOPS") {
       return fail("too_many_stops");
     }
     throw error;
   }
-  if (route.legs.length !== plan.entries.length + 1) {
-    throw new Error(
-      `Routing provider returned ${route.legs.length} legs, expected ${plan.entries.length + 1}`,
-    );
-  }
-  const legs = route.legs.map((l) => ({
-    distanceM: Math.round(l.distanceM),
-    durationS: Math.round(l.durationS),
-  }));
-  const schedule = computeSchedule({
+  const legs = route.stopLegs;
+  const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
-    legDurationsS: legs.map((l) => l.durationS),
     serviceSecondsPerStop: settings.serviceMinutesPerStop * 60,
   });
 
@@ -477,13 +478,18 @@ export async function reReleaseTourWith(
           const sequence = index + 1;
           if (entry.kind === "completed") {
             // Frozen: only the position may move (a stop removed before it closes the gap).
-            if (stopById.get(entry.stopId)!.sequence !== sequence) {
-              await tx.stop.update({ where: { id: entry.stopId }, data: { sequence } });
+            const frozen = stopById.get(entry.stopId)!;
+            if (frozen.sequence !== sequence || frozen.trip !== trips[index]) {
+              await tx.stop.update({
+                where: { id: entry.stopId },
+                data: { sequence, trip: trips[index] },
+              });
             }
             continue;
           }
           const timing = {
             sequence,
+            trip: trips[index],
             etaAt: schedule.etas[index],
             legDistanceM: legs[index].distanceM,
             legDurationS: legs[index].durationS,
@@ -522,7 +528,7 @@ export async function reReleaseTourWith(
           where: { id: tour.id },
           data: {
             geometry: route.geometry,
-            totalDistanceM: Math.round(legs.reduce((sum, l) => sum + l.distanceM, 0)),
+            totalDistanceM: route.totalDistanceM,
             totalDurationS: schedule.totalDurationS,
             approximate: route.approximate,
             isOutdated: false,

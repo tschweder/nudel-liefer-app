@@ -1150,7 +1150,9 @@
         "too_many_tours": "An einem Tag sind höchstens 10 Touren möglich.",
         "vehicle_required": "Bitte zuerst ein Fahrzeug zuweisen.",
         "vehicle_invalid": "Dieses Fahrzeug ist nicht aktiv. Bitte ein anderes Fahrzeug wählen.",
-        "overloaded": "Die Tour ist überladen. Die Freigabe muss ausdrücklich bestätigt werden."
+        "overloaded": "Die Tour ist überladen. Die Freigabe muss ausdrücklich bestätigt werden.",
+        "no_vehicles": "Kein Fahrzeug gewählt. Bitte mindestens ein aktives Fahrzeug wählen.",
+        "tour_locked": "Eine Tour dieses Tages ist gesperrt. Bitte zuerst die Sperre aufheben."
       },
       "change": {
         "title": "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben",
@@ -1220,7 +1222,10 @@
         "stop": "Stopp",
         "customer": "Kunde",
         "items": "Produkte und Mengen",
-        "noItems": "Keine Produkte"
+        "noItems": "Keine Produkte",
+        "tripHeading": "Fahrt {n} von {count}",
+        "tripLoad": "Ladung dieser Fahrt",
+        "reloadNote": "Danach: zurück zum Depot, Nachladen für die nächste Fahrt."
       },
       "late": {
         "title": "Nachbestellung nach Abschluss der Tour",
@@ -1268,7 +1273,34 @@
         "noVehicle": "{load} kg. Fahrzeug wählen, um die Auslastung zu sehen.",
         "percent": "Auslastung {percent} %",
         "over": "Überladen um {over} kg",
-        "bar": "Beladung im Verhältnis zur Kapazität des Fahrzeugs"
+        "bar": "Beladung im Verhältnis zur Kapazität des Fahrzeugs",
+        "tripsTotal": "{load} kg in {count} Fahrten",
+        "trip": "Fahrt {n}: {load} kg von {capacity} kg",
+        "tripNoCapacity": "Fahrt {n}: {load} kg"
+      },
+      "planDay": {
+        "open": "Touren planen",
+        "hint": "Verteilt alle Stopps des Tages nach Kapazität auf die gewählten Fahrzeuge",
+        "title": "Touren planen",
+        "description": "Die Stopps dieses Tages werden nach Kapazität auf die gewählten Fahrzeuge verteilt. Zuerst werden alle gewählten Fahrzeuge genutzt; reicht das nicht, fährt ein Fahrzeug zwischendurch zum Depot und lädt nach.",
+        "vehicles": "Verfügbare Fahrzeuge",
+        "capacity": "{capacity} kg",
+        "noVehicles": "Es gibt noch kein aktives Fahrzeug. Bitte zuerst unter Fahrzeuge eines anlegen.",
+        "drivers": "Verfügbare Fahrer",
+        "driversHint": "Die Fahrer werden der Reihe nach den Touren zugeordnet. Fehlende Fahrer können danach zugewiesen werden.",
+        "noDrivers": "Es gibt keinen aktiven Fahrer.",
+        "replaceNote": "Touren dieses Tages, die noch nicht freigegeben sind, werden neu aufgebaut.",
+        "confirm": "Jetzt planen",
+        "planning": "Plane …",
+        "toast": {
+          "planned": "{count, plural, one {# Tour} other {# Touren}} geplant.",
+          "plannedReload": "{count, plural, one {# Tour} other {# Touren}} geplant, mit {reloads}× Nachladen im Depot.",
+          "oversized": "{count, plural, one {# Kunde ist} other {# Kunden sind}} für jedes gewählte Fahrzeug zu schwer. Die Freigabe braucht eine Bestätigung."
+        }
+      },
+      "reload": {
+        "title": "Nachladen im Depot",
+        "load": "Fahrt {trip}: {load} kg laden"
       }
     },
     "history": {
@@ -1287,6 +1319,7 @@
         "order_cancel": "Bestellung storniert",
         "order_duplicate": "Als Kopie angelegt",
         "tour_generate": "Tour erstellt",
+        "tour_plan_day": "Touren geplant (Fahrzeuge verteilt)",
         "tour_followup": "Folgetour erstellt",
         "tour_reoptimize": "Tour neu optimiert",
         "tour_reorder": "Reihenfolge geändert",
@@ -1481,7 +1514,9 @@
       "mapSheetHide": "Stoppliste schließen",
       "progressDone": "erledigt",
       "mapSheetCount": "{count, plural, one {# offener Stopp} other {# offene Stopps}}",
-      "focusOnMap": "Auf der Karte zeigen"
+      "focusOnMap": "Auf der Karte zeigen",
+      "reloadTitle": "Nachladen im Depot",
+      "reloadHint": "Zurück ins Depot und für Fahrt {trip} aufladen:"
     },
     "units": {
       "KG": "kg",

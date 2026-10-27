@@ -309,6 +309,8 @@ export async function generateTourWith(
       for (const [index, stop] of ordered.entries()) {
         const data = {
           sequence: index + 1,
+          // A rebuilt tour is one trip; reload trips come from "Touren planen" (NUD-147).
+          trip: 1,
           etaAt: schedule.etas[index],
           legDistanceM: legs[index].distanceM,
           legDurationS: legs[index].durationS,

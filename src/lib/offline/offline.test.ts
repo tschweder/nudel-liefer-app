@@ -37,6 +37,7 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
       stops: photoIds.map((id, i) => ({
         id: `s${i}`,
         sequence: i + 1,
+        trip: 1,
         status: "PENDING",
         problemReason: null,
         completedAt: null,

@@ -326,6 +326,8 @@ model Stop {
   tourId            String
   customerId        String
   sequence          Int
+  /// Trip of the tour this stop belongs to (NUD-147): 1 = first trip; a higher number follows a reload at the depot.
+  trip              Int            @default(1)
   status            StopStatus     @default(PENDING)
   etaAt             DateTime?
   legDistanceM      Int?

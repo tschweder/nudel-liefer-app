@@ -226,7 +226,9 @@
       "mapSheetHide": "Zavřít seznam zastávek",
       "progressDone": "hotovo",
       "mapSheetCount": "{count, plural, one {# otevřená zastávka} few {# otevřené zastávky} many {# otevřené zastávky} other {# otevřených zastávek}}",
-      "focusOnMap": "Ukázat na mapě"
+      "focusOnMap": "Ukázat na mapě",
+      "reloadTitle": "Doplnění nákladu v depu",
+      "reloadHint": "Vraťte se do depa a naložte zboží pro jízdu {trip}:"
     },
     "units": {
       "KG": "kg",

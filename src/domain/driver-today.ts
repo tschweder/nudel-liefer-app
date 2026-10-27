@@ -71,3 +71,39 @@ export function isUnseenChange(
 ): boolean {
   return stop.change !== null && (stop.changedInRevision ?? 0) > seenRevision;
 }
+
+/**
+ * Reload stop (NUD-147): the stops of a tour carry a trip number; where it goes up from one stop
+ * to the next, the vehicle returns to the depot to reload in between. Returns, for every stop that
+ * starts a later trip, that trip number (`stopId -> trip`).
+ */
+export function reloadBeforeStops(
+  stops: ReadonlyArray<{ id: string; trip?: number }>,
+): Map<string, number> {
+  const before = new Map<string, number>();
+  stops.forEach((stop, index) => {
+    const trip = stop.trip ?? 1;
+    if (index > 0 && trip > (stops[index - 1]!.trip ?? 1)) before.set(stop.id, trip);
+  });
+  return before;
+}
+
+/**
+ * What the vehicle is loaded with for one trip: the quantities of all stops of that trip, summed
+ * per product (the first occurrence keeps the name and unit), in order of first appearance.
+ */
+export function tripLoadItems<I extends { productId: string; quantity: number }>(
+  stops: ReadonlyArray<{ trip?: number; items: ReadonlyArray<I> }>,
+  trip: number,
+): I[] {
+  const sums = new Map<string, I>();
+  for (const stop of stops) {
+    if ((stop.trip ?? 1) !== trip) continue;
+    for (const item of stop.items) {
+      const known = sums.get(item.productId);
+      if (known) known.quantity += item.quantity;
+      else sums.set(item.productId, { ...item });
+    }
+  }
+  return [...sums.values()];
+}

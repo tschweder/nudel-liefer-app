@@ -21,9 +21,10 @@ import {
   RouteIcon,
   TriangleAlertIcon,
   UserIcon,
+  WarehouseIcon,
 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { TourMapLazy } from "@/components/maps/lazy";
@@ -75,6 +76,7 @@ import {
 import type { PlanStop, TourPlan } from "@/server/tour-planning";
 
 import { LateOrdersBanner, TourTabs } from "./late-orders-banner";
+import { PlanDayDialog } from "./plan-day-dialog";
 import { ProblemNote } from "./problem-note";
 import { TourDiffList } from "./tour-diff-list";
 import { TourEditDialog, type TourEditPayload } from "./tour-edit-dialog";
@@ -250,6 +252,7 @@ export function TourPlanner({
             <RouteIcon aria-hidden />
             {pending ? t("generating") : t("generate")}
           </Button>
+          <PlanDayDialog plan={plan} disabled={pending || plan.confirmedOrderCount === 0} />
         </EmptyState>
       </div>
     );
@@ -274,7 +277,9 @@ export function TourPlanner({
   });
   const driver = plan.drivers.find((d) => d.id === (driverValue || tour.driverId));
   const vehicle = plan.vehicles.find((v) => v.id === (vehicleValue || tour.vehicleId));
-  const load = loadState(tour.loadKg, vehicle?.capacityKg ?? null);
+  // With reload trips (NUD-147) the capacity applies to each trip: the heaviest one is compared.
+  const heaviestTripKg = tour.tripLoadsKg.length > 0 ? Math.max(...tour.tripLoadsKg) : tour.loadKg;
+  const load = loadState(heaviestTripKg, vehicle?.capacityKg ?? null);
   const duration = durationParts(tour.totalDurationS ?? 0);
   // "Gesamtdauer 0 Min." next to "Strecke —" claimed a value the routing data does not have (the
   // round-3 review: the tour was released without any routing result). Without a duration the tile
@@ -578,6 +583,7 @@ export function TourPlanner({
             </Alert>
           ) : (
             <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+              <PlanDayDialog plan={plan} disabled={busy || locked} />
               <Button
                 type="button"
                 variant="outline"
@@ -648,6 +654,7 @@ export function TourPlanner({
 
         <TourLoad
           loadKg={tour.loadKg}
+          tripLoadsKg={tour.tripLoadsKg}
           capacityKg={vehicle?.capacityKg ?? null}
           vehicleName={vehicle?.name ?? null}
         />
@@ -785,205 +792,232 @@ export function TourPlanner({
             <ol className="flex flex-col" data-testid="stop-list" aria-busy={recalculating}>
               {stops.map((stop, index) => {
                 const next = results && stop.id === progress.nextStopId;
+                // Reload trips (NUD-147): the boundaries are positions of the tour, so they stay put
+                // while the list is reordered locally.
+                const tripHere = tour.stops[index]?.trip ?? 1;
+                const reloadBefore = index > 0 && tripHere > (tour.stops[index - 1]?.trip ?? 1);
                 return (
-                  <li
-                    key={stop.id}
-                    ref={(node) => {
-                      if (node) rowRefs.current.set(stop.id, node);
-                      else rowRefs.current.delete(stop.id);
-                    }}
-                    draggable={editable && !busy}
-                    onMouseEnter={() => setHoverId(stop.id)}
-                    onMouseLeave={() =>
-                      setHoverId((current) => (current === stop.id ? null : current))
-                    }
-                    onFocus={() => setHoverId(stop.id)}
-                    onBlur={() => setHoverId((current) => (current === stop.id ? null : current))}
-                    onDragStart={(e) => {
-                      setDragId(stop.id);
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", stop.id);
-                    }}
-                    onDragOver={(e) => {
-                      if (dragId) {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                      }
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragId && dragId !== stop.id) move(dragId, index);
-                      setDragId(null);
-                    }}
-                    onDragEnd={() => setDragId(null)}
-                    className={cn(
-                      "group flex min-h-14 items-center gap-3 border-b border-border px-2 py-2 transition-colors last:border-b-0",
-                      next && "bg-primary-soft/50",
-                      hoverId === stop.id && "bg-muted",
-                      selectedId === stop.id && "ring-1 ring-ring ring-inset",
-                      dragId === stop.id && "opacity-50",
-                    )}
-                    data-testid="stop-row"
-                    data-stop-id={stop.id}
-                    data-customer-id={stop.customerId}
-                    data-sequence={index + 1}
-                    data-status={results ? stop.status : undefined}
-                  >
-                    {editable ? (
-                      <span className="flex w-5 shrink-0 justify-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        <GripVerticalIcon
-                          className="size-5 cursor-grab text-muted-foreground"
-                          aria-label={t("stop.drag", { name: stop.name })}
-                          role="img"
-                          data-testid="stop-handle"
-                        />
-                      </span>
+                  <Fragment key={stop.id}>
+                    {reloadBefore ? (
+                      <li
+                        className="flex min-h-14 items-center gap-3 border-b border-border bg-warning-soft px-2 py-2 text-warning-soft-foreground"
+                        data-testid="reload-stop"
+                        data-trip={tripHere}
+                      >
+                        <WarehouseIcon className="size-5 shrink-0" aria-hidden />
+                        <span className="min-w-0 flex-1 font-medium">{t("reload.title")}</span>
+                        <span className="shrink-0 tabular-nums" data-testid="reload-load">
+                          {t("reload.load", {
+                            trip: tripHere,
+                            load: format.number(tour.tripLoadsKg[tripHere - 1] ?? 0, {
+                              maximumFractionDigits: 2,
+                            }),
+                          })}
+                        </span>
+                      </li>
                     ) : null}
+                    <li
+                      ref={(node) => {
+                        if (node) rowRefs.current.set(stop.id, node);
+                        else rowRefs.current.delete(stop.id);
+                      }}
+                      draggable={editable && !busy}
+                      onMouseEnter={() => setHoverId(stop.id)}
+                      onMouseLeave={() =>
+                        setHoverId((current) => (current === stop.id ? null : current))
+                      }
+                      onFocus={() => setHoverId(stop.id)}
+                      onBlur={() => setHoverId((current) => (current === stop.id ? null : current))}
+                      onDragStart={(e) => {
+                        setDragId(stop.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", stop.id);
+                      }}
+                      onDragOver={(e) => {
+                        if (dragId) {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragId && dragId !== stop.id) move(dragId, index);
+                        setDragId(null);
+                      }}
+                      onDragEnd={() => setDragId(null)}
+                      className={cn(
+                        "group flex min-h-14 items-center gap-3 border-b border-border px-2 py-2 transition-colors last:border-b-0",
+                        next && "bg-primary-soft/50",
+                        hoverId === stop.id && "bg-muted",
+                        selectedId === stop.id && "ring-1 ring-ring ring-inset",
+                        dragId === stop.id && "opacity-50",
+                      )}
+                      data-testid="stop-row"
+                      data-stop-id={stop.id}
+                      data-customer-id={stop.customerId}
+                      data-sequence={index + 1}
+                      data-status={results ? stop.status : undefined}
+                    >
+                      {editable ? (
+                        <span className="flex w-5 shrink-0 justify-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                          <GripVerticalIcon
+                            className="size-5 cursor-grab text-muted-foreground"
+                            aria-label={t("stop.drag", { name: stop.name })}
+                            role="img"
+                            data-testid="stop-handle"
+                          />
+                        </span>
+                      ) : null}
 
-                    <StopNumberBadge
-                      number={index + 1}
-                      tone={stopToneWithNext(results ? stop.status : "PENDING", next)}
-                      isNext={next}
-                      label={tm("stopMarker", { n: index + 1, name: stop.name })}
-                      data-testid="stop-number"
-                    />
+                      <StopNumberBadge
+                        number={index + 1}
+                        tone={stopToneWithNext(results ? stop.status : "PENDING", next)}
+                        isNext={next}
+                        label={tm("stopMarker", { n: index + 1, name: stop.name })}
+                        data-testid="stop-number"
+                      />
 
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className="min-w-0 flex-1 truncate font-medium"
-                          data-testid="stop-name"
-                        >
-                          {stop.name}
-                        </span>
-                        {results ? (
-                          <StatusBadge tone={stopTone(stop.status)} icon={stopIcon(stop.status)}>
-                            <span data-testid="stop-status" data-status={stop.status}>
-                              {tc(`statuses.stop.${stop.status}`)}
-                            </span>
-                          </StatusBadge>
-                        ) : null}
-                        <span
-                          className="w-14 shrink-0 text-right text-base font-semibold tabular-nums"
-                          data-testid="stop-eta"
-                        >
-                          {recalculating
-                            ? t("stop.recalculating")
-                            : stop.etaAt
-                              ? fmt.time(new Date(stop.etaAt))
-                              : "–"}
-                        </span>
-                      </div>
-                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
-                        <span className="min-w-0 truncate">
-                          {stop.customerNumber} · {stop.street}, {stop.postalCode} {stop.city}
-                        </span>
-                        <span className="shrink-0 tabular-nums" data-testid="stop-items">
-                          {t("stop.items", { count: stop.itemCount })}
-                        </span>
-                        {stop.parkingMissing ? (
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <div className="flex min-w-0 items-center gap-2">
                           <span
-                            className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
-                            data-testid="stop-missing-parking-spot"
+                            className="min-w-0 flex-1 truncate font-medium"
+                            data-testid="stop-name"
                           >
-                            <MapPinOffIcon className="size-4" aria-hidden />
-                            {t("stop.noParkingSpot")}
+                            {stop.name}
                           </span>
-                        ) : null}
-                        {!stop.hasStorePhoto ? (
-                          <span
-                            className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
-                            data-testid="stop-missing-store"
-                          >
-                            <ImageOffIcon className="size-4" aria-hidden />
-                            {t("stop.missingStore")}
-                          </span>
-                        ) : null}
-                        {!stop.hasParkingPhoto ? (
-                          <span
-                            className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
-                            data-testid="stop-missing-parking"
-                          >
-                            <ImageOffIcon className="size-4" aria-hidden />
-                            {t("stop.missingParking")}
-                          </span>
-                        ) : null}
-                        {stop.changeKind ? (
-                          <Badge
-                            variant="outline"
-                            data-testid="stop-change"
-                            data-change={stop.changeKind}
-                          >
-                            {t(`change.stop.${stop.changeKind}`)}
-                          </Badge>
-                        ) : null}
-                        {next ? <Badge data-testid="stop-next">{t("progress.next")}</Badge> : null}
-                      </div>
-                      {results && stop.completedAt ? (
-                        <div
-                          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
-                          data-testid="stop-result"
-                        >
-                          <span data-testid="stop-completed-at">
-                            {t("progress.completedAt", {
-                              time: fmt.time(new Date(stop.completedAt)),
-                            })}
-                          </span>
-                          {stop.status === "PROBLEM" ? (
-                            <>
-                              <span className="font-medium" data-testid="stop-problem-reason">
-                                {stop.problemReason
-                                  ? t("progress.reason", {
-                                      reason: tc(`problemReasons.${stop.problemReason}`),
-                                    })
-                                  : t("progress.reasonUnknown")}
+                          {results ? (
+                            <StatusBadge tone={stopTone(stop.status)} icon={stopIcon(stop.status)}>
+                              <span data-testid="stop-status" data-status={stop.status}>
+                                {tc(`statuses.stop.${stop.status}`)}
                               </span>
-                              {stop.problemNote ? <ProblemNote note={stop.problemNote} /> : null}
-                            </>
+                            </StatusBadge>
+                          ) : null}
+                          <span
+                            className="w-14 shrink-0 text-right text-base font-semibold tabular-nums"
+                            data-testid="stop-eta"
+                          >
+                            {recalculating
+                              ? t("stop.recalculating")
+                              : stop.etaAt
+                                ? fmt.time(new Date(stop.etaAt))
+                                : "–"}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+                          <span className="min-w-0 truncate">
+                            {stop.customerNumber} · {stop.street}, {stop.postalCode} {stop.city}
+                          </span>
+                          <span className="shrink-0 tabular-nums" data-testid="stop-items">
+                            {t("stop.items", { count: stop.itemCount })}
+                          </span>
+                          {stop.parkingMissing ? (
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
+                              data-testid="stop-missing-parking-spot"
+                            >
+                              <MapPinOffIcon className="size-4" aria-hidden />
+                              {t("stop.noParkingSpot")}
+                            </span>
+                          ) : null}
+                          {!stop.hasStorePhoto ? (
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
+                              data-testid="stop-missing-store"
+                            >
+                              <ImageOffIcon className="size-4" aria-hidden />
+                              {t("stop.missingStore")}
+                            </span>
+                          ) : null}
+                          {!stop.hasParkingPhoto ? (
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"
+                              data-testid="stop-missing-parking"
+                            >
+                              <ImageOffIcon className="size-4" aria-hidden />
+                              {t("stop.missingParking")}
+                            </span>
+                          ) : null}
+                          {stop.changeKind ? (
+                            <Badge
+                              variant="outline"
+                              data-testid="stop-change"
+                              data-change={stop.changeKind}
+                            >
+                              {t(`change.stop.${stop.changeKind}`)}
+                            </Badge>
+                          ) : null}
+                          {next ? (
+                            <Badge data-testid="stop-next">{t("progress.next")}</Badge>
                           ) : null}
                         </div>
-                      ) : null}
-                    </div>
-
-                    {editable ? (
-                      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-8"
-                              disabled={busy || index === 0}
-                              aria-label={t("stop.moveUp", { name: stop.name })}
-                              onClick={() => move(stop.id, index - 1)}
-                              data-testid="stop-up"
-                            >
-                              <ArrowUpIcon aria-hidden />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("stop.moveUp", { name: stop.name })}</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-8"
-                              disabled={busy || index === stops.length - 1}
-                              aria-label={t("stop.moveDown", { name: stop.name })}
-                              onClick={() => move(stop.id, index + 1)}
-                              data-testid="stop-down"
-                            >
-                              <ArrowDownIcon aria-hidden />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>{t("stop.moveDown", { name: stop.name })}</TooltipContent>
-                        </Tooltip>
+                        {results && stop.completedAt ? (
+                          <div
+                            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                            data-testid="stop-result"
+                          >
+                            <span data-testid="stop-completed-at">
+                              {t("progress.completedAt", {
+                                time: fmt.time(new Date(stop.completedAt)),
+                              })}
+                            </span>
+                            {stop.status === "PROBLEM" ? (
+                              <>
+                                <span className="font-medium" data-testid="stop-problem-reason">
+                                  {stop.problemReason
+                                    ? t("progress.reason", {
+                                        reason: tc(`problemReasons.${stop.problemReason}`),
+                                      })
+                                    : t("progress.reasonUnknown")}
+                                </span>
+                                {stop.problemNote ? <ProblemNote note={stop.problemNote} /> : null}
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </li>
+
+                      {editable ? (
+                        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                disabled={busy || index === 0}
+                                aria-label={t("stop.moveUp", { name: stop.name })}
+                                onClick={() => move(stop.id, index - 1)}
+                                data-testid="stop-up"
+                              >
+                                <ArrowUpIcon aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t("stop.moveUp", { name: stop.name })}</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                disabled={busy || index === stops.length - 1}
+                                aria-label={t("stop.moveDown", { name: stop.name })}
+                                onClick={() => move(stop.id, index + 1)}
+                                data-testid="stop-down"
+                              >
+                                <ArrowDownIcon aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t("stop.moveDown", { name: stop.name })}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      ) : null}
+                    </li>
+                  </Fragment>
                 );
               })}
             </ol>
@@ -1073,7 +1107,7 @@ export function TourPlanner({
                 {load.status === "none"
                   ? t("load.noVehicle", { load: format.number(tour.loadKg) })
                   : t("load.value", {
-                      load: format.number(tour.loadKg),
+                      load: format.number(heaviestTripKg),
                       capacity: format.number(load.capacityKg ?? 0),
                     })}
               </dd>

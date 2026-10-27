@@ -1,8 +1,11 @@
 import { z } from "zod";
 
 import {
+  assertValidDistributeInput,
   assertValidOptimizeInput,
   assertValidPoints,
+  type DistributeInput,
+  type DistributeResult,
   emptyRoute,
   type LatLng,
   type OptimizeInput,
@@ -27,6 +30,16 @@ const optimizationResponse = z.object({
   unassigned: z.array(z.unknown()).optional(),
   routes: z.array(
     z.object({
+      steps: z.array(z.object({ type: z.string(), job: z.number().int().optional() })),
+    }),
+  ),
+});
+
+const fleetResponse = z.object({
+  unassigned: z.array(z.object({ id: z.number().int() })).optional(),
+  routes: z.array(
+    z.object({
+      vehicle: z.number().int(),
       steps: z.array(z.object({ type: z.string(), job: z.number().int().optional() })),
     }),
   ),
@@ -78,6 +91,57 @@ export function mapOptimizationResponse(body: unknown, jobCount: number): number
     throw new RoutingError("The optimization service returned an incomplete order", "BAD_RESPONSE");
   }
   return order;
+}
+
+/**
+ * Maps a multi-vehicle VROOM response (NUD-147) to indices: per used vehicle (index into the
+ * vehicles list; ids sent are `index + 1`) the visiting order as job indices, plus the jobs left
+ * `unassigned` (they do not fit any vehicle's capacity). Every job must appear exactly once.
+ */
+export function mapFleetResponse(
+  body: unknown,
+  jobCount: number,
+  vehicleCount: number,
+): { routes: { vehicle: number; jobs: number[] }[]; unassigned: number[] } {
+  const parsed = fleetResponse.safeParse(body);
+  if (!parsed.success) {
+    throw new RoutingError("Unexpected response from the optimization service", "BAD_RESPONSE");
+  }
+  const seen = new Set<number>();
+  const take = (index: number) => {
+    if (!Number.isInteger(index) || index < 0 || index >= jobCount || seen.has(index)) {
+      throw new RoutingError(
+        "The optimization service returned an incomplete distribution",
+        "BAD_RESPONSE",
+      );
+    }
+    seen.add(index);
+    return index;
+  };
+  const routes: { vehicle: number; jobs: number[] }[] = [];
+  for (const route of parsed.data.routes) {
+    const vehicle = route.vehicle - 1;
+    if (vehicle < 0 || vehicle >= vehicleCount || routes.some((r) => r.vehicle === vehicle)) {
+      throw new RoutingError("Unexpected response from the optimization service", "BAD_RESPONSE");
+    }
+    const jobs: number[] = [];
+    for (const step of route.steps) {
+      if (step.type !== "job") continue;
+      if (step.job === undefined) {
+        throw new RoutingError("Unexpected response from the optimization service", "BAD_RESPONSE");
+      }
+      jobs.push(take(step.job - 1));
+    }
+    if (jobs.length > 0) routes.push({ vehicle, jobs });
+  }
+  const unassigned = (parsed.data.unassigned ?? []).map((u) => take(u.id - 1));
+  if (seen.size !== jobCount) {
+    throw new RoutingError(
+      "The optimization service returned an incomplete distribution",
+      "BAD_RESPONSE",
+    );
+  }
+  return { routes, unassigned };
 }
 
 /** Maps one ORS directions GeoJSON response to legs and geometry (2D coordinates). */
@@ -148,6 +212,46 @@ export class OrsRoutingProvider implements RoutingProvider {
       signal,
     );
     return { orderedStopIds: ordered.map((s) => s.id), ...route };
+  }
+
+  /**
+   * Multi-vehicle distribution (NUD-147): one `/optimization` call with a capacity per vehicle and
+   * the weight of every stop as `delivery` (whole kg, rounded up). Jobs that fit no vehicle come
+   * back as `unassigned`; the caller turns them into reload trips.
+   */
+  async distribute(input: DistributeInput): Promise<DistributeResult> {
+    assertValidDistributeInput(input);
+    if (input.stops.length === 0) return { routes: [], unassigned: [], approximate: false };
+    const signal = AbortSignal.timeout(this.timeoutMs);
+    const depot = lngLat(input.depot);
+    const body = await this.post(
+      "/optimization",
+      {
+        jobs: input.stops.map((s, i) => ({
+          id: i + 1,
+          location: lngLat(s.location),
+          service: Math.round(s.serviceSeconds),
+          delivery: [Math.ceil(s.weightKg)],
+        })),
+        vehicles: input.vehicles.map((v, i) => ({
+          id: i + 1,
+          profile: this.profile,
+          start: depot,
+          end: depot,
+          capacity: [Math.floor(v.capacityKg)],
+        })),
+      },
+      signal,
+    );
+    const mapped = mapFleetResponse(body, input.stops.length, input.vehicles.length);
+    return {
+      routes: mapped.routes.map((r) => ({
+        vehicleId: input.vehicles[r.vehicle]!.id,
+        stopIds: r.jobs.map((j) => input.stops[j]!.id),
+      })),
+      unassigned: mapped.unassigned.map((j) => input.stops[j]!.id),
+      approximate: false,
+    };
   }
 
   async route(input: RouteInput): Promise<RouteResult> {

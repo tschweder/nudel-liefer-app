@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { requireRole } from "./auth/guards";
+import { type PlanDayResult, planDayWith } from "./day-planner";
 import { getDb } from "./db";
 import { getRoutingProvider } from "./routing";
 import { getSettings, requireDepotConfigured } from "./settings";
@@ -126,6 +127,25 @@ export async function createEmptyTourAction(input: unknown): Promise<CreateEmpty
     {
       db: getDb(),
       actorId: actor.id,
+      requireDepot: requireDepotConfigured,
+      loadSettings: getSettings,
+    },
+    input,
+  );
+}
+
+/**
+ * Admin-only "Touren planen" (NUD-147): builds all tours of a day at once, distributing the stops
+ * across the selected vehicles by capacity and adding reload trips where the load still does not
+ * fit. `{date, vehicleIds?, driverIds?}`; omitted lists mean every active vehicle / driver.
+ */
+export async function planDayAction(input: unknown): Promise<PlanDayResult> {
+  const actor = await requireRole("ADMIN");
+  return planDayWith(
+    {
+      db: getDb(),
+      actorId: actor.id,
+      provider: getRoutingProvider(),
       requireDepot: requireDepotConfigured,
       loadSettings: getSettings,
     },

@@ -27,6 +27,22 @@ export type OptimizeInput = {
 
 export type RouteInput = { depot: LatLng; orderedStops: LatLng[] };
 
+/** NUD-147: several vehicles with a capacity in kg; every stop is a job with a weight in kg. */
+export type DistributeInput = {
+  depot: LatLng;
+  vehicles: { id: string; capacityKg: number }[];
+  stops: { id: string; location: LatLng; serviceSeconds: number; weightKg: number }[];
+};
+
+export type DistributeResult = {
+  /** One route per vehicle that is used, in visiting order; vehicles without stops are left out. */
+  routes: { vehicleId: string; stopIds: string[] }[];
+  /** Stops that fit into no vehicle's first trip: they become reload trips (`packReloadTrips`). */
+  unassigned: string[];
+  /** `true` when computed by the local heuristic. */
+  approximate: boolean;
+};
+
 /**
  * Computes visiting orders and road routes. Implementations: OpenRouteService
  * (`OrsRoutingProvider`), the local `LocalHeuristicProvider`, and `FallbackRoutingProvider`
@@ -37,6 +53,11 @@ export interface RoutingProvider {
   optimize(input: OptimizeInput): Promise<OptimizeResult>;
   /** Route through the stops in the given order (for manual reordering). */
   route(input: RouteInput): Promise<RouteResult>;
+  /**
+   * Splits the stops across several vehicles without exceeding any capacity and orders each
+   * vehicle's stops (NUD-147, D24). Stops that fit nowhere come back as `unassigned`.
+   */
+  distribute(input: DistributeInput): Promise<DistributeResult>;
 }
 
 /** Most stops one tour may have (ORS free-tier limits). Larger inputs raise `TOO_MANY_STOPS`. */
@@ -77,6 +98,21 @@ export function assertValidPoints(depot: LatLng, stops: readonly LatLng[]): void
       `A tour can have at most ${MAX_STOPS} stops (got ${stops.length}); split the deliveries`,
       "TOO_MANY_STOPS",
     );
+  }
+}
+
+export function assertValidDistributeInput(input: DistributeInput): void {
+  assertValidOptimizeInput({ depot: input.depot, stops: input.stops });
+  const ids = new Set(input.vehicles.map((v) => v.id));
+  if (
+    input.vehicles.length === 0 ||
+    ids.size !== input.vehicles.length ||
+    input.vehicles.some((v) => !v.id || !Number.isFinite(v.capacityKg) || v.capacityKg <= 0)
+  ) {
+    throw new RoutingError("Vehicles need unique ids and a capacity > 0", "INVALID_INPUT");
+  }
+  if (input.stops.some((s) => !Number.isFinite(s.weightKg) || s.weightKg < 0)) {
+    throw new RoutingError("weightKg must be >= 0", "INVALID_INPUT");
   }
 }
 

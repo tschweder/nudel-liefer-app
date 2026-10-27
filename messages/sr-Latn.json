@@ -226,7 +226,9 @@
       "mapSheetHide": "Zatvori listu stanica",
       "progressDone": "završeno",
       "mapSheetCount": "{count, plural, one {# otvorena stanica} few {# otvorene stanice} other {# otvorenih stanica}}",
-      "focusOnMap": "Prikaži na mapi"
+      "focusOnMap": "Prikaži na mapi",
+      "reloadTitle": "Dopuna tovara u depou",
+      "reloadHint": "Vratite se u depo i utovarite robu za vožnju {trip}:"
     },
     "units": {
       "KG": "kg",

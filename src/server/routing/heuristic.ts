@@ -1,8 +1,12 @@
+import { orderTrip, splitByCapacity } from "@/domain/fleet";
 import { estimateLegs, heuristicOrder } from "@/domain/routing";
 
 import {
+  assertValidDistributeInput,
   assertValidOptimizeInput,
   assertValidPoints,
+  type DistributeInput,
+  type DistributeResult,
   emptyRoute,
   type LatLng,
   type OptimizeInput,
@@ -46,6 +50,24 @@ export class LocalHeuristicProvider implements RoutingProvider {
         input.depot,
         ordered.map((s) => s.location),
       ),
+    };
+  }
+
+  /** Capacity-aware greedy split along the sweep order, then nearest neighbour + 2-opt per vehicle. */
+  async distribute(input: DistributeInput): Promise<DistributeResult> {
+    assertValidDistributeInput(input);
+    const byId = new Map(input.stops.map((s) => [s.id, s]));
+    const split = splitByCapacity(input.depot, input.stops, input.vehicles);
+    return {
+      routes: split.routes.map((route) => ({
+        vehicleId: route.vehicleId,
+        stopIds: orderTrip(
+          input.depot,
+          route.stopIds.map((id) => byId.get(id)!),
+        ),
+      })),
+      unassigned: split.unassigned,
+      approximate: true,
     };
   }
 

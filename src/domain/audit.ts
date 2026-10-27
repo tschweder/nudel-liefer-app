@@ -17,6 +17,7 @@ export const AUDIT_ACTIONS = [
   "order.duplicate",
   "tour.generate",
   "tour.followup",
+  "tour.plan_day",
   "tour.reoptimize",
   "tour.reorder",
   "tour.lock",

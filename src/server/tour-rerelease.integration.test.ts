@@ -452,6 +452,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         await editQuantity(orderIds[2], 9);
         const racing: RoutingProvider = {
           optimize: (input) => provider.optimize(input),
+          distribute: (input) => provider.distribute(input),
           route: async (input: RouteInput) => {
             await completeStop(stopIds[2]);
             return provider.route(input);
@@ -515,6 +516,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           .updatedAt;
         const slow: RoutingProvider = {
           optimize: (input) => provider.optimize(input),
+          distribute: (input) => provider.distribute(input),
           route: async (input) => {
             await editQuantity(orderIds[1], 7); // saved while routing
             return provider.route(input);

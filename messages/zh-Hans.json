@@ -1150,7 +1150,9 @@
         "too_many_tours": "每天最多 10 条线路。",
         "vehicle_required": "请先分配车辆。",
         "vehicle_invalid": "该车辆已停用，请选择其他车辆。",
-        "overloaded": "路线超载，必须明确确认后才能发布。"
+        "overloaded": "路线超载，必须明确确认后才能发布。",
+        "no_vehicles": "没有选择车辆，请至少选择一辆启用的车辆。",
+        "tour_locked": "当天有一条配送线路已锁定，请先解除锁定。"
       },
       "change": {
         "title": "发布后订单已更改——请检查并重新发布",
@@ -1220,7 +1222,10 @@
         "stop": "站点",
         "customer": "客户",
         "items": "产品和数量",
-        "noItems": "没有产品"
+        "noItems": "没有产品",
+        "tripHeading": "第 {n} 趟（共 {count} 趟）",
+        "tripLoad": "本趟装载",
+        "reloadNote": "之后：返回仓库，为下一趟补货。"
       },
       "late": {
         "title": "配送线路结束后的补单",
@@ -1268,7 +1273,34 @@
         "noVehicle": "{load} 千克。选择车辆后可查看装载率。",
         "percent": "装载率 {percent}%",
         "over": "超载 {over} 千克",
-        "bar": "装载量与车辆载重量的比例"
+        "bar": "装载量与车辆载重量的比例",
+        "tripsTotal": "{load} 千克，共 {count} 趟",
+        "trip": "第 {n} 趟：{load} 千克 / {capacity} 千克",
+        "tripNoCapacity": "第 {n} 趟：{load} 千克"
+      },
+      "planDay": {
+        "open": "规划配送线路",
+        "hint": "按载重把当天所有站点分配给所选车辆",
+        "title": "规划配送线路",
+        "description": "当天的站点将按载重分配给所选车辆。先使用所有所选车辆；如果仍然装不下，车辆会中途返回仓库补货。",
+        "vehicles": "可用车辆",
+        "capacity": "{capacity} 千克",
+        "noVehicles": "还没有启用的车辆，请先在“车辆”中添加。",
+        "drivers": "可用司机",
+        "driversHint": "司机会按顺序分配给各条配送线路，缺少的司机可以稍后再指派。",
+        "noDrivers": "没有启用的司机。",
+        "replaceNote": "当天尚未发布的配送线路将被重新生成。",
+        "confirm": "立即规划",
+        "planning": "规划中…",
+        "toast": {
+          "planned": "已规划 {count} 条配送线路。",
+          "plannedReload": "已规划 {count} 条配送线路，其中返回仓库补货 {reloads} 次。",
+          "oversized": "有 {count} 位客户的货物超过任何所选车辆的载重，发布时需要确认。"
+        }
+      },
+      "reload": {
+        "title": "返回仓库补货",
+        "load": "第 {trip} 趟：装载 {load} 千克"
       }
     },
     "history": {
@@ -1287,6 +1319,7 @@
         "order_cancel": "取消订单",
         "order_duplicate": "复制为新订单",
         "tour_generate": "生成路线",
+        "tour_plan_day": "已按车辆规划线路",
         "tour_followup": "创建补充线路",
         "tour_reoptimize": "重新优化路线",
         "tour_reorder": "调整停靠顺序",
@@ -1481,7 +1514,9 @@
       "mapSheetHide": "关闭站点列表",
       "progressDone": "已完成",
       "mapSheetCount": "{count} 个待送站点",
-      "focusOnMap": "在地图上显示"
+      "focusOnMap": "在地图上显示",
+      "reloadTitle": "返回仓库补货",
+      "reloadHint": "返回仓库，装载第 {trip} 趟的货物："
     },
     "units": {
       "KG": "公斤",

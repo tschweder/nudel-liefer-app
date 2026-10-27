@@ -1,0 +1,54 @@
+{
+  "code": 0,
+  "summary": { "cost": 3100, "unassigned": 1, "service": 600, "duration": 3100 },
+  "unassigned": [{ "id": 4, "location": [16.45, 48.17] }],
+  "routes": [
+    {
+      "vehicle": 2,
+      "cost": 1500,
+      "service": 300,
+      "duration": 1500,
+      "steps": [
+        { "type": "start", "location": [16.3738, 48.2082], "arrival": 0, "duration": 0 },
+        {
+          "type": "job",
+          "location": [16.42, 48.23],
+          "arrival": 0,
+          "duration": 0,
+          "id": 1,
+          "job": 1,
+          "service": 300
+        },
+        { "type": "end", "location": [16.3738, 48.2082], "arrival": 0, "duration": 0 }
+      ]
+    },
+    {
+      "vehicle": 1,
+      "cost": 1600,
+      "service": 300,
+      "duration": 1600,
+      "steps": [
+        { "type": "start", "location": [16.3738, 48.2082], "arrival": 0, "duration": 0 },
+        {
+          "type": "job",
+          "location": [16.39, 48.19],
+          "arrival": 0,
+          "duration": 0,
+          "id": 3,
+          "job": 3,
+          "service": 300
+        },
+        {
+          "type": "job",
+          "location": [16.35, 48.2],
+          "arrival": 0,
+          "duration": 0,
+          "id": 2,
+          "job": 2,
+          "service": 300
+        },
+        { "type": "end", "location": [16.3738, 48.2082], "arrival": 0, "duration": 0 }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,12 @@ import type { RoutingProvider } from "./types";
 
 export { FallbackRoutingProvider } from "./fallback";
 export { LocalHeuristicProvider } from "./heuristic";
-export { mapDirectionsResponse, mapOptimizationResponse, OrsRoutingProvider } from "./ors";
+export {
+  mapDirectionsResponse,
+  mapFleetResponse,
+  mapOptimizationResponse,
+  OrsRoutingProvider,
+} from "./ors";
 export * from "./types";
 
 let instance: RoutingProvider | undefined;

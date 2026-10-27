@@ -13,17 +13,22 @@ import { cn } from "@/lib/utils";
  */
 export function TourLoad({
   loadKg,
+  tripLoadsKg = [],
   capacityKg,
   vehicleName,
 }: {
   loadKg: number;
+  /** Kilograms per trip (NUD-147); with more than one entry the capacity applies to each trip. */
+  tripLoadsKg?: number[];
   capacityKg: number | null;
   vehicleName: string | null;
 }) {
   const t = useTranslations("admin.tours.load");
   const format = useFormatter();
   const kg = (value: number) => format.number(value, { maximumFractionDigits: 2 });
-  const state = loadState(loadKg, capacityKg);
+  const trips = tripLoadsKg.length > 1 ? tripLoadsKg : null;
+  // Reload trips: the heaviest trip is what the vehicle carries at once.
+  const state = loadState(trips ? Math.max(...trips) : loadKg, capacityKg);
   const over = state.status === "over";
   return (
     <div
@@ -44,7 +49,9 @@ export function TourLoad({
         ) : (
           <>
             <span className="text-lg font-semibold tabular-nums" data-testid="tour-load-text">
-              {t("value", { load: kg(loadKg), capacity: kg(state.capacityKg ?? 0) })}
+              {trips
+                ? t("tripsTotal", { load: kg(loadKg), count: trips.length })
+                : t("value", { load: kg(loadKg), capacity: kg(state.capacityKg ?? 0) })}
             </span>
             {vehicleName ? (
               <span className="text-sm text-muted-foreground">{vehicleName}</span>
@@ -65,6 +72,26 @@ export function TourLoad({
           </>
         )}
       </div>
+      {trips ? (
+        <ul className="flex flex-col gap-0.5 text-sm tabular-nums" data-testid="tour-load-trips">
+          {trips.map((tripKg, index) => {
+            const tripOver = capacityKg !== null && tripKg > capacityKg;
+            return (
+              <li
+                key={index}
+                className={cn(tripOver && "font-semibold text-destructive")}
+                data-testid="tour-load-trip"
+                data-over={tripOver ? "true" : undefined}
+              >
+                {capacityKg === null
+                  ? t("tripNoCapacity", { n: index + 1, load: kg(tripKg) })
+                  : t("trip", { n: index + 1, load: kg(tripKg), capacity: kg(capacityKg) })}
+                {tripOver ? ` · ${t("over", { over: kg(tripKg - capacityKg) })}` : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       {state.status !== "none" ? (
         <div
           role="progressbar"

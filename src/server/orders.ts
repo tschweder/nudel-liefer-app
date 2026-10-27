@@ -359,7 +359,13 @@ export async function getDateTotals(
  * - `{ tourId: "x" }`: the orders for tour x = every order not on a stop of another tour.
  * - `{ tourId: null }`: the orders for a tour that does not exist yet = orders on no stop at all.
  */
-export type TourOrderScope = { tourId: string | null };
+export type TourOrderScope =
+  | { tourId: string | null }
+  /**
+   * NUD-147: the orders for a whole-day plan that rebuilds the given (unreleased) tours = every
+   * order that is not on a stop of any other tour of the day.
+   */
+  | { rebuildTourIds: string[] };
 
 /**
  * The CONFIRMED orders of one delivery day with their items: the only orders a tour may contain
@@ -380,7 +386,16 @@ export async function listConfirmedOrdersForDate(
             stopOrders: {
               none: {
                 stop: {
-                  tour: { date, ...(scope.tourId ? { id: { not: scope.tourId } } : {}) },
+                  tour: {
+                    date,
+                    ...("rebuildTourIds" in scope
+                      ? scope.rebuildTourIds.length > 0
+                        ? { id: { notIn: scope.rebuildTourIds } }
+                        : {}
+                      : scope.tourId
+                        ? { id: { not: scope.tourId } }
+                        : {}),
+                  },
                 },
               },
             },

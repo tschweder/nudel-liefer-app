@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 import { pickDefaultTour, sortDayTours } from "@/domain/day-tours";
+import { normalizeTrips } from "@/domain/fleet";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
-import { buildStops, computeSchedule, departureInstant, partitionByLocation } from "@/domain/tour";
+import { buildStops, departureInstant, partitionByLocation } from "@/domain/tour";
 import {
   EDITABLE_TOUR_STATUSES,
   isPermutation,
@@ -23,8 +24,9 @@ import { RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
-import { tourLoadKgOf } from "./tour-load";
+import { tourLoadsOf } from "./tour-load";
 import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
+import { routeTrips, scheduleTrips } from "./tour-routing";
 
 /**
  * Tour planning (NUD-042): the read model of `/admin/tours` and the mutations behind its buttons.
@@ -36,6 +38,8 @@ import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rere
 export type PlanStop = {
   id: string;
   sequence: number;
+  /** Trip of the tour (NUD-147): 1 = first trip, a higher number follows a reload at the depot. */
+  trip: number;
   customerId: string;
   customerNumber: string;
   name: string;
@@ -99,6 +103,8 @@ export type PlanTour = {
   vehicleId: string | null;
   /** NUD-146: weight of everything on the tour's stops in kg (stop snapshots x weight per unit). */
   loadKg: number;
+  /** NUD-147: kilograms per trip (index 0 = trip 1); more than one entry when the tour has reloads. */
+  tripLoadsKg: number[];
   /** `updatedAt` as ISO string: the release call must quote it, so the office releases what it saw. */
   version: string;
   totalDistanceM: number | null;
@@ -282,7 +288,7 @@ export async function getTourPlan(
     orderBy: [{ name: "asc" }, { id: "asc" }],
     select: { id: true, name: true, plate: true, capacityKg: true, active: true },
   });
-  const loadKg = tour ? await tourLoadKgOf(db, tour.stops) : 0;
+  const loads = tour ? await tourLoadsOf(db, tour.stops) : null;
 
   return {
     date: formatCalendarDate(date),
@@ -313,7 +319,8 @@ export async function getTourPlan(
           approximate: tour.approximate,
           driverId: tour.driverId,
           vehicleId: tour.vehicleId,
-          loadKg,
+          loadKg: loads?.totalKg ?? 0,
+          tripLoadsKg: loads?.tripLoadsKg ?? [],
           version: tour.updatedAt.toISOString(),
           totalDistanceM: tour.totalDistanceM,
           totalDurationS: tour.totalDurationS,
@@ -331,6 +338,7 @@ export async function getTourPlan(
                   {
                     id: s.id,
                     sequence: s.sequence,
+                    trip: s.trip,
                     customerId: s.customerId,
                     customerNumber: s.customer.customerNumber,
                     name: s.customer.name,
@@ -467,31 +475,21 @@ export async function reorderStopsWith(
     points.push({ lat: point.lat, lng: point.lng });
   }
 
+  // Reload trips (NUD-147): the trip boundaries stay at the same positions, the stops move.
+  const trips = normalizeTrips(tour.stops.map((s) => s.trip));
   let route;
   try {
-    route = await provider.route({
-      depot: { lat: depot.lat, lng: depot.lng },
-      orderedStops: points,
-    });
+    route = await routeTrips(provider, { lat: depot.lat, lng: depot.lng }, points, trips);
   } catch (error) {
     if (error instanceof RoutingError && error.code === "TOO_MANY_STOPS") {
       return fail("too_many_stops");
     }
     throw error;
   }
-  if (route.legs.length !== ordered.length + 1) {
-    throw new Error(
-      `Routing provider returned ${route.legs.length} legs, expected ${ordered.length + 1}`,
-    );
-  }
-  const legs = route.legs.map((l) => ({
-    distanceM: Math.round(l.distanceM),
-    durationS: Math.round(l.durationS),
-  }));
+  const legs = route.stopLegs;
   const serviceSeconds = settings.serviceMinutesPerStop * 60;
-  const schedule = computeSchedule({
+  const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
-    legDurationsS: legs.map((l) => l.durationS),
     serviceSecondsPerStop: serviceSeconds,
   });
 
@@ -509,7 +507,7 @@ export async function reorderStopsWith(
         where: { id: tour.id },
         data: {
           geometry: route.geometry,
-          totalDistanceM: Math.round(legs.reduce((sum, l) => sum + l.distanceM, 0)),
+          totalDistanceM: route.totalDistanceM,
           totalDurationS: schedule.totalDurationS,
           approximate: route.approximate,
         },
@@ -519,6 +517,7 @@ export async function reorderStopsWith(
           where: { id: stop.id },
           data: {
             sequence: index + 1,
+            trip: trips[index],
             etaAt: schedule.etas[index],
             legDistanceM: legs[index].distanceM,
             legDurationS: legs[index].durationS,
@@ -680,7 +679,7 @@ export async function releaseTourWith(
           _count: { select: { stops: true } },
           driver: { select: { active: true, role: true } },
           vehicle: { select: { active: true, capacityKg: true } },
-          stops: { select: { items: true } },
+          stops: { select: { items: true, trip: true } },
         },
       });
       if (!tour) return fail("not_found");
@@ -698,7 +697,11 @@ export async function releaseTourWith(
       if (!tour.vehicle?.active) return fail("vehicle_invalid");
       if (tour.updatedAt.getTime() !== version.getTime()) return fail("conflict");
       // NUD-146: above the capacity only with the explicit override, which is logged below.
-      const load = loadState(await tourLoadKgOf(tx, tour.stops), tour.vehicle.capacityKg);
+      // With reload trips the capacity applies to each trip: the heaviest one decides (NUD-147).
+      const load = loadState(
+        (await tourLoadsOf(tx, tour.stops)).maxTripKg,
+        tour.vehicle.capacityKg,
+      );
       const overridden = load.status === "over";
       if (overridden && input.data.overrideOverload !== true) return fail("overloaded");
       const updated = await tx.tour.updateMany({

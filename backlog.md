@@ -301,7 +301,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | done |
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | done |
-| NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | todo |
+| NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | done |
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | todo |
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | todo |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
@@ -2464,6 +2464,9 @@ General rules for every ticket in this block:
 - [ ] With a valid key a newly generated tour has `approximate=false` and no "Näherungswerte" badge.
 - [ ] No icon-only status badge left on the tour page (axe + visual check at 1280 px).
 
+**Implementation notes**
+Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capacity` / `delivery`, `unassigned`, several `routes`) against the real ORS via "Touren planen" with 2 vehicles and with 1 small vehicle (reload trip); ORS free-tier limits for jobs / vehicles per request vs. MAX_STOPS = 50.
+
 ---
 
 #### NUD-146 · Vehicles with kg capacity, one vehicle per tour
@@ -2493,7 +2496,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-147 · Several tours per day: split by capacity, then reload trips
-**Status:** todo · **depends_on:** 146 · F2 · D24 · **supersedes NUD-102 and the capacity part of NUD-103**
+**Status:** done · **depends_on:** 146 · F2 · D24 · **supersedes NUD-102 and the capacity part of NUD-103**
 
 **Scope**
 - "Touren planen" for a date: the office selects the available drivers + vehicles (default: all active); the optimiser (ORS/VROOM multi-vehicle with `capacity` in kg, `delivery` per job = stop weight) distributes the day's stops across the vehicles.
@@ -2504,9 +2507,25 @@ General rules for every ticket in this block:
 - Reuse the NUD-099 multi-tour building blocks (`pickDefaultTour`, `pickDriverTour`, order scope per tour).
 
 **Acceptance criteria**
-- [ ] 2 vehicles × 500 kg, 800 kg of stops → two tours, neither over capacity.
-- [ ] 1 vehicle × 500 kg, 800 kg of stops → one tour with a reload stop, each trip ≤ 500 kg.
-- [ ] Each driver sees only his own tour (authz test).
+- [x] 2 vehicles × 500 kg, 800 kg of stops → two tours, neither over capacity. (Unit fleet.test (splitByCapacity, 800 kg over 2 x 500 kg: two routes, none over capacity), routing-fleet.test (heuristic distribute), integration day-planner (two tours, each trip <= 500 kg) + e2e tour-split on the heuristic. live check: NUD-145 (VROOM multi-vehicle response against the real ORS))
+- [x] 1 vehicle × 500 kg, 800 kg of stops → one tour with a reload stop, each trip ≤ 500 kg. (Unit packReloadTrips + integration day-planner (one tour, trips 1 and 2, each <= 500 kg, ETAs rise across the reload) + e2e tour-split (reload row in admin, load sheet per trip). live check: NUD-145)
+- [x] Each driver sees only his own tour (authz test). (Integration day-planner: getDriverTour returns only the driver's own tour and stops, a driver without a tour sees none; authz-matrix row planDayAction (wrong role rejected))
+
+**Implementation notes**
+**Implementation notes**
+- **Data:** migration `20261027180000_stop_trip` adds `Stop.trip` (default 1, CHECK >= 1). A reload is not a row: it is the place where `trip` goes up between two stops (admin list, driver list and load sheet derive the "Nachladen im Depot" card from it). Reload time is the constant `RELOAD_MINUTES = 20` (domain/fleet.ts).
+- **Pure rules** `src/domain/fleet.ts`: `splitByCapacity` (heuristic fallback: sweep order around the depot, vehicles filled largest first, a vehicle not needed gets no route), `packReloadTrips` (leftover goes to reload trips, vehicle with the fewest trips first; a stop heavier than any vehicle gets a trip of its own and is reported `oversized`), `normalizeTrips`, `tripLoadsKg`, `computeTripSchedule` (equals `computeSchedule` for one trip).
+- **Provider:** `RoutingProvider.distribute()` (multi-vehicle, capacity in kg, stop weight = job `delivery`). ORS: one VROOM `/optimization` call with `capacity` per vehicle (`mapFleetResponse`, unassigned jobs come back as `unassigned`); heuristic: the split above plus nearest neighbour / 2-opt per vehicle, `approximate`; Fallback forwards. Fixture `ors-optimization-fleet.json` is hand-written from the documented VROOM shape like the existing ones (no recording possible without a key).
+- **Planner:** `src/server/day-planner.ts` + `planDayAction` ("Touren planen" dialog: vehicles and drivers, default all active). Distribute, then reload trips for `unassigned` (each ordered with `optimize`), then `routeTrips` per tour (one `route()` call per trip, joined; `src/server/tour-routing.ts`). Unreleased tours of the day are rebuilt in place (rows reused in creation order, surplus ones emptied, nothing deleted); a released/running tour refuses (`tour_not_editable`), a locked one too (`tour_locked`). Audit `tour.plan_day` per tour (history label added).
+- **Manual edits keep trips:** reorder / Bearbeiten / re-release use `routeTrips`; trip boundaries stay at their positions, an arriving or new stop joins the last trip; "Neu optimieren" (`generateTour`) builds one trip again (reload trips come from "Touren planen").
+- **Load:** capacity is compared per trip (heaviest trip) in the indicator, the release gate and its audit entry; `TourLoad` lists the trips. Existing single-trip behaviour is unchanged.
+- **Driver app:** payload/offline model carry `trip` (default 1, old caches parse); `ReloadStop` card (icon, "Nachladen im Depot", next trip's quantities per product, 5 locales) between the trips in the open list. Load sheet: one block per trip with its own totals and load order, "then back to the depot".
+- **NUD-154:** NOT covered by this ticket. NUD-147 only reuses the order scope (new `rebuildTourIds` scope so a whole-day plan sees every order not on a completed/released tour). The "new order is offered to every open tour" problem remains and is more reachable now that the planner creates several tours; it stays in NUD-154 (note added there).
+- Checks: see commit; e2e `tour-split` (desktop admin + driver desktop/mobile) plus tours, tour-edit, tour-rerelease, late-orders, load-sheet, vehicles, driver-today, driver-stop, admin-progress.
+- **Live check: NUD-145** (needs the ORS key): VROOM accepts `capacity` / `delivery` and returns `unassigned` / several `routes` as in the fixture; the profile (car vs. hgv) for the vehicles; the free-tier limits (jobs / vehicles per request) vs. `MAX_STOPS = 50`.
+
+**Implementation notes**
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2138 passed / 4 skipped, i18n:check, `pnpm build`, fresh-DB migrate + seed (also `--demo --no-photos`), e2e desktop + mobile: tour-split (new), tours, tour-edit, tour-rerelease, late-orders, load-sheet, vehicles, driver-today, driver-stop, admin-progress green (admin specs skip mobile by design).
 
 ---
 
@@ -2620,6 +2639,9 @@ General rules for every ticket in this block:
 - [ ] Two open tours, a new order of a customer on tour B: only B is flagged outdated and only B's diff lists it (integration test).
 - [ ] A new order of a customer on no stop does not appear as "new stop" on more than one tour at release time.
 - [ ] Existing late-order / follow-up behaviour (NUD-099) is unchanged.
+
+**Implementation notes**
+Overlap with NUD-147 checked: NUD-147 does not cover this (it only adds a whole-day order scope for "Touren planen"). Still open, and more reachable now because the planner creates several open tours per day.
 
 ---
 
@@ -3011,6 +3033,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-146 | Release needs driver and an active vehicle; a tour above capacity needs `overrideOverload: true` on the release call (checkbox in the dialog), logged in the `tour.release` audit entry (`overloadOverride`, `loadKg`, `capacityKg`). Re-release and Bearbeiten do not gate an overload, the indicator just turns red | Smallest reading of 'cannot be released without an explicit override' (D24); the first release is the moment the driver gets the tour |
 | 2026-10-27 | NUD-146 | Tour load = `Stop.items` snapshot x `weightKgPerUnit` over all stops of the tour (completed ones included); a vehicle change through Bearbeiten on a released tour bumps the revision ('tour updated'); a released tour cannot lose its vehicle, an old one without vehicle may stay without | Same snapshot the driver sees; same rules as the driver in NUD-135 (D29) |
 | 2026-10-27 | NUD-146 | Vehicle master data on one page with a dialog (no separate form pages); name unique ignoring case, capacity whole kg 1..50000, plate optional; audit entity `Vehicle`; demo seed adds two placeholder vehicles, the production seed none | Simplest consistent with the product list pattern; the real fleet is owner data |
+| 2026-10-27 | NUD-147 | Reload trips are `Stop.trip` (no stop row); reload time is a constant of 20 min (not a setting); a vehicle not needed gets no tour; drivers are paired with the used vehicles in the order selected | Simplest model consistent with D24 ("all vehicles first, then reload"); NUD-152 may turn the 20 minutes into a setting |
+| 2026-10-27 | NUD-147 | "Touren planen" rebuilds unreleased tours in place (surplus ones emptied, not deleted) and refuses a day with a released or locked tour; "Neu optimieren" of one tour yields one trip | Soft delete only; released tours are the driver's (D29) and are edited via Bearbeiten |
+| 2026-10-27 | NUD-147 | Capacity applies per trip: indicator, release gate and override compare the heaviest trip; manual edits keep trip boundaries positional, new/moved stops join the last trip | A reload empties the vehicle, so the total over all trips is not what it carries |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -305,6 +305,9 @@ describe("FallbackRoutingProvider", () => {
     route: async () => {
       throw new RoutingError("boom", code);
     },
+    distribute: async () => {
+      throw new RoutingError("boom", code);
+    },
   });
 
   it("falls back on a timeout and reports approximate", async () => {

@@ -1150,7 +1150,9 @@
         "too_many_tours": "A day can have at most 10 tours.",
         "vehicle_required": "Please assign a vehicle first.",
         "vehicle_invalid": "This vehicle is not active. Please choose another vehicle.",
-        "overloaded": "The tour is overloaded. The release has to be confirmed explicitly."
+        "overloaded": "The tour is overloaded. The release has to be confirmed explicitly.",
+        "no_vehicles": "No vehicle chosen. Please choose at least one active vehicle.",
+        "tour_locked": "A tour of this day is locked. Please unlock it first."
       },
       "change": {
         "title": "Orders changed since the release – check and release again",
@@ -1220,7 +1222,10 @@
         "stop": "Stop",
         "customer": "Customer",
         "items": "Products and quantities",
-        "noItems": "No products"
+        "noItems": "No products",
+        "tripHeading": "Trip {n} of {count}",
+        "tripLoad": "Load of this trip",
+        "reloadNote": "Then: back to the depot, reload for the next trip."
       },
       "late": {
         "title": "Late order after the tour was completed",
@@ -1268,7 +1273,34 @@
         "noVehicle": "{load} kg. Choose a vehicle to see the utilization.",
         "percent": "Utilization {percent} %",
         "over": "Overloaded by {over} kg",
-        "bar": "Load compared with the vehicle's capacity"
+        "bar": "Load compared with the vehicle's capacity",
+        "tripsTotal": "{load} kg in {count} trips",
+        "trip": "Trip {n}: {load} kg of {capacity} kg",
+        "tripNoCapacity": "Trip {n}: {load} kg"
+      },
+      "planDay": {
+        "open": "Plan tours",
+        "hint": "Distributes all stops of the day across the chosen vehicles by capacity",
+        "title": "Plan tours",
+        "description": "The stops of this day are distributed across the chosen vehicles by capacity. All chosen vehicles are used first; if that is not enough, a vehicle returns to the depot in between and reloads.",
+        "vehicles": "Available vehicles",
+        "capacity": "{capacity} kg",
+        "noVehicles": "There is no active vehicle yet. Please add one under Vehicles first.",
+        "drivers": "Available drivers",
+        "driversHint": "Drivers are assigned to the tours in order. Missing drivers can be assigned afterwards.",
+        "noDrivers": "There is no active driver.",
+        "replaceNote": "Tours of this day that are not released yet are rebuilt.",
+        "confirm": "Plan now",
+        "planning": "Planning …",
+        "toast": {
+          "planned": "{count, plural, one {# tour} other {# tours}} planned.",
+          "plannedReload": "{count, plural, one {# tour} other {# tours}} planned, with {reloads}× reload at the depot.",
+          "oversized": "{count, plural, one {# customer is} other {# customers are}} too heavy for every chosen vehicle. Releasing needs a confirmation."
+        }
+      },
+      "reload": {
+        "title": "Reload at the depot",
+        "load": "Trip {trip}: load {load} kg"
       }
     },
     "history": {
@@ -1287,6 +1319,7 @@
         "order_cancel": "Order cancelled",
         "order_duplicate": "Created as a copy",
         "tour_generate": "Tour created",
+        "tour_plan_day": "Tours planned (vehicles distributed)",
         "tour_followup": "Follow-up tour created",
         "tour_reoptimize": "Tour re-optimized",
         "tour_reorder": "Order changed",
@@ -1481,7 +1514,9 @@
       "mapSheetHide": "Close stop list",
       "progressDone": "done",
       "mapSheetCount": "{count, plural, one {# open stop} other {# open stops}}",
-      "focusOnMap": "Show on the map"
+      "focusOnMap": "Show on the map",
+      "reloadTitle": "Reload at the depot",
+      "reloadHint": "Return to the depot and load for trip {trip}:"
     },
     "units": {
       "KG": "kg",
