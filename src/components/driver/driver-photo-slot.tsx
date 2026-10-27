@@ -3,6 +3,7 @@
 import {
   CameraIcon,
   CheckIcon,
+  ImageIcon,
   ImageOffIcon,
   Loader2Icon,
   RefreshCwIcon,
@@ -61,6 +62,7 @@ export function DriverPhotoSlot({
   const tErrors = useTranslations("common.upload.errors");
   const id = kind.toLowerCase();
   const input = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const previewUrl = phase.name === "preview" ? phase.url : null;
@@ -99,6 +101,8 @@ export function DriverPhotoSlot({
   }
 
   const take = () => input.current?.click();
+  // Same pipeline, but the picker without `capture` offers the gallery (NUD-143).
+  const pickFromGallery = () => galleryInput.current?.click();
   const busy = phase.name === "preparing" || phase.name === "saving";
 
   return (
@@ -151,34 +155,36 @@ export function DriverPhotoSlot({
             >
               <ImageOffIcon className="size-9" aria-hidden />
               <span className="text-base font-medium">{t("noPhoto")}</span>
-              <Button
-                type="button"
-                size="lg"
-                // One line, no icon: 16 px is the driver floor and "Foto aufnehmen" only fits the
-                // 148 px tile unwrapped without the 24 px camera (the label text is unchanged).
-                className="min-h-12 w-full px-1 whitespace-nowrap text-base"
-                onClick={take}
-                data-testid={`photo-take-${id}`}
-              >
-                {t("takePhoto")}
-              </Button>
             </div>
           )}
         </div>
 
-        {/* Overlay: 48 px target, a sibling of the frame so the frame holds exactly one button. */}
+        {/* Overlay: 48 px targets, siblings of the frame so the frame holds exactly one button. */}
         {photo && !busy && phase.name !== "preview" ? (
-          <Button
-            type="button"
-            size="icon-lg"
-            variant="secondary"
-            className="absolute end-2 bottom-2 shadow-md"
-            onClick={take}
-            aria-label={t("replacePhoto")}
-            data-testid={`photo-replace-${id}`}
-          >
-            <CameraIcon aria-hidden />
-          </Button>
+          <div className="absolute end-2 bottom-2 flex gap-2">
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="secondary"
+              className="shadow-md"
+              onClick={pickFromGallery}
+              aria-label={t("fromGallery")}
+              data-testid={`photo-gallery-${id}`}
+            >
+              <ImageIcon aria-hidden />
+            </Button>
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="secondary"
+              className="shadow-md"
+              onClick={take}
+              aria-label={t("replacePhoto")}
+              data-testid={`photo-replace-${id}`}
+            >
+              <CameraIcon aria-hidden />
+            </Button>
+          </div>
         ) : null}
 
         {photo?.pending && phase.name === "idle" ? (
@@ -201,6 +207,31 @@ export function DriverPhotoSlot({
           </span>
         ) : null}
       </div>
+
+      {!photo && phase.name === "idle" ? (
+        <div className="grid gap-2" data-testid="photo-actions">
+          {/* One line each, 16 px: "Foto aufnehmen" is the longest label and must not wrap. */}
+          <Button
+            type="button"
+            size="lg"
+            className="min-h-12 w-full px-1 text-base whitespace-nowrap"
+            onClick={take}
+            data-testid={`photo-take-${id}`}
+          >
+            {t("takePhoto")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="min-h-12 w-full px-1 text-base whitespace-nowrap"
+            onClick={pickFromGallery}
+            data-testid={`photo-gallery-${id}`}
+          >
+            {t("fromGallery")}
+          </Button>
+        </div>
+      ) : null}
 
       {phase.name === "preview" ? (
         <div className="grid grid-cols-2 gap-2" data-testid="photo-confirm-bar">
@@ -260,6 +291,20 @@ export function DriverPhotoSlot({
         tabIndex={-1}
         aria-label={t("takePhoto")}
         data-testid={`photo-input-${id}`}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          void onFile(file);
+        }}
+      />
+      <input
+        ref={galleryInput}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label={t("fromGallery")}
+        data-testid={`photo-gallery-input-${id}`}
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = "";

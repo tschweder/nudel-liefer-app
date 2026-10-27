@@ -252,3 +252,28 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.getByTestId("no-pin")).toBeInTheDocument();
   });
 });
+
+describe.each(Object.keys(LOCALES))("next-stop card links (%s)", (locale) => {
+  it("the whole card opens the detail through one icon-only link; navigation stays a separate element", () => {
+    renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
+    const next = screen.getByTestId("next-stop");
+    const details = within(next).getByTestId("details");
+    const navigate = within(next).getByTestId("navigate");
+    // Icon-only: no visible text, but an accessible name; stretched over the card (::after, inset-0).
+    expect(details.textContent?.trim()).toBe("");
+    expect(details.getAttribute("aria-label")?.length).toBeGreaterThan(0);
+    expect(details.className).toContain("after:absolute");
+    expect(details.className).toContain("after:inset-0");
+    expect(details.className).toContain("active:scale-none");
+    expect(next.className).toContain("relative");
+    // "Navigation starten" is a sibling, never inside the detail link, and sits above the overlay.
+    expect(details.contains(navigate)).toBe(false);
+    expect(navigate.closest("a[href^='/driver/stops']")).toBeNull();
+    expect(navigate.className).toContain("z-10");
+    expect(navigate.getAttribute("href")).toMatch(/^https:\/\/www\.google\.com\/maps/);
+    // No interactive element is nested inside another one.
+    for (const el of next.querySelectorAll("a, button")) {
+      expect(el.parentElement?.closest("a, button")).toBeNull();
+    }
+  });
+});

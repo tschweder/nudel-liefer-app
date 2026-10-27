@@ -137,12 +137,14 @@ describe.each(Object.keys(LOCALES))("StopDetail in %s", (locale) => {
         "button",
       ),
     ).toHaveLength(1);
-    expect(within(screen.getByTestId("photo-store")).getAllByRole("button")).toHaveLength(2);
+    expect(within(screen.getByTestId("photo-store")).getAllByRole("button")).toHaveLength(3);
     expect(screen.getByTestId("photo-open-store")).toBeVisible();
     expect(screen.getByTestId("photo-replace-store")).toBeVisible();
+    expect(screen.getByTestId("photo-gallery-store")).toBeVisible();
     // A missing photo: the placeholder offers "Take photo" right there (NUD-083)
     expect(within(screen.getByTestId("photo-parking")).getByTestId("photo-missing")).toBeVisible();
     expect(screen.getByTestId("photo-take-parking")).toBeVisible();
+    expect(screen.getByTestId("photo-gallery-parking")).toBeVisible();
     const rows = screen.getAllByTestId("stop-item");
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByTestId("item-name")).toHaveTextContent("Spaghetti");

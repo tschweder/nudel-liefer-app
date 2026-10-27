@@ -297,7 +297,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-140 | Languages: Deutsch · English · Srpski · Čeština · 中文 | M2.6 | 139 | done |
 | NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | done |
 | NUD-142 | Customer key number (office + driver) | M2.6 | 139 | done |
-| NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | todo |
+| NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | done |
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | todo |
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | todo |
@@ -2390,16 +2390,21 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-143 · Driver stop UI: whole card opens details, gallery photos
-**Status:** todo · **depends_on:** – · F20, F23
+**Status:** done · **depends_on:** – · F20, F23
 
 **Scope**
 - Next-stop card on driver home: the **whole card** is the link to the stop detail; the "Details" button becomes an icon-only button (›) with `aria-label`, touch target ≥ 48 px. **"Navigation starten"** inside the card must not open the detail (stop propagation; keep it a separate focusable element — no nested interactive elements inside an `<a>`).
 - Photo slots (Eingang, Parken) on stop detail: two actions **"Foto aufnehmen"** (`capture="environment"`) and **"Aus Galerie"** (same input without `capture`). Gallery images go through the NUD-006 resize pipeline and the NUD-083 offline outbox.
 
 **Acceptance criteria**
-- [ ] Tap on card body → detail; tap on "Navigation starten" → navigation URL only (component test).
-- [ ] Gallery upload works online and queued offline (e2e with a file chooser).
-- [ ] axe: no nested-interactive violation on driver home.
+- [x] Tap on card body → detail; tap on "Navigation starten" → navigation URL only (component test).
+- [x] Gallery upload works online and queued offline (e2e with a file chooser).
+- [x] axe: no nested-interactive violation on driver home.
+
+**Implementation notes**
+- Next-stop card (today-tour.tsx): the icon-only chevron link (aria-label "Details", 48 px) is stretched over the whole card (`after:absolute after:inset-0`); "Navigation starten" and the key chip are siblings with `relative z-10`, so nothing interactive is nested in an `<a>`. `active:scale-none` on the link: the global press-scale made the link the containing block of the overlay and shrank it while pressed, so taps never completed (found by e2e).
+- Photo slots (driver-photo-slot.tsx): missing state shows the placeholder plus two stacked 48 px buttons below it, "Foto aufnehmen" (input with `capture="environment"`) and "Aus Galerie" (second input, no `capture`); with a photo present the overlay carries camera (replace) and gallery icon buttons. Both inputs feed the same resize + photo outbox path. New key driver.stop.fromGallery in de/en/zh-Hans/sr-Latn/cs.
+- Tests: component (card links, gallery input, detail), e2e driver-today (card tap, navigate popup), driver-photo (file chooser online + offline queue); axe nested-interactive covered by driver-a11y. mvp-happy-path and late-orders fail on this DB because the admin tour page shows 21+ demo rows for today (data state, unrelated to the driver card).
 
 ---
 
@@ -2939,6 +2944,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-142 | Driver sheet requires a number for "Ja"; office may leave it blank. Chip: number, "?" unknown, "–" none, "✓" present without number. | Simplest display consistent with D27; drivers need the number, office may only know that a key exists. |
 | 2026-10-27 | NUD-142 | Key entries reuse /api/driver/sync (type key) and StopMutation kind KEY; no conflict rule, last write by sync order wins. | D27: driver field knowledge wins; reuses existing idempotent outbox. |
 | 2026-10-27 | NUD-142 | Stop-list rows show a display-only key chip (rows are links); chip is interactive on next-stop card and stop detail. Office form sends key fields only when edited. | Avoids nested interactive elements (axe) and stale-page overwrites. |
+| 2026-10-27 | NUD-143 | Details control is a stretched-link chevron (::after overlay) instead of making the card an <a>; photo actions sit below the placeholder tile, overlay icons when a photo exists. | Avoids nested interactive elements (axe) and keeps 48 px targets in the 148 px tile. |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

@@ -1400,6 +1400,7 @@
       "next": "下一站",
       "takePhoto": "拍照",
       "replacePhoto": "重新拍照",
+      "fromGallery": "从相册选择",
       "photoPreparing": "正在处理照片…",
       "usePhoto": "使用此照片",
       "retakePhoto": "重拍",

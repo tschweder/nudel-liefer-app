@@ -234,6 +234,33 @@ for (const locale of LOCALES) {
   });
 }
 
+test("the whole next-stop card opens the detail; 'Navigation starten' does not (NUD-143)", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  await context.route("https://www.google.com/**", (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "<html></html>" }),
+  );
+  const next = page.getByTestId("next-stop");
+  const home = page.url();
+
+  // A real pointer tap at the customer name: the stretched link receives it (Playwright's own
+  // click() would refuse a target that is covered by the overlay).
+  const box = (await next.getByTestId("next-stop-name").boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page).toHaveURL(new RegExp(`/de/driver/stops/${stopIds[1]}$`));
+
+  // Navigation: a new tab with the maps URL, the app stays where it is.
+  await page.goto(home);
+  const popupPromise = page.waitForEvent("popup");
+  await page.getByTestId("next-stop").getByTestId("navigate").click();
+  const popup = await popupPromise;
+  expect(popup.url()).toContain("google.com/maps/dir");
+  await popup.close();
+  expect(page.url()).toBe(home);
+});
+
 test("details link opens the stop route, other drivers get 404, next stop advances", async ({
   page,
 }) => {

@@ -105,8 +105,8 @@ afterEach(cleanup);
 describe.each(Object.keys(LOCALES))("photo slot (%s)", (locale) => {
   it("the 'no photo' placeholder offers Take photo directly, opening the rear camera", () => {
     renderSlot(locale, null);
-    const placeholder = screen.getByTestId("photo-missing");
-    const take = within(placeholder).getByTestId("photo-take-store");
+    expect(screen.getByTestId("photo-missing")).toBeTruthy();
+    const take = within(screen.getByTestId("photo-actions")).getByTestId("photo-take-store");
     expect(take.textContent?.trim().length).toBeGreaterThan(0);
     const input = screen.getByTestId("photo-input-store") as HTMLInputElement;
     expect(input.type).toBe("file");
@@ -117,10 +117,27 @@ describe.each(Object.keys(LOCALES))("photo slot (%s)", (locale) => {
     expect(click).toHaveBeenCalledTimes(1);
   });
 
+  it("offers 'From gallery' next to Take photo: a second input without capture, same pipeline", async () => {
+    renderSlot(locale, null);
+    const gallery = within(screen.getByTestId("photo-actions")).getByTestId("photo-gallery-store");
+    expect(gallery.textContent?.trim().length).toBeGreaterThan(0);
+    const input = screen.getByTestId("photo-gallery-input-store") as HTMLInputElement;
+    expect(input.type).toBe("file");
+    expect(input.accept).toBe("image/*");
+    expect(input.hasAttribute("capture")).toBe(false);
+    const click = vi.spyOn(input, "click");
+    fireEvent.click(gallery);
+    expect(click).toHaveBeenCalledTimes(1);
+    fireEvent.change(input, { target: { files: [file()] } });
+    expect(await screen.findByTestId("photo-preview")).toBeTruthy();
+    expect(resizeImage).toHaveBeenCalledTimes(1);
+  });
+
   it("a present photo offers Replace, a pending one shows the waiting badge, a sent one the check", () => {
     const { rerender } = renderSlot(locale, shown());
     expect(screen.queryByTestId("photo-missing")).toBeNull();
     expect(screen.getByTestId("photo-replace-store")).toBeTruthy();
+    expect(screen.getByTestId("photo-gallery-store")).toBeTruthy();
     expect(screen.queryByTestId("photo-pending")).toBeNull();
     cleanup();
     renderSlot(locale, shown({ pending: true }));

@@ -248,7 +248,12 @@ test("the missing-photo placeholder offers Take photo directly; shot -> preview 
   const slot = visible(page, "photo-store");
   const placeholder = slot.getByTestId("photo-missing");
   await expect(placeholder).toBeVisible();
-  const take = placeholder.getByTestId("photo-take-store");
+  const take = slot.getByTestId("photo-take-store");
+  const gallery = slot.getByTestId("photo-gallery-store");
+  await expect(gallery).toHaveText(/Aus Galerie/);
+  expect((await gallery.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  expect((await take.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+  await expect(slot.getByTestId("photo-gallery-input-store")).not.toHaveAttribute("capture", /.*/);
   await expect(take).toBeVisible();
   await expect(take).toHaveText(/Foto aufnehmen/);
   // 48 px touch target, camera input as specified
@@ -426,6 +431,54 @@ test("photo taken offline is kept on the phone, shown at once and appears on the
   });
   await adminContext.close();
   expect(errors).toEqual([]);
+});
+
+test("gallery pick: 'Aus Galerie' opens a chooser without capture; online it is resized and registered (NUD-143)", async ({
+  page,
+}) => {
+  await readyOffline(page);
+  await page.goto(`/de/driver/stops/${stopIds[2]}`);
+  const slot = visible(page, "photo-store");
+  const chooserPromise = page.waitForEvent("filechooser");
+  await slot.getByTestId("photo-gallery-store").click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(shot(2400, 1800, [30, 90, 200]));
+  await expect(slot.getByTestId("photo-preview")).toBeVisible();
+  await slot.getByTestId("photo-confirm").click();
+  await expect.poll(async () => (await photoRows()).length, { timeout: 30_000 }).toBe(1);
+  const [row] = await photoRows();
+  expect(row).toMatchObject({ kind: "STORE", isCurrent: true, width: 1600, height: 1200 });
+  await expect(page.getByTestId("pending-badge")).toHaveCount(0, { timeout: 30_000 });
+  await expect(slot.getByTestId("photo-missing")).toHaveCount(0);
+  // With a photo present the overlay offers the gallery again (replace).
+  await expect(slot.getByTestId("photo-gallery-store")).toBeVisible();
+});
+
+test("gallery pick offline is queued like a camera shot and registered after reconnect (NUD-143)", async ({
+  page,
+  context,
+}) => {
+  await readyOffline(page);
+  await setOnline(context, page, false);
+  await gotoSettled(page, `/de/driver/stops/${stopIds[2]}`);
+  const slot = visible(page, "photo-parking");
+  const chooserPromise = page.waitForEvent("filechooser");
+  await slot.getByTestId("photo-gallery-parking").click();
+  await (await chooserPromise).setFiles(shot(3000, 2000, [200, 90, 30]));
+  await expect(slot.getByTestId("photo-preview")).toBeVisible();
+  await slot.getByTestId("photo-confirm").click();
+  await expect(slot.getByTestId("photo-pending")).toBeVisible();
+  await expect(page.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
+  const queued = await queuedPhotos(page);
+  expect(queued).toHaveLength(1);
+  expect(queued[0]).toMatchObject({ kind: "PARKING", stopId: stopIds[2], type: "image/jpeg" });
+  expect(await photoRows()).toHaveLength(0);
+
+  await setOnline(context, page, true);
+  await expect.poll(async () => (await photoRows()).length, { timeout: 40_000 }).toBe(1);
+  await expect(page.getByTestId("pending-badge")).toHaveCount(0, { timeout: 30_000 });
+  const [row] = await photoRows();
+  expect(row).toMatchObject({ kind: "PARKING", width: 1600, height: 1067 });
 });
 
 test("a lost answer is retried without a second photo or a second upload", async ({

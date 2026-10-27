@@ -272,15 +272,16 @@ function NextStopCard({
   const fmtTime = driverTime(useFormatter(), timezone);
   return (
     <section
-      className="flex flex-col gap-2 rounded-xl border border-border border-s-4 border-s-primary bg-primary-soft p-3 text-primary-soft-foreground shadow-sm"
+      className="relative flex flex-col gap-2 rounded-xl border border-border border-s-4 border-s-primary bg-primary-soft p-3 text-primary-soft-foreground shadow-sm"
       aria-labelledby="next-stop-heading"
       data-testid="next-stop"
       data-stop-id={stop.id}
     >
-      {/* Eyebrow + "Details" on one row: the secondary action moved out of the button stack into the
-          card header (redesign review run 3, point 1), so the two full-width buttons become one and
-          the first stop row reaches the first viewport. The eyebrow wraps inside its own line, so a
-          narrow 375 px screen shows the ETA on a second line instead of cutting it off. */}
+      {/* The whole card opens the stop detail (NUD-143) without nesting interactive elements in an
+          <a>: the icon-only chevron link stretches over the card (::after, inset-0), and the
+          separate controls (key chip, "Navigation starten") sit above it with `relative z-10`.
+          `active:scale-none`: the button press-scale would make the link the containing block of
+          the overlay and shrink it to 48 px while pressed, so the tap would never complete. */}
       <div className="flex items-center gap-2">
         <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-base">
           <span id="next-stop-heading" className="font-bold">
@@ -295,10 +296,15 @@ function NextStopCard({
         <Link
           href={`/driver/stops/${stop.id}`}
           data-testid="details"
-          className={buttonVariants({ size: "lg", variant: "outline", className: "shrink-0 px-3" })}
+          aria-label={t("details")}
+          className={buttonVariants({
+            size: "icon-lg",
+            variant: "outline",
+            className:
+              "shrink-0 after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-ring active:scale-none",
+          })}
         >
-          <ListIcon className="size-5" aria-hidden />
-          {t("details")}
+          <ChevronRightIcon className="size-6 rtl:rotate-180" aria-hidden />
         </Link>
       </div>
       <div className="flex items-center gap-3">
@@ -327,7 +333,7 @@ function NextStopCard({
             {stop.street}, {stop.postalCode} {stop.city}
           </span>
         </p>
-        <KeyChip stop={stop} interactive className="shrink-0 bg-background" />
+        <KeyChip stop={stop} interactive className="relative z-10 shrink-0 bg-background" />
       </div>
       <ItemSummary items={stop.items} />
       {stop.noteText ? <NoteStrip text={stop.noteText} /> : null}
@@ -339,7 +345,11 @@ function NextStopCard({
             target="_blank"
             rel="noopener noreferrer"
             data-testid="navigate"
-            className={buttonVariants({ size: "xl", variant: "primary" })}
+            className={buttonVariants({
+              size: "xl",
+              variant: "primary",
+              className: "relative z-10",
+            })}
           >
             <NavigationIcon className="size-6" aria-hidden />
             {t("navigate")}
