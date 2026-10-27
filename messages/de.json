@@ -914,7 +914,18 @@
       "sectionsLabel": "Abschnitte der Einstellungen",
       "unsaved": "Ungespeicherte Änderungen",
       "saved-state": "Alle Änderungen gespeichert",
-      "discard": "Verwerfen"
+      "discard": "Verwerfen",
+      "checklist": {
+        "nav": "Abfahrts-Checkliste",
+        "heading": "Abfahrts-Checkliste",
+        "hint": "Feste Punkte, die der Fahrer vor der Abfahrt abhakt, z. B. Lieferscheine. Produkte und Schlüssel der Tour kommen automatisch dazu. Du schreibst Deutsch; die anderen Sprachen werden übersetzt.",
+        "itemLabel": "Punkt {n}",
+        "placeholder": "z. B. Lieferscheine",
+        "add": "Punkt hinzufügen",
+        "remove": "Punkt {n} entfernen",
+        "empty": "Keine festen Punkte.",
+        "limit": "Höchstens {max} Punkte."
+      }
     },
     "orders": {
       "title": "Bestellungen",
@@ -1417,6 +1428,8 @@
         "tour_assign_driver": "Fahrer zugewiesen",
         "tour_release": "Tour freigegeben",
         "tour_rerelease": "Tour erneut freigegeben",
+        "tour_loading_started": "Checkliste geöffnet (Beladen)",
+        "tour_departed": "Abfahrt",
         "stop_delivered": "Als geliefert markiert",
         "stop_problem": "Problem gemeldet",
         "stop_undo": "Status zurückgenommen",
@@ -1783,7 +1796,9 @@
       "errorShort": "Fehler",
       "pendingShort": "{count}",
       "mutationKey": "Schlüssel",
-      "mutationParking": "Parkplatz"
+      "mutationParking": "Parkplatz",
+      "mutationLoading": "Checkliste geöffnet",
+      "mutationDepart": "Abfahrt"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -1833,6 +1848,26 @@
       "errors": {
         "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
       }
+    },
+    "departure": {
+      "cardTitle": "Abfahrt vorbereiten",
+      "cardHint": "Beladung und Schlüssel prüfen – freiwillig.",
+      "open": "Checkliste öffnen",
+      "skip": "Überspringen",
+      "sheetTitle": "Abfahrt vorbereiten",
+      "sheetTitleTrip": "Fahrt {trip} vorbereiten",
+      "sheetDescription": "Tippe jede Zeile an, wenn sie erledigt ist.",
+      "productsHeading": "Laden",
+      "keysHeading": "Schlüssel mitnehmen",
+      "fixedHeading": "Sonstiges",
+      "keyNoNumber": "ohne Nummer",
+      "progress": "{done} von {total} erledigt",
+      "depart": "Losfahren",
+      "finish": "Fertig",
+      "checklistButton": "Checkliste",
+      "empty": "Nichts zu prüfen. Du kannst losfahren.",
+      "emptyTrip": "Nichts zu prüfen.",
+      "storageError": "Speichern auf dem Gerät nicht möglich. Bitte erneut versuchen."
     }
   },
   "pwa": {

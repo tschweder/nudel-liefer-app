@@ -1,6 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import { cacheLife, cacheTag } from "next/cache";
 import { z } from "zod";
 
+import { CHECKLIST_ITEM_MAX, CHECKLIST_ITEMS_MAX } from "@/domain/departure-checklist";
 import {
   type Depot,
   type DepotSettings,
@@ -8,21 +11,28 @@ import {
   type PlanningSettings,
   requireDepot,
 } from "@/domain/settings";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
 import { DEFAULT_TIMEZONE } from "@/lib/format";
+import { type LocalizedText, localizedTextSchema } from "@/lib/localized-text";
 
 import { getDb } from "./db";
 import { MAX_ADDRESS_LENGTH } from "./geocoder";
+import { localize } from "./translator/localize";
+import type { Translator } from "./translator/types";
 
 /** Cache tag of the settings singleton; the save action expires it. */
 export const SETTINGS_TAG = "settings";
+
+/** A fixed item of the driver's departure checklist (NUD-151); German is the source language. */
+export type ChecklistItem = { id: string; text: LocalizedText };
 
 export type AppSettings = DepotSettings &
   PlanningSettings & {
     departureTime: string;
     serviceMinutesPerStop: number;
     recurringLeadDays: number;
+    departureChecklist: ChecklistItem[];
   };
 
 const SETTINGS_ID = 1;
@@ -53,12 +63,62 @@ export const settingsInputSchema = z.object({
     .min(1)
     .max(7)
     .transform((days) => [...new Set(days)].sort((a, b) => a - b)),
+  /**
+   * Fixed departure checklist items in German (NUD-151); omitted = unchanged. An `id` of an existing
+   * item keeps its translations while the text is the same; items without an id are new.
+   */
+  departureChecklist: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(40).optional(),
+        text: z.string().trim().min(1).max(CHECKLIST_ITEM_MAX),
+      }),
+    )
+    .max(CHECKLIST_ITEMS_MAX)
+    .optional(),
 });
 
 export type SettingsInput = z.input<typeof settingsInputSchema>;
 export type SaveSettingsResult = { ok: true } | { ok: false; error: "invalid" };
 
 type SettingsDb = Pick<PrismaClient, "settings">;
+
+const storedChecklistSchema = z
+  .array(z.object({ id: z.string().min(1).max(40), text: localizedTextSchema }))
+  .max(CHECKLIST_ITEMS_MAX * 4);
+
+/** The stored fixed checklist items; unusable JSON reads as "none" (never throws). */
+export function parseDepartureChecklist(raw: unknown): ChecklistItem[] {
+  const parsed = storedChecklistSchema.safeParse(raw);
+  return parsed.success ? parsed.data.slice(0, CHECKLIST_ITEMS_MAX) : [];
+}
+
+/**
+ * The value to store for the items typed in the settings form: texts that did not change keep their
+ * stored `LocalizedText` (so hand-edited translations survive), new or changed texts are localized
+ * from German (machine translation, never blocks saving, `localize`).
+ */
+export async function prepareDepartureChecklist(
+  stored: unknown,
+  typed: ReadonlyArray<{ id?: string; text: string }>,
+  options: { translator?: Translator; now?: Date } = {},
+): Promise<ChecklistItem[]> {
+  const current = new Map(parseDepartureChecklist(stored).map((item) => [item.id, item]));
+  const used = new Set<string>();
+  const items: ChecklistItem[] = [];
+  for (const entry of typed) {
+    const text = entry.text.trim();
+    if (text === "") continue;
+    const known = entry.id && !used.has(entry.id) ? current.get(entry.id) : undefined;
+    const id = known ? known.id : `c${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+    used.add(id);
+    items.push({
+      id,
+      text: known && known.text.de === text ? known.text : await localize(text, "de", options),
+    });
+  }
+  return items;
+}
 
 /** Reads the singleton row; `null` before the first save on a database without seed data. */
 export async function readSettings(db: SettingsDb): Promise<AppSettings | null> {
@@ -75,14 +135,31 @@ export async function readSettings(db: SettingsDb): Promise<AppSettings | null> 
     serviceMinutesPerStop: row.serviceMinutesPerStop,
     recurringLeadDays: row.recurringLeadDays,
     deliveryWeekdays: row.deliveryWeekdays,
+    departureChecklist: parseDepartureChecklist(row.departureChecklist),
   };
 }
 
 /** Validates and stores the settings (upsert of the singleton). The caller checked the role. */
-export async function saveSettings(db: SettingsDb, input: unknown): Promise<SaveSettingsResult> {
+export async function saveSettings(
+  db: SettingsDb,
+  input: unknown,
+  options: { translator?: Translator } = {},
+): Promise<SaveSettingsResult> {
   const parsed = settingsInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
-  const data = parsed.data;
+  const { departureChecklist: typed, ...rest } = parsed.data;
+  const data = {
+    ...rest,
+    ...(typed !== undefined
+      ? {
+          departureChecklist: (await prepareDepartureChecklist(
+            (await db.settings.findUnique({ where: { id: SETTINGS_ID } }))?.departureChecklist,
+            typed,
+            options,
+          )) as unknown as Prisma.InputJsonValue,
+        }
+      : {}),
+  };
   await db.settings.upsert({
     where: { id: SETTINGS_ID },
     create: { id: SETTINGS_ID, ...data },

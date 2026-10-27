@@ -305,7 +305,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | done |
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | done |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
-| NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | todo |
+| NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
@@ -2601,7 +2601,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-151 · Optional departure checklist for the driver
-**Status:** todo · **depends_on:** 138, 142 · F3
+**Status:** done · **depends_on:** 138, 142 · F3
 
 **Scope**
 - Driver home before the first stop: card **"Abfahrt vorbereiten"** → checklist, one tap per item, skippable:
@@ -2613,8 +2613,18 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 - Large text, icons, works offline (part of the cached tour).
 
 **Acceptance criteria**
-- [ ] Checklist totals equal the load sheet totals for the tour (shared aggregation function).
-- [ ] Timestamps written (online and queued offline).
+- [x] Checklist totals equal the load sheet totals for the tour (shared aggregation function). (unit departure-checklist.test and integration tour-departure.integration.test compare buildDepartureChecklist with loadSheetTotals per trip; both use loadSheetTotals)
+- [x] Timestamps written (online and queued offline). (integration (sync batch, first write wins, audit) + e2e driver-departure online and offline queued)
+
+**Implementation notes**
+- **Data:** migration `20261028120000_departure_checklist`: `Tour.loadingStartedAt`, `Tour.departedAt`, `Settings.departureChecklist` (JSON `[{id, text: LocalizedText}]`), `StopMutationKind` LOADING / DEPART.
+- **Domain:** `src/domain/departure-checklist.ts` (`buildDepartureChecklist` calls `loadSheetTotals`, the shared aggregation of the load sheet; keys = one line per customer with `hasKey`; `showDepartureCard`).
+- **Server:** `applyDriverDeparture` (`tour-departure.ts`) via the existing sync endpoint (types `loading` / `depart`); first write wins, idempotent, audit `tour.loading_started` / `tour.departed` (`skipped` flag). The sync answer carries both times; the stored offline tour copy is patched. Tour payload carries times + fixed items (cached, so the checklist works offline).
+- **Driver UI:** card "Abfahrt vorbereiten" (open / skip) before the first stop, bottom sheet with 48 px+ tick rows, "Losfahren"; reload trips get a "Checkliste" button on the reload card (own lines, no timestamps). Ticks stay on the device (localStorage).
+- **Office:** Einstellungen > Abfahrts-Checkliste (max 12 items x 80 chars, German source, machine-translated like notes, hand edits kept when text unchanged).
+- **i18n:** `driver.departure.*` (5 locales), `admin.settings.checklist.*` (de/en/zh-Hans), history labels, `driver.sync.mutationLoading/Depart`.
+- **Doc fix (not part of the ticket):** `docs/deploy.md` 13.1 gave no vServer scheduling for the `/api/cron/*` routes (incl. recurring orders of NUD-149): added helper script + `/etc/cron.d` lines.
+- Checks: lint (only the fontstub warning), typecheck, `pnpm test` 2278 passed / 4 skipped, i18n:check, build, fresh DB migrate + both seeds, e2e desktop + mobile: driver-departure (new), driver-today/stop/status/key/parking/a11y/usability/language-picker, driver-offline/outbox, load-sheet, tour-split, admin-progress, mvp-happy-path green.
 
 ---
 
@@ -3066,6 +3076,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-148 | Order list and filters stay on the PLANNED day (what is produced/loaded that day, totals unchanged); the window is shown in the list (customer cell, only when it differs from the planned day), drawer and detail. Audit log records `window` as text `YYYY-MM-DD..YYYY-MM-DD HH:MM-HH:MM` | Totals and tours are per planned day; filtering by window overlap would double-count orders |
 | 2026-10-28 | NUD-149 | Customer inactive: rules get active=false + pausedByCustomer=true (reactivation resumes only those); cancelled orders are not regenerated (unique rule+date) | Keeps office-paused rules paused and honours 'cancelled orders stay cancelled' |
 | 2026-10-28 | NUD-149 | Generated orders are attributed (createdBy/audit actor) to the rule's confirmer; edits/pauses do not touch already generated orders; saving a rule also generates immediately | Cron has no user; simplest predictable behaviour, office cancels single orders |
+| 2026-10-28 | NUD-151 | Tour-level taps (loading/depart) ride the stop-keyed offline queue and name the tour's first stop; first write wins; only the first trip records timestamps (Tour has one pair), later trips get a checklist without timestamps | Simplest reuse of the outbox/idempotency table; NUD-152 needs one loading start and one departure per tour |
+| 2026-10-28 | NUD-151 | Fixed checklist items: German source text in Settings.departureChecklist (max 12 x 80 chars), machine-translated via localize like customer notes; ticks stored per device in localStorage only | No new table/screen; ticks are a convenience and need no server state |
+| 2026-10-28 | NUD-151 | Card is hidden once departedAt is set or any stop was worked on; a key line appears for every customer with hasKey=true (number optional) | Card is only useful before the first stop; a key without a noted number still has to be taken along |
+| 2026-10-28 | NUD-151 | docs/deploy.md 13.1: vServer cron helper script + /etc/cron.d lines mirroring vercel.json (incl. recurring-orders) | NUD-149 only documented vercel.json; owner cannot use Vercel-style cron on the vServer |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

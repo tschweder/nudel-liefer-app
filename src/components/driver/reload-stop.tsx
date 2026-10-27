@@ -1,8 +1,9 @@
 "use client";
 
-import { WarehouseIcon } from "lucide-react";
+import { ClipboardCheckIcon, WarehouseIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { Button } from "@/components/ui/button";
 import type { TodayItem } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import { isPieceUnit } from "@/lib/units";
@@ -14,7 +15,16 @@ type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
  * The vehicle returns to the depot; the card lists what to load for the next trip ("14 × Nudeln
  * Karton", "3 × Wantan-Teig"), large and with an icon, so it reads without German.
  */
-export function ReloadStop({ trip, items }: { trip: number; items: TodayItem[] }) {
+export function ReloadStop({
+  trip,
+  items,
+  onChecklist,
+}: {
+  trip: number;
+  items: TodayItem[];
+  /** Opens the checklist of this trip (NUD-151); without it the card has no button. */
+  onChecklist?: () => void;
+}) {
   const t = useTranslations("driver");
   const fmt = createAppFormatters(useFormatter());
   return (
@@ -49,6 +59,19 @@ export function ReloadStop({ trip, items }: { trip: number; items: TodayItem[] }
           </li>
         ))}
       </ul>
+      {onChecklist ? (
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={onChecklist}
+          data-testid="reload-checklist"
+        >
+          <ClipboardCheckIcon className="size-5" aria-hidden />
+          {t("departure.checklistButton")}
+        </Button>
+      ) : null}
     </li>
   );
 }

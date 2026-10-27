@@ -118,6 +118,17 @@ authoritative state of every stop of the touched tours from `touchedTours`. A bu
 does not stop the batch; an unexpected error marks that entry (and later entries for the same stop,
 to preserve order) `retry` and the batch continues.
 
+### Departure checklist — `src/server/tour-departure.ts`, `src/domain/departure-checklist.ts` (NUD-151)
+
+Optional card "Abfahrt vorbereiten" on the driver home before the first stop (hidden once the
+driver has left or a stop was worked on). The sheet lists, per trip, the product totals
+(`buildDepartureChecklist` calls `loadSheetTotals`, the function of the printed load sheet, so both
+show the same numbers), one line per customer with a key (🔑 number · name) and the office's fixed
+items (`Settings.departureChecklist`, Einstellungen > Abfahrts-Checkliste). Opening records
+`Tour.loadingStartedAt`, "Losfahren" `Tour.departedAt`, "Überspringen" `departedAt` only; both go
+through the offline queue (`docs/offline.md`). The measured working time of NUD-152 builds on these
+two timestamps.
+
 ### Driver photos — `src/server/driver-photos.ts`
 
 `driverPhotoResponse(request, now)` — `POST /api/driver/photos` (NUD-083). `requireRole("DRIVER")`,

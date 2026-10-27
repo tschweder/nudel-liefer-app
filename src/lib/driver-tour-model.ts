@@ -134,6 +134,17 @@ export const driverTourSchema = z.object({
   depot: z.object({ name: z.string(), lat: z.number(), lng: z.number() }).nullable(),
   /** GeoJSON LineString coordinates `[lng, lat][]`. */
   geometry: z.array(z.tuple([z.number(), z.number()])).nullable(),
+  /**
+   * Departure checklist (NUD-151): when the driver opened it / left (ISO), and the fixed items the
+   * office maintains in the settings. Caches written before NUD-151 read as "not left yet, no fixed
+   * items" until the next refresh replaces the copy.
+   */
+  loadingStartedAt: z.string().nullable().default(null),
+  departedAt: z.string().nullable().default(null),
+  checklist: z
+    .array(z.object({ id: idSchema, text: localizedTextSchema }))
+    .max(20)
+    .default([]),
 });
 export type DriverTourData = z.infer<typeof driverTourSchema>;
 
@@ -224,6 +235,14 @@ export type DriverToday = {
   geometry: Array<[number, number]> | null;
   serviceSecondsPerStop: number;
   timezone: string;
+  /**
+   * Departure checklist (NUD-151). Optional like the other fields of hand-built values: `undefined`
+   * `departedAt` means "this screen knows nothing about a checklist" and shows no card.
+   */
+  loadingStartedAt?: string | null;
+  departedAt?: string | null;
+  /** Fixed checklist items with the text already picked for the viewer's locale. */
+  checklist?: Array<{ id: string; text: string }>;
 };
 
 export type StopPhoto = { id: string; url: string; width: number; height: number };
@@ -315,6 +334,11 @@ export function toDriverToday(response: DriverTourResponse, locale: AppLocale): 
     geometry: tour.geometry && tour.geometry.length > 1 ? tour.geometry : null,
     serviceSecondsPerStop: response.serviceSecondsPerStop,
     timezone: response.timezone,
+    loadingStartedAt: tour.loadingStartedAt,
+    departedAt: tour.departedAt,
+    checklist: tour.checklist
+      .map((item) => ({ id: item.id, text: pick(item.text, locale).trim() }))
+      .filter((item) => item.text !== ""),
   };
 }
 

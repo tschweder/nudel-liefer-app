@@ -18,6 +18,7 @@ const DEFAULTS: SettingsFormValues = {
   serviceMinutesPerStop: 10,
   recurringLeadDays: 14,
   deliveryWeekdays: [1, 2, 3, 4, 5],
+  departureChecklist: [],
 };
 
 async function Guarded({ locale }: { locale: string }) {
@@ -35,6 +36,10 @@ async function Guarded({ locale }: { locale: string }) {
         serviceMinutesPerStop: settings.serviceMinutesPerStop,
         recurringLeadDays: settings.recurringLeadDays,
         deliveryWeekdays: [...settings.deliveryWeekdays],
+        departureChecklist: settings.departureChecklist.map((item) => ({
+          id: item.id,
+          text: item.text.de ?? "",
+        })),
       }
     : DEFAULTS;
   // Computed on the server so server and client render the same option list.

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
+import { toast } from "sonner";
 
 import { TourMapLazy } from "@/components/maps/lazy";
 import { ProgressBar } from "@/components/shared/progress-bar";
@@ -27,6 +28,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { StopNumberBadge } from "@/components/shared/stop-number-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { showDepartureCard } from "@/domain/departure-checklist";
 import {
   isUnseenChange,
   nextPendingStop,
@@ -42,12 +44,14 @@ import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model"
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
 import { googleMapsNavigationUrl, stopGoogleNavigationUrl } from "@/lib/navigation";
+import { isStopStatusEntry, overlayDeparture } from "@/lib/offline/outbox";
 import { useOutbox } from "@/lib/offline/outbox-browser";
 import { useOverlaidStops } from "@/lib/offline/use-overlay";
 import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
 import { KeyChip } from "./customer-key";
+import { DepartureCard, DepartureSheet, queueDeparture } from "./departure-checklist";
 import { driverTime } from "./driver-time";
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { ReloadStop } from "./reload-stop";
@@ -603,9 +607,22 @@ export function TodayTour({
 }) {
   const t = useTranslations("driver.today");
   const tHome = useTranslations("driver.home");
+  const tDeparture = useTranslations("driver.departure");
   const stops = useOverlaidStops(today.stops);
   const { entries } = useOutbox();
-  const waitingIds = new Set(entries.map((entry) => entry.stopId));
+  // Only taps that change a stop show "waiting" on its row; tour-level departure taps do not.
+  const waitingIds = new Set(
+    entries.filter((entry) => isStopStatusEntry(entry.type)).map((entry) => entry.stopId),
+  );
+  // Departure checklist (NUD-151): optional, before the first stop.
+  const [checklistTrip, setChecklistTrip] = useState<number | null>(null);
+  const [left, setLeft] = useState(false);
+  const [departBusy, setDepartBusy] = useState(false);
+  const departure = overlayDeparture(
+    { loadingStartedAt: today.loadingStartedAt ?? null, departedAt: today.departedAt ?? null },
+    entries,
+    new Set(today.stops.map((s) => s.id)),
+  );
   const [view, setView] = useState<"list" | "map">("list");
   const [listOpen, setListOpen] = useState(false);
   // List <-> map linkage (re-design.md §7.2(5)): the marker of the row tapped in the sheet (and the
@@ -629,6 +646,26 @@ export function TodayTour({
   const closed = stops.filter((s) => s.status !== "PENDING");
   const problems = stops.filter((s) => s.status === "PROBLEM").length;
   const showBanner = today.updated && seen < today.revision;
+  const departureCard =
+    today.departedAt !== undefined &&
+    !left &&
+    showDepartureCard({
+      tourStatus: today.tourStatus,
+      departedAt: departure.departedAt,
+      stopStatuses: stops.map((s) => s.status),
+    });
+
+  const openChecklist = (trip: number) => {
+    // Opening the first checklist starts "loading"; a later trip only shows its lines.
+    if (trip === 1 && departure.loadingStartedAt === null) void queueDeparture("loading", stops);
+    setChecklistTrip(trip);
+  };
+  const skipChecklist = async () => {
+    setDepartBusy(true);
+    if (await queueDeparture("depart", stops)) setLeft(true);
+    else toast.error(tDeparture("storageError"));
+    setDepartBusy(false);
+  };
   const unseen = (stop: TodayStop) => showBanner && isUnseenChange(stop, seen);
   // End of the tour: ETA of the last open stop plus the rest of the estimated work.
   const lastEta = [...open].reverse().find((s) => s.etaAt)?.etaAt ?? null;
@@ -675,6 +712,11 @@ export function TodayTour({
               <ReloadStop
                 trip={reloadBefore.get(stop.id)!}
                 items={tripLoadItems(stops, reloadBefore.get(stop.id)!)}
+                onChecklist={
+                  today.departedAt === undefined
+                    ? undefined
+                    : () => openChecklist(reloadBefore.get(stop.id)!)
+                }
               />
             ) : null}
             <StopRow
@@ -711,6 +753,17 @@ export function TodayTour({
   return (
     <div className="flex flex-col gap-1.5" data-testid="today-tour">
       {offline ? null : <RefreshOnFocus />}
+      {checklistTrip !== null ? (
+        <DepartureSheet
+          tourId={today.tourId}
+          trip={checklistTrip}
+          stops={stops}
+          fixedItems={today.checklist ?? []}
+          firstTrip={checklistTrip === 1}
+          onClose={() => setChecklistTrip(null)}
+          onDeparted={() => setLeft(true)}
+        />
+      ) : null}
       {/* Exactly one h1 per page (QA-03); "Nächster Stopp" and the list heading are h2. */}
       <h1 className="sr-only">{t("pageTitle")}</h1>
 
@@ -816,6 +869,14 @@ export function TodayTour({
               valueText={t("progressAria", { done, total })}
             />
           </section>
+
+          {departureCard ? (
+            <DepartureCard
+              busy={departBusy}
+              onOpen={() => openChecklist(1)}
+              onSkip={() => void skipChecklist()}
+            />
+          ) : null}
 
           {next ? (
             <NextStopCard stop={next} timezone={today.timezone} unseen={unseen(next)} />

@@ -111,6 +111,59 @@ describe.skipIf(!process.env.DATABASE_URL)("saveSettingsAction", { timeout: 60_0
     expect((await readSettings(t.prisma))?.recurringLeadDays).toBe(21);
   });
 
+  it("keeps the fixed departure checklist items, with translations, ids and limits (NUD-151)", async () => {
+    state.session = { user: { id: adminId } };
+    expect((await readSettings(t.prisma))?.departureChecklist).toEqual([]);
+    expect(
+      await saveSettingsAction({
+        ...valid,
+        departureChecklist: [{ text: "  Lieferscheine " }, { text: "Rechnungsblock" }],
+      }),
+    ).toEqual({ ok: true });
+    const first = (await readSettings(t.prisma))!.departureChecklist;
+    expect(first.map((i) => i.text.de)).toEqual(["Lieferscheine", "Rechnungsblock"]);
+    expect(new Set(first.map((i) => i.id)).size).toBe(2);
+    // Every driver language has a text (the Fake translator marks machine output).
+    expect(first[0]!.text.en).toBeTruthy();
+    expect(first[0]!.text["zh-Hans"]).toBeTruthy();
+    expect(first[0]!.text.meta.machine.en).toBe(true);
+
+    // Same id + same text: the stored texts stay as they are; a changed text is localized again.
+    expect(
+      await saveSettingsAction({
+        ...valid,
+        departureChecklist: [
+          { id: first[0]!.id, text: "Lieferscheine" },
+          { id: first[1]!.id, text: "Rechnungsblock A4" },
+        ],
+      }),
+    ).toEqual({ ok: true });
+    const second = (await readSettings(t.prisma))!.departureChecklist;
+    expect(second[0]).toEqual(first[0]);
+    expect(second[1]!.id).toBe(first[1]!.id);
+    expect(second[1]!.text.de).toBe("Rechnungsblock A4");
+    expect(second[1]!.text.en).not.toBe(first[1]!.text.en);
+
+    // Omitting the field keeps the items; an empty list clears them.
+    expect(await saveSettingsAction(valid)).toEqual({ ok: true });
+    expect((await readSettings(t.prisma))!.departureChecklist).toHaveLength(2);
+    expect(await saveSettingsAction({ ...valid, departureChecklist: [] })).toEqual({ ok: true });
+    expect((await readSettings(t.prisma))!.departureChecklist).toEqual([]);
+
+    const tooMany = Array.from({ length: 13 }, (_, i) => ({ text: `Punkt ${i}` }));
+    expect(await saveSettingsAction({ ...valid, departureChecklist: tooMany })).toEqual({
+      ok: false,
+      error: "invalid",
+    });
+    expect(
+      await saveSettingsAction({ ...valid, departureChecklist: [{ text: "x".repeat(81) }] }),
+    ).toEqual({ ok: false, error: "invalid" });
+    expect(await saveSettingsAction({ ...valid, departureChecklist: [{ text: "   " }] })).toEqual({
+      ok: false,
+      error: "invalid",
+    });
+  });
+
   it.each([
     ["unconfirmed pin", { depotPinConfirmed: false }],
     ["no weekday", { deliveryWeekdays: [] }],

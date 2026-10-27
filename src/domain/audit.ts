@@ -35,6 +35,8 @@ export const AUDIT_ACTIONS = [
   "tour.create_empty",
   "tour.release",
   "tour.rerelease",
+  "tour.loading_started",
+  "tour.departed",
   "stop.delivered",
   "stop.problem",
   "stop.undo",

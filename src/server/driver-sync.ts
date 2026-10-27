@@ -21,6 +21,7 @@ import { readTextLimited } from "./http-body";
 import { applyDriverParking } from "./parking-spots";
 import { scheduleProblemNoteTranslation } from "./problem-note-translation";
 import { applyStopMutation, type StopStatusResult } from "./stop-status";
+import { applyDriverDeparture } from "./tour-departure";
 
 const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 
@@ -43,6 +44,8 @@ export const syncRequestSchema = z.strictObject({
           note: z.string().max(PROBLEM_NOTE_MAX).optional(),
         }),
         z.strictObject({ type: z.literal("undo"), ...entryFields }),
+        z.strictObject({ type: z.literal("loading"), ...entryFields }),
+        z.strictObject({ type: z.literal("depart"), ...entryFields }),
         z.strictObject({
           type: z.literal("parking"),
           ...entryFields,
@@ -130,6 +133,26 @@ export async function applySyncBatch(
         );
         continue;
       }
+      if (entry.type === "loading" || entry.type === "depart") {
+        // Departure checklist times of the stop's tour (NUD-151): no stop status, no translation.
+        const departure = await applyDriverDeparture(db, actor, mutation, at, {
+          clientCreatedAt: at,
+        });
+        results.set(
+          entry.clientMutationId,
+          departure.ok
+            ? {
+                clientMutationId: entry.clientMutationId,
+                outcome: departure.replayed ? "replayed" : "applied",
+              }
+            : {
+                clientMutationId: entry.clientMutationId,
+                outcome: "rejected",
+                error: departure.error,
+              },
+        );
+        continue;
+      }
       if (entry.type === "parking") {
         // A new Parkplatz of the customer (NUD-144): not part of the stop status either.
         const parkingResult = await applyDriverParking(db, actor, mutation, {
@@ -194,6 +217,8 @@ async function touchedTours(
     select: {
       id: true,
       status: true,
+      loadingStartedAt: true,
+      departedAt: true,
       stops: {
         orderBy: { sequence: "asc" },
         select: {
@@ -215,6 +240,8 @@ async function touchedTours(
   return tours.map((tour) => ({
     tourId: tour.id,
     status: tour.status,
+    loadingStartedAt: tour.loadingStartedAt?.toISOString() ?? null,
+    departedAt: tour.departedAt?.toISOString() ?? null,
     stops: tour.stops.map((s) => ({
       id: s.id,
       status: s.status,

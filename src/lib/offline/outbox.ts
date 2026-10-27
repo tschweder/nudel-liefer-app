@@ -56,6 +56,11 @@ export type OutboxNotice = {
 
 export type StopStatus = "PENDING" | "DELIVERED" | "PROBLEM";
 
+/** Taps that change a stop's status (the others change the customer or the tour). */
+export function isStopStatusEntry(type: SyncMutationType): boolean {
+  return type === "delivered" || type === "problem" || type === "undo";
+}
+
 /** Order the server must see the taps in: the order the driver made them. */
 export function sortEntries<T extends Pick<OutboxEntry, "createdAt" | "seq">>(
   entries: readonly T[],
@@ -109,9 +114,10 @@ export function planUndo(
   stopId: string,
   inFlight: ReadonlySet<string>,
 ): UndoPlan {
-  // A queued key or Parkplatz entry is not a completion: it neither gets cancelled nor hides one.
+  // A queued key, Parkplatz or departure entry is not a completion: it neither gets cancelled nor
+  // hides one.
   const last = sortEntries(
-    entries.filter((e) => e.stopId === stopId && e.type !== "key" && e.type !== "parking"),
+    entries.filter((e) => e.stopId === stopId && isStopStatusEntry(e.type)),
   ).at(-1);
   if (!last) return { action: "enqueue" };
   if (last.type === "undo") return { action: "none" };
@@ -157,7 +163,9 @@ function withQueuedSpot<T>(stop: T, entry: OutboxEntry): T {
 export function overlayStop<T extends StopLike>(stop: T, entries: readonly OutboxEntry[]): T {
   let next = stop;
   for (const entry of sortEntries(entries.filter((e) => e.stopId === stop.id))) {
-    if (entry.type === "parking") {
+    if (entry.type === "loading" || entry.type === "depart") {
+      continue; // tour-level, shown by `overlayDeparture`
+    } else if (entry.type === "parking") {
       next = withQueuedSpot(next, entry);
     } else if (entry.type === "key") {
       const hasKey = entry.hasKey ?? null;
@@ -175,6 +183,23 @@ export function overlayStop<T extends StopLike>(stop: T, entries: readonly Outbo
     }
   }
   return next;
+}
+
+/**
+ * The departure checklist times of a tour (NUD-151) with the queued `loading` / `depart` taps on
+ * top: a queued tap shows at once, with the time of the tap. The first tap wins, like on the server.
+ */
+export function overlayDeparture(
+  server: { loadingStartedAt: string | null; departedAt: string | null },
+  entries: readonly OutboxEntry[],
+  stopIds: ReadonlySet<string>,
+): { loadingStartedAt: string | null; departedAt: string | null } {
+  let { loadingStartedAt, departedAt } = server;
+  for (const entry of sortEntries(entries.filter((e) => stopIds.has(e.stopId)))) {
+    if (entry.type === "loading") loadingStartedAt ??= entry.createdAt;
+    else if (entry.type === "depart") departedAt ??= entry.createdAt;
+  }
+  return { loadingStartedAt, departedAt };
 }
 
 /** `overlayStop` for a whole list; returns the same array when nothing is queued for it. */
@@ -252,6 +277,8 @@ type PatchableTour = {
   tour: null | {
     id: string;
     status: string;
+    loadingStartedAt?: string | null;
+    departedAt?: string | null;
     stops: Array<{
       id: string;
       status: StopStatus;
@@ -285,6 +312,8 @@ export function patchTourStates<T extends PatchableTour>(
     tour: {
       ...tour,
       status: state.status,
+      ...(state.loadingStartedAt !== undefined ? { loadingStartedAt: state.loadingStartedAt } : {}),
+      ...(state.departedAt !== undefined ? { departedAt: state.departedAt } : {}),
       stops: tour.stops.map((stop) => {
         const s = byId.get(stop.id);
         return s

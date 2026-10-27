@@ -34,6 +34,9 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
       removedCustomers: [],
       depot: null,
       geometry: null,
+      loadingStartedAt: null,
+      departedAt: null,
+      checklist: [],
       stops: photoIds.map((id, i) => ({
         id: `s${i}`,
         sequence: i + 1,

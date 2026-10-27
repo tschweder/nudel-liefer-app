@@ -14,6 +14,7 @@ import { localizedTextSchema } from "@/lib/localized-text";
 
 import type { Actor } from "./auth/guards";
 import { parkingSpotsForDriver } from "./routing-points";
+import { parseDepartureChecklist } from "./settings";
 import type { Storage } from "./storage/types";
 import { getDriverTour } from "./tour-driver";
 
@@ -24,7 +25,7 @@ import { getDriverTour } from "./tour-driver";
  */
 export const DRIVER_PHOTO_URL_TTL_SECONDS = 12 * 60 * 60;
 
-type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo">;
+type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo" | "settings">;
 
 const depotSchema = z.object({ name: z.string(), lat: z.number(), lng: z.number() });
 const geometrySchema = z.object({ coordinates: z.array(z.tuple([z.number(), z.number()])) });
@@ -72,7 +73,7 @@ export async function getDriverTourResponse(
       : customerIds
     : [];
 
-  const [customers, row, photoRows] = await Promise.all([
+  const [customers, row, photoRows, settingsRow] = await Promise.all([
     db.customer.findMany({
       where: { id: { in: customerIds } },
       select: {
@@ -91,13 +92,17 @@ export async function getDriverTourResponse(
         keyNumber: true,
       },
     }),
-    db.tour.findUnique({ where: { id: tour.id }, select: { depotSnapshot: true, geometry: true } }),
+    db.tour.findUnique({
+      where: { id: tour.id },
+      select: { depotSnapshot: true, geometry: true, loadingStartedAt: true, departedAt: true },
+    }),
     photoCustomerIds.length > 0
       ? db.photo.findMany({
           where: { customerId: { in: photoCustomerIds }, isCurrent: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         })
       : Promise.resolve([]),
+    db.settings.findUnique({ where: { id: 1 }, select: { departureChecklist: true } }),
   ]);
   const byId = new Map(customers.map((c) => [c.id, c]));
   const depot = depotSchema.safeParse(row?.depotSnapshot);
@@ -184,6 +189,9 @@ export async function getDriverTourResponse(
       depot: depot.success ? depot.data : null,
       geometry:
         geometry.success && geometry.data.coordinates.length > 1 ? geometry.data.coordinates : null,
+      loadingStartedAt: row?.loadingStartedAt?.toISOString() ?? null,
+      departedAt: row?.departedAt?.toISOString() ?? null,
+      checklist: parseDepartureChecklist(settingsRow?.departureChecklist),
     },
   };
 }

@@ -5,10 +5,12 @@ import {
   BACKOFF_MAX_MS,
   backoffDelayMs,
   chunk,
+  isStopStatusEntry,
   mayAttempt,
   nextSeq,
   NO_BACKOFF,
   type OutboxEntry,
+  overlayDeparture,
   overlayStop,
   overlayStops,
   patchTourStates,
@@ -404,5 +406,73 @@ describe("Parkplatz entries (NUD-144)", () => {
       },
     ]);
     expect(out.tour!.stops[0]).toMatchObject({ lat: 48.2082, lng: 16.3738 });
+  });
+});
+
+describe("departure entries (NUD-151)", () => {
+  const ids = new Set(["s1", "s2"]);
+  const server = { loadingStartedAt: null, departedAt: null };
+
+  it("sends type and stop, nothing else", () => {
+    const loading = entry({ type: "loading", stopId: "s1", hasKey: true, keyNumber: "7" });
+    expect(toSyncEntry(loading)).toEqual({
+      clientMutationId: loading.clientMutationId,
+      type: "loading",
+      stopId: "s1",
+      createdAt: loading.createdAt,
+    });
+  });
+
+  it("shows queued taps at once, with the time of the tap; the first tap wins", () => {
+    const a = entry({ type: "loading", stopId: "s1" });
+    const b = entry({ type: "depart", stopId: "s1" });
+    const c = entry({ type: "depart", stopId: "s1" });
+    expect(overlayDeparture(server, [a, b, c], ids)).toEqual({
+      loadingStartedAt: a.createdAt,
+      departedAt: b.createdAt,
+    });
+    // What the server already holds is not overwritten.
+    expect(
+      overlayDeparture({ loadingStartedAt: "2099-07-02T05:00:00Z", departedAt: null }, [a], ids),
+    ).toEqual({ loadingStartedAt: "2099-07-02T05:00:00Z", departedAt: null });
+    // Entries for stops of another tour are ignored.
+    expect(overlayDeparture(server, [entry({ type: "depart", stopId: "x" })], ids)).toEqual(server);
+  });
+
+  it("is neither a completion nor an undo target", () => {
+    const stop = { ...pending, id: "s1" };
+    const queued = [entry({ type: "depart", stopId: "s1" })];
+    expect(overlayStop(stop, queued)).toEqual(stop);
+    expect(planUndo(queued, "s1", new Set())).toEqual({ action: "enqueue" });
+    const done = entry({ type: "delivered", stopId: "s1" });
+    expect(planUndo([done, ...queued], "s1", new Set())).toEqual({
+      action: "cancel",
+      clientMutationId: done.clientMutationId,
+    });
+    expect(isStopStatusEntry("depart")).toBe(false);
+    expect(isStopStatusEntry("undo")).toBe(true);
+  });
+
+  it("writes the authoritative times into the stored tour", () => {
+    const data = { tour: { id: "t1", status: "RELEASED", stops: [] } };
+    const patched = patchTourStates(data, [
+      {
+        tourId: "t1",
+        status: "IN_PROGRESS",
+        loadingStartedAt: "2099-07-02T05:40:00.000Z",
+        departedAt: "2099-07-02T05:55:00.000Z",
+        stops: [],
+      },
+    ]);
+    expect(patched.tour).toMatchObject({
+      loadingStartedAt: "2099-07-02T05:40:00.000Z",
+      departedAt: "2099-07-02T05:55:00.000Z",
+    });
+    // An answer without the fields (older server) leaves the stored times alone.
+    const untouched = patchTourStates(
+      { tour: { id: "t1", status: "RELEASED", departedAt: "x", stops: [] } },
+      [{ tourId: "t1", status: "RELEASED", stops: [] }],
+    );
+    expect(untouched.tour).toMatchObject({ departedAt: "x" });
   });
 });

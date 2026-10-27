@@ -914,7 +914,18 @@
       "sectionsLabel": "设置分区",
       "unsaved": "有未保存的更改",
       "saved-state": "所有更改已保存",
-      "discard": "放弃更改"
+      "discard": "放弃更改",
+      "checklist": {
+        "nav": "出发清单",
+        "heading": "出发清单",
+        "hint": "司机出发前逐项勾选的固定事项，例如送货单。线路的产品和钥匙会自动加入。请用德语填写，其他语言会自动翻译。",
+        "itemLabel": "事项 {n}",
+        "placeholder": "例如：送货单",
+        "add": "添加事项",
+        "remove": "删除事项 {n}",
+        "empty": "没有固定事项。",
+        "limit": "最多 {max} 项。"
+      }
     },
     "orders": {
       "title": "订单",
@@ -1417,6 +1428,8 @@
         "tour_assign_driver": "指派司机",
         "tour_release": "发布路线",
         "tour_rerelease": "再次发布路线",
+        "tour_loading_started": "已打开出发清单（装货）",
+        "tour_departed": "已出发",
         "stop_delivered": "标记为已送达",
         "stop_problem": "报告问题",
         "stop_undo": "撤销状态",
@@ -1783,7 +1796,9 @@
       "errorShort": "错误",
       "pendingShort": "{count}",
       "mutationKey": "钥匙",
-      "mutationParking": "停车位"
+      "mutationParking": "停车位",
+      "mutationLoading": "已打开清单",
+      "mutationDepart": "出发"
     },
     "unitsTotal": {
       "KG": "公斤",
@@ -1833,6 +1848,26 @@
       "errors": {
         "storage": "操作未成功，请重试。"
       }
+    },
+    "departure": {
+      "cardTitle": "准备出发",
+      "cardHint": "检查装货和钥匙（可选）。",
+      "open": "打开清单",
+      "skip": "跳过",
+      "sheetTitle": "准备出发",
+      "sheetTitleTrip": "准备第 {trip} 趟",
+      "sheetDescription": "完成一项就点一下该行。",
+      "productsHeading": "装货",
+      "keysHeading": "带上钥匙",
+      "fixedHeading": "其他",
+      "keyNoNumber": "无编号",
+      "progress": "已完成 {done}/{total}",
+      "depart": "出发",
+      "finish": "完成",
+      "checklistButton": "清单",
+      "empty": "没有需要检查的内容，可以出发。",
+      "emptyTrip": "没有需要检查的内容。",
+      "storageError": "无法保存到本设备，请重试。"
     }
   },
   "pwa": {

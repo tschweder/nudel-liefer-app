@@ -67,9 +67,12 @@ export type NewMutation = {
   customerName: string;
 };
 
-/** Key and Parkplatz entries are no stop completions: each kind is compared only with its own. */
-const entryKind = (type: SyncMutationType): "key" | "parking" | "stop" =>
-  type === "key" || type === "parking" ? type : "stop";
+/**
+ * Key, Parkplatz and departure entries are no stop completions: each kind is compared only with its
+ * own (a second "loading" tap is a double tap, a "depart" after it is something else).
+ */
+const entryKind = (type: SyncMutationType): SyncMutationType | "stop" =>
+  type === "key" || type === "parking" || type === "loading" || type === "depart" ? type : "stop";
 
 export const CONFIRMED_TTL_MS = 20_000;
 

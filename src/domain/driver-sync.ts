@@ -29,8 +29,13 @@ export function effectiveMutationTime(createdAt: Date, now: Date): Date {
   return new Date(Math.min(Math.max(time, now.getTime() - SYNC_MAX_AGE_MS), now.getTime()));
 }
 
-/** `key`: the driver set or corrected the customer's key (NUD-142); the others change the stop status. */
-export type SyncMutationType = "delivered" | "problem" | "undo" | "key" | "parking";
+/**
+ * `key`: the driver set or corrected the customer's key (NUD-142); `parking`: a new Parkplatz
+ * (NUD-144); `loading` / `depart`: the departure checklist was opened / the driver left (NUD-151,
+ * they name any stop of the tour and write the tour's timestamps); the others change the stop status.
+ */
+export type SyncMutationType =
+  "delivered" | "problem" | "undo" | "key" | "parking" | "loading" | "depart";
 
 /** One queued mutation as sent to the server. */
 export type SyncEntry = {
@@ -91,7 +96,14 @@ export type SyncParkingSpot = {
 };
 
 /** The authoritative state of every stop of a tour the batch touched. */
-export type SyncTourState = { tourId: string; status: string; stops: SyncStopState[] };
+export type SyncTourState = {
+  tourId: string;
+  status: string;
+  /** Departure checklist times (NUD-151, ISO or null); absent in answers of older servers. */
+  loadingStartedAt?: string | null;
+  departedAt?: string | null;
+  stops: SyncStopState[];
+};
 
 export type SyncResponse = {
   results: SyncEntryResult[];
@@ -133,7 +145,9 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
       !isRecord(t) ||
       typeof t.tourId !== "string" ||
       typeof t.status !== "string" ||
-      !Array.isArray(t.stops)
+      !Array.isArray(t.stops) ||
+      (t.loadingStartedAt !== undefined && !isNullableString(t.loadingStartedAt)) ||
+      (t.departedAt !== undefined && !isNullableString(t.departedAt))
     ) {
       return null;
     }
@@ -164,7 +178,15 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
           : {}),
       });
     }
-    tours.push({ tourId: t.tourId, status: t.status, stops });
+    tours.push({
+      tourId: t.tourId,
+      status: t.status,
+      ...(t.loadingStartedAt !== undefined
+        ? { loadingStartedAt: t.loadingStartedAt as string | null }
+        : {}),
+      ...(t.departedAt !== undefined ? { departedAt: t.departedAt as string | null } : {}),
+      stops,
+    });
   }
   return {
     results,

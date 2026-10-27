@@ -914,7 +914,18 @@
       "sectionsLabel": "Settings sections",
       "unsaved": "Unsaved changes",
       "saved-state": "All changes saved",
-      "discard": "Discard"
+      "discard": "Discard",
+      "checklist": {
+        "nav": "Departure checklist",
+        "heading": "Departure checklist",
+        "hint": "Fixed items the driver ticks off before leaving, e.g. delivery notes. The tour's products and keys are added automatically. You write German; the other languages are translated.",
+        "itemLabel": "Item {n}",
+        "placeholder": "e.g. delivery notes",
+        "add": "Add item",
+        "remove": "Remove item {n}",
+        "empty": "No fixed items.",
+        "limit": "At most {max} items."
+      }
     },
     "orders": {
       "title": "Orders",
@@ -1417,6 +1428,8 @@
         "tour_assign_driver": "Driver assigned",
         "tour_release": "Tour released",
         "tour_rerelease": "Tour released again",
+        "tour_loading_started": "Checklist opened (loading)",
+        "tour_departed": "Departed",
         "stop_delivered": "Marked as delivered",
         "stop_problem": "Problem reported",
         "stop_undo": "Status reverted",
@@ -1783,7 +1796,9 @@
       "errorShort": "Error",
       "pendingShort": "{count}",
       "mutationKey": "key",
-      "mutationParking": "parking spot"
+      "mutationParking": "parking spot",
+      "mutationLoading": "checklist opened",
+      "mutationDepart": "departure"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -1833,6 +1848,26 @@
       "errors": {
         "storage": "That did not work. Please try again."
       }
+    },
+    "departure": {
+      "cardTitle": "Prepare departure",
+      "cardHint": "Check the load and the keys – optional.",
+      "open": "Open checklist",
+      "skip": "Skip",
+      "sheetTitle": "Prepare departure",
+      "sheetTitleTrip": "Prepare trip {trip}",
+      "sheetDescription": "Tap each line when it is done.",
+      "productsHeading": "Load",
+      "keysHeading": "Take keys",
+      "fixedHeading": "Other",
+      "keyNoNumber": "no number",
+      "progress": "{done} of {total} done",
+      "depart": "Leave now",
+      "finish": "Done",
+      "checklistButton": "Checklist",
+      "empty": "Nothing to check. You can leave now.",
+      "emptyTrip": "Nothing to check.",
+      "storageError": "Could not save on this device. Please try again."
     }
   },
   "pwa": {

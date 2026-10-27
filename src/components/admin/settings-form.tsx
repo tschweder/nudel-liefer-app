@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
+import { CheckCircle2Icon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { type FormEvent, useMemo, useState, useTransition } from "react";
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { CHECKLIST_ITEM_MAX, CHECKLIST_ITEMS_MAX } from "@/domain/departure-checklist";
 import { ISO_WEEKDAYS } from "@/domain/settings";
 import type { LatLng } from "@/lib/coords";
 import type { MapTileConfig } from "@/lib/map-config";
@@ -32,7 +33,12 @@ export type SettingsFormValues = {
   serviceMinutesPerStop: number;
   recurringLeadDays: number;
   deliveryWeekdays: number[];
+  /** Fixed items of the driver's departure checklist (NUD-151), German source text. */
+  departureChecklist: Array<{ id: string; text: string }>;
 };
+
+/** One row of the checklist editor; `id` is empty for a row that was just added. */
+type ChecklistRow = { key: string; id: string; text: string };
 
 /**
  * Settings (re-design.md §8.8/§8.5): left in-page anchor nav (sticky) + right form sections in
@@ -67,6 +73,12 @@ export function SettingsForm({
   const [minutes, setMinutes] = useState(String(initial.serviceMinutesPerStop));
   const [leadDays, setLeadDays] = useState(String(initial.recurringLeadDays));
   const [weekdays, setWeekdays] = useState(initial.deliveryWeekdays);
+  const toRows = (items: SettingsFormValues["departureChecklist"]): ChecklistRow[] =>
+    items.map((item) => ({ key: item.id, id: item.id, text: item.text }));
+  const [checklist, setChecklist] = useState<ChecklistRow[]>(() =>
+    toRows(initial.departureChecklist),
+  );
+  const [nextKey, setNextKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const weekdayName = (day: number) =>
@@ -89,13 +101,28 @@ export function SettingsForm({
       departure !== initial.departureTime ||
       minutes !== String(initial.serviceMinutesPerStop) ||
       leadDays !== String(initial.recurringLeadDays) ||
-      !sameDays
+      !sameDays ||
+      JSON.stringify(checklist.map(({ id, text }) => [id, text])) !==
+        JSON.stringify(initial.departureChecklist.map(({ id, text }) => [id, text]))
     );
-  }, [name, address, pin, confirmed, timezone, departure, minutes, leadDays, weekdays, initial]);
+  }, [
+    name,
+    address,
+    pin,
+    confirmed,
+    timezone,
+    departure,
+    minutes,
+    leadDays,
+    weekdays,
+    checklist,
+    initial,
+  ]);
 
   const sections = [
     { id: "settings-depot", label: t("depot.heading") },
     { id: "settings-planning", label: t("planning.heading") },
+    { id: "settings-checklist", label: t("checklist.nav") },
   ];
 
   // Moving the pin or changing the address invalidates an earlier confirmation (D9).
@@ -114,7 +141,13 @@ export function SettingsForm({
     setMinutes(String(initial.serviceMinutesPerStop));
     setLeadDays(String(initial.recurringLeadDays));
     setWeekdays(initial.deliveryWeekdays);
+    setChecklist(toRows(initial.departureChecklist));
     setError(null);
+  }
+
+  function addChecklistRow() {
+    setChecklist((rows) => [...rows, { key: `new-${nextKey}`, id: "", text: "" }]);
+    setNextKey((n) => n + 1);
   }
 
   function toggleDay(day: number, on: boolean) {
@@ -138,6 +171,9 @@ export function SettingsForm({
       serviceMinutesPerStop: minutes.trim() === "" ? Number.NaN : Number(minutes),
       recurringLeadDays: leadDays.trim() === "" ? Number.NaN : Number(leadDays),
       deliveryWeekdays: weekdays,
+      departureChecklist: checklist
+        .filter((row) => row.text.trim() !== "")
+        .map((row) => ({ ...(row.id ? { id: row.id } : {}), text: row.text.trim() })),
     };
     startTransition(async () => {
       let result;
@@ -389,6 +425,69 @@ export function SettingsForm({
                   ))}
                 </div>
               </fieldset>
+            </CardContent>
+          </Card>
+
+          <Card id="settings-checklist" className="scroll-mt-20">
+            <CardHeader>
+              <CardTitle>{t("checklist.heading")}</CardTitle>
+              <p className="max-w-prose text-sm text-muted-foreground">{t("checklist.hint")}</p>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3" data-testid="checklist-editor">
+              {checklist.length === 0 ? (
+                <p className="text-base text-muted-foreground" data-testid="checklist-empty">
+                  {t("checklist.empty")}
+                </p>
+              ) : null}
+              {checklist.map((row, index) => (
+                <div key={row.key} className="flex max-w-xl items-end gap-2">
+                  <FormField
+                    label={t("checklist.itemLabel", { n: index + 1 })}
+                    htmlFor={`checklist-item-${row.key}`}
+                    className="min-w-0 flex-1"
+                  >
+                    <Input
+                      id={`checklist-item-${row.key}`}
+                      value={row.text}
+                      maxLength={CHECKLIST_ITEM_MAX}
+                      placeholder={t("checklist.placeholder")}
+                      onChange={(e) =>
+                        setChecklist((rows) =>
+                          rows.map((r) => (r.key === row.key ? { ...r, text: e.target.value } : r)),
+                        )
+                      }
+                      data-testid="checklist-item"
+                    />
+                  </FormField>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label={t("checklist.remove", { n: index + 1 })}
+                    onClick={() => setChecklist((rows) => rows.filter((r) => r.key !== row.key))}
+                    data-testid="checklist-remove"
+                  >
+                    <XIcon className="size-5" aria-hidden />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={checklist.length >= CHECKLIST_ITEMS_MAX}
+                  onClick={addChecklistRow}
+                  data-testid="checklist-add"
+                >
+                  <PlusIcon className="size-5" aria-hidden />
+                  {t("checklist.add")}
+                </Button>
+                {checklist.length >= CHECKLIST_ITEMS_MAX ? (
+                  <span className="text-sm text-muted-foreground">
+                    {t("checklist.limit", { max: CHECKLIST_ITEMS_MAX })}
+                  </span>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
         </div>

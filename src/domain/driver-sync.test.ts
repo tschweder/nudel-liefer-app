@@ -52,6 +52,25 @@ describe("parseSyncResponse", () => {
     expect(parseSyncResponse(good)).toEqual(good);
   });
 
+  it("carries the departure checklist times of a tour when the server sends them (NUD-151)", () => {
+    const withTimes = {
+      ...good,
+      tours: [
+        {
+          ...good.tours[0]!,
+          loadingStartedAt: "2099-07-02T05:40:00.000Z",
+          departedAt: null,
+        },
+      ],
+    };
+    expect(parseSyncResponse(withTimes)).toEqual(withTimes);
+    expect(
+      parseSyncResponse({ ...good, tours: [{ ...good.tours[0]!, departedAt: 5 }] }),
+    ).toBeNull();
+    // Answers of older servers have no such fields.
+    expect(parseSyncResponse(good)?.tours[0]).not.toHaveProperty("departedAt");
+  });
+
   it("carries the customer's key per stop when the server sends it (NUD-142)", () => {
     const withKey = {
       ...good,

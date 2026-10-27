@@ -441,3 +441,36 @@ Things that are different from the Vercel path and must not be forgotten:
 - Backups are a local `pg_dump` (there is no Neon PITR here); the retention jobs stay in `dry-run`
   until the operator changes them.
 - After the first deploy the office has to confirm the **depot pin** before any tour can be created.
+
+### 13.1 Scheduled jobs on the vServer (replaces the `vercel.json` crons)
+
+Vercel calls the `/api/cron/*` routes by itself; on the vServer nothing does, so **without these
+entries recurring orders (NUD-149), translation retries and the retention jobs never run.** Every
+route needs the bearer `CRON_SECRET` (the value in `/etc/delivery-app.env`) and is idempotent.
+
+1. Helper script `/usr/local/bin/delivery-app-cron` (`chmod 755`, owner root):
+
+   ```sh
+   #!/bin/sh
+   # usage: delivery-app-cron <route>   e.g. recurring-orders
+   set -eu
+   . /etc/delivery-app.env
+   exec curl -fsS --max-time 120 -H "Authorization: Bearer ${CRON_SECRET}" \
+     "http://127.0.0.1:3100/delivery-app/api/cron/$1" >/dev/null
+   ```
+
+2. `/etc/cron.d/delivery-app` (same schedule as `vercel.json`, in UTC; the `deliveryapp` user must be
+   allowed to read `/etc/delivery-app.env`):
+
+   ```cron
+   */10 * * * * deliveryapp /usr/local/bin/delivery-app-cron retry-translations
+   27 2 * * *   deliveryapp /usr/local/bin/delivery-app-cron recurring-orders
+   17 3 * * *   deliveryapp /usr/local/bin/delivery-app-cron retention
+   37 3 * * *   deliveryapp /usr/local/bin/delivery-app-cron audit-retention
+   47 3 * * *   deliveryapp /usr/local/bin/delivery-app-cron data-retention
+   7 4 * * 0    deliveryapp /usr/local/bin/delivery-app-cron orphan-cleanup
+   ```
+
+3. Check once by hand: `sudo -u deliveryapp /usr/local/bin/delivery-app-cron recurring-orders; echo $?`
+   must print `0` (non-zero means a wrong secret, port or base path). A systemd timer with
+   `EnvironmentFile=/etc/delivery-app.env` does the same if cron is not installed.

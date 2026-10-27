@@ -11,7 +11,7 @@ import type { Storage } from "./storage/types";
 
 export type { DriverStopDetail, StopPhoto };
 
-type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo">;
+type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo" | "settings">;
 
 /**
  * The detail of one stop of the tour `actor` drives today. Authorization by construction: the stop

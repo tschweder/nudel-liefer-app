@@ -399,7 +399,9 @@
       "errorShort": "Chyba",
       "pendingShort": "{count}",
       "mutationKey": "klíč",
-      "mutationParking": "parkovací místo"
+      "mutationParking": "parkovací místo",
+      "mutationLoading": "seznam otevřen",
+      "mutationDepart": "odjezd"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -449,6 +451,26 @@
       "errors": {
         "storage": "Nepovedlo se. Zkuste to prosím znovu."
       }
+    },
+    "departure": {
+      "cardTitle": "Příprava na odjezd",
+      "cardHint": "Zkontrolujte náklad a klíče – nepovinné.",
+      "open": "Otevřít seznam",
+      "skip": "Přeskočit",
+      "sheetTitle": "Příprava na odjezd",
+      "sheetTitleTrip": "Příprava jízdy {trip}",
+      "sheetDescription": "Klepněte na každý řádek, jakmile je hotový.",
+      "productsHeading": "Naložit",
+      "keysHeading": "Vzít klíče",
+      "fixedHeading": "Další",
+      "keyNoNumber": "bez čísla",
+      "progress": "{done} z {total} hotovo",
+      "depart": "Vyrazit",
+      "finish": "Hotovo",
+      "checklistButton": "Seznam",
+      "empty": "Není co kontrolovat. Můžete vyrazit.",
+      "emptyTrip": "Není co kontrolovat.",
+      "storageError": "Uložení v zařízení se nezdařilo. Zkuste to znovu."
     }
   },
   "pwa": {

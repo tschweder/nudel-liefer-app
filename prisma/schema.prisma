@@ -116,6 +116,9 @@ model Settings {
   deliveryWeekdays      Int[]   @default([1, 2, 3, 4, 5])
   /// How many days ahead the daily job generates orders from recurring rules (NUD-149, D25).
   recurringLeadDays     Int     @default(14)
+  /// Fixed items of the driver's departure checklist (NUD-151), e.g. "Lieferscheine": a JSON array of
+  /// `{ id, text: LocalizedText }` in display order. Empty = only the computed lines (products, keys).
+  departureChecklist    Json    @default("[]")
 }
 
 model Customer {
@@ -334,31 +337,35 @@ model OrderItem {
 
 /// No unique constraint on date: several tours per date are allowed later (D5).
 model Tour {
-  id              String     @id @default(cuid())
-  date            DateTime   @db.Date
-  driverId        String?
+  id               String     @id @default(cuid())
+  date             DateTime   @db.Date
+  driverId         String?
   /// Vehicle of this tour (NUD-146, D24); driver and vehicle are assigned per tour per day.
-  vehicleId       String?
-  status          TourStatus @default(DRAFT)
-  isOutdated      Boolean    @default(false)
-  locked          Boolean    @default(false)
-  depotSnapshot   Json
-  geometry        Json?
-  totalDistanceM  Int?
-  totalDurationS  Int?
+  vehicleId        String?
+  status           TourStatus @default(DRAFT)
+  isOutdated       Boolean    @default(false)
+  locked           Boolean    @default(false)
+  depotSnapshot    Json
+  geometry         Json?
+  totalDistanceM   Int?
+  totalDurationS   Int?
   /// True when the route came from the local heuristic (estimated distances, straight-line geometry).
-  approximate     Boolean    @default(false)
+  approximate      Boolean    @default(false)
   /// 0 = never released, 1 = first release, +1 for every re-release that changed something (NUD-043).
-  releaseRevision Int        @default(0)
+  releaseRevision  Int        @default(0)
   /// When the last re-release happened (null = never re-released); the driver app shows "Tour was updated".
-  reReleasedAt    DateTime?
+  reReleasedAt     DateTime?
   /// What the last re-release changed (`TourDiff` plus `revision`, `at`, names for removed stops); null before.
-  lastChange      Json?
-  optimizedAt     DateTime?
-  releasedAt      DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  lastChange       Json?
+  optimizedAt      DateTime?
+  releasedAt       DateTime?
+  completedAt      DateTime?
+  /// The driver opened the departure checklist (NUD-151); first write wins. Null = never opened.
+  loadingStartedAt DateTime?
+  /// The driver tapped "Losfahren" or skipped the checklist (NUD-151); first write wins.
+  departedAt       DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   driver  User?    @relation(fields: [driverId], references: [id], onDelete: Restrict)
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
@@ -442,6 +449,10 @@ enum StopMutationKind {
   KEY
   /// Parkplatz set by the driver at this stop (NUD-144).
   PARKING
+  /// Driver opened the departure checklist of the stop's tour (NUD-151).
+  LOADING
+  /// Driver left the depot / skipped the checklist (NUD-151).
+  DEPART
 }
 
 model StopOrder {

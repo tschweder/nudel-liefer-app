@@ -406,6 +406,9 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
         return d.success ? [customerDetail(d.data.customerId)] : [];
       }
       case "tour.create_empty":
+      // Departure checklist (NUD-151): the entry itself (who, when) is the information.
+      case "tour.loading_started":
+      case "tour.departed":
         return [];
       case "tour.release": {
         const d = tourRelease.safeParse(row.diff);

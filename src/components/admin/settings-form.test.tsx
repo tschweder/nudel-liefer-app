@@ -66,6 +66,7 @@ const INITIAL: SettingsFormValues = {
   serviceMinutesPerStop: 10,
   recurringLeadDays: 14,
   deliveryWeekdays: [1, 2, 3, 4, 5],
+  departureChecklist: [],
 };
 
 const TILES = { url: "https://tiles.test/{z}/{x}/{y}.png", attribution: "test" };
@@ -144,8 +145,43 @@ describe("SettingsForm", () => {
         serviceMinutesPerStop: 15,
         recurringLeadDays: 14,
         deliveryWeekdays: [1, 2, 3, 4, 5],
+        departureChecklist: [],
       }),
     );
+  });
+
+  it("edits the fixed departure checklist items and saves them with their ids (NUD-151)", async () => {
+    renderForm({
+      ...INITIAL,
+      depotPinConfirmed: true,
+      departureChecklist: [{ id: "c1", text: "Lieferscheine" }],
+    });
+    expect(screen.getAllByTestId("checklist-item")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("checklist-add"));
+    const inputs = screen.getAllByTestId("checklist-item");
+    expect(inputs).toHaveLength(2);
+    fireEvent.change(inputs[1]!, { target: { value: "  Rechnungsblock " } });
+    // An empty row is dropped on save instead of being refused.
+    fireEvent.click(screen.getByTestId("checklist-add"));
+    fireEvent.click(screen.getByTestId("settings-save"));
+    await vi.waitFor(() =>
+      expect(saveSettingsAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          departureChecklist: [{ id: "c1", text: "Lieferscheine" }, { text: "Rechnungsblock" }],
+        }),
+      ),
+    );
+  });
+
+  it("removes a fixed item and stops adding at the limit", () => {
+    renderForm({
+      ...INITIAL,
+      departureChecklist: Array.from({ length: 12 }, (_, i) => ({ id: `c${i}`, text: `P${i}` })),
+    });
+    expect(screen.getByTestId("checklist-add")).toBeDisabled();
+    fireEvent.click(screen.getAllByTestId("checklist-remove")[0]!);
+    expect(screen.getAllByTestId("checklist-item")).toHaveLength(11);
+    expect(screen.getByTestId("checklist-add")).toBeEnabled();
   });
 
   it("marks unsaved changes and discards them again", () => {

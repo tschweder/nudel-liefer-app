@@ -421,3 +421,56 @@ describe("customer key entries (NUD-142)", () => {
     ]);
   });
 });
+
+describe("departure entries (NUD-151)", () => {
+  const departTap = (type: "loading" | "depart") => ({
+    type,
+    stopId: "s1",
+    customerName: "Customer s1",
+  });
+
+  it("queues loading and depart as separate entries and sends them in order", async () => {
+    const { controller, requests, store } = setup((entries) =>
+      json({
+        results: entries.map((e) => ({ clientMutationId: e.clientMutationId, outcome: "applied" })),
+        tours: [
+          {
+            tourId: "t1",
+            status: "RELEASED",
+            loadingStartedAt: "2099-07-02T05:40:00.000Z",
+            departedAt: "2099-07-02T05:55:00.000Z",
+            stops: [],
+          },
+        ],
+        serverTime: "2099-07-02T10:00:00.000Z",
+      } satisfies SyncResponse),
+    );
+    await controller.start("u1");
+    await controller.enqueue(departTap("loading"));
+    await controller.enqueue(departTap("depart"));
+    expect(store.entryRows.size).toBe(2);
+    const outcome = await controller.flush();
+    expect(outcome).toMatchObject({ kind: "ran", applied: 2, rejected: 0, failure: null });
+    expect(requests[0]!.map((e) => e.type)).toEqual(["loading", "depart"]);
+    expect(controller.getState().entries).toEqual([]);
+  });
+
+  it("keeps one entry for a double tap on the same button", async () => {
+    const { controller, store } = setup();
+    await controller.start("u1");
+    const a = await controller.enqueue(departTap("depart"));
+    const b = await controller.enqueue(departTap("depart"));
+    expect(b.clientMutationId).toBe(a.clientMutationId);
+    expect(store.entryRows.size).toBe(1);
+  });
+
+  it("does not interfere with the delivery taps of the same stop", async () => {
+    const { controller, store } = setup();
+    await controller.start("u1");
+    const first = await controller.enqueue(tap("s1"));
+    await controller.enqueue(departTap("depart"));
+    const again = await controller.enqueue(tap("s1"));
+    expect(again.clientMutationId).toBe(first.clientMutationId);
+    expect(store.entryRows.size).toBe(2);
+  });
+});

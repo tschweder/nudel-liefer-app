@@ -33,7 +33,7 @@ The provider is `postgresql`; the generated client is emitted to
 | `StopChange`       | `ADDED`, `CHANGED`                                                                                |
 | `StopStatus`       | `PENDING`, `DELIVERED`, `PROBLEM`                                                                 |
 | `ProblemReason`    | `CLOSED`, `NOBODY_THERE`, `NO_PARKING`, `WRONG_QUANTITY`, `REFUSED`, `ADDRESS_NOT_FOUND`, `OTHER` |
-| `StopMutationKind` | `COMPLETE`, `UNDO`, `KEY`                                                                         |
+| `StopMutationKind` | `COMPLETE`, `UNDO`, `KEY`, `PARKING`, `LOADING`, `DEPART`                                         |
 
 ### Models
 
@@ -43,7 +43,8 @@ The provider is `postgresql`; the generated client is emitted to
   successful login. Users are archived, never deleted (referencing rows use `onDelete: Restrict`).
 - **`Settings`** — a singleton row (`id = 1`) holding depot name/address/coordinates,
   `depotPinConfirmed` (tour building requires it), `timezone`, `departureTime`,
-  `serviceMinutesPerStop` and `deliveryWeekdays`.
+  `serviceMinutesPerStop`, `deliveryWeekdays` and `departureChecklist` (JSON list of `{ id, text: LocalizedText }`:
+  the fixed items of the driver's departure checklist, NUD-151; German is the source).
 - **`Customer`** — addresses with `customerNumber` (unique), coordinates (the address point; `pinConfirmed` is unused since NUD-141), the optional key (`hasKey`, `keyNumber`, `keyUpdatedById`, `keyUpdatedAt`; NUD-142), and
   `notes`/`deliveryHoursInfo`. Office-only master data (NUD-136): `companyName` ("Firma"), `vatId`
   ("UID") and `billingStreet`/`billingPostalCode`/`billingCity`, set only when the billing address
@@ -69,7 +70,9 @@ The provider is `postgresql`; the generated client is emitted to
   optional `geometry` JSON, `totalDistanceM`/`totalDurationS`, `approximate`
   (true when the route came from the local heuristic), and the release bookkeeping of NUD-043:
   `releaseRevision` (0 = never, 1 = first release, +1 per re-release), `reReleasedAt`
-  (null until the first re-release), `lastChange` (TourDiff plus revision and removed-stop names).
+  (null until the first re-release), `lastChange` (TourDiff plus revision and removed-stop names), and the
+  departure checklist times of NUD-151: `loadingStartedAt` (the driver opened the checklist) and
+  `departedAt` ("Losfahren" or skipped), both written once by the driver app (first write wins).
   Stops cascade with their tour.
 - **`Stop`** — one delivery stop in a tour: `sequence`, `status`, `etaAt`,
   `legDistanceM`/`legDurationS`, `problemReason`/`problemNote` (LocalizedText), `completedAt`,
@@ -81,7 +84,7 @@ The provider is `postgresql`; the generated client is emitted to
   `customerId` is `Restrict`.
 - **`StopMutation`** — one row per accepted driver stop-status mutation (NUD-053), keyed by the
   client-generated `id`: replaying the same id returns the stored `result` without a second state
-  change. `kind` is `COMPLETE` or `UNDO` (`KEY` for a driver's customer-key entry, NUD-142). Cascades with its stop.
+  change. `kind` is `COMPLETE` or `UNDO` (`KEY` for a driver's customer-key entry, NUD-142; `LOADING` / `DEPART` for the departure checklist times of the stop's tour, NUD-151). Cascades with its stop.
 - **`StopOrder`** — the many-to-many link between stops and orders (composite PK). Stops cascade;
   orders restrict.
 - **`LoginAttempt`** — failed logins for rate limiting (NUD-004), keyed

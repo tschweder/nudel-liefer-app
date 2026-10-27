@@ -21,7 +21,7 @@ export function todayInTimezone(now: Date, timeZone: string): string {
   return dayInTimezone(now, timeZone);
 }
 
-type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo">;
+type Db = Pick<PrismaClient, "tour" | "product" | "customer" | "photo" | "settings">;
 
 /**
  * The tour `actor` drives today (released, assigned to him, date = today in the factory time zone)

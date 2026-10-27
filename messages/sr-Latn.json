@@ -399,7 +399,9 @@
       "errorShort": "Greška",
       "pendingShort": "{count}",
       "mutationKey": "ključ",
-      "mutationParking": "parking mesto"
+      "mutationParking": "parking mesto",
+      "mutationLoading": "lista otvorena",
+      "mutationDepart": "polazak"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -449,6 +451,26 @@
       "errors": {
         "storage": "Nije uspelo. Pokušajte ponovo."
       }
+    },
+    "departure": {
+      "cardTitle": "Priprema polaska",
+      "cardHint": "Proverite utovar i ključeve – po želji.",
+      "open": "Otvori listu",
+      "skip": "Preskoči",
+      "sheetTitle": "Priprema polaska",
+      "sheetTitleTrip": "Priprema vožnje {trip}",
+      "sheetDescription": "Dodirnite svaki red kada je gotov.",
+      "productsHeading": "Utovar",
+      "keysHeading": "Ponesite ključeve",
+      "fixedHeading": "Ostalo",
+      "keyNoNumber": "bez broja",
+      "progress": "{done} od {total} gotovo",
+      "depart": "Krenite",
+      "finish": "Gotovo",
+      "checklistButton": "Lista",
+      "empty": "Nema ničega za proveru. Možete krenuti.",
+      "emptyTrip": "Nema ničega za proveru.",
+      "storageError": "Čuvanje na uređaju nije uspelo. Pokušajte ponovo."
     }
   },
   "pwa": {
