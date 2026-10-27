@@ -6,7 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FallbackRoutingProvider } from "./fallback";
 import { LocalHeuristicProvider } from "./heuristic";
-import { getRoutingProvider, parseBaseUrl, parseProfile, setRoutingProviderForTests } from "./index";
+import {
+  getRoutingProvider,
+  parseBaseUrl,
+  parseProfile,
+  setRoutingProviderForTests,
+} from "./index";
 import {
   mapDirectionsResponse,
   mapOptimizationResponse,

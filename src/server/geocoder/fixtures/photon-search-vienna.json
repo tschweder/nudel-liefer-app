@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [16.372504, 48.208492] },
+      "properties": {
+        "osm_id": 19639061,
+        "osm_type": "W",
+        "osm_key": "place",
+        "osm_value": "square",
+        "type": "house",
+        "name": "Stephansplatz",
+        "street": "Stephansplatz",
+        "housenumber": "1",
+        "postcode": "1010",
+        "city": "Wien",
+        "state": "Wien",
+        "country": "Österreich",
+        "countrycode": "AT"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [16.37351, 48.208211] },
+      "properties": {
+        "osm_id": 12345,
+        "osm_type": "W",
+        "type": "street",
+        "street": "Stephansplatz",
+        "postcode": "1010",
+        "city": "Wien",
+        "country": "Österreich",
+        "countrycode": "AT"
+      }
+    }
+  ]
+}

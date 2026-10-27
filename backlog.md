@@ -2749,21 +2749,22 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 ---
 
 #### NUD-157 · Geocoding quota: 94 active customers still without an Adresspunkt
-**Status:** todo · **depends_on:** – · found 2026-10-27 while geocoding the customer master data (NUD-156 analysis).
+**Status:** in-progress · **depends_on:** – · found 2026-10-27 while geocoding the customer master data (NUD-156 analysis). Owner chose **self-hosted Photon** as the route; the provider is implemented, the instance and the remaining 94 customers are open.
 
 **Problem**
 Bulk geocoding needs far more lookups than one free ORS key provides per day: on 2026-10-27 the key answered `429` after ~80 lookups and `403 "Quota exceeded"` for the rest of the day. Result: 103 of 197 active customers have a real Adresspunkt and **94 do not**; a customer without coordinates and without a Parkplatz gets no "Navigation starten" button in the driver app (the office can set a Parkplatz by hand per stop, which restores it for that stop).
 
 **Options (none started, owner decides)**
 - **Second free key, or simply the next day** — cheapest and normally sufficient: geocoding is a one-time load per customer, and afterwards only new customers trickle in. "Kunden → Import → Adressen geokodieren" resumes exactly where it stopped, free.
-- **Self-hosted geocoder (Photon, `komoot/photon`)** — imports an Austria PBF in one container (roughly 2–4 GB RAM, tens of minutes) and answers `GET /api?q=…&limit=5`. A **different API shape** from ORS/Pelias, so it needs a `PhotonGeocoder` behind the existing `Geocoder` interface (mapping + tests + env wiring, no schema change). This is the realistic self-hosted answer to the quota.
+- **Self-hosted geocoder (Photon, `komoot/photon`)** — **chosen by the owner.** Imports an OSM extract into its own index and answers `GET /api?q=…&limit=5`. A **different API shape** from ORS/Pelias, so it has its own provider: `src/server/geocoder/photon.ts` (`PhotonGeocoder` + `mapPhotonResponse`), selected by `PHOTON_URL` (takes precedence over `ORS_API_KEY`), behind the existing `CachingGeocoder`. **Distribution caveat:** Photon 1.3.0 (2026-08) ships as a **jar** (`photon-1.3.0.jar`, ~98 MB, `github.com/komoot/photon/releases`) — there is no public Docker image any more (`komoot/photon` and `ghcr.io/komoot/photon` both answer "denied"). Needs a JVM and an index build from the extract.
 - **Self-hosted Pelias** — what the public ORS geocoder runs: Elasticsearch plus several importers, 8–16 GB RAM, long import. Heavy for 195 addresses.
 - **Paid ORS plan** — no code change, recurring cost.
 
 **Acceptance criteria**
 - [ ] Every active customer has an Adresspunkt, or a recorded reason the address cannot be geocoded (check: active customers with `lat is null` and no active Parkplatz).
-- [ ] The chosen route is documented in `docs/env.md` / `docs/deploy.md`; the office button stays the operator path either way.
-- [ ] If a provider is added: unit tests for the response mapping, the same "no result is not an error" behaviour as `geocodeAddress`, and no secret in URLs.
+- [x] `PhotonGeocoder` implemented behind the existing `Geocoder` interface, selected by `PHOTON_URL`, with unit tests for the response mapping (label assembly, `[lon,lat]` order, confidence from hit type), the URL/params, the empty/invalid input rules, the error mapping, and the precedence over `ORS_API_KEY`; documented in `.env.example` and `docs/env.md`. No schema change.
+- [ ] A local Photon answers a Vienna address, and `PHOTON_URL` pointed at it geocodes the 94 remaining customers (verify the hit rate; the office button stays the operator path).
+- [ ] The chosen route is documented in `docs/env.md` / `docs/deploy.md`.
 
 **Implementation notes**
 - 2026-10-27 operator run: a temporary script called `listCustomerIdsWithoutPin` + `geocodeCustomers` (the exact code behind the office button) in batches of 5 with the documented pacing. First pass stopped at `429`; the immediate resume got `403 Quota exceeded`. The script was deleted afterwards, the app was never touched, 103 customers were geocoded (all Austria, lat 48.03–48.39, lng 14.21–16.49).

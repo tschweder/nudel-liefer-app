@@ -1,11 +1,13 @@
 import { CachingGeocoder } from "./cache";
 import { FakeGeocoder } from "./fake";
 import { DEFAULT_COUNTRIES, OrsGeocoder } from "./ors";
+import { PhotonGeocoder } from "./photon";
 import type { Geocoder } from "./types";
 
 export { CachingGeocoder, LruCache } from "./cache";
 export { FakeGeocoder } from "./fake";
 export { mapOrsResponse, OrsGeocoder } from "./ors";
+export { mapPhotonResponse, PHOTON_DEFAULT_BASE_URL, PhotonGeocoder } from "./photon";
 export * from "./types";
 
 let instance: Geocoder | undefined;
@@ -34,14 +36,21 @@ export function parseBaseUrl(value: string | undefined): string | undefined {
 }
 
 /**
- * Geocoder selected from the environment: ORS (behind an LRU cache) when `ORS_API_KEY` is set,
- * otherwise the deterministic Fake and a single warning. The admin confirms every pin (D9), so
- * the Fake never silently becomes a delivery position. The public geocoding API stays the default.
+ * Geocoder selected from the environment, in this order:
+ * `PHOTON_URL` -> a self-hosted Komoot Photon (NUD-157, no key, the only way to geocode without the
+ * hosted quota); `ORS_API_KEY` -> the hosted openrouteservice/Pelias API; neither -> the deterministic
+ * Fake plus one warning. The admin confirms every pin (D9), so the Fake never silently becomes a
+ * delivery position.
  */
 export function getGeocoder(env: Record<string, string | undefined> = process.env): Geocoder {
   if (instance) return instance;
+  const photonUrl = parseBaseUrl(env.PHOTON_URL);
   const apiKey = env.ORS_API_KEY?.trim();
-  if (apiKey) {
+  if (photonUrl) {
+    instance = new CachingGeocoder(
+      new PhotonGeocoder({ baseUrl: photonUrl, lang: env.PHOTON_LANG?.trim() || undefined }),
+    );
+  } else if (apiKey) {
     instance = new CachingGeocoder(
       new OrsGeocoder({
         apiKey,
@@ -53,7 +62,7 @@ export function getGeocoder(env: Record<string, string | undefined> = process.en
     if (!warned) {
       warned = true;
       console.warn(
-        "[geocoder] ORS_API_KEY not set - using the FakeGeocoder (coordinates are NOT real addresses)",
+        "[geocoder] neither PHOTON_URL nor ORS_API_KEY is set - using the FakeGeocoder (coordinates are NOT real addresses)",
       );
     }
     instance = new CachingGeocoder(new FakeGeocoder());
