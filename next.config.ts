@@ -62,6 +62,10 @@ const nextConfig: NextConfig = {
   basePath: basePath || undefined,
   poweredByHeader: false,
   allowedDevOrigins,
+  // The vServer build (deploy/server-setup.sh, 2 GB RAM) runs out of memory in Next's type-check pass.
+  // `pnpm typecheck` (tsc, incl. tests) is the gate before every deploy, so the server build skips it
+  // when SKIP_TYPECHECK=1. Never set this in CI or on a dev machine.
+  typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
   // The build ID is part of the flight data inlined in static pages, whose script hashes the second
   // pass bakes into the proxy: both passes must use the same ID (a fresh random one per `pnpm
   // build`, because `reset` removes the file first).

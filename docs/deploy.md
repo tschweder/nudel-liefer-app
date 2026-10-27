@@ -442,6 +442,8 @@ Things that are different from the Vercel path and must not be forgotten:
   until the operator changes them.
 - After the first deploy the office has to confirm the **depot pin** before any tour can be created.
 
+**Build memory.** The vServer has 2 GB RAM. `deploy/server-setup.sh` therefore builds with `NODE_OPTIONS=--max-old-space-size=2560` and `SKIP_TYPECHECK=1` (Next's own type-check pass ran out of heap on 2026-10-27: "JavaScript heap out of memory ... Failed to type check"). `pnpm typecheck` stays the gate before every deploy; never set `SKIP_TYPECHECK` in CI or locally.
+
 ### 13.1 Scheduled jobs on the vServer (replaces the `vercel.json` crons)
 
 Vercel calls the `/api/cron/*` routes by itself; on the vServer nothing does, so **without these

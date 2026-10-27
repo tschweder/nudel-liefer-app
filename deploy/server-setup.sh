@@ -175,7 +175,9 @@ cd "$APP_DIR"
 # decides the build must not depend on that subtlety.
 run_as_app "$PNPM_BIN" install --frozen-lockfile
 run_as_app env DATABASE_URL="$DATABASE_URL" "$PNPM_BIN" db:migrate
-run_as_app env NEXT_PUBLIC_BASE_PATH="$BASE_PATH" "$PNPM_BIN" build
+# Heap 2.5 GB (the default of ~1 GB ran out of memory with the grown app; swap covers the rest) and no
+# second type-check pass inside `next build` (tsc runs before every deploy, see next.config.ts).
+run_as_app env NEXT_PUBLIC_BASE_PATH="$BASE_PATH" SKIP_TYPECHECK=1 NODE_OPTIONS="--max-old-space-size=2560" "$PNPM_BIN" build
 chown -R deliveryapp:deliveryapp "$APP_DIR"
 
 log "9. systemd unit"
