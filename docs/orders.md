@@ -131,7 +131,7 @@ role is checked by its callers (`tourPlanQuery`, `orderOverviewQuery`, `todayPro
 Every product has a **weight per unit** in kilograms (`weightKgPerUnit`, required, > 0, two decimals,
 editable on the product form by admins). `orderWeightKg(items, products)` in `src/domain/weight.ts`
 multiplies it with the quantities; the vehicle capacity check (NUD-146) builds on it. Unit words:
-`PACK` = Beutel, `CRATE` = Karton, `PIECE` has no word and reads "3 × Wantan-Teig" (glossary §3);
+`PACK` = Sackerl, `CRATE` = Kiste, `PIECE` has no word and reads "3 × Wantan-Teig" (glossary §3);
 sums without a product name next to them use `driver.unitsTotal` ("3 Stück").
 
 `src/server/products.ts` reads/writes `product` and `orderItem` in

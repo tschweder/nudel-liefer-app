@@ -13,18 +13,18 @@ Exactly this header, semicolon separated, UTF-8 (Excel's "CSV UTF-8 (Comma delim
 line ends and empty rows or columns at the end are fine):
 
 ```
-customerNumber;menge;Karton;notizen
+customerNumber;menge;Kiste;notizen
 1006;3;ja;R · 35 €
 1049;4;nein;
 1073;6;nein;bar 6 €
 ```
 
-| Column           | Rule                                                                                                                                                                                   |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `customerNumber` | Must be the number of an **existing, active** customer (the `1xxx` number). Names are never guessed.                                                                                   |
-| `menge`          | Whole number from 1 to 9999. `2,5`, `0`, negative numbers and text are errors.                                                                                                         |
-| `Karton`         | `ja` = product `NUDELN-KARTON` (Nudeln, 10 kg, Karton). `nein` = product `NUDELN-BEUTEL` (Nudeln, 3 kg, Beutel). Upper/lower case and spaces do not matter, anything else is an error. |
-| `notizen`        | Optional. Goes into the customer's driver note ("Hinweise für den Fahrer"), e.g. `R` (printed bill) and cash amounts. A note with a `;` must be in double quotes: `"Hof; R"`.          |
+| Column           | Rule                                                                                                                                                                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `customerNumber` | Must be the number of an **existing, active** customer (the `1xxx` number). Names are never guessed.                                                                                                                                   |
+| `menge`          | Whole number from 1 to 9999. `2,5`, `0`, negative numbers and text are errors.                                                                                                                                                         |
+| `Kiste`          | `ja` = product `NUDELN-KARTON` (Nudeln, 10 kg, Kiste). `nein` = product `NUDELN-BEUTEL` (Nudeln, 3 kg, Sackerl). The old column name `Karton` is still accepted. Upper/lower case and spaces do not matter, anything else is an error. |
+| `notizen`        | Optional. Goes into the customer's driver note ("Hinweise für den Fahrer"), e.g. `R` (printed bill) and cash amounts. A note with a `;` must be in double quotes: `"Hof; R"`.                                                          |
 
 - One row = one confirmed order with one product. A customer may appear several times: that gives
   several orders, and the tour planner merges them into **one stop** for that customer and day.

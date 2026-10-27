@@ -481,7 +481,7 @@ route needs the bearer `CRON_SECRET` (the value in `/etc/delivery-app.env`) and 
 ### 13.2 One-off day import from a CSV (NUD-155)
 
 For a day whose route only exists on paper: `scripts/import-day-orders.ts` turns a CSV
-(`customerNumber;menge;Karton;notizen`) into confirmed orders. It is one file, so `scp` is enough
+(`customerNumber;menge;Kiste;notizen`) into confirmed orders. It is one file, so `scp` is enough
 (no rebuild), and it reads `DATABASE_URL` from `/etc/delivery-app.env`:
 
 ```bash

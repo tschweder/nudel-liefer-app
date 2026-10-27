@@ -35,7 +35,7 @@ export function OrderTotals({
 }) {
   const t = useTranslations("admin.orders.totals");
   const tp = useTranslations("admin.tours.print");
-  // Quantities without a product name next to them ("22 Beutel", "3 Stück") use the word forms
+  // Quantities without a product name next to them ("22 Sackerl", "3 Stück") use the word forms
   // under `driver.unitsTotal` (§9.3); "×" only exists in front of a product name.
   const tu = useTranslations("driver.unitsTotal");
   const locale = useLocale() as AppLocale;

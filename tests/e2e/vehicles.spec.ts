@@ -144,7 +144,7 @@ test("Tour load: red above the capacity, release only with the explicit override
   const big = await ensureVehicle(client, "E2E Transporter", 5000);
   const small = await ensureVehicle(client, "E2E Kleinbus", 50);
   try {
-    // Three customers with two Karton (10 kg each) = 60 kg on the tour.
+    // Three customers with two Kiste (10 kg each) = 60 kg on the tour.
     for (const [index, suffix] of ["A", "B", "C"].entries()) {
       const customerId = `id-${tag}-${suffix}`;
       await client.query(

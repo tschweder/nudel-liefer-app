@@ -33,8 +33,8 @@
     },
     "units": {
       "KG": "kg",
-      "PACK": "Beutel",
-      "CRATE": "Karton",
+      "PACK": "Sackerl",
+      "CRATE": "Kiste",
       "PIECE": "×"
     },
     "statuses": {
@@ -118,8 +118,8 @@
     },
     "unitNames": {
       "KG": "kg",
-      "PACK": "Beutel",
-      "CRATE": "Karton",
+      "PACK": "Sackerl",
+      "CRATE": "Kiste",
       "PIECE": "Stück (N ×)"
     }
   },
@@ -832,7 +832,7 @@
         "savedNew": "Produkt angelegt.",
         "savedEdit": "Produkt gespeichert.",
         "weight": "Gewicht pro Einheit (kg)",
-        "weightHint": "Wird für die Fahrzeugauslastung verwendet. Zum Beispiel 3 für einen Beutel, 10 für einen Karton.",
+        "weightHint": "Wird für die Fahrzeugauslastung verwendet. Zum Beispiel 3 für ein Sackerl, 10 für eine Kiste.",
         "weightInvalid": "Bitte ein Gewicht größer als 0 kg angeben (höchstens zwei Nachkommastellen)."
       },
       "toggleStatus": "Status von {name} umschalten",
@@ -1640,8 +1640,8 @@
     },
     "units": {
       "KG": "kg",
-      "PACK": "Beutel",
-      "CRATE": "Karton",
+      "PACK": "Sackerl",
+      "CRATE": "Kiste",
       "PIECE": "×"
     },
     "stop": {
@@ -1813,8 +1813,8 @@
     },
     "unitsTotal": {
       "KG": "kg",
-      "PACK": "Beutel",
-      "CRATE": "Karton",
+      "PACK": "Sackerl",
+      "CRATE": "Kiste",
       "PIECE": "Stück"
     },
     "key": {

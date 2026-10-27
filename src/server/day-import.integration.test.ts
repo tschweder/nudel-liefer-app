@@ -8,7 +8,7 @@ import { createTestDb, type TestDb } from "./test-db";
 vi.mock("next/cache", () => ({ updateTag: vi.fn(), cacheTag: vi.fn(), cacheLife: vi.fn() }));
 
 const DAY = "2099-06-15";
-const HEADER = "customerNumber;menge;Karton;notizen";
+const HEADER = "customerNumber;menge;Kiste;notizen";
 const enc = (text: string) => new TextEncoder().encode(text);
 
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -98,7 +98,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const r = await run(csv, "--date", DAY);
       expect(r.code).toBe(0);
       expect(r.out).toContain("Kunde 1006");
-      expect(r.out).toContain("Karton 10 kg");
+      expect(r.out).toContain("Kiste 10 kg");
       expect(r.out).toContain("Would create:  3 confirmed orders for 3 customers");
       expect(r.out).toContain("DRY RUN: nothing was written");
       expect(r.out).toMatch(/WARNING row 3: no address point and no Parkplatz/);

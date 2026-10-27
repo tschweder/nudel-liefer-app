@@ -24,7 +24,7 @@ export function TourDiffList({
   addedHeading?: string;
 }) {
   const t = useTranslations("admin.tours.change");
-  // Quantities without a product name next to them ("22 Beutel", "3 Stück") use the word forms
+  // Quantities without a product name next to them ("22 Sackerl", "3 Stück") use the word forms
   // under `driver.unitsTotal` (§9.3); "×" only exists in front of a product name.
   const tu = useTranslations("driver.unitsTotal");
   const locale = useLocale() as AppLocale;
@@ -73,7 +73,7 @@ export function TourDiffList({
                               ? fmt.quantity(item.before)
                               : `${fmt.quantity(item.before)} → ${fmt.quantity(item.after)}`}
                         </span>{" "}
-                        {/* The unit belongs to the last quantity shown ("22 Beutel"). */}
+                        {/* The unit belongs to the last quantity shown ("22 Sackerl"). */}
                         {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE")}
                       </li>
                     ))}

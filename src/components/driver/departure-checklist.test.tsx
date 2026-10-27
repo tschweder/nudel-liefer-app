@@ -153,7 +153,7 @@ describe.each(Object.keys(LOCALES))("departure checklist in %s", (locale) => {
     });
     const sheet = within(screen.getByTestId("departure-sheet"));
     const products = sheet.getAllByTestId("departure-product");
-    // Totals over the whole tour in packaging units: 22 Beutel, 14 Karton, 3 x Wantan-Teig.
+    // Totals over the whole tour in packaging units: 22 Sackerl, 14 Kiste, 3 x Wantan-Teig.
     expect(
       products.map((row) => {
         const line = row.querySelector("[data-unit]")!;
@@ -284,7 +284,7 @@ describe.each(Object.keys(LOCALES))("departure checklist in %s", (locale) => {
     const trips = [stop(1), stop(2), stop(3, { trip: 2, hasKey: true, keyNumber: "31" })];
     renderIn(locale, <TodayTour today={today(trips)} tiles={TILES} />);
     fireEvent.click(screen.getByTestId("reload-checklist"));
-    // Only the stops of trip 2: one Karton line of 7, a key line, no 'Losfahren'.
+    // Only the stops of trip 2: one Kiste line of 7, a key line, no 'Losfahren'.
     const sheet = within(screen.getByTestId("departure-sheet"));
     const products = sheet.getAllByTestId("departure-product");
     expect(products).toHaveLength(3);

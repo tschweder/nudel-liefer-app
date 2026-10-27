@@ -13,7 +13,7 @@ type UnitKey = "KG" | "PACK" | "CRATE" | "PIECE";
 /**
  * Reload stop (NUD-147): shown between the last stop of one trip and the first stop of the next.
  * The vehicle returns to the depot; the card lists what to load for the next trip ("14 × Nudeln
- * Karton", "3 × Wantan-Teig"), large and with an icon, so it reads without German.
+ * Kiste", "3 × Wantan-Teig"), large and with an icon, so it reads without German.
  */
 export function ReloadStop({
   trip,

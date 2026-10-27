@@ -98,13 +98,13 @@ test.describe("driver", () => {
     await card.getByTestId("departure-open").click();
     const sheet = page.getByTestId("departure-sheet");
     await expect(sheet).toBeVisible();
-    // Totals over the tour (fixture: Spaghetti 13 + 27 kg, Penne 4 + 1 Beutel), key and fixed item.
+    // Totals over the tour (fixture: Spaghetti 13 + 27 kg, Penne 4 + 1 Sackerl), key and fixed item.
     const products = sheet.getByTestId("departure-product");
     await expect(products).toHaveCount(2);
     await expect(products.first()).toContainText("40");
     await expect(products.first()).toContainText("Spaghetti lose");
     await expect(products.last()).toContainText("5");
-    await expect(products.last()).toContainText("Beutel");
+    await expect(products.last()).toContainText("Sackerl");
     await expect(products.last()).toContainText("Penne");
     await expect(sheet.getByTestId("departure-key")).toContainText("12");
     await expect(sheet.getByTestId("departure-key")).toContainText(fx.names[1]!);

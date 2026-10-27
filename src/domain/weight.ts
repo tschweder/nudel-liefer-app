@@ -1,5 +1,5 @@
 /**
- * Weight of order lines (NUD-138). A product weighs `weightKgPerUnit` kg per unit (Beutel, Karton
+ * Weight of order lines (NUD-138). A product weighs `weightKgPerUnit` kg per unit (Sackerl, Kiste
  * or piece), so a line weighs `quantity × weightKgPerUnit`. Used for the vehicle capacity (NUD-146).
  */
 

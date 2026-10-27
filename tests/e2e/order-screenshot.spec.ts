@@ -36,8 +36,8 @@ const IMAGE_IN_PAGE = `
     ctx.fillRect(0, 0, 1000, 700);
     ctx.fillStyle = "#000";
     ctx.font = "48px sans-serif";
-    ctx.fillText("Bitte 10 Beutel Nudeln", 60, 200);
-    ctx.fillText("und 3 Karton Nudeln", 60, 300);
+    ctx.fillText("Bitte 10 Sackerl Nudeln", 60, 200);
+    ctx.fillText("und 3 Kiste Nudeln", 60, 300);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const dt = new DataTransfer();
     dt.items.add(new File([blob], "whatsapp.png", { type: "image/png" }));
@@ -228,7 +228,7 @@ test("screenshot order: paste (Ctrl+V), split view, zoom/pan, save, view from th
     await expect(page.getByTestId("detail-customer")).toHaveText(f.name);
     await expect(page.getByTestId("detail-source")).toHaveText("Screenshot");
     await expect(page.getByTestId("detail-item")).toHaveCount(2);
-    await expect(page.getByTestId("detail-items")).toContainText("10 Beutel Nudeln");
+    await expect(page.getByTestId("detail-items")).toContainText("10 Sackerl Nudeln");
 
     // Thumbnail -> fullscreen.
     const thumb = page.getByTestId("detail-screenshot").getByRole("button", {

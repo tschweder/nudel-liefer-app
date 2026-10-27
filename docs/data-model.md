@@ -56,7 +56,7 @@ The provider is `postgresql`; the generated client is emitted to
   (only the current photo per customer/kind is shown). `clientMutationId` is the driver client's
   idempotency key (NUD-083): a retry of the same capture reuses the row; `null` for office uploads.
 - **`Product`** — the catalog: `sku` (unique), `name` as LocalizedText JSON, `unit`, `weightKgPerUnit` (`Decimal(6,2)`, > 0, admin-editable;
-  Beutel 3 kg, Karton 10 kg, Wantan-Teig 5 kg, NUD-138), `active`, `sortOrder`. Referenced with `onDelete: Restrict`.
+  Sackerl 3 kg, Kiste 10 kg, Wantan-Teig 5 kg, NUD-138), `active`, `sortOrder`. Referenced with `onDelete: Restrict`.
 - **`Screenshot`** — an uploaded order screenshot in object storage, with optional `extraction`
   JSON produced by AI extraction (M3). `onDelete: Restrict` on the uploader.
 - **`Order`** — a delivery order for a customer on a `deliveryDate` (SQL `DATE`), with
@@ -146,8 +146,8 @@ user, and the demo drivers and products. Environment-driven:
 - `SEED_DRIVERS` (default on) creates five demo drivers sharing one bcrypt-hashed PIN from
   `SEED_DRIVER_PIN` (must be exactly 6 digits). Never create these well-known-PIN drivers on
   production — set `SEED_DRIVERS=false`.
-- Products are the owner's three real products (`src/server/product-catalog.ts`): Nudeln in Beutel
-  (`NUDELN-BEUTEL`, 3 kg), Nudeln in Karton (`NUDELN-KARTON`, 10 kg) and Wantan-Teig (`WANTAN-TEIG`,
+- Products are the owner's three real products (`src/server/product-catalog.ts`): Nudeln in Sackerl
+  (`NUDELN-BEUTEL`, 3 kg), Nudeln in Kiste (`NUDELN-KARTON`, 10 kg) and Wantan-Teig (`WANTAN-TEIG`,
   piece, 5 kg), with LocalizedText names. The seed never overwrites an existing row, so an edited
   weight survives. The migration `20261026180000_product_catalog_weight` creates the same rows,
   archives every other product and moves the old demo order lines onto the new ones.

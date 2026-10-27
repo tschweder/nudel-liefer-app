@@ -70,7 +70,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     const vehicle = (name: string, capacityKg: number) =>
       t.prisma.vehicle.create({ data: { name, capacityKg } }).then((v) => v.id);
 
-    /** `count` customers on the ring, each ordering `crates` Karton of 10 kg. */
+    /** `count` customers on the ring, each ordering `crates` Kiste of 10 kg. */
     async function customers(count: number, crates = 10) {
       const ids: string[] = [];
       for (const [i, [dLat, dLng]] of RING.slice(0, count).entries()) {
@@ -435,7 +435,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("more stops than one planning run takes: plans the nearest 50, lists the rest as not planned", async () => {
       await vehicle("Van 1", 5000);
       await vehicle("Van 2", 5000);
-      // 52 customers on a line away from the depot, 1 Karton each.
+      // 52 customers on a line away from the depot, 1 Kiste each.
       for (let i = 0; i < 52; i++) {
         const c = await t.prisma.customer.create({
           data: {

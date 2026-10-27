@@ -65,7 +65,7 @@ export const HAND_OFF: HandOffContent = {
         },
         {
           text: {
-            de: "Die «Einheit» wählen: kg, Beutel, Karton oder Stück.",
+            de: "Die «Einheit» wählen: kg, Sackerl, Kiste oder Stück.",
             zh: "选择「单位」：公斤、袋、纸箱或件。",
           },
           label: "Einheit",
@@ -3020,8 +3020,8 @@ export const HAND_OFF: HandOffContent = {
     { de: "Artikelnummer (SKU)", zh: "货号（SKU）" },
     { de: "Einheit", zh: "单位" },
     { de: "kg", zh: "公斤" },
-    { de: "Beutel", zh: "袋" },
-    { de: "Karton", zh: "纸箱" },
+    { de: "Sackerl", zh: "袋" },
+    { de: "Kiste", zh: "纸箱" },
     { de: "Stück", zh: "件" },
     { de: "Menge", zh: "数量" },
     { de: "Lieferdatum", zh: "送货日期" },

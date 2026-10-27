@@ -31,7 +31,9 @@ import { databaseIdentity, redactSecrets } from "./lib/backup";
 // ---------------------------------------------------------------------------------------------
 // Pure rules: CSV parsing, validation, note rule, idempotency marker
 // ---------------------------------------------------------------------------------------------
-export const IMPORT_HEADER = ["customerNumber", "menge", "Karton", "notizen"] as const;
+export const IMPORT_HEADER = ["customerNumber", "menge", "Kiste", "notizen"] as const;
+/** Legacy spelling of column 3 (NUD-159): files and templates already on the server keep working. */
+const LEGACY_CRATE_COLUMN = "Karton";
 
 /** Largest quantity accepted in one row (a typo guard; the order form allows 99 999). */
 export const IMPORT_MAX_QUANTITY = 9999;
@@ -139,7 +141,7 @@ export function parseImportQuantity(cell: string): number | null {
   return value >= 1 && value <= IMPORT_MAX_QUANTITY ? value : null;
 }
 
-/** Karton cell: `ja` / `nein`, any case, surrounding spaces ignored; anything else is `null`. */
+/** Kiste cell: `ja` / `nein`, any case, surrounding spaces ignored; anything else is `null`. */
 export function parseKarton(cell: string): boolean | null {
   const text = cell.trim().toLowerCase();
   if (text === "ja") return true;
@@ -168,6 +170,7 @@ export function parseDayCsv(rawText: string): ParsedImport {
   const first = records.findIndex((r) => !blank(r));
   if (first < 0) return { ok: false, fatal: "The file is empty." };
   const header = records[first]!.map((c) => c.trim());
+  if (header[2] === LEGACY_CRATE_COLUMN) header[2] = IMPORT_HEADER[2];
   // Excel keeps empty trailing columns; drop them before comparing.
   while (header.length > IMPORT_HEADER.length && header[header.length - 1] === "") header.pop();
   if (header.length !== IMPORT_HEADER.length || header.some((h, i) => h !== IMPORT_HEADER[i])) {
@@ -204,7 +207,7 @@ export function parseDayCsv(rawText: string): ParsedImport {
       return;
     }
     if (cells.length < 3) {
-      rows.push(fail("too_few_columns", "Fewer than 3 columns (customerNumber;menge;Karton)"));
+      rows.push(fail("too_few_columns", "Fewer than 3 columns (customerNumber;menge;Kiste)"));
       return;
     }
     if (customerNumber === "") {
@@ -223,7 +226,7 @@ export function parseDayCsv(rawText: string): ParsedImport {
     }
     const karton = parseKarton(cells[2] ?? "");
     if (karton === null) {
-      rows.push(fail("karton_invalid", `Karton "${(cells[2] ?? "").trim()}" must be ja or nein`));
+      rows.push(fail("karton_invalid", `Kiste "${(cells[2] ?? "").trim()}" must be ja or nein`));
       return;
     }
     const note = cleanNote(cells[3] ?? "");
@@ -341,7 +344,7 @@ export type PlanRow = {
   error?: string;
   customer?: { id: string; name: string; city: string };
   sku?: string;
-  /** Product as shown in the table, e.g. `Karton 10 kg`. */
+  /** Product as shown in the table, e.g. `Kiste 10 kg`. */
   product?: string;
   productId?: string;
   quantity?: number;
@@ -588,7 +591,7 @@ export async function buildDayImportPlan(
       status: "ok",
       customer: { id: customer.id, name: customer.name, city: customer.city },
       sku: r.sku,
-      product: r.karton ? `Karton ${KARTON_KG} kg` : `Beutel ${BEUTEL_KG} kg`,
+      product: r.karton ? `Kiste ${KARTON_KG} kg` : `Sackerl ${BEUTEL_KG} kg`,
       productId: product.id,
       quantity: r.quantity,
       note: r.note,
@@ -744,7 +747,7 @@ export async function applyDayImport(
 // ---------------------------------------------------------------------------------------------
 export const USAGE = `Usage: pnpm tsx scripts/import-day-orders.ts <file.csv> [options]
 
-  Imports one day of orders from a CSV file (header: customerNumber;menge;Karton;notizen).
+  Imports one day of orders from a CSV file (header: customerNumber;menge;Kiste;notizen; "Karton" is still accepted).
   Default is a DRY RUN: it prints what would happen and writes nothing.
 
 Options:

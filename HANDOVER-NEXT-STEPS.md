@@ -343,7 +343,7 @@ Record the answers in the decision log (§9 of `backlog.md`).
 ## One-off: import a day's route from a CSV (NUD-155)
 
 When a day's route only exists on paper, the office types it into a CSV
-(`customerNumber;menge;Karton;notizen`) and `scripts/import-day-orders.ts` creates the confirmed
+(`customerNumber;menge;Kiste;notizen`) and `scripts/import-day-orders.ts` creates the confirmed
 orders on the server (dry run first, `--apply` to write; no rebuild, one `scp`). Then: Touren >
 Touren planen > Freigeben. Commands, format and safety rules: [`docs/day-import.md`](docs/day-import.md)
 (also `docs/deploy.md` section 13.2).

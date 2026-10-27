@@ -165,7 +165,7 @@ function OrderRow({
 }) {
   const t = useTranslations("admin.orders");
   const tc = useTranslations("common");
-  // Unit labels ("Beutel", "Karton", "×") live once, under `driver.units` — the office screens
+  // Unit labels ("Sackerl", "Kiste", "×") live once, under `driver.units` — the office screens
   // reuse them instead of duplicating translations (§9.3).
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
@@ -176,7 +176,7 @@ function OrderRow({
     parseCalendarDate(today) ?? new Date(),
   );
   /**
-   * Full line ("22 Beutel Nudeln", "3 × Wantan-Teig"): the tooltip, the collapsed list and the accessible
+   * Full line ("22 Sackerl Nudeln", "3 × Wantan-Teig"): the tooltip, the collapsed list and the accessible
    * text of a chip. `orders.spec.ts` and `order-overview.spec.ts` read exactly this wording.
    */
   const itemLabel = (item: OrderOverviewRow["items"][number]) =>
@@ -282,7 +282,7 @@ function OrderRow({
                     {itemChipLabel(item)}
                   </span>
                   {/* The chip abbreviates visually only: AT (and the e2e specs) still read the full
-                      "22 Beutel Nudeln". */}
+                      "22 Sackerl Nudeln". */}
                   <span className="sr-only">{itemLabel(item)}</span>
                 </li>
               ))}

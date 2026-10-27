@@ -157,11 +157,11 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     if ((await totalsToggle.count()) > 0) await totalsToggle.first().click();
     const day1 = page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible`);
     await expect(day1).toContainText("2 bestätigte Bestellungen");
-    await expect(day1.locator("tr", { hasText: "Beutel" })).toContainText("7 Beutel");
-    await expect(day1.locator("tr", { hasText: "Karton" })).toContainText("1 Karton");
+    await expect(day1.locator("tr", { hasText: "Sackerl" })).toContainText("7 Sackerl");
+    await expect(day1.locator("tr", { hasText: "Kiste" })).toContainText("1 Kiste");
     const day2 = page.locator(`[data-testid="totals-day"][data-date="${D2}"]:visible`);
     await expect(day2).toContainText("1 bestätigte Bestellung");
-    await expect(day2.locator("tr", { hasText: "Karton" })).toContainText("6 Karton");
+    await expect(day2.locator("tr", { hasText: "Kiste" })).toContainText("6 Kiste");
     await expect(tid(page, "totals-day")).toHaveCount(2);
 
     // Rows: line count, status, source icon, in-tour badge only for the order in the tour.
@@ -253,7 +253,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await lines.nth(0).getByTestId("line-quantity").fill("5");
     await tid(page, "order-save").click();
     await expect(page).toHaveURL(new RegExp(`/admin/orders/${f.ids.a1}$`));
-    await expect(tid(page, "detail-items")).toContainText("5 Beutel Nudeln");
+    await expect(tid(page, "detail-items")).toContainText("5 Sackerl Nudeln");
     const stored = await f.client.query<{ quantity: string }>(
       `SELECT "quantity"::text FROM "OrderItem" WHERE "orderId"=$1 ORDER BY "quantity"`,
       [f.ids.a1],
@@ -265,7 +265,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await expect(entries.first()).toHaveAttribute("data-action", "order.update");
     await expect(entries.first().getByTestId("audit-action")).toHaveText("Bestellung geändert");
     await expect(entries.first().getByTestId("audit-meta")).toContainText("Admin (Büro)");
-    await expect(entries.first().getByTestId("audit-line")).toHaveText("Nudeln: 3 → 5 Beutel");
+    await expect(entries.first().getByTestId("audit-line")).toHaveText("Nudeln: 3 → 5 Sackerl");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-history.png"), fullPage: true });
     // The tour of that day is flagged outdated.
@@ -275,9 +275,9 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await page.goto(`/de/admin/orders?from=${D1}&to=${D1}`);
     await expect(
       page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible tr`, {
-        hasText: "Beutel",
+        hasText: "Sackerl",
       }),
-    ).toContainText("9 Beutel");
+    ).toContainText("9 Sackerl");
 
     // Duplicate order b1 to D3: a draft copy, the original stays.
     await page.goto(`/de/admin/orders/${f.ids.b1}`);
@@ -286,7 +286,7 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await tid(page, "order-duplicate-confirm").click();
     await expect(tid(page, "detail-status")).toHaveText("Entwurf");
     await expect(tid(page, "detail-date")).toContainText(String(f.year));
-    await expect(tid(page, "detail-items")).toContainText("4 Beutel Nudeln");
+    await expect(tid(page, "detail-items")).toContainText("4 Sackerl Nudeln");
     const copies = await f.client.query<{
       status: string;
       source: string;

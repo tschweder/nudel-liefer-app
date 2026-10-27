@@ -288,7 +288,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ]);
         expect(checklist).toEqual(sheet);
       }
-      // Trip 1: 14 Karton (4 + 10), 22 Beutel (5 + 17), 3 x Wantan-Teig.
+      // Trip 1: 14 Kiste (4 + 10), 22 Sackerl (5 + 17), 3 x Wantan-Teig.
       const trip1 = buildDepartureChecklist(asStops, 1);
       expect(trip1.products.map((l) => [l.unit, l.quantity])).toEqual([
         ["PACK", 22],

@@ -179,7 +179,7 @@ export function orderSourceLabelKey(source: string): string {
 }
 
 /**
- * Message key of a unit label (`common.units.*`, e.g. "Beutel"). The driver screens use the ICU
+ * Message key of a unit label (`common.units.*`, e.g. "Sackerl"). The driver screens use the ICU
  * plural keys under `driver.units.*` instead — they need a count, these do not.
  */
 export function unitLabelKey(unit: string): string {

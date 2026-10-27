@@ -35,7 +35,7 @@ export function OrderDetailView({
   const t = useTranslations("admin.orders");
   const td = useTranslations("admin.orders.detail");
   const tc = useTranslations("common");
-  // Unit labels ("Beutel", "Karton", "×") live once, under `driver.units` (§9.3).
+  // Unit labels ("Sackerl", "Kiste", "×") live once, under `driver.units` (§9.3).
   const tu = useTranslations("driver.units");
   const locale = useLocale() as AppLocale;
   const fmt = createAppFormatters(useFormatter());

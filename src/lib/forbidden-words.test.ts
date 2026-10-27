@@ -4,17 +4,18 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Glossary §3 (amended 2026-10-26): words that must not appear in any UI string.
+ * Glossary §3 (amended 2026-10-27, NUD-159): words that must not appear in any UI string.
  * - "Pin" / "Kartenpunkt" (the map point is "Adresspunkt"; the driver login "PIN" is a different thing),
  * - "Position(en)" for order lines (they are "Produkte"),
- * - "Kiste" / "Packung" (units are Beutel and Karton).
+ * - "Beutel" / "Karton" / "Packung" (units are Sackerl and Kiste; the other locales keep their own words).
  */
 const FORBIDDEN: { word: RegExp; hint: string }[] = [
   { word: /\bPins?\b/, hint: '"Pin" (use Adresspunkt / Parkplatz / Standort)' },
   { word: /Kartenpunkt/i, hint: '"Kartenpunkt"' },
   { word: /\bPositionen?\b|Kartenposition/, hint: '"Position(en)" (use Produkt/Produkte)' },
-  { word: /\bKisten?\b/, hint: '"Kiste" (use Karton)' },
-  { word: /Packung/, hint: '"Packung" (use Beutel)' },
+  { word: /\bBeuteln?\b/, hint: '"Beutel" (use Sackerl)' },
+  { word: /\bKartons?\b/, hint: '"Karton" (use Kiste)' },
+  { word: /Packung/, hint: '"Packung" (use Sackerl)' },
   { word: /箱子|筐/, hint: "箱子/筐 (use 纸箱)" },
 ];
 

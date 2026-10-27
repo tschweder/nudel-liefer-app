@@ -115,7 +115,7 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
       await expect(page.getByPlaceholder("Nach Name oder Artikelnummer suchen")).toHaveCount(0);
     };
     await pickProduct(0, "BEUTEL");
-    await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Beutel");
+    await expect(lines.nth(0).getByTestId("line-unit")).toHaveText("Sackerl");
     await lines.nth(0).getByTestId("line-quantity").fill("3");
     await lines.nth(0).getByTestId("line-quantity").press("Enter");
     await expect(lines).toHaveCount(2);
@@ -149,9 +149,9 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name });
     await expect(row).toBeVisible();
     await expect(row.getByTestId("order-item")).toHaveCount(3);
-    // Unit labels (glossary §3, `driver.units`): "3 Beutel Nudeln", "10 × Wantan-Teig" (no unit word).
-    await expect(row).toContainText("3 Beutel Nudeln");
-    await expect(row).toContainText("4 Karton Nudeln");
+    // Unit labels (glossary §3, `driver.units`): "3 Sackerl Nudeln", "10 × Wantan-Teig" (no unit word).
+    await expect(row).toContainText("3 Sackerl Nudeln");
+    await expect(row).toContainText("4 Kiste Nudeln");
     await expect(row).toContainText("10 × Wantan-Teig");
     await expect(row.getByTestId("order-status")).toHaveText("Bestätigt");
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
@@ -249,7 +249,7 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     const row = page.locator('[data-testid="order-row"]', { hasText: f.confirmed.name }).last();
     await expect(row.getByTestId("order-status")).toHaveText("Entwurf");
     await expect(row.getByTestId("order-item")).toHaveCount(1);
-    await expect(row).toContainText("4 Beutel Nudeln");
+    await expect(row).toContainText("4 Sackerl Nudeln");
     const items = await f.client.query<{ status: string; quantity: string }>(
       `SELECT o."status"::text AS status, i."quantity"::text AS quantity
        FROM "Order" o JOIN "OrderItem" i ON i."orderId"=o."id"

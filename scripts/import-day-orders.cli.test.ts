@@ -63,7 +63,7 @@ describe("renderPlan", () => {
         status: "ok",
         customer: { id: "c1", name: "Trattoria Rossi", city: "Wien" },
         sku: "NUDELN-KARTON",
-        product: "Karton 10 kg",
+        product: "Kiste 10 kg",
         productId: "p1",
         quantity: 3,
         note: "R · 35 €",
@@ -88,7 +88,7 @@ describe("renderPlan", () => {
   it("shows the row, the customer, the product, the note action, errors, warnings and totals", () => {
     const text = renderPlan(plan).join("\n");
     expect(text).toContain("Trattoria Rossi");
-    expect(text).toContain("Karton 10 kg");
+    expect(text).toContain("Kiste 10 kg");
     expect(text).toContain("set");
     expect(text).toContain("ERROR: Unknown customerNumber x");
     expect(text).toContain("no navigation button until geocoded");

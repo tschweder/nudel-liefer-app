@@ -11,7 +11,7 @@ import {
   splitCsv,
 } from "./import-day-orders";
 
-const HEADER = "customerNumber;menge;Karton;notizen";
+const HEADER = "customerNumber;menge;Kiste;notizen";
 
 function rowsOf(text: string) {
   const parsed = parseDayCsv(text);
@@ -75,6 +75,12 @@ describe("parseDayCsv", () => {
 
   it("accepts a row without the notizen cell", () => {
     expect(rowsOf(`${HEADER}\n1049;4;nein`)[0]).toMatchObject({ ok: true, note: "" });
+  });
+
+  it("still accepts the legacy column name Karton (NUD-159)", () => {
+    const legacy = parseDayCsv("customerNumber;menge;Karton;notizen\n1006;3;ja;");
+    expect(legacy.ok).toBe(true);
+    expect(parseDayCsv(`${HEADER}\n1006;3;ja;`).ok).toBe(true);
   });
 
   it("rejects a wrong header, a comma separated file and an empty file", () => {

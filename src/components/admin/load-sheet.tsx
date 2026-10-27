@@ -17,7 +17,7 @@ const isUnit = (u: string): u is UnitKey => (UNITS as readonly string[]).include
  */
 export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: AppLocale }) {
   const t = await getTranslations({ locale, namespace: "admin.tours.print" });
-  // Unit labels ("Beutel", "Karton", "×" for pieces) live once, under `driver.units` (§9.3).
+  // Unit labels ("Sackerl", "Kiste", "×" for pieces) live once, under `driver.units` (§9.3).
   const tu = await getTranslations({ locale, namespace: "driver.units" });
   const format = await getFormatter({ locale });
 
@@ -75,7 +75,7 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
               data-testid="load-sheet-total-row"
               data-product-id={row.productId}
             >
-              {/* "22 Beutel Nudeln", "3 × Wantan-Teig": quantity and unit lead the name. */}
+              {/* "22 Sackerl Nudeln", "3 × Wantan-Teig": quantity and unit lead the name. */}
               <td className="py-1 pe-2 text-lg font-bold whitespace-nowrap">
                 <span data-testid="load-sheet-total-qty">{quantity(row.quantity)}</span>{" "}
                 <span className="text-[0.85em] font-semibold">

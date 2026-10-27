@@ -31,7 +31,7 @@ function productName(line: AuditProductLine, locale: AppLocale): string {
 export function AuditTimeline({ entries }: { entries: AuditEntryView[] }) {
   const t = useTranslations("admin.history");
   const tc = useTranslations("common");
-  // Quantities without a product name next to them ("22 Beutel", "3 Stück") use the word forms
+  // Quantities without a product name next to them ("22 Sackerl", "3 Stück") use the word forms
   // under `driver.unitsTotal` (§9.3); "×" only exists in front of a product name.
   const tu = useTranslations("driver.unitsTotal");
   const locale = useLocale() as AppLocale;

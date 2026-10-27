@@ -241,7 +241,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await expect(driver).toHaveURL(new RegExp(`/${locale}/driver$`));
     await expect(driver.locator("html")).toHaveAttribute("lang", locale);
 
-    // Today's tour: one stop, the customer, the total shown as a number (3 Beutel + 4 Karton are different
+    // Today's tour: one stop, the customer, the total shown as a number (3 Sackerl + 4 Kiste are different
     // products, so the list shows the number of varieties, not one summed quantity).
     await expect(visible(driver, "today-tour")).toBeVisible();
     await expect(visible(driver, "next-stop-name")).toHaveText(name);
@@ -255,7 +255,7 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await expect(visible(driver, "stop-detail")).toContainText(name);
     const items = driver.locator('[data-testid="stop-item"]:visible');
     await expect(items).toHaveCount(2);
-    // Both products are called "Nudeln" (Beutel and Karton), so read the quantities by position.
+    // Both products are called "Nudeln" (Sackerl and Kiste), so read the quantities by position.
     const quantities = (await items.getByTestId("item-quantity").allInnerTexts()).map((t) =>
       t.trim(),
     );

@@ -29,7 +29,7 @@ describe("parseQuantity (whole numbers only, NUD-137)", () => {
     "0",
     "00",
     "-1",
-    "2,5", // no halves of a Beutel or Karton
+    "2,5", // no halves of a Sackerl or Kiste
     "2.5",
     "3.0",
     "3,00",

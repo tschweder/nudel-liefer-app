@@ -63,7 +63,7 @@ test.describe("Touren planen", () => {
       await client.query(`SELECT "depotLat","depotLng","depotPinConfirmed" FROM "Settings"`)
     ).rows[0] as { depotLat: number; depotLng: number; depotPinConfirmed: boolean };
     await client.query(`UPDATE "Settings" SET "depotPinConfirmed"=true`);
-    // Four customers with two Karton each; the vehicles carry 2.5 customers' worth.
+    // Four customers with two Kiste each; the vehicles carry 2.5 customers' worth.
     const capacity = Math.round(kgPerCarton * 2 * 2.5);
     const vanA = await ensureVehicle(client, "E2E Split A", capacity);
     const vanB = await ensureVehicle(client, "E2E Split B", capacity);
