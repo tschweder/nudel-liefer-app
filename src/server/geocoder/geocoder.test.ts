@@ -243,14 +243,30 @@ describe("getGeocoder", () => {
     expect(parseCountries("xx1, , de")).toEqual(["DE"]);
   });
 
-  it("sends its requests to a self-hosted ORS when ORS_BASE_URL is set (NUD-156)", async () => {
+  it("sends its requests to a self-hosted geocoder when ORS_GEOCODE_BASE_URL is set (NUD-156)", async () => {
     const fetchFn = vi.fn(async () => jsonResponse(fixture("ors-search-vienna.json")));
     vi.stubGlobal("fetch", fetchFn);
     try {
-      const g = getGeocoder({ ORS_API_KEY: "k", ORS_BASE_URL: " http://127.0.0.1:8082/ " });
+      const g = getGeocoder({
+        ORS_API_KEY: "k",
+        ORS_GEOCODE_BASE_URL: " http://127.0.0.1:4000/ ",
+      });
       await g.search("Stephansplatz 1");
       const parsed = new URL(String((fetchFn.mock.calls[0] as unknown as [string])[0]));
-      expect(parsed.origin + parsed.pathname).toBe("http://127.0.0.1:8082/geocode/search");
+      expect(parsed.origin + parsed.pathname).toBe("http://127.0.0.1:4000/geocode/search");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("ignores ORS_BASE_URL: that one belongs to routing, which has no geocoding endpoint", async () => {
+    const fetchFn = vi.fn(async () => jsonResponse(fixture("ors-search-vienna.json")));
+    vi.stubGlobal("fetch", fetchFn);
+    try {
+      const g = getGeocoder({ ORS_API_KEY: "k", ORS_BASE_URL: "http://127.0.0.1:8082/ors" });
+      await g.search("Stephansplatz 1");
+      const parsed = new URL(String((fetchFn.mock.calls[0] as unknown as [string])[0]));
+      expect(parsed.origin).toBe("https://api.openrouteservice.org");
     } finally {
       vi.unstubAllGlobals();
     }

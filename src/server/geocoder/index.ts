@@ -21,8 +21,12 @@ export function parseCountries(value: string | undefined): string[] {
 }
 
 /**
- * `ORS_BASE_URL="http://127.0.0.1:8082/"` -> `"http://127.0.0.1:8082"`. A blank value means "unset",
- * so an empty variable cannot silently point the app at nothing. `undefined` = the public API.
+ * `ORS_GEOCODE_BASE_URL="http://127.0.0.1:4000/"` -> `"http://127.0.0.1:4000"`. A blank value means
+ * "unset", so an empty variable cannot silently point the app at nothing. `undefined` = the public API.
+ *
+ * Deliberately separate from the routing provider's `ORS_BASE_URL` (NUD-156): the self-hosted
+ * openrouteservice image has **no** geocoding endpoint, so one shared variable would let a self-hosted
+ * *routing* instance silently break geocoding. Geocoding is served by Pelias, a different service.
  */
 export function parseBaseUrl(value: string | undefined): string | undefined {
   const baseUrl = value?.trim().replace(/\/+$/, "");
@@ -32,8 +36,7 @@ export function parseBaseUrl(value: string | undefined): string | undefined {
 /**
  * Geocoder selected from the environment: ORS (behind an LRU cache) when `ORS_API_KEY` is set,
  * otherwise the deterministic Fake and a single warning. The admin confirms every pin (D9), so
- * the Fake never silently becomes a delivery position. `ORS_BASE_URL` points at a self-hosted ORS
- * (NUD-156) and keeps the public API as the default.
+ * the Fake never silently becomes a delivery position. The public geocoding API stays the default.
  */
 export function getGeocoder(env: Record<string, string | undefined> = process.env): Geocoder {
   if (instance) return instance;
@@ -42,7 +45,7 @@ export function getGeocoder(env: Record<string, string | undefined> = process.en
     instance = new CachingGeocoder(
       new OrsGeocoder({
         apiKey,
-        baseUrl: parseBaseUrl(env.ORS_BASE_URL),
+        baseUrl: parseBaseUrl(env.ORS_GEOCODE_BASE_URL),
         countries: parseCountries(env.ORS_GEOCODE_COUNTRIES),
       }),
     );

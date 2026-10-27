@@ -25,7 +25,7 @@ export function parseProfile(value: string | undefined): OrsProfile {
   return DEFAULT_PROFILE;
 }
 
-/** Same rule as the geocoder: trailing slashes are dropped, a blank value means "unset" (NUD-156). */
+/** Same trimming rule as the geocoder's `parseBaseUrl` (which reads its own variable, NUD-156). */
 export function parseBaseUrl(value: string | undefined): string | undefined {
   const baseUrl = value?.trim().replace(/\/+$/, "");
   return baseUrl ? baseUrl : undefined;
@@ -34,8 +34,10 @@ export function parseBaseUrl(value: string | undefined): string | undefined {
 /**
  * Routing provider selected from the environment: ORS with automatic fallback to the local
  * heuristic when `ORS_API_KEY` is set, otherwise the heuristic alone and a single warning. Results
- * from the heuristic are always flagged `approximate: true`. `ORS_BASE_URL` points at a
- * self-hosted ORS (NUD-156); unset keeps the public API.
+ * from the heuristic are always flagged `approximate: true`. `ORS_BASE_URL` points the
+ * routing/optimization calls at a self-hosted openrouteservice (NUD-156); unset keeps the public API.
+ * Geocoding has its own variable (`ORS_GEOCODE_BASE_URL`), because the self-hosted image does not
+ * serve `/geocode/*` at all.
  */
 export function getRoutingProvider(
   env: Record<string, string | undefined> = process.env,
