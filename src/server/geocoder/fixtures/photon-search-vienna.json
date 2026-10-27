@@ -3,36 +3,41 @@
   "features": [
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [16.372504, 48.208492] },
       "properties": {
-        "osm_id": 19639061,
-        "osm_type": "W",
-        "osm_key": "place",
-        "osm_value": "square",
+        "osm_type": "N",
+        "osm_id": 4560869722,
+        "osm_key": "railway",
+        "osm_value": "station",
         "type": "house",
         "name": "Stephansplatz",
         "street": "Stephansplatz",
-        "housenumber": "1",
-        "postcode": "1010",
+        "locality": "Stubenviertel",
+        "district": "Innere Stadt",
         "city": "Wien",
-        "state": "Wien",
         "country": "Österreich",
+        "postcode": "1010",
         "countrycode": "AT"
-      }
+      },
+      "geometry": { "type": "Point", "coordinates": [16.3720438, 48.2084639] }
     },
     {
       "type": "Feature",
-      "geometry": { "type": "Point", "coordinates": [16.37351, 48.208211] },
       "properties": {
-        "osm_id": 12345,
-        "osm_type": "W",
-        "type": "street",
-        "street": "Stephansplatz",
-        "postcode": "1010",
+        "osm_type": "N",
+        "osm_id": 3500528328,
+        "osm_key": "railway",
+        "osm_value": "station",
+        "type": "house",
+        "name": "Stephansplatz",
+        "street": "Stock-im-Eisen-Platz",
+        "locality": "Kärntner Viertel",
+        "district": "Innere Stadt",
         "city": "Wien",
         "country": "Österreich",
+        "postcode": "1010",
         "countrycode": "AT"
-      }
+      },
+      "geometry": { "type": "Point", "coordinates": [16.3715166, 48.2080838] }
     }
   ]
 }

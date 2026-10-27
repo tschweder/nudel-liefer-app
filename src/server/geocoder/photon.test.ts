@@ -15,24 +15,57 @@ const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 describe("mapPhotonResponse", () => {
-  it("maps [lon,lat] to lat/lng, builds a label and derives confidence from the hit type", () => {
+  it("maps the recorded Photon answer for 'Stephansplatz 1, 1010 Wien' (real capture, NUD-157)", () => {
     expect(mapPhotonResponse(fixture("photon-search-vienna.json"))).toEqual([
       {
-        label: "Stephansplatz, Stephansplatz 1, 1010 Wien, Österreich",
-        lat: 48.208492,
-        lng: 16.372504,
+        // name and street are both "Stephansplatz": the duplicate part is dropped
+        label: "Stephansplatz, 1010 Wien, Österreich",
+        lat: 48.2084639,
+        lng: 16.3720438,
         confidence: 1,
       },
       {
-        label: "Stephansplatz, 1010 Wien, Österreich",
-        lat: 48.208211,
-        lng: 16.37351,
-        confidence: 0.8,
+        label: "Stephansplatz, Stock-im-Eisen-Platz, 1010 Wien, Österreich",
+        lat: 48.2080838,
+        lng: 16.3715166,
+        confidence: 1,
       },
     ]);
   });
 
-  it("accepts an empty result, a bare feature and a provider-sent confidence", () => {
+  it("builds the label from the parts Photon filled and maps the hit granularity to a confidence", () => {
+    const house = mapPhotonResponse({
+      features: [
+        {
+          geometry: { type: "Point", coordinates: [16.37, 48.2] },
+          properties: {
+            street: "Hauptstraße",
+            housenumber: "12",
+            postcode: "1010",
+            city: "Wien",
+            country: "Österreich",
+            type: "house",
+          },
+        },
+      ],
+    });
+    expect(house).toEqual([
+      { label: "Hauptstraße 12, 1010 Wien, Österreich", lat: 48.2, lng: 16.37, confidence: 1 },
+    ]);
+    // A street-level hit has no house number and is the weaker match.
+    expect(
+      mapPhotonResponse({
+        features: [
+          {
+            geometry: { type: "Point", coordinates: [16.37, 48.2] },
+            properties: { street: "Hauptstraße", postcode: "1010", city: "Wien", type: "street" },
+          },
+        ],
+      }),
+    ).toEqual([{ label: "Hauptstraße, 1010 Wien", lat: 48.2, lng: 16.37, confidence: 0.8 }]);
+  });
+
+  it("accepts an empty result and a provider-sent confidence", () => {
     expect(mapPhotonResponse({ features: [] })).toEqual([]);
     expect(
       mapPhotonResponse({
@@ -94,12 +127,12 @@ describe("PhotonGeocoder", () => {
 
   it("reverses with lat/lon and maps the first hit", async () => {
     const fetchFn = vi.fn(async () => jsonResponse(fixture("photon-search-vienna.json")));
-    const hit = await make(fetchFn as unknown as typeof fetch).reverse(48.208492, 16.372504);
-    expect(hit).toMatchObject({ lat: 48.208492, lng: 16.372504, confidence: 1 });
+    const hit = await make(fetchFn as unknown as typeof fetch).reverse(48.2084639, 16.3720438);
+    expect(hit).toMatchObject({ lat: 48.2084639, lng: 16.3720438, confidence: 1 });
     const url = new URL((fetchFn.mock.calls[0] as unknown as [string])[0]);
     expect(url.pathname).toBe("/reverse");
-    expect(url.searchParams.get("lat")).toBe("48.208492");
-    expect(url.searchParams.get("lon")).toBe("16.372504");
+    expect(url.searchParams.get("lat")).toBe("48.2084639");
+    expect(url.searchParams.get("lon")).toBe("16.3720438");
     expect(url.searchParams.get("limit")).toBe("1");
   });
 

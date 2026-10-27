@@ -18,6 +18,7 @@ const ALLOWED: Record<string, string> = {
   "src/server/audit-history.ts": "reads audit rows the server wrote",
   "src/server/routing/ors.ts": "response of OpenRouteService",
   "src/server/geocoder/ors.ts": "response of OpenRouteService",
+  "src/server/geocoder/photon.ts": "response of Photon (a self-hosted geocoder)",
   "src/server/translator/deepl.ts": "response of DeepL",
   "src/server/driver-tour-payload.ts": "reads stored tour JSON (depot snapshot, geometry)",
 };
