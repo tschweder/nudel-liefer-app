@@ -271,19 +271,19 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
-| NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | todo |
+| NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | done |
 | NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
-| NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | todo |
+| NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | done |
 | NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | done |
 | NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | superseded → NUD-138 |
 | NUD-125 | Parking spots: schema + office UI | M2 | – | done |
 | NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | done |
 | NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
-| NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
+| NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | done |
 | NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | done |
 | NUD-130 | Give the admin-password test teardown the same timeout as its setup | M2 | – | done |
 | NUD-131 | The dev server serves 127.0.0.1 a page whose buttons do nothing | M2 | – | done |
@@ -1819,7 +1819,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-116 · Warn on the order form when the delivery day's tour is already completed
-**Status:** todo · **depends_on:** 099
+**Status:** done · **depends_on:** 099
 
 **Goal:** the office learns about a late order while typing it, not only after saving (NUD-099 reports it in the overview, on the dashboard and on the planning page).
 
@@ -1827,9 +1827,14 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Next to the existing "combined into one stop" / "pin unconfirmed" warnings (`orderWarnings`), show "the tour of this day is already completed, this order needs a follow-up tour" for a CONFIRMED order on a day whose tours are all COMPLETED. Needs a small admin read (or an extension of `confirmedOrderCountAction`'s result) and an authz test / matrix row if it is a new action.
 
 **Acceptance criteria**
-- [ ] The warning shows while entering and editing such an order (e2e), nothing changes for other days.
+- [x] The warning shows while entering and editing such an order (e2e), nothing changes for other days.
+
+**Implementation notes**
+- Commit 6620815. New warning `tour_completed` (`src/domain/order.ts`), read action `dayTourCompletedAction` (ADMIN, row in `authz-matrix.test.ts`), `isDayTourCompleted` in `src/server/orders.ts`, key `warningTourCompleted` in de/en/zh-Hans. Shown when the day has tours and all are COMPLETED; an open follow-up tour (NUD-099) gives no warning. The date checked is the planned day, or the window start, like the "combined stop" hint.
+- Worker-reported: `orders.spec.ts` desktop 4/4 incl. the new test, `order-window.spec.ts` passed. Mobile project not run for the new test. The "pin unconfirmed" warning in the ticket text no longer exists (NUD-141).
 
 ---
+
 
 #### NUD-117 · Deliver quantity changes on already delivered stops (correction stop)
 **Status:** todo · **depends_on:** 099
@@ -1879,18 +1884,22 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-121 · Driver problem text is also copied into the audit log
-**Status:** todo · **depends_on:** 112
+**Status:** done · **depends_on:** 112
 
 **Goal:** `stop.problem` audit entries store the driver's note (cut to 200 characters) in `diff.note`, so the text outlives the stop's own text (NUD-112, 365 days) by up to a year (audit retention 730 days) and cannot be edited because the log is append-only. Decide with the client: store only `hasNote: true` (and the length) in new entries, or align `AUDIT_RETENTION_DAYS` with `DRIVER_TEXT_RETENTION_DAYS`. Check the history views and tests that read `diff.note`; older entries are not changed (the trigger forbids it) and expire with the retention.
 
 **Acceptance criteria**
-- [ ] New `stop.problem` entries contain no driver free text (or the client chose the alignment of periods); history view still shows reason and status; `docs/privacy.md` section 6 "Known gap" updated.
+- [x] New `stop.problem` entries contain no driver free text (or the client chose the alignment of periods); history view still shows reason and status; `docs/privacy.md` section 6 "Known gap" updated.
 
 ### M2.5 — Owner pre-deploy fixes (NUD-122…127)
 
 Requested by the owner before the first deployment (T6 below). Work them **in order, one ticket per session**; NUD-127 must not start before NUD-122…126 are `done`.
 
+**Implementation notes**
+- Commit 4d5d570. Redaction chosen over aligning retention: `stop.problem` audit diffs store `reason`, `hasNote`, `noteLength` (only when a note exists) — no driver text. `AuditHistory` zod schema gained `hasNote`; `docs/privacy.md` updated (table row, former "Known gap" now "Audit copy (closed by NUD-121)", section 7). Entries written before the change keep their cut note until the 730-day audit retention removes them (append-only). The history UI shows no "has a note" marker.
+
 ---
+
 
 #### NUD-122 · Photo upload works on the office and driver path
 **Status:** done · **depends_on:** –
@@ -2068,7 +2077,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-128 · Realign the order e2e assertions with the redesign's plural unit labels
-**Status:** todo · **depends_on:** –
+**Status:** done · **depends_on:** –
 
 **Goal:** the redesign replaced the plain unit labels with ICU plurals under `driver.units` (re-design.md §9.3): `"2,5 Packung"` is now `"2,5 Packungen"`, `"1 Packung"` stays singular. `orders.spec.ts` was realigned in NUD-123; these two specs still assert the old singular and are red for that reason alone:
 
@@ -2076,11 +2085,16 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 - `tests/e2e/order-screenshot.spec.ts` — line 231. Not yet run; check it.
 
 **Acceptance criteria**
-- [ ] Both specs pass on the `desktop` and `mobile` projects (or the remaining failure is shown to have a different, separately ticketed cause).
-- [ ] Only expectations are changed — no product behaviour and no test step is weakened.
+- [x] Both specs pass on the `desktop` and `mobile` projects (or the remaining failure is shown to have a different, separately ticketed cause).
+- [x] Only expectations are changed — no product behaviour and no test step is weakened.
 - [ ] Any further redesign drift found while doing this gets its own ticket instead of being edited in passing.
 
+**Implementation notes**
+- Commit d25442a. Only `order-overview.spec.ts` changed; `order-screenshot.spec.ts` needed nothing (its unit words were already Sackerl/Kiste from NUD-159). The ticket text still says "Packung(en)" — stale since NUD-159.
+- Further redesign drift (Von/Bis inputs hidden unless "Benutzerdefiniert", status chips `aria-checked` instead of `aria-pressed`, sums card collapsed by default) was fixed **inside this ticket** as expectation/navigation steps, because the spec could not go green otherwise. The third criterion ("own ticket instead of in passing") is therefore deliberately **not ticked**. Worker-reported e2e: order-overview 8/8, order-screenshot 6/6 (production build, scratch config). Idea: a shared `openTotals()` helper.
+
 ---
+
 
 #### NUD-129 · Admin order list overflows horizontally at phone width
 **Status:** done · **depends_on:** –
@@ -3334,6 +3348,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-133 | Fixtures committed under `tests/fixtures/locale/` with descriptive names (orders-totals.json, admin-forms.json); deploy tarball built from `git ls-files` (tracked files only); `deploy.ps1` ends with an explicit `exit 0` | Simplest option; root cause of the exit code 1 not reproduced, unconfirmed until the next real deploy |
 | 2026-10-27 | NUD-129 | Order list and detail made to fit 393 px (filter chip groups and page-header actions wrap) instead of scoping the spec to desktop | Office uses a phone for WhatsApp screenshots (D6) |
 | 2026-10-27 | NUD-130 | Only the `afterAll` gets an explicit 120 s timeout (same as `beforeAll`); no file-level hookTimeout | Smallest change |
+| 2026-10-27 | NUD-128 | Redesign drift beyond the plural labels (hidden range inputs, aria-checked, collapsed sums card) fixed inside the ticket as navigation/expectation steps | The spec could not go green otherwise; no assertion weakened |
+| 2026-10-27 | NUD-116 | Warning shows whenever every tour of the day is COMPLETED (also before a customer is picked); text says "if this order is confirmed"; separate action `dayTourCompletedAction` | The form has no status selector; date checked = planned day or window start |
+| 2026-10-27 | NUD-121 | `stop.problem` audit entries store `hasNote`/`noteLength` instead of the note text; retention periods unchanged | Removes the privacy gap with the smallest change |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
