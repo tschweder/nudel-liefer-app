@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { aggregateTotalsByDate, type TotalsOrder } from "@/domain/order-overview";
 import type { DateTotalsView, OrderOverviewRow } from "@/server/orders";
 
-import fragment from "../../../messages/_fragments/A2.json";
 import de from "../../../messages/de.json";
 import zhHans from "../../../messages/zh-Hans.json";
+import fragment from "../../../tests/fixtures/locale/orders-totals.json";
 import { OrderTotals } from "./order-totals";
 
 type Tree = Record<string, unknown>;

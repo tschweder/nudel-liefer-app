@@ -1,0 +1,122 @@
+{
+  "de": {
+    "admin": {
+      "orders": {
+        "columns": {
+          "actions": "Aktionen"
+        },
+        "group": {
+          "label": "Liefertag {date}"
+        },
+        "header": {
+          "range": "Liefertag {date} · {count, plural, one {# Bestellung} other {# Bestellungen}}",
+          "rangeSpan": "{from} – {to} · {count, plural, one {# Bestellung} other {# Bestellungen}}"
+        },
+        "positions": {
+          "summary": "{count, plural, one {# Position} other {# Positionen}}",
+          "showAll": "Alle {count} Positionen anzeigen"
+        },
+        "openOrder": "Bestellung öffnen",
+        "openCustomer": "Kunde öffnen",
+        "rowMenu": {
+          "label": "Aktionen für die Bestellung von {customer}",
+          "details": "Details anzeigen",
+          "open": "Bestellung öffnen",
+          "edit": "Bearbeiten",
+          "customer": "Kunde öffnen"
+        },
+        "drawer": {
+          "title": "Bestellung",
+          "description": "{customer} · {date}",
+          "positions": "Positionen",
+          "hint": "Interne Notiz und Screenshot findest du in der Detailansicht.",
+          "open": "Bestellung öffnen",
+          "edit": "Bearbeiten"
+        },
+        "empty": {
+          "rangeTitle": "Keine Bestellungen für {date}",
+          "rangeTitleSpan": "Keine Bestellungen zwischen {from} und {to}",
+          "lastKnown": "Letzte Bestellungen: {date} ({count, plural, one {# Bestellung} other {# Bestellungen}})",
+          "goto": "{date} anzeigen",
+          "hint": "Im gewählten Zeitraum gibt es keine Bestellungen. Erweitere den Zeitraum — oder erfasse eine neue Bestellung."
+        },
+        "filters": {
+          "rangeLabel": "Zeitraum",
+          "statusLabel": "Status filtern",
+          "sourceLabel": "Quelle filtern",
+          "all": "Alle",
+          "reset": "Zurücksetzen",
+          "quick": {
+            "next": "Nächster Liefertag",
+            "today": "Heute",
+            "week": "Diese Woche",
+            "custom": "Benutzerdefiniert"
+          }
+        },
+        "totals": {
+          "toggle": "Summen ein- oder ausklappen"
+        }
+      }
+    }
+  },
+  "zh-Hans": {
+    "admin": {
+      "orders": {
+        "columns": {
+          "actions": "操作"
+        },
+        "group": {
+          "label": "送货日 {date}"
+        },
+        "header": {
+          "range": "送货日 {date} · {count, plural, one {# 个订单} other {# 个订单}}",
+          "rangeSpan": "{from} – {to} · {count, plural, one {# 个订单} other {# 个订单}}"
+        },
+        "positions": {
+          "summary": "{count, plural, one {# 行明细} other {# 行明细}}",
+          "showAll": "显示全部 {count} 行明细"
+        },
+        "openOrder": "打开订单",
+        "openCustomer": "打开客户",
+        "rowMenu": {
+          "label": "{customer} 的订单操作",
+          "details": "查看详情",
+          "open": "打开订单",
+          "edit": "编辑",
+          "customer": "打开客户"
+        },
+        "drawer": {
+          "title": "订单",
+          "description": "{customer} · {date}",
+          "positions": "订单明细",
+          "hint": "内部备注和截图请在详情页查看。",
+          "open": "打开订单",
+          "edit": "编辑"
+        },
+        "empty": {
+          "rangeTitle": "{date} 没有订单",
+          "rangeTitleSpan": "{from} 至 {to} 之间没有订单",
+          "lastKnown": "最近的订单：{date}（{count, plural, one {# 个订单} other {# 个订单}}）",
+          "goto": "查看 {date}",
+          "hint": "所选时间范围内没有订单。请扩大时间范围，或新建一个订单。"
+        },
+        "filters": {
+          "rangeLabel": "时间范围",
+          "statusLabel": "按状态筛选",
+          "sourceLabel": "按来源筛选",
+          "all": "全部",
+          "reset": "重置",
+          "quick": {
+            "next": "下一个送货日",
+            "today": "今天",
+            "week": "本周",
+            "custom": "自定义"
+          }
+        },
+        "totals": {
+          "toggle": "展开或收起汇总"
+        }
+      }
+    }
+  }
+}

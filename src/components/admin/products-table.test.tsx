@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ProductRow } from "@/server/products";
 
-import fragment from "../../../messages/_fragments/A3.json";
 import de from "../../../messages/de.json";
 import zhHans from "../../../messages/zh-Hans.json";
+import fragment from "../../../tests/fixtures/locale/admin-forms.json";
 import { ProductsTable } from "./products-table";
 
 type Tree = Record<string, unknown>;

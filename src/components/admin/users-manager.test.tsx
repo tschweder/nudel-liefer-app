@@ -2,8 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import fragment from "../../../messages/_fragments/A3.json";
 import de from "../../../messages/de.json";
+import fragment from "../../../tests/fixtures/locale/admin-forms.json";
 import { type UserListRow, UsersManager } from "./users-manager";
 
 type Tree = Record<string, unknown>;

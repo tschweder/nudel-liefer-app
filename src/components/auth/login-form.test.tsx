@@ -7,7 +7,7 @@ import de from "../../../messages/de.json";
 import zhHans from "../../../messages/zh-Hans.json";
 import { LoginForm } from "./login-form";
 
-/** New keys from `messages/_fragments/L1.json` (merged into de/zh-Hans by the orchestrator). */
+/** Inline copy of the L1 auth keys (self-contained, no external fragment file). */
 const L1: Record<string, AbstractIntlMessages> = {
   de: {
     auth: {

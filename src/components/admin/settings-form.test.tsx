@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import fragment from "../../../messages/_fragments/A3.json";
 import de from "../../../messages/de.json";
 import zhHans from "../../../messages/zh-Hans.json";
+import fragment from "../../../tests/fixtures/locale/admin-forms.json";
 import { SettingsForm, type SettingsFormValues } from "./settings-form";
 
 type Tree = Record<string, unknown>;

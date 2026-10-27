@@ -27,7 +27,7 @@ if ($dirty.Count -gt 0 -and -not $AllowDirty) {
   $dirty | Select-Object -First 15 | ForEach-Object { Write-Host "  $_" }
   throw "Refusing to deploy a dirty tree at $head. Commit first, or re-run with -AllowDirty."
 }
-Write-Host "Deploying $head (tracked changes: $($dirty.Count), untracked scratch: $($untracked.Count), all excluded from the tarball)" -ForegroundColor Cyan
+Write-Host "Deploying $head (tracked changes: $($dirty.Count), untracked scratch: $($untracked.Count), none of them shipped: only tracked files go into the tarball)" -ForegroundColor Cyan
 
 # --- ssh key -----------------------------------------------------------------------------------
 if (-not (Test-Path $key)) {
@@ -46,25 +46,21 @@ if ($LASTEXITCODE -ne 0) {
 # node_modules and .next are built on the server (Prisma engines are platform specific).
 # Excluding a TOP-LEVEL directory prunes it reliably; patterns for nested directories did not
 # (a nested copy of the app under docs/qa-.../ once produced "Filename too long" warnings), so the
-# whole docs/ tree is excluded - the server build reads none of it. `messages/_fragments` is NOT
-# excluded: four component tests import locale fixtures from it and `next build` type-checks test
-# files, so excluding it failed the build. Log files are excluded so a running command cannot lock
-# the archive.
+# whole docs/ tree is excluded - the server build reads none of it. Only tracked files ship (see
+# below), so scratch, logs and untracked directories can never end up in a build.
 $tgz = Join-Path $env:TEMP 'nudel-delivery-app.tgz'
 if (Test-Path $tgz) { Remove-Item $tgz -Force }
-tar -czf $tgz `
-  --exclude=./.next --exclude=./.next/* --exclude=./node_modules --exclude=./node_modules/* `
-  --exclude=./.git --exclude=./.git/* --exclude=./.env --exclude=./deploy --exclude=./deploy/* `
-  --exclude=./docs --exclude=./docs/* `
-  --exclude=./test-results --exclude=./test-results/* --exclude=./playwright-report --exclude=./playwright-report/* `
-  --exclude=./web-test --exclude=./web-test/* --exclude=./.lighthouseci --exclude=./.lighthouseci/* `
-  --exclude=./.pnpm-store --exclude=./.pnpm-store/* --exclude=./.redesign --exclude=./.redesign/* `
-  --exclude=./tmp-* --exclude=./*.log `
-  --exclude=./tsconfig.tsbuildinfo --exclude=./.embedded-postgres --exclude=./i18n-review.csv `
-  --exclude=./QA.html --exclude=./QA-REPORT-2026-10-26.md --exclude=./RUN-AND-TEST.md `
-  --exclude=./re-design.md --exclude=./pw.local.config.ts `
-  -C $root .
+# NUD-133: ship TRACKED files only (git ls-files), so an untracked scratch file can never become
+# part of a build and a clean checkout is exactly what gets deployed. Tracked files that are
+# deleted in the working tree (possible with -AllowDirty) are skipped.
+$skip = '^(deploy/|docs/|\.git/|test-results/|playwright-report/|web-test/|\.lighthouseci/|\.redesign/|\.pnpm-store/)'
+$list = Join-Path $env:TEMP 'nudel-delivery-app.files'
+git ls-files | Where-Object { $_ -notmatch $skip -and $_ -ne '.env' -and (Test-Path -LiteralPath $_ -PathType Leaf) } |
+  Set-Content -Path $list -Encoding ASCII
+if ($LASTEXITCODE -ne 0) { throw 'git ls-files failed.' }
+tar -czf $tgz -C $root -T $list
 if ($LASTEXITCODE -ne 0) { throw 'tar failed.' }
+Remove-Item $list -Force -ErrorAction SilentlyContinue
 
 scp -i $key $tgz $PSScriptRoot/server-setup.sh "${target}:/tmp/"
 if ($LASTEXITCODE -ne 0) { throw 'Upload failed.' }
@@ -76,3 +72,7 @@ Write-Host "`nDone:" -ForegroundColor Green
 Write-Host "  Büro:   https://$ip/delivery-app/de/login"
 Write-Host "  Fahrer: https://$ip/delivery-app/de/driver/login"
 Write-Host "  Hilfe:  https://$ip/delivery-app/hand-off.html"
+
+# Explicit success status (NUD-133). Every failure above throws. Without this, the exit code of a
+# healthy run could come from a stale native $LASTEXITCODE / stderr noise of ssh and scp.
+exit 0

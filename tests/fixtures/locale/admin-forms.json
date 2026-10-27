@@ -1,0 +1,90 @@
+{
+  "de": {
+    "admin": {
+      "products": {
+        "toggleStatus": "Status von {name} umschalten",
+        "rowMenu": {
+          "label": "Aktionen für {name}"
+        },
+        "columns": {
+          "name": "Name (Deutsch / vereinfacht)"
+        },
+        "confirm": {
+          "deactivateTitle": "{name} deaktivieren?",
+          "deactivateBody": "Das Produkt bleibt gespeichert, erscheint aber nicht mehr in der Produktauswahl bei neuen Bestellungen. Bestehende Bestellungen bleiben unverändert."
+        }
+      },
+      "drivers": {
+        "emptyTitle": "Noch keine Fahrer",
+        "actions": {
+          "editLogin": "Sprache bearbeiten"
+        },
+        "form": {
+          "localeHint": "Der Fahrer sieht die App in dieser Sprache."
+        },
+        "login": {
+          "title": "Sprache von {name}",
+          "description": "Der Fahrer sieht die App in dieser Sprache. Die Änderung gilt sofort."
+        },
+        "rowMenu": {
+          "label": "Aktionen für {name}"
+        },
+        "admins": {
+          "description": "Büro-Konten mit E-Mail und Passwort.",
+          "emptyTitle": "Noch keine Administratoren",
+          "empty": "Es wurden noch keine Administratoren angelegt."
+        }
+      },
+      "settings": {
+        "sectionsLabel": "Abschnitte der Einstellungen",
+        "unsaved": "Ungespeicherte Änderungen",
+        "saved-state": "Alle Änderungen gespeichert",
+        "discard": "Verwerfen"
+      }
+    }
+  },
+  "zh-Hans": {
+    "admin": {
+      "products": {
+        "toggleStatus": "切换 {name} 的状态",
+        "rowMenu": {
+          "label": "{name} 的操作"
+        },
+        "columns": {
+          "name": "名称（德语 / 简体）"
+        },
+        "confirm": {
+          "deactivateTitle": "停用 {name}？",
+          "deactivateBody": "产品会被保留，但不再出现在新订单的产品选择中。已有订单保持不变。"
+        }
+      },
+      "drivers": {
+        "emptyTitle": "还没有司机",
+        "actions": {
+          "editLogin": "修改语言"
+        },
+        "form": {
+          "localeHint": "司机将以该语言使用应用。"
+        },
+        "login": {
+          "title": "{name} 的语言",
+          "description": "司机将以该语言使用应用。更改立即生效。"
+        },
+        "rowMenu": {
+          "label": "{name} 的操作"
+        },
+        "admins": {
+          "description": "使用邮箱和密码登录的办公室账号。",
+          "emptyTitle": "还没有管理员",
+          "empty": "尚未创建任何管理员。"
+        }
+      },
+      "settings": {
+        "sectionsLabel": "设置分区",
+        "unsaved": "有未保存的更改",
+        "saved-state": "所有更改已保存",
+        "discard": "放弃更改"
+      }
+    }
+  }
+}

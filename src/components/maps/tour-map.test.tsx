@@ -76,8 +76,8 @@ vi.mock("./map.css", () => ({}));
 import { clusterPoints, routeLegGroups, TourMap, type TourMapStop } from "./tour-map";
 
 /**
- * The `maps.*` keys this component reads that live in `messages/_fragments/M1.json` until the
- * orchestrator merges it into `de.json` / `zh-Hans.json`.
+ * The `maps.*` keys this component reads, kept inline so the test needs no external fragment
+ * file.
  */
 const M1_MAPS: Record<string, Record<string, string>> = {
   de: {
