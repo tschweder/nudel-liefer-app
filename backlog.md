@@ -309,6 +309,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
+| NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2677,6 +2678,35 @@ Overlap with NUD-147 checked: NUD-147 does not cover this (it only adds a whole-
 
 ---
 
+#### NUD-155 · One-off day import from CSV (customer number, quantity, Karton, notes)
+**Status:** done · **depends_on:** 138, 142, 148 · client request 2026-10-27 (the driver must use the app today; the route exists only as a handwritten sheet). NUD-152 stays postponed.
+
+**Scope**
+- Script `scripts/import-day-orders.ts` (one file, `scp` is enough, no rebuild): reads a CSV with the exact header `customerNumber;menge;Karton;notizen` (semicolon, UTF-8, BOM and CRLF tolerated) and creates one CONFIRMED whole-day order per row through the order service (`createOrder`, the path of the office form and of NUD-149).
+- `customerNumber` = existing active customer, `menge` = whole number 1..9999, `Karton` ja/nein (case-insensitive) = `NUDELN-KARTON` (10 kg, CRATE) / `NUDELN-BEUTEL` (3 kg, PACK). Anything else is a row error.
+- `notizen` goes verbatim into `Customer.notes` (driver note, source de) through `updateCustomer`, so the translation pipeline (`pendingTranslation` + retry job) behaves as for office edits. No new column, no migration, no new Stop field.
+- Dry run by default (table + summary), `--apply` writes; refuses on error rows unless `--skip-errors`; refuses the same file and day twice; warns about customers without address point and Parkplatz and about existing confirmed orders of the day.
+- Docs: `docs/day-import.md`, sample `docs/examples/day-import-sample.csv`, pointers in `HANDOVER-NEXT-STEPS.md` and `docs/deploy.md` 13.2.
+
+**Acceptance criteria**
+- [x] Unit tests for the CSV parser / validator (BOM, CRLF, wrong header, decimal comma, empty notizen, duplicate customer, unknown Karton value, quoted fields with semicolons). (scripts/import-day-orders.pure.test.ts: BOM, CRLF, trailing Excel rows/columns, wrong header, comma file, decimal comma, empty notizen, duplicate customer, unknown Karton, quoted semicolons and line breaks, short/long rows)
+- [x] Dry run writes nothing; apply creates the expected confirmed orders with the right sku, quantity and whole-day window (integration test against the test DB). (src/server/day-import.integration.test.ts: dry run leaves orders, notes and audit log empty; apply creates 3 CONFIRMED orders, whole-day window, no times, sku/quantity, actor = first admin)
+- [x] Note rules (empty / set / append / already contained / `--replace-notes`) and the audit entries of the orders are tested. (integration: set, keep, append once per distinct text, --replace-notes, pendingTranslation set; audit order.create per order with the admin as actor)
+- [x] Applying the same file and day again is refused; `--skip-errors` leaves error rows out; `--resume` completes an interrupted run. (integration: re-apply refused (exit 2), another day allowed, error rows refused / --skip-errors, --resume creates only the deleted row)
+- [x] Runs on the server with `DATABASE_URL` from `/etc/delivery-app.env` only (no `.env`, no Next). (also run by hand with env -i and only DATABASE_URL on a fresh migrated DB: dry run, apply, refusal; script imports no dotenv and no Next)
+
+**Implementation notes**
+- **One self-contained file:** `scripts/import-day-orders.ts` holds the pure CSV rules, planning/applying and the command line (sections in the file), so a single `scp` is enough and no rebuild is needed; it imports only server modules that are already deployed (`createOrder`, `updateCustomer`, `todayIn`, `getTourService`, translator) plus `scripts/lib/backup.ts`. The file is guarded by its file name, so tests import it without running `main`. Tests: `scripts/import-day-orders.pure.test.ts` (parser, note rule, marker), `scripts/import-day-orders.cli.test.ts` (arguments, table), `src/server/day-import.integration.test.ts` (test DB, through `runDayImport`).
+- **Orders:** `createOrder` with `status: CONFIRMED`, `deliveryDate = windowFrom = windowTo = <date>`, no times, one line. The planned day is passed explicitly, so no capacity/weekday planning runs (a Saturday works). The service writes the audit entry `order.create` and flags the tours of that day outdated, exactly as the office form.
+- **Notes:** `updateCustomer` with the stored customer data and the new German note. A deferred translator makes the translation fail on purpose, so the note is stored German-only with `meta.pendingTranslation` and the retry job translates it (no DeepL call in the script, no FakeTranslator text on a server without a key). `--translate-now` uses the configured translator. The office customer path writes no audit entry for notes; this is unchanged.
+- **Idempotency:** `Order.internalNote` = `CSV day import <sha256 first 16> <day> row <n>`; a file+day with markers is refused unless `--resume`, which creates only the rows without a marker. A cancelled imported order still counts as imported.
+- **Not in this data model (differs from the request text):** orders have no order number and no product snapshot columns. The script prints the order ids; name/unit/weight snapshots are taken from the products when the tour is built (`Stop.items`, NUD-147/148), not on the order.
+- **Output:** table (row, number, customer, city, product, qty, note action, OK/ERROR), warnings, summary with file sha256; apply prints orders created, notes changed, order ids and the office steps (Touren > Touren planen > Freigeben). Never prints secrets: only `host:port/database`.
+- **Open for humans:** copy the script (and the CSV) to the server, run the dry run, check names against the sheet, then `--apply`; check on the real server that `/etc/delivery-app.env` has `DATABASE_URL` and (for translations) the retry cron from deploy.md 13.1 runs. NUD-152 untouched.
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2310 passed / 4 skipped, i18n:check (no message changed). No UI change, so no e2e.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
@@ -3080,6 +3110,19 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | NUD-151 | Fixed checklist items: German source text in Settings.departureChecklist (max 12 x 80 chars), machine-translated via localize like customer notes; ticks stored per device in localStorage only | No new table/screen; ticks are a convenience and need no server state |
 | 2026-10-28 | NUD-151 | Card is hidden once departedAt is set or any stop was worked on; a key line appears for every customer with hasKey=true (number optional) | Card is only useful before the first stop; a key without a noted number still has to be taken along |
 | 2026-10-28 | NUD-151 | docs/deploy.md 13.1: vServer cron helper script + /etc/cron.d lines mirroring vercel.json (incl. recurring-orders) | NUD-149 only documented vercel.json; owner cannot use Vercel-style cron on the vServer |
+| 2026-10-27 | NUD-155 | Import tool is ONE self-contained script file (rules, services calls, CLI) instead of modules under src/ | The client needs it on the server today by a single scp without a rebuild; it only imports modules already deployed |
+| 2026-10-27 | NUD-155 | Exit codes: 0 fine, 1 bad file/setup/arguments, 2 refused or error rows (dry run too), 3 apply stopped half way | Lets the operator and scripts tell a fixable file from a half-done run |
+| 2026-10-27 | NUD-155 | Idempotency marker = `Order.internalNote` `CSV day import <sha256[0..16]> <day> row <n>`; same file+day refused, `--resume` creates only rows without a marker; cancelled imported orders still count | Simplest robust lookup without a new column, migration or audit action; day inside the marker because the office may move the planned day later |
+| 2026-10-27 | NUD-155 | Mid-run failure: orders are created row by row (note first, then the order in its own transaction), the first failure stops the run, prints what exists and exits 3 | Rows are validated beforehand so a failure is systemic; the note step is idempotent, so a retry with --resume is safe |
+| 2026-10-27 | NUD-155 | Orders have no order number and no product snapshot; the report lists order ids, snapshots stay a tour-build concern (Stop.items) | The data model (section 6, schema) has neither; adding them is out of scope and would need a migration |
+| 2026-10-27 | NUD-155 | Notes rule: empty CSV notizen = untouched; empty stored note = set; non-empty = append " | <csv>" unless the stored note already contains the text; `--replace-notes` overwrites | Client rule; notes belong to the customer and stay until deleted; re-running never doubles an entry |
+| 2026-10-27 | NUD-155 | Notes are saved through `updateCustomer` with a failing translator so they are stored German-only with `pendingTranslation` for the retry job; `--translate-now` uses DeepL | No network call or Fake [zh-Hans] text from a script run; same pipeline as office edits, filled within minutes by the retry cron |
+| 2026-10-27 | NUD-155 | menge 1..9999 digits only (no comma/decimal/sign), Karton ja/nein case-insensitive, notizen max 2000 characters, line breaks inside a quoted note become one space, at most 1000 rows | Sane limits against typos; 2000 is the customer form limit; whole numbers per D23 |
+| 2026-10-27 | NUD-155 | Header must equal `customerNumber;menge;Karton;notizen` (case-sensitive; empty trailing Excel columns tolerated); completely empty rows are ignored; a row with 3 cells is allowed (empty note), more than 4 non-empty cells is an error (unquoted `;` in a note) | Excel exports trailing `;;` and drops nothing else; a wrong header means a wrong file and is refused as a whole |
+| 2026-10-27 | NUD-155 | Row numbers in the output are spreadsheet rows (header = row 1); customer numbers are matched case-insensitively and trimmed; the file must be strict UTF-8 (otherwise refused with the Excel hint) | The office finds the row in Excel at once; Windows-1252 files would silently garble umlauts |
+| 2026-10-27 | NUD-155 | Delivery day: `--date` or today in `Settings.timezone` (default Europe/Vienna); a past day is refused; the planned day is the given date even on a non-delivery weekday | The order service refuses past days; an explicit day was requested by the client |
+| 2026-10-27 | NUD-155 | Actor: first active ADMIN by creation date or `--actor <email>` (must be an active ADMIN) | Same user rule as the order audit entries; no password or session needed in a script |
+| 2026-10-27 | NUD-155 | Warnings never block: no address point and no Parkplatz, customer already has confirmed orders that day, customer repeated in the file; products are checked by sku, unit and weight (10 kg CRATE / 3 kg PACK) and the run is refused if the catalog differs | Client rule; a changed catalog means the mapping ja/nein would be a guess |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

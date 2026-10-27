@@ -474,3 +474,18 @@ route needs the bearer `CRON_SECRET` (the value in `/etc/delivery-app.env`) and 
 3. Check once by hand: `sudo -u deliveryapp /usr/local/bin/delivery-app-cron recurring-orders; echo $?`
    must print `0` (non-zero means a wrong secret, port or base path). A systemd timer with
    `EnvironmentFile=/etc/delivery-app.env` does the same if cron is not installed.
+
+
+### 13.2 One-off day import from a CSV (NUD-155)
+
+For a day whose route only exists on paper: `scripts/import-day-orders.ts` turns a CSV
+(`customerNumber;menge;Karton;notizen`) into confirmed orders. It is one file, so `scp` is enough
+(no rebuild), and it reads `DATABASE_URL` from `/etc/delivery-app.env`:
+
+```bash
+cd /opt/delivery-app && set -a && . /etc/delivery-app.env && set +a
+pnpm tsx scripts/import-day-orders.ts tag.csv            # dry run, writes nothing
+pnpm tsx scripts/import-day-orders.ts tag.csv --apply    # creates the orders
+```
+
+Format, options, safety rules and the office steps afterwards: [`docs/day-import.md`](./day-import.md).
