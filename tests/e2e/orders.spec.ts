@@ -157,6 +157,13 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     await expect(noHorizontalScroll(page)).resolves.toBe(true);
     await page.screenshot({ path: testInfo.outputPath("order-list.png") });
 
+    // The detail page (title row with its action buttons) fits at phone width too (NUD-129).
+    await row.getByTestId("order-open").click();
+    await expect(page).toHaveURL(/\/admin\/orders\/[^/?]+$/);
+    await expect(page.getByTestId("order-duplicate")).toBeVisible();
+    await expect(noHorizontalScroll(page)).resolves.toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("order-detail.png") });
+
     const stored = await f.client.query<{
       status: string;
       source: string;

@@ -132,7 +132,7 @@ export function OrderFilters({
             onValueChange={setQuick}
             ariaLabel={t("rangeLabel")}
             size="md"
-            className="w-auto max-w-full shrink-0 overflow-x-auto [&_button]:flex-none"
+            className="h-auto w-auto max-w-full flex-wrap [&_button]:flex-none"
             options={[
               { value: "next", label: t("quick.next"), testId: "quick-next" },
               { value: "today", label: t("quick.today"), testId: "quick-today" },
@@ -206,7 +206,7 @@ export function OrderFilters({
       </div>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <div className="flex flex-col gap-1" data-testid="filter-status">
+        <div className="flex min-w-0 max-w-full flex-col gap-1" data-testid="filter-status">
           <span className="text-sm font-medium">{t("status")}</span>
           <SegmentedControl
             value={filters.status ?? ALL}
@@ -215,7 +215,7 @@ export function OrderFilters({
             }
             ariaLabel={t("statusLabel")}
             size="md"
-            className="w-auto shrink-0 [&_button]:flex-none"
+            className="h-auto w-auto max-w-full flex-wrap [&_button]:flex-none"
             options={[
               { value: ALL, label: t("all"), testId: "filter-status-ALL" },
               ...ORDER_STATUSES.map((status) => ({
@@ -227,7 +227,7 @@ export function OrderFilters({
           />
         </div>
 
-        <div className="flex flex-col gap-1" data-testid="filter-source">
+        <div className="flex min-w-0 max-w-full flex-col gap-1" data-testid="filter-source">
           <span className="text-sm font-medium">{t("source")}</span>
           <SegmentedControl
             value={filters.source ?? ALL}
@@ -236,7 +236,7 @@ export function OrderFilters({
             }
             ariaLabel={t("sourceLabel")}
             size="md"
-            className="w-auto shrink-0 [&_button]:flex-none"
+            className="h-auto w-auto max-w-full flex-wrap [&_button]:flex-none"
             options={[
               { value: ALL, label: t("all"), testId: "filter-source-ALL" },
               ...ORDER_SOURCES.map((source) => ({
