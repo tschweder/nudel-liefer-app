@@ -206,6 +206,17 @@ function ClusterWatcher({
   return null;
 }
 
+/**
+ * Leaflet turns Enter on a focused marker into a popup, never into a `click`, so the keyboard
+ * activation of a marker (Enter / Space, NUD-119) has to be wired by hand. Pure and exported for
+ * the unit test.
+ */
+export function activationKey(event: { key?: string; preventDefault?: () => void }): boolean {
+  if (event.key !== "Enter" && event.key !== " ") return false;
+  event.preventDefault?.(); // Space must not scroll the page
+  return true;
+}
+
 /** One stop marker: the shared badge plus the status cue, and the list <-> map callbacks. */
 function StopMarker({
   stop,
@@ -227,6 +238,9 @@ function StopMarker({
   const eventHandlers = useMemo(
     () => ({
       click: () => onSelect?.(stop.id),
+      keydown: (event: L.LeafletKeyboardEvent) => {
+        if (activationKey(event.originalEvent)) onSelect?.(stop.id);
+      },
       mouseover: () => onHover?.(stop.id),
       mouseout: () => onHover?.(null),
       focus: () => onHover?.(stop.id),
@@ -335,19 +349,22 @@ function ClusterMarker({
     });
   }, [map, stops]);
 
-  const eventHandlers = useMemo(
-    () => ({
-      click: () => {
-        if (!onActivate || armed.current) {
-          zoomIn();
-          return;
-        }
-        armed.current = true;
-        onActivate(ids);
+  const eventHandlers = useMemo(() => {
+    const activate = () => {
+      if (!onActivate || armed.current) {
+        zoomIn();
+        return;
+      }
+      armed.current = true;
+      onActivate(ids);
+    };
+    return {
+      click: activate,
+      keydown: (event: L.LeafletKeyboardEvent) => {
+        if (activationKey(event.originalEvent)) activate();
       },
-    }),
-    [onActivate, zoomIn, ids],
-  );
+    };
+  }, [onActivate, zoomIn, ids]);
 
   return (
     <Marker

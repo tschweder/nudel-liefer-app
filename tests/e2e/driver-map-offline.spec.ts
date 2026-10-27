@@ -213,3 +213,62 @@ for (const locale of ["de", "zh-Hans"] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+// NUD-119: tapping / activating a numbered marker opens the stop screen, online and in the offline
+// shell. The markers are the 48 px touch targets of the driver map.
+test("map marker tap opens the stop detail: online, keyboard, and offline shell (375 px)", async ({
+  page,
+  context,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  await loginReady(page, "de");
+  const marker = (n: number) =>
+    page
+      .getByTestId("tour-map")
+      .locator(".leaflet-marker-icon")
+      .filter({ hasText: new RegExp(`^${n}$`) });
+  const openMap = async () => {
+    await page.getByTestId("view-map").click();
+    await expect(page.getByTestId("tour-map")).toBeVisible();
+    await expect(marker(1)).toBeVisible();
+  };
+
+  // Online: touch targets >= 48 px, axe clean, tap on marker 2.
+  await openMap();
+  for (const n of [1, 2, 3]) {
+    const box = await marker(n).boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(48);
+    expect(box!.height).toBeGreaterThanOrEqual(48);
+  }
+  expect(await axeAudit(page, "map-marker-tap", testInfo), "axe").toEqual([]);
+  await marker(2).click();
+  await expect(page).toHaveURL(/\/de\/driver\/stops\/stop-1-/);
+  await expect(page.getByTestId("stop-name")).toHaveText(names[1]!);
+
+  // Keyboard: focus marker 3 and press Enter.
+  await page.goto("/de/driver");
+  await openMap();
+  await marker(3).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/de\/driver\/stops\/stop-2-/);
+  await expect(page.getByTestId("stop-name")).toHaveText(names[2]!);
+
+  // Offline shell: the same tap reaches the stop detail.
+  await page.goto("/de/driver");
+  await expect(page.getByTestId("offline-ready")).toBeVisible({ timeout: 30_000 });
+  await setOnline(context, page, false);
+  try {
+    await page.reload();
+    await expect(page.getByTestId("offline-bar")).toBeVisible();
+    await expect(async () => {
+      if (!page.url().endsWith("/de/driver")) await page.goto("/de/driver");
+      await openMap();
+      await marker(1).click();
+      await expect(page).toHaveURL(/\/de\/driver\/stops\/stop-0-/, { timeout: 4_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(page.getByTestId("stop-name")).toHaveText(names[0]!);
+    expect(await axeAudit(page, "map-marker-tap-offline", testInfo), "axe").toEqual([]);
+  } finally {
+    await setOnline(context, page, true);
+  }
+});

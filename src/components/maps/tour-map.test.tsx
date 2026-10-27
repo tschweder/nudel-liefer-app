@@ -388,6 +388,22 @@ describe("list <-> map linkage and controls", () => {
     expect(onHover).toHaveBeenLastCalledWith(null);
   });
 
+  it("activates a marker with Enter and Space, but not with other keys (NUD-119)", () => {
+    const onSelect = vi.fn();
+    renderMap("de", { onSelect });
+    const keydown = markerByTitle("Stopp 1: Trattoria 1").eventHandlers!.keydown as (
+      e: unknown,
+    ) => void;
+    const space = { originalEvent: { key: " ", preventDefault: vi.fn() } };
+    keydown({ originalEvent: { key: "Tab", preventDefault: vi.fn() } });
+    expect(onSelect).not.toHaveBeenCalled();
+    keydown({ originalEvent: { key: "Enter", preventDefault: vi.fn() } });
+    keydown(space);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(onSelect).toHaveBeenCalledWith("a");
+    expect(space.originalEvent.preventDefault).toHaveBeenCalled();
+  });
+
   it("fits all stops on demand", () => {
     renderMap("de");
     const button = screen.getByRole("button", { name: "Alle Stopps anzeigen" });

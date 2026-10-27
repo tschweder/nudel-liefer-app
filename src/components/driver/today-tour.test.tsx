@@ -12,15 +12,22 @@ import srLatn from "../../../messages/sr-Latn.json";
 import zhHans from "../../../messages/zh-Hans.json";
 import { TodayTour } from "./today-tour";
 
+const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
+const mapProps = vi.hoisted(() => ({ onSelect: null as null | ((id: string) => void) }));
 vi.mock("@/i18n/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => router,
   Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
     <a href={href} {...rest}>
       {children}
     </a>
   ),
 }));
-vi.mock("@/components/maps/lazy", () => ({ TourMapLazy: () => <div data-testid="tour-map" /> }));
+vi.mock("@/components/maps/lazy", () => ({
+  TourMapLazy: (props: { onSelect?: (id: string) => void }) => {
+    mapProps.onSelect = props.onSelect ?? null;
+    return <div data-testid="tour-map" />;
+  },
+}));
 // The outbox overlay is a view over the (IndexedDB-backed) store: empty in the unit test.
 vi.mock("@/lib/offline/outbox-browser", () => ({
   useOutbox: () => ({
@@ -241,6 +248,14 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.queryByTestId("stop-list")).toBeNull();
     // Radix renders the segment as a radio; the selected state is `aria-checked`.
     expect(screen.getByTestId("view-map")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("opens the stop screen when a map marker is selected (NUD-119)", () => {
+    router.push.mockClear();
+    renderIn(locale, <TodayTour today={today([stop(1), stop(2)])} tiles={TILES} />);
+    fireEvent.click(screen.getByTestId("view-map"));
+    mapProps.onSelect?.("s2");
+    expect(router.push).toHaveBeenCalledWith("/driver/stops/s2");
   });
 
   it("offers no Navigate link without a confirmed pin", () => {

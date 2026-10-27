@@ -40,7 +40,7 @@ import {
   switchVehicle,
   tripLoadItems,
 } from "@/domain/driver-today";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
@@ -626,6 +626,7 @@ export function TodayTour({
   );
   const [view, setView] = useState<"list" | "map">("list");
   const [listOpen, setListOpen] = useState(false);
+  const router = useRouter();
   // List <-> map linkage (re-design.md §7.2(5)): the marker of the row tapped in the sheet (and the
   // marker tapped on the map) is highlighted, so the driver can find the stop he picked.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -980,9 +981,10 @@ export function TodayTour({
             touch
             selectedId={selectedId}
             onSelect={(id) => {
-              // Marker -> list (re-design.md §7.2(5)): pick the stop and open the list on its row.
+              // NUD-119: a tap / Enter on a numbered marker opens the stop screen, like a list row
+              // does (the offline shell serves the same route from the cached tour).
               setSelectedId(id);
-              setListOpen(true);
+              router.push(`/driver/stops/${id}`);
             }}
             onClusterSelect={() => setListOpen(true)}
           />
