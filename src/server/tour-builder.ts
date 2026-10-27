@@ -416,7 +416,8 @@ export async function generateTourWith(
         deferred,
       };
     },
-    { timeout: 20_000, maxWait: 10_000 },
+    // No stop limit: the stops are written one by one, so the deadline grows with the tour's size.
+    { timeout: 20_000 + 500 * ordered.length, maxWait: 10_000 },
   );
 }
 

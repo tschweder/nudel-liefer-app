@@ -72,8 +72,12 @@ export interface RoutingProvider {
   distribute(input: DistributeInput): Promise<DistributeResult>;
 }
 
-/** Most stops one tour may have (ORS free-tier limits). Larger inputs raise `TOO_MANY_STOPS`. */
-export const MAX_STOPS = 50;
+/**
+ * Most stops one tour may have: unlimited. The former cap of 50 (ORS free-tier) is gone; a provider
+ * that cannot route a large input fails with its own error and `FallbackRoutingProvider` takes over.
+ * The constant stays so the planners' stop-limit plumbing keeps compiling (it never triggers).
+ */
+export const MAX_STOPS = Number.POSITIVE_INFINITY;
 /** Whole-call deadline of the ORS provider before the fallback takes over. */
 export const ROUTING_TIMEOUT_MS = 8000;
 
@@ -104,12 +108,6 @@ function validPoint(p: LatLng): boolean {
 export function assertValidPoints(depot: LatLng, stops: readonly LatLng[]): void {
   if (!validPoint(depot) || !stops.every(validPoint)) {
     throw new RoutingError("Invalid coordinates", "INVALID_INPUT");
-  }
-  if (stops.length > MAX_STOPS) {
-    throw new RoutingError(
-      `A tour can have at most ${MAX_STOPS} stops (got ${stops.length}); split the deliveries`,
-      "TOO_MANY_STOPS",
-    );
   }
 }
 

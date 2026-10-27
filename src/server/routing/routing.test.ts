@@ -19,7 +19,6 @@ import {
   OrsRoutingProvider,
 } from "./ors";
 import {
-  MAX_STOPS,
   type OptimizeInput,
   ROUTING_TIMEOUT_MS,
   RoutingError,
@@ -165,7 +164,8 @@ describe("OrsRoutingProvider", () => {
   });
 
   it("splits directions into chunks of at most 50 coordinates", async () => {
-    const stops = Array.from({ length: MAX_STOPS }, (_, i) => ({
+    const stopCount = 50;
+    const stops = Array.from({ length: stopCount }, (_, i) => ({
       id: `s${i}`,
       location: { lat: 48.2 + i * 0.001, lng: 16.4 },
       serviceSeconds: 60,
@@ -205,9 +205,9 @@ describe("OrsRoutingProvider", () => {
     const result = await ors.optimize({ depot, stops });
     expect(Math.max(...calls)).toBeLessThanOrEqual(MAX_DIRECTIONS_COORDINATES);
     expect(calls.length).toBeGreaterThan(1);
-    expect(result.legs).toHaveLength(MAX_STOPS + 1);
-    expect(result.geometry.coordinates).toHaveLength(MAX_STOPS + 2);
-    expect(result.totalDistanceM).toBe((MAX_STOPS + 1) * 100);
+    expect(result.legs).toHaveLength(stopCount + 1);
+    expect(result.geometry.coordinates).toHaveLength(stopCount + 2);
+    expect(result.totalDistanceM).toBe((stopCount + 1) * 100);
   });
 
   it("maps a stalled request to TIMEOUT", async () => {
@@ -280,16 +280,14 @@ describe("LocalHeuristicProvider", () => {
     expect(result.approximate).toBe(true);
   });
 
-  it("raises a documented error above 50 stops", async () => {
-    const stops = Array.from({ length: MAX_STOPS + 1 }, (_, i) => ({
+  it("has no stop limit", async () => {
+    const stops = Array.from({ length: 120 }, (_, i) => ({
       id: `s${i}`,
-      location: { lat: 48.2, lng: 16.4 },
+      location: { lat: 48.2 + i * 0.0005, lng: 16.4 },
       serviceSeconds: 0,
     }));
-    await expect(heuristic.optimize({ depot, stops })).rejects.toMatchObject({
-      code: "TOO_MANY_STOPS",
-      message: expect.stringContaining("at most 50 stops"),
-    });
+    const result = await heuristic.optimize({ depot, stops });
+    expect(result.orderedStopIds).toHaveLength(120);
   });
 
   it("rejects duplicate ids and invalid coordinates", async () => {

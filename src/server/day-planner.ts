@@ -559,6 +559,7 @@ export async function planDayWith(
         deferred,
       };
     },
-    { timeout: 30_000, maxWait: 10_000 },
+    // No stop limit: the stops are written one by one, so the deadline grows with the day's size.
+    { timeout: 30_000 + 500 * toPlan.length, maxWait: 10_000 },
   );
 }

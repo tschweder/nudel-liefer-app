@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { requireDepot } from "@/domain/settings";
 
 import { hashSecret } from "./auth/password";
-import { LocalHeuristicProvider, RoutingError, setRoutingProviderForTests } from "./routing";
+import { LocalHeuristicProvider, setRoutingProviderForTests } from "./routing";
 import { createTestDb, type TestDb } from "./test-db";
 
 const state: { session: { user?: { id: string } } | null; db: TestDb["prisma"] | null } = {
@@ -323,7 +323,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     expect(await generate("2099-06-20")).toMatchObject({ ok: false, error: "no_stops" });
   });
 
-  it("plans the 50 nearest stops and reports the rest as not planned today", async () => {
+  it("has no stop limit: plans all 51 stops on one tour", async () => {
     const rows = Array.from({ length: 51 }, (_, i) => ({
       customerNumber: `M${i}`,
       name: `Many ${i}`,
@@ -338,21 +338,9 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     for (const c of all) await order(c.id, [[p1, 1]]);
     const result = await generate();
     if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
-    expect(result.stopCount).toBe(50);
-    // The customers sit on a line away from the depot: the farthest one is left over.
-    const farthest = await t.prisma.customer.findFirstOrThrow({ where: { customerNumber: "M50" } });
-    expect(result.deferred).toMatchObject([{ code: "STOP_LIMIT", customerId: farthest.id }]);
-    expect(await t.prisma.stop.count({ where: { tourId: result.tourId } })).toBe(50);
-    expect(
-      await t.prisma.stop.count({ where: { tourId: result.tourId, customerId: farthest.id } }),
-    ).toBe(0);
-    // sanity: one routing call still refuses more than MAX_STOPS stops
-    await expect(
-      provider.optimize({
-        depot: DEPOT,
-        stops: all.map((c) => ({ id: c.id, location: DEPOT, serviceSeconds: 0 })),
-      }),
-    ).rejects.toBeInstanceOf(RoutingError);
+    expect(result.stopCount).toBe(51);
+    expect(result.deferred).toEqual([]);
+    expect(await t.prisma.stop.count({ where: { tourId: result.tourId } })).toBe(51);
   });
 
   describe("re-running", () => {

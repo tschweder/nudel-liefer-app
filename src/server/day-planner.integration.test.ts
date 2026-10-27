@@ -432,7 +432,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(after!.stops.map((s) => s.id)).toEqual([...ids].reverse());
     });
 
-    it("more stops than one planning run takes: plans the nearest 50, lists the rest as not planned", async () => {
+    it("has no stop limit: plans all 52 stops and leaves none as not planned", async () => {
       await vehicle("Van 1", 5000);
       await vehicle("Van 2", 5000);
       // 52 customers on a line away from the depot, 1 Kiste each.
@@ -462,20 +462,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
       }
       const result = await planDayWith(deps(), { date: DAY_TEXT });
       if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
-      const far = await t.prisma.customer.findMany({
-        where: { customerNumber: { in: ["L50", "L51"] } },
-        select: { id: true },
-      });
-      expect(result.deferred.map((w) => w.code)).toEqual(["STOP_LIMIT", "STOP_LIMIT"]);
-      expect(result.deferred.map((w) => w.customerId).sort()).toEqual(far.map((c) => c.id).sort());
+      expect(result.deferred).toEqual([]);
       const day = await tours();
-      expect(day.flatMap((x) => x.stops)).toHaveLength(50);
-      expect(await t.prisma.stopOrder.count()).toBe(50);
+      expect(day.flatMap((x) => x.stops)).toHaveLength(52);
+      expect(await t.prisma.stopOrder.count()).toBe(52);
 
-      // The planning page lists the left-over customers until they are moved.
       const plan = await getTourPlan(t.prisma, DAY_TEXT, "Europe/Vienna");
-      expect(plan!.stopLimit).toBe(50);
-      expect(plan!.unplanned.map((w) => w.customerId).sort()).toEqual(far.map((c) => c.id).sort());
+      expect(plan!.unplanned).toEqual([]);
     });
 
     it("refuses the past, a missing depot and a day without orders", async () => {
