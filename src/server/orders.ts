@@ -10,7 +10,7 @@ import {
 } from "@/domain/order";
 import { aggregateTotalsByDate, isOrderEditable, type OrderFilters } from "@/domain/order-overview";
 import { calendarDayIn } from "@/domain/settings";
-import { type OrderState, outdatedTourDates } from "@/domain/tour-diff";
+import { type OrderState, outdatedTourTargets } from "@/domain/tour-diff";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
@@ -76,8 +76,8 @@ async function flagAffectedTours(
   before: OrderState | null,
   after: OrderState | null,
 ): Promise<void> {
-  for (const date of outdatedTourDates(before, after)) {
-    await tours.markOutdatedForDate(date, tx);
+  for (const { date, customerIds } of outdatedTourTargets(before, after)) {
+    await tours.markOutdatedForDate(date, tx, { customerIds });
   }
 }
 
@@ -449,6 +449,8 @@ export async function getDateTotals(
  * belong to that tour, so they must not be planned, diffed or counted again.
  * - `{ tourId: "x" }`: the orders for tour x = every order not on a stop of another tour.
  * - `{ tourId: null }`: the orders for a tour that does not exist yet = orders on no stop at all.
+ * NUD-154: an order on no stop whose customer has a stop on another open tour (and none on the
+ * tour(s) in scope) belongs to that other tour and is left out; a customer on no stop stays in scope.
  */
 export type TourOrderScope =
   | { tourId: string | null }
@@ -468,6 +470,15 @@ export async function listConfirmedOrdersForDate(
   date: Date,
   scope?: TourOrderScope,
 ) {
+  // NUD-154: the tours this read is for; an order on no stop whose customer has a stop on another
+  // open tour (and none on these) belongs to that other tour.
+  const ownTourIds = !scope
+    ? null
+    : "rebuildTourIds" in scope
+      ? scope.rebuildTourIds
+      : scope.tourId
+        ? [scope.tourId]
+        : [];
   return db.order.findMany({
     where: {
       deliveryDate: date,
@@ -488,6 +499,17 @@ export async function listConfirmedOrdersForDate(
                         : {}),
                   },
                 },
+              },
+            },
+            NOT: {
+              stopOrders: { none: { stop: { tour: { date } } } },
+              customer: {
+                stops: {
+                  some: {
+                    tour: { date, status: { not: "COMPLETED" }, id: { notIn: ownTourIds! } },
+                  },
+                },
+                NOT: { stops: { some: { tour: { date, id: { in: ownTourIds! } } } } },
               },
             },
           }

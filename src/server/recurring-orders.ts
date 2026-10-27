@@ -12,7 +12,7 @@ import {
   ruleState,
   scheduleDates,
 } from "@/domain/recurring-order";
-import { outdatedTourDates } from "@/domain/tour-diff";
+import { outdatedTourTargets } from "@/domain/tour-diff";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
 import { recordAudit } from "./audit";
@@ -229,7 +229,7 @@ export async function generateRecurringOrders(
   return report;
 }
 
-type FlagState = Parameters<typeof outdatedTourDates>[0];
+type FlagState = Parameters<typeof outdatedTourTargets>[0];
 
 async function flagTours(
   tours: TourHook,
@@ -237,8 +237,8 @@ async function flagTours(
   before: FlagState,
   after: FlagState,
 ): Promise<void> {
-  for (const date of outdatedTourDates(before, after)) {
-    await tours.markOutdatedForDate(date, tx);
+  for (const { date, customerIds } of outdatedTourTargets(before, after)) {
+    await tours.markOutdatedForDate(date, tx, { customerIds });
   }
 }
 

@@ -18,14 +18,45 @@ export type TourService = {
    * Flags the not yet completed tours of `date` as outdated; returns how many were changed. Pass
    * the transaction client of the order write as `client` to make the flag atomic with it.
    */
-  markOutdatedForDate(date: Date, client?: TourDb): Promise<number>;
+  markOutdatedForDate(date: Date, client?: TourDb, options?: MarkOutdatedOptions): Promise<number>;
+};
+
+export type MarkOutdatedOptions = {
+  /**
+   * NUD-154: the customers of the changed order(s). A customer that has a stop on an open tour of
+   * the day belongs to that tour only, so only those tours are flagged; a customer on no open
+   * stop may still be planned onto any open tour, so all open tours are flagged. Without this
+   * option (or with an empty list) every open tour of the day is flagged.
+   */
+  customerIds?: readonly string[];
 };
 
 export function createTourService(db: TourDb): TourService {
   return {
-    async markOutdatedForDate(date, client = db) {
+    async markOutdatedForDate(date, client = db, options = {}) {
+      const customerIds = options.customerIds ?? [];
+      let ownerTourIds: string[] | null = null;
+      if (customerIds.length > 0) {
+        const open = await client.tour.findMany({
+          where: { date, status: { not: "COMPLETED" } },
+          select: { id: true, stops: { select: { customerId: true } } },
+        });
+        const owned = new Set<string>();
+        let unattached = false;
+        for (const customerId of customerIds) {
+          const owners = open.filter((t) => t.stops.some((s) => s.customerId === customerId));
+          if (owners.length === 0) unattached = true;
+          for (const t of owners) owned.add(t.id);
+        }
+        if (!unattached) ownerTourIds = [...owned];
+      }
       const result = await client.tour.updateMany({
-        where: { date, isOutdated: false, status: { not: "COMPLETED" } },
+        where: {
+          date,
+          isOutdated: false,
+          status: { not: "COMPLETED" },
+          ...(ownerTourIds ? { id: { in: ownerTourIds } } : {}),
+        },
         data: { isOutdated: true },
       });
       return result.count;

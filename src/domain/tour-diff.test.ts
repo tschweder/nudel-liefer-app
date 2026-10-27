@@ -4,6 +4,7 @@ import {
   isEmptyDiff,
   itemChanges,
   outdatedTourDates,
+  outdatedTourTargets,
   planReRelease,
   sameItems,
   type SnapshotStop,
@@ -268,5 +269,39 @@ describe("outdatedTourDates", () => {
   it("cancelling flags only when the order was confirmed", () => {
     expect(days(outdatedTourDates(state("CONFIRMED"), state("CANCELLED")))).toEqual(["2099-06-15"]);
     expect(outdatedTourDates(state("DRAFT"), state("CANCELLED"))).toEqual([]);
+  });
+});
+
+describe("outdatedTourTargets (NUD-154)", () => {
+  const d1 = new Date("2099-06-15T00:00:00Z");
+  const d2 = new Date("2099-06-16T00:00:00Z");
+  const state = (status: string, customerId: string, date = d1) => ({
+    status,
+    customerId,
+    deliveryDate: date,
+    items: [{ productId: "a", quantity: 5 }],
+  });
+
+  it("names the customer of the confirmed order per affected day", () => {
+    expect(outdatedTourTargets(null, state("CONFIRMED", "c1"))).toEqual([
+      { date: d1, customerIds: ["c1"] },
+    ]);
+  });
+
+  it("lists both customers when the customer of the same day changed", () => {
+    const targets = outdatedTourTargets(state("CONFIRMED", "c1"), state("CONFIRMED", "c2"));
+    expect(targets).toEqual([{ date: d1, customerIds: ["c1", "c2"] }]);
+  });
+
+  it("keeps the customer with the day when the order moves to another day", () => {
+    const targets = outdatedTourTargets(state("CONFIRMED", "c1", d1), state("CONFIRMED", "c1", d2));
+    expect(targets).toEqual([
+      { date: d1, customerIds: ["c1"] },
+      { date: d2, customerIds: ["c1"] },
+    ]);
+  });
+
+  it("flags nothing for drafts", () => {
+    expect(outdatedTourTargets(null, state("DRAFT", "c1"))).toEqual([]);
   });
 });

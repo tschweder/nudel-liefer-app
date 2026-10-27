@@ -213,3 +213,26 @@ export function outdatedTourDates(before: OrderState | null, after: OrderState |
   if (is) dates.set(is.deliveryDate.getTime(), is.deliveryDate);
   return [...dates.values()];
 }
+
+/**
+ * NUD-154: like `outdatedTourDates`, but also names the customers whose confirmed order sits on
+ * each affected day (before and after state of that day). The tour service flags only the open
+ * tours that have a stop of such a customer; a customer on no stop is not attached to a tour yet,
+ * so every open tour of the day may still receive the order and is flagged.
+ */
+export function outdatedTourTargets(
+  before: OrderState | null,
+  after: OrderState | null,
+): Array<{ date: Date; customerIds: string[] }> {
+  const states = [before, after].filter(
+    (s): s is OrderState => s !== null && s.status === "CONFIRMED",
+  );
+  return outdatedTourDates(before, after).map((date) => ({
+    date,
+    customerIds: [
+      ...new Set(
+        states.filter((s) => s.deliveryDate.getTime() === date.getTime()).map((s) => s.customerId),
+      ),
+    ],
+  }));
+}
