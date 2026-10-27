@@ -1435,7 +1435,8 @@
       "parkingTitle": "Parkplätze",
       "parkingHint": "Die Navigation führt zuerst zum ersten Parkplatz, dann zur Lieferadresse.",
       "parkingSpotNumber": "Parkplatz {number}",
-      "parkingFirst": "zuerst"
+      "parkingFirst": "zuerst",
+      "parkingNone": "Noch kein Parkplatz festgelegt."
     },
     "status": {
       "delivered": "Geliefert",
@@ -1543,7 +1544,8 @@
       "preparingShort": "Speichert",
       "errorShort": "Fehler",
       "pendingShort": "{count}",
-      "mutationKey": "Schlüssel"
+      "mutationKey": "Schlüssel",
+      "mutationParking": "Parkplatz"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -1566,6 +1568,30 @@
       "save": "Speichern",
       "cancel": "Abbrechen",
       "saved": "Schlüssel gespeichert: {name}",
+      "errors": {
+        "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
+      }
+    },
+    "parkingSet": {
+      "button": "Parkplatz festlegen",
+      "title": "Parkplatz festlegen",
+      "description": "{name} · Wird sofort gespeichert.",
+      "modeLocation": "Aktueller Standort",
+      "modeManual": "Koordinaten eingeben",
+      "locating": "Standort wird ermittelt …",
+      "gpsHint": "Marker verschieben, bis er auf dem Parkplatz liegt.",
+      "latitude": "Breite",
+      "longitude": "Länge",
+      "invalid": "Ungültige Koordinaten (Breite −90 bis 90, Länge −180 bis 180).",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen",
+      "saved": "Parkplatz gespeichert: {name}",
+      "gps": {
+        "denied": "Der Standort ist nicht erlaubt. Bitte Koordinaten eingeben.",
+        "unavailable": "Der Standort ist nicht verfügbar. Bitte Koordinaten eingeben.",
+        "timeout": "Der Standort wurde nicht rechtzeitig gefunden. Bitte Koordinaten eingeben.",
+        "unsupported": "Dieses Gerät kann den Standort nicht bestimmen. Bitte Koordinaten eingeben."
+      },
       "errors": {
         "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
       }

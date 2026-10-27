@@ -176,6 +176,7 @@ export async function createDriverFixture(prefix: string, stopCount = 3) {
       await db.query(`DELETE FROM "Stop" WHERE "tourId"=$1`, [tourId]);
       await db.query(`DELETE FROM "Tour" WHERE "id"=$1`, [tourId]);
       await db.query(`DELETE FROM "Photo" WHERE "id" LIKE $1`, [`photo-%-${tag}`]);
+      await db.query(`DELETE FROM "ParkingSpot" WHERE "customerId" LIKE $1`, [`cust-%-${tag}`]);
       await db.query(`DELETE FROM "Customer" WHERE "id" LIKE $1`, [`cust-%-${tag}`]);
       await db.query(`DELETE FROM "Product" WHERE "id" LIKE $1`, [`prod-%-${tag}`]);
       await db

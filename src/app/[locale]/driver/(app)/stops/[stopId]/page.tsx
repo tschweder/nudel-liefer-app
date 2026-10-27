@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { StopDetail } from "@/components/driver/stop-detail";
 import { LoadingSkeleton } from "@/components/shared/states";
 import type { AppLocale } from "@/lib/localized-text";
+import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
 import { driverStopQuery } from "@/server/driver-stop";
 
@@ -13,7 +14,7 @@ async function StopContent({ locale, stopId }: { locale: string; stopId: string 
   await requirePageActor("driver", locale);
   const detail = await driverStopQuery(locale as AppLocale, stopId);
   if (!detail) notFound();
-  return <StopDetail detail={detail} />;
+  return <StopDetail detail={detail} tiles={getMapTileConfig()} />;
 }
 
 export default async function DriverStopPage({

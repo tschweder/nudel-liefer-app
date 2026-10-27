@@ -1435,7 +1435,8 @@
       "parkingTitle": "停车位",
       "parkingHint": "导航先到第一个停车位，再到送货地址。",
       "parkingSpotNumber": "停车位 {number}",
-      "parkingFirst": "先到这里"
+      "parkingFirst": "先到这里",
+      "parkingNone": "尚未设置停车位。"
     },
     "status": {
       "delivered": "已送达",
@@ -1543,7 +1544,8 @@
       "preparingShort": "保存中",
       "errorShort": "错误",
       "pendingShort": "{count}",
-      "mutationKey": "钥匙"
+      "mutationKey": "钥匙",
+      "mutationParking": "停车位"
     },
     "unitsTotal": {
       "KG": "公斤",
@@ -1566,6 +1568,30 @@
       "save": "保存",
       "cancel": "取消",
       "saved": "钥匙已保存：{name}",
+      "errors": {
+        "storage": "操作未成功，请重试。"
+      }
+    },
+    "parkingSet": {
+      "button": "设置停车位",
+      "title": "设置停车位",
+      "description": "{name} · 立即保存。",
+      "modeLocation": "当前位置",
+      "modeManual": "输入坐标",
+      "locating": "正在获取位置 …",
+      "gpsHint": "拖动标记，直到它位于停车位上。",
+      "latitude": "纬度",
+      "longitude": "经度",
+      "invalid": "坐标无效（纬度 −90 至 90，经度 −180 至 180）。",
+      "confirm": "确认",
+      "cancel": "取消",
+      "saved": "停车位已保存：{name}",
+      "gps": {
+        "denied": "不允许获取位置。请输入坐标。",
+        "unavailable": "无法获取位置。请输入坐标。",
+        "timeout": "未能及时获取位置。请输入坐标。",
+        "unsupported": "此设备无法确定位置。请输入坐标。"
+      },
       "errors": {
         "storage": "操作未成功，请重试。"
       }

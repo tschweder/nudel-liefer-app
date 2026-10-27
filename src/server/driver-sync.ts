@@ -18,6 +18,7 @@ import { rejectCrossOrigin } from "./csrf";
 import { applyDriverKey } from "./customer-key";
 import { getDb } from "./db";
 import { readTextLimited } from "./http-body";
+import { applyDriverParking } from "./parking-spots";
 import { scheduleProblemNoteTranslation } from "./problem-note-translation";
 import { applyStopMutation, type StopStatusResult } from "./stop-status";
 
@@ -42,6 +43,12 @@ export const syncRequestSchema = z.strictObject({
           note: z.string().max(PROBLEM_NOTE_MAX).optional(),
         }),
         z.strictObject({ type: z.literal("undo"), ...entryFields }),
+        z.strictObject({
+          type: z.literal("parking"),
+          ...entryFields,
+          lat: z.number().min(-90).max(90),
+          lng: z.number().min(-180).max(180),
+        }),
         z.strictObject({
           type: z.literal("key"),
           ...entryFields,
@@ -123,6 +130,26 @@ export async function applySyncBatch(
         );
         continue;
       }
+      if (entry.type === "parking") {
+        // A new Parkplatz of the customer (NUD-144): not part of the stop status either.
+        const parkingResult = await applyDriverParking(db, actor, mutation, {
+          clientCreatedAt: at,
+        });
+        results.set(
+          entry.clientMutationId,
+          parkingResult.ok
+            ? {
+                clientMutationId: entry.clientMutationId,
+                outcome: parkingResult.replayed ? "replayed" : "applied",
+              }
+            : {
+                clientMutationId: entry.clientMutationId,
+                outcome: "rejected",
+                error: parkingResult.error,
+              },
+        );
+        continue;
+      }
       result = await applyStopMutation(db, actor, mutation, at, { clientCreatedAt: at });
     } catch {
       failedStops.add(entry.stopId);
@@ -174,7 +201,13 @@ async function touchedTours(
           status: true,
           problemReason: true,
           completedAt: true,
-          customer: { select: { hasKey: true, keyNumber: true } },
+          customer: {
+            select: {
+              hasKey: true,
+              keyNumber: true,
+              parkingSpots: { where: { active: true }, orderBy: { sortOrder: "asc" } },
+            },
+          },
         },
       },
     },
@@ -189,6 +222,12 @@ async function touchedTours(
       completedAt: s.completedAt?.toISOString() ?? null,
       hasKey: s.customer.hasKey,
       keyNumber: s.customer.keyNumber,
+      parkingSpots: s.customer.parkingSpots.map((spot) => ({
+        label: spot.label,
+        note: spot.note,
+        lat: spot.lat,
+        lng: spot.lng,
+      })),
     })),
   }));
 }

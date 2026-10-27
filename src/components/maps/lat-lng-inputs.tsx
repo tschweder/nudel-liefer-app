@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isValidLatLng, type LatLng, roundLatLng } from "@/lib/coords";
+import { isValidLatLng, type LatLng, parseCoordinate, roundLatLng } from "@/lib/coords";
 
 export type LatLngInputsLabels = {
   legend: string;
@@ -25,12 +25,7 @@ function show(n: number | undefined): string {
   return n === undefined ? "" : String(n);
 }
 
-function parse(text: string): number | null {
-  const normalized = text.trim().replace(",", ".");
-  if (!normalized) return null;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
+const parse = parseCoordinate;
 
 /**
  * Editable latitude/longitude next to a pin picker: the keyboard alternative to click/drag

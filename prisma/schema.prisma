@@ -357,6 +357,8 @@ enum StopMutationKind {
   UNDO
   /// Customer key number set by the driver at this stop (NUD-142); shares the idempotency table.
   KEY
+  /// Parkplatz set by the driver at this stop (NUD-144).
+  PARKING
 }
 
 model StopOrder {

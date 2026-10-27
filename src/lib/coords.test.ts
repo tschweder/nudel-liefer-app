@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isValidLatLng, roundCoord, roundLatLng } from "./coords";
+import { isValidLatLng, parseCoordinate, roundCoord, roundLatLng } from "./coords";
 
 describe("coords", () => {
   it("rounds to 6 decimals", () => {
@@ -18,5 +18,18 @@ describe("coords", () => {
     expect(isValidLatLng({ lat: 91, lng: 0 })).toBe(false);
     expect(isValidLatLng({ lat: 0, lng: -181 })).toBe(false);
     expect(isValidLatLng({ lat: Number.NaN, lng: 0 })).toBe(false);
+  });
+});
+
+describe("parseCoordinate", () => {
+  it("accepts comma and point", () => {
+    expect(parseCoordinate("48,2082")).toBe(48.2082);
+    expect(parseCoordinate(" 16.3738 ")).toBe(16.3738);
+    expect(parseCoordinate("-1,5")).toBe(-1.5);
+  });
+  it("rejects text and empty input", () => {
+    expect(parseCoordinate("")).toBeNull();
+    expect(parseCoordinate("abc")).toBeNull();
+    expect(parseCoordinate("1,2,3")).toBeNull();
   });
 });

@@ -73,7 +73,7 @@ test("pages, API responses and static files carry the security headers", async (
     expect(h["x-frame-options"], path).toBe("DENY");
     expect(h["referrer-policy"], path).toBe("strict-origin-when-cross-origin");
     expect(h["permissions-policy"], path).toContain("camera=(self)");
-    expect(h["permissions-policy"], path).toContain("geolocation=()");
+    expect(h["permissions-policy"], path).toContain("geolocation=(self)");
   }
   // the service worker keeps its no-cache rule next to the security headers
   const sw = await request.get("/sw.js");

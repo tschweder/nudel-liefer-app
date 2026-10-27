@@ -143,11 +143,13 @@ export function commonSecurityHeaders(): HeaderEntry[] {
     // API key) but never a path with ids.
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     // Driver photos use <input capture>, which needs no permission; camera stays allowed for our
-    // own origin only (no embedded frames exist). No GPS tracking (D19), no microphone, no payment.
+    // own origin only (no embedded frames exist). Geolocation is allowed for our own origin only
+    // for the one-off "Parkplatz festlegen" position fix (NUD-144); there is no tracking (D19),
+    // no microphone, no payment.
     {
       key: "Permissions-Policy",
       value:
-        "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()",
+        "camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()",
     },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "X-DNS-Prefetch-Control", value: "off" },

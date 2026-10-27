@@ -28,6 +28,7 @@ import { Link } from "@/i18n/navigation";
 import { isIosDevice } from "@/lib/device";
 import type { DriverStopDetail, TodayItem, TodayStop } from "@/lib/driver-tour-model";
 import { type AppFormatters, createAppFormatters } from "@/lib/format";
+import type { MapTileConfig } from "@/lib/map-config";
 import { stopAppleNavigationUrl, stopGoogleNavigationUrl } from "@/lib/navigation";
 import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
 import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
@@ -37,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { KeyChip } from "./customer-key";
 import { localizeDeliveryHours } from "./delivery-hours";
 import { driverTime } from "./driver-time";
+import { ParkingSetButton } from "./parking-setter";
 import { RefreshOnFocus } from "./refresh-on-focus";
 import { stopText } from "./stop-i18n-fallback";
 import { StopPhotos } from "./stop-photos";
@@ -61,9 +63,12 @@ function useIsIos(): boolean {
  */
 export function StopDetail({
   detail,
+  tiles,
   offline = false,
 }: {
   detail: DriverStopDetail;
+  /** Map tiles of the Parkplatz sheet (NUD-144). */
+  tiles: MapTileConfig;
   /** Rendered from the offline copy (NUD-081): taps are queued on the device (NUD-082). */
   offline?: boolean;
 }) {
@@ -241,7 +246,7 @@ export function StopDetail({
         )}
       </div>
 
-      <ParkingSpotsCard spots={stop.parkingSpots ?? []} />
+      <ParkingSpotsCard spots={stop.parkingSpots ?? []} stop={stop} tiles={tiles} />
 
       <DeliveryCard items={stop.items} fmt={fmt} locale={locale} />
 
@@ -276,9 +281,28 @@ export function StopDetail({
  * The customer's Parkplätze (NUD-126): label + note, the first one is where the single
  * "Navigation starten" button guides to first (D30). Hidden when the customer has none.
  */
-function ParkingSpotsCard({ spots }: { spots: NonNullable<TodayStop["parkingSpots"]> }) {
+function ParkingSpotsCard({
+  spots,
+  stop,
+  tiles,
+}: {
+  spots: NonNullable<TodayStop["parkingSpots"]>;
+  stop: TodayStop;
+  tiles: MapTileConfig;
+}) {
   const t = useTranslations("driver.stop");
-  if (spots.length === 0) return null;
+  if (spots.length === 0) {
+    return (
+      <section className="mt-3 rounded-xl border bg-card p-4" data-testid="parking-empty">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <CircleParkingIcon className="size-5 shrink-0" aria-hidden />
+          {t("parkingTitle")}
+        </h2>
+        <p className="mt-1 mb-3 text-base text-muted-foreground">{t("parkingNone")}</p>
+        <ParkingSetButton stop={stop} tiles={tiles} />
+      </section>
+    );
+  }
   return (
     <section className="mt-3 rounded-xl border bg-card p-4" data-testid="parking-spots">
       <h2 className="flex items-center gap-2 text-base font-semibold">
@@ -310,6 +334,7 @@ function ParkingSpotsCard({ spots }: { spots: NonNullable<TodayStop["parkingSpot
           </li>
         ))}
       </ol>
+      <ParkingSetButton stop={stop} tiles={tiles} className="mt-3" />
     </section>
   );
 }

@@ -148,7 +148,7 @@ describe("securityHeaders", () => {
     expect(find(headers, "Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     const permissions = find(headers, "Permissions-Policy")!;
     expect(permissions).toContain("camera=(self)");
-    expect(permissions).toContain("geolocation=()");
+    expect(permissions).toContain("geolocation=(self)");
     expect(permissions).toContain("microphone=()");
   });
 

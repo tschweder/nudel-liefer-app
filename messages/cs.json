@@ -287,7 +287,8 @@
       "parkingTitle": "Parkovací místa",
       "parkingHint": "Navigace vede nejdřív na první parkovací místo, potom na adresu dodání.",
       "parkingSpotNumber": "Parkovací místo {number}",
-      "parkingFirst": "nejdřív"
+      "parkingFirst": "nejdřív",
+      "parkingNone": "Parkovací místo ještě není nastaveno."
     },
     "status": {
       "delivered": "Doručeno",
@@ -395,7 +396,8 @@
       "preparingShort": "Ukládá se",
       "errorShort": "Chyba",
       "pendingShort": "{count}",
-      "mutationKey": "klíč"
+      "mutationKey": "klíč",
+      "mutationParking": "parkovací místo"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -420,6 +422,30 @@
       "saved": "Klíč uložen: {name}",
       "errors": {
         "storage": "Nepodařilo se. Zkuste to znovu."
+      }
+    },
+    "parkingSet": {
+      "button": "Nastavit parkovací místo",
+      "title": "Nastavit parkovací místo",
+      "description": "{name} · Uloží se okamžitě.",
+      "modeLocation": "Aktuální poloha",
+      "modeManual": "Zadat souřadnice",
+      "locating": "Zjišťuje se poloha …",
+      "gpsHint": "Posuňte značku tak, aby ležela na parkovacím místě.",
+      "latitude": "Zeměpisná šířka",
+      "longitude": "Zeměpisná délka",
+      "invalid": "Neplatné souřadnice (šířka −90 až 90, délka −180 až 180).",
+      "confirm": "Potvrdit",
+      "cancel": "Zrušit",
+      "saved": "Parkovací místo uloženo: {name}",
+      "gps": {
+        "denied": "Přístup k poloze není povolen. Zadejte souřadnice.",
+        "unavailable": "Poloha není dostupná. Zadejte souřadnice.",
+        "timeout": "Polohu se nepodařilo zjistit včas. Zadejte souřadnice.",
+        "unsupported": "Toto zařízení nedokáže zjistit polohu. Zadejte souřadnice."
+      },
+      "errors": {
+        "storage": "Nepovedlo se. Zkuste to prosím znovu."
       }
     }
   },

@@ -42,7 +42,10 @@ function renderIn(locale: string, detail: DriverStopDetail) {
         throw new Error(`missing message ${namespace}.${key}`);
       }}
     >
-      <StopDetail detail={{ ...detail, locale: locale as DriverStopDetail["locale"] }} />
+      <StopDetail
+        detail={{ ...detail, locale: locale as DriverStopDetail["locale"] }}
+        tiles={{ url: "x", attribution: "" }}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -269,10 +272,12 @@ describe("StopDetail details", () => {
   );
 
   it.each(Object.keys(LOCALES))(
-    "shows no Parkplatz card for a customer without one in %s",
+    "shows no Parkplatz list but the button to set one for a customer without one in %s",
     (locale) => {
       renderIn(locale, detail());
       expect(screen.queryByTestId("parking-spots")).toBeNull();
+      expect(screen.getByTestId("parking-empty")).toBeInTheDocument();
+      expect(screen.getByTestId("parking-set")).toBeInTheDocument();
     },
   );
 });

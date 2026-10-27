@@ -82,6 +82,62 @@ async function lockCustomer(tx: Pick<PrismaClient, "$queryRaw">, customerId: str
   return rows.length > 0;
 }
 
+type Tx = Parameters<Parameters<ParkingDb["$transaction"]>[0]>[0];
+
+/**
+ * Appends a spot to the customer's list inside the caller's transaction (customer row already
+ * locked) and writes the audit entry. `via` says where it came from (office form or driver).
+ */
+async function insertSpot(
+  tx: Tx,
+  actorId: string,
+  input: {
+    customerId: string;
+    label: string | null;
+    note: string | null;
+    lat: number;
+    lng: number;
+  },
+  via: "office" | "driver" | "sync",
+  clientCreatedAt?: Date,
+): Promise<ParkingResult> {
+  const existing = await tx.parkingSpot.findMany({
+    where: { customerId: input.customerId },
+    select: { sortOrder: true, active: true },
+  });
+  if (existing.filter((s) => s.active).length >= PARKING_MAX_ACTIVE) {
+    return { ok: false, error: "limit" };
+  }
+  const sortOrder = existing.reduce((max, s) => Math.max(max, s.sortOrder), -1) + 1;
+  const spot = await tx.parkingSpot.create({
+    data: {
+      customerId: input.customerId,
+      label: input.label,
+      note: input.note,
+      lat: roundCoord(input.lat),
+      lng: roundCoord(input.lng),
+      sortOrder,
+      createdById: actorId,
+    },
+    select: { id: true },
+  });
+  await recordAudit(tx, {
+    actorId,
+    entity: "Customer",
+    entityId: input.customerId,
+    action: "parking.create",
+    diff: {
+      spotId: spot.id,
+      lat: roundCoord(input.lat),
+      lng: roundCoord(input.lng),
+      isDefault: !existing.some((s) => s.active),
+      via,
+      ...(clientCreatedAt ? { clientCreatedAt: clientCreatedAt.toISOString() } : {}),
+    },
+  });
+  return { ok: true, spotId: spot.id };
+}
+
 /** Adds a spot at the end of the list (it becomes the default when the list was empty). */
 export async function createParkingSpot(
   db: ParkingDb,
@@ -93,40 +149,85 @@ export async function createParkingSpot(
   const input = parsed.data;
   return db.$transaction(async (tx): Promise<ParkingResult> => {
     if (!(await lockCustomer(tx, input.customerId))) return { ok: false, error: "not_found" };
-    const existing = await tx.parkingSpot.findMany({
-      where: { customerId: input.customerId },
-      select: { sortOrder: true, active: true },
-    });
-    if (existing.filter((s) => s.active).length >= PARKING_MAX_ACTIVE) {
-      return { ok: false, error: "limit" };
-    }
-    const sortOrder = existing.reduce((max, s) => Math.max(max, s.sortOrder), -1) + 1;
-    const spot = await tx.parkingSpot.create({
-      data: {
-        customerId: input.customerId,
-        label: input.label,
-        note: input.note,
-        lat: roundCoord(input.lat),
-        lng: roundCoord(input.lng),
-        sortOrder,
-        createdById: actorId,
-      },
-      select: { id: true },
-    });
-    await recordAudit(tx, {
-      actorId,
-      entity: "Customer",
-      entityId: input.customerId,
-      action: "parking.create",
-      diff: {
-        spotId: spot.id,
-        lat: roundCoord(input.lat),
-        lng: roundCoord(input.lng),
-        isDefault: !existing.some((s) => s.active),
-      },
-    });
-    return { ok: true, spotId: spot.id };
+    return insertSpot(tx, actorId, input, "office");
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Driver (offline queue, NUD-144, D27)
+// ---------------------------------------------------------------------------------------------
+
+const driverParkingEntrySchema = z.strictObject({
+  type: z.literal("parking"),
+  clientMutationId: z.uuid(),
+  stopId: idSchema,
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
+export type DriverParkingError =
+  "invalid" | "forbidden" | "not_found" | "limit" | "mutation_conflict";
+export type DriverParkingResult =
+  { ok: true; replayed: boolean } | { ok: false; error: DriverParkingError };
+
+type DriverParkingDb = Pick<PrismaClient, "$transaction">;
+
+/**
+ * One queued Parkplatz entry of a driver (type `parking` of the sync batch, D27): the driver sets
+ * the point where he parks at this stop. The stop names the customer; it must belong to a tour
+ * assigned to the acting driver (`not_found` otherwise). The spot is appended to the customer's
+ * list, so it is the default (the routing and navigation point) when the customer had none. No
+ * approval step. Idempotent by `clientMutationId` (`StopMutation`, kind `PARKING`).
+ */
+export async function applyDriverParking(
+  db: DriverParkingDb,
+  actor: { id: string; role: string },
+  rawEntry: unknown,
+  options: { clientCreatedAt?: Date } = {},
+): Promise<DriverParkingResult> {
+  const parsed = driverParkingEntrySchema.safeParse(rawEntry);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (actor.role !== "DRIVER") return { ok: false, error: "forbidden" };
+  const entry = parsed.data;
+  try {
+    return await db.$transaction(async (tx): Promise<DriverParkingResult> => {
+      const recorded = await tx.stopMutation.findUnique({ where: { id: entry.clientMutationId } });
+      if (recorded) {
+        return recorded.kind === "PARKING" &&
+          recorded.stopId === entry.stopId &&
+          recorded.driverId === actor.id
+          ? { ok: true, replayed: true }
+          : { ok: false, error: "mutation_conflict" };
+      }
+      const stop = await tx.stop.findUnique({
+        where: { id: entry.stopId },
+        select: { customerId: true, tour: { select: { driverId: true } } },
+      });
+      if (!stop || stop.tour.driverId !== actor.id) return { ok: false, error: "not_found" };
+      if (!(await lockCustomer(tx, stop.customerId))) return { ok: false, error: "not_found" };
+      const inserted = await insertSpot(
+        tx,
+        actor.id,
+        { customerId: stop.customerId, label: null, note: null, lat: entry.lat, lng: entry.lng },
+        options.clientCreatedAt ? "sync" : "driver",
+        options.clientCreatedAt,
+      );
+      if (!inserted.ok) return { ok: false, error: inserted.error as DriverParkingError };
+      await tx.stopMutation.create({
+        data: {
+          id: entry.clientMutationId,
+          stopId: entry.stopId,
+          driverId: actor.id,
+          kind: "PARKING",
+          result: { ok: true, kind: "PARKING", spotId: inserted.spotId ?? null },
+        },
+      });
+      return { ok: true, replayed: false };
+    });
+  } catch (error) {
+    if ((error as { code?: unknown }).code === "P2002") return { ok: true, replayed: true };
+    throw error;
+  }
 }
 
 /** Edits label, note and position of an active spot. Free text is not copied into the audit log. */

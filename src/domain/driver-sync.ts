@@ -30,7 +30,7 @@ export function effectiveMutationTime(createdAt: Date, now: Date): Date {
 }
 
 /** `key`: the driver set or corrected the customer's key (NUD-142); the others change the stop status. */
-export type SyncMutationType = "delivered" | "problem" | "undo" | "key";
+export type SyncMutationType = "delivered" | "problem" | "undo" | "key" | "parking";
 
 /** One queued mutation as sent to the server. */
 export type SyncEntry = {
@@ -43,6 +43,9 @@ export type SyncEntry = {
   /** Type "key" only: a key exists (`true`) or not (`false`); the number only goes with `true`. */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "parking" only (NUD-144): the Parkplatz the driver set, 6 decimals. */
+  lat?: number;
+  lng?: number;
   /** ISO time of the driver's tap on the device. */
   createdAt: string;
 };
@@ -76,6 +79,15 @@ export type SyncStopState = {
    */
   hasKey?: boolean | null;
   keyNumber?: string | null;
+  /** The customer's active Parkplätze in display order (NUD-144); absent in older answers. */
+  parkingSpots?: SyncParkingSpot[];
+};
+
+export type SyncParkingSpot = {
+  label: string | null;
+  note: string | null;
+  lat: number;
+  lng: number;
 };
 
 /** The authoritative state of every stop of a tour the batch touched. */
@@ -135,7 +147,8 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         !isNullableString(s.problemReason) ||
         !isNullableString(s.completedAt) ||
         (s.hasKey !== undefined && s.hasKey !== null && typeof s.hasKey !== "boolean") ||
-        (s.keyNumber !== undefined && !isNullableString(s.keyNumber))
+        (s.keyNumber !== undefined && !isNullableString(s.keyNumber)) ||
+        (s.parkingSpots !== undefined && parseParkingSpots(s.parkingSpots) === null)
       ) {
         return null;
       }
@@ -146,6 +159,9 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         completedAt: s.completedAt,
         ...(s.hasKey !== undefined ? { hasKey: s.hasKey as boolean | null } : {}),
         ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber as string | null } : {}),
+        ...(s.parkingSpots !== undefined
+          ? { parkingSpots: parseParkingSpots(s.parkingSpots)! }
+          : {}),
       });
     }
     tours.push({ tourId: t.tourId, status: t.status, stops });
@@ -155,4 +171,22 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
     tours,
     serverTime: typeof raw.serverTime === "string" ? raw.serverTime : new Date().toISOString(),
   };
+}
+
+function parseParkingSpots(raw: unknown): SyncParkingSpot[] | null {
+  if (!Array.isArray(raw) || raw.length > 20) return null;
+  const spots: SyncParkingSpot[] = [];
+  for (const item of raw) {
+    if (
+      !isRecord(item) ||
+      !isNullableString(item.label) ||
+      !isNullableString(item.note) ||
+      typeof item.lat !== "number" ||
+      typeof item.lng !== "number"
+    ) {
+      return null;
+    }
+    spots.push({ label: item.label, note: item.note, lat: item.lat, lng: item.lng });
+  }
+  return spots;
 }

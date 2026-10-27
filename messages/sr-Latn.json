@@ -287,7 +287,8 @@
       "parkingTitle": "Parking mesta",
       "parkingHint": "Navigacija vodi prvo do prvog parking mesta, a zatim do adrese isporuke.",
       "parkingSpotNumber": "Parking mesto {number}",
-      "parkingFirst": "prvo"
+      "parkingFirst": "prvo",
+      "parkingNone": "Parking mesto još nije određeno."
     },
     "status": {
       "delivered": "Isporučeno",
@@ -395,7 +396,8 @@
       "preparingShort": "Čuva se",
       "errorShort": "Greška",
       "pendingShort": "{count}",
-      "mutationKey": "ključ"
+      "mutationKey": "ključ",
+      "mutationParking": "parking mesto"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -418,6 +420,30 @@
       "save": "Sačuvaj",
       "cancel": "Otkaži",
       "saved": "Ključ sačuvan: {name}",
+      "errors": {
+        "storage": "Nije uspelo. Pokušajte ponovo."
+      }
+    },
+    "parkingSet": {
+      "button": "Odredi parking mesto",
+      "title": "Odredi parking mesto",
+      "description": "{name} · Čuva se odmah.",
+      "modeLocation": "Trenutna lokacija",
+      "modeManual": "Unesi koordinate",
+      "locating": "Lokacija se određuje …",
+      "gpsHint": "Pomeri oznaku dok ne bude na parking mestu.",
+      "latitude": "Geografska širina",
+      "longitude": "Geografska dužina",
+      "invalid": "Neispravne koordinate (širina −90 do 90, dužina −180 do 180).",
+      "confirm": "Potvrdi",
+      "cancel": "Otkaži",
+      "saved": "Parking mesto sačuvano: {name}",
+      "gps": {
+        "denied": "Pristup lokaciji nije dozvoljen. Unesite koordinate.",
+        "unavailable": "Lokacija nije dostupna. Unesite koordinate.",
+        "timeout": "Lokacija nije pronađena na vreme. Unesite koordinate.",
+        "unsupported": "Ovaj uređaj ne može da odredi lokaciju. Unesite koordinate."
+      },
       "errors": {
         "storage": "Nije uspelo. Pokušajte ponovo."
       }

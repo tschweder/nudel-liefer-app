@@ -1435,7 +1435,8 @@
       "parkingTitle": "Parking spots",
       "parkingHint": "Navigation goes to the first parking spot, then to the delivery address.",
       "parkingSpotNumber": "Parking spot {number}",
-      "parkingFirst": "first"
+      "parkingFirst": "first",
+      "parkingNone": "No parking spot set yet."
     },
     "status": {
       "delivered": "Delivered",
@@ -1543,7 +1544,8 @@
       "preparingShort": "Saving",
       "errorShort": "Error",
       "pendingShort": "{count}",
-      "mutationKey": "key"
+      "mutationKey": "key",
+      "mutationParking": "parking spot"
     },
     "unitsTotal": {
       "KG": "kg",
@@ -1566,6 +1568,30 @@
       "save": "Save",
       "cancel": "Cancel",
       "saved": "Key saved: {name}",
+      "errors": {
+        "storage": "That did not work. Please try again."
+      }
+    },
+    "parkingSet": {
+      "button": "Set parking spot",
+      "title": "Set parking spot",
+      "description": "{name} · Saved immediately.",
+      "modeLocation": "Current location",
+      "modeManual": "Enter coordinates",
+      "locating": "Finding your location …",
+      "gpsHint": "Move the marker until it sits on the parking spot.",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "invalid": "Invalid coordinates (latitude −90 to 90, longitude −180 to 180).",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "saved": "Parking spot saved: {name}",
+      "gps": {
+        "denied": "Location access is not allowed. Please enter coordinates.",
+        "unavailable": "Your location is not available. Please enter coordinates.",
+        "timeout": "Your location was not found in time. Please enter coordinates.",
+        "unsupported": "This device cannot determine its location. Please enter coordinates."
+      },
       "errors": {
         "storage": "That did not work. Please try again."
       }

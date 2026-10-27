@@ -328,3 +328,81 @@ describe("customer key entries (NUD-142)", () => {
     expect(out.tour!.stops[1]).not.toHaveProperty("hasKey");
   });
 });
+
+describe("Parkplatz entries (NUD-144)", () => {
+  const parking = (stopId: string, lat: number, lng: number) =>
+    entry({ type: "parking", stopId, lat, lng });
+
+  it("sends the point, and only for parking entries", () => {
+    expect(toSyncEntry(parking("s1", 48.2082, 16.3738))).toEqual({
+      clientMutationId: expect.any(String),
+      type: "parking",
+      stopId: "s1",
+      lat: 48.2082,
+      lng: 16.3738,
+      createdAt: expect.any(String),
+    });
+    expect(
+      toSyncEntry(entry({ type: "delivered", stopId: "s1", lat: 1, lng: 2 })),
+    ).not.toHaveProperty("lat");
+  });
+
+  it("shows the queued point at once: routing point when there was none, else appended", () => {
+    const empty = {
+      ...pending,
+      lat: 48.2 as number | null,
+      lng: 16.3 as number | null,
+      parkingSpots: [],
+    };
+    const out = overlayStop(empty, [parking("s1", 48.2082, 16.3738)]);
+    expect(out).toMatchObject({
+      lat: 48.2082,
+      lng: 16.3738,
+      parkingSpots: [{ label: null, note: null, lat: 48.2082, lng: 16.3738 }],
+    });
+    const spot = { label: "Hof", note: null, lat: 48.5, lng: 16.9 };
+    const some = { ...empty, lat: 48.5, lng: 16.9, parkingSpots: [spot] };
+    const two = overlayStop(some, [parking("s1", 48.6, 17)]);
+    expect(two).toMatchObject({ lat: 48.5, lng: 16.9 });
+    expect(two.parkingSpots).toHaveLength(2);
+    // the same point twice (queued and already confirmed) is shown once
+    expect(overlayStop(two, [parking("s1", 48.6, 17)]).parkingSpots).toHaveLength(2);
+    // screens without Parkplatz data are left alone
+    expect(overlayStop(pending, [parking("s1", 1, 2)])).toEqual(pending);
+  });
+
+  it("does not let an undo cancel a queued Parkplatz entry", () => {
+    const done = entry({ type: "delivered", stopId: "s1" });
+    expect(planUndo([done, parking("s1", 1, 2)], "s1", new Set())).toEqual({
+      action: "cancel",
+      clientMutationId: done.clientMutationId,
+    });
+    expect(planUndo([parking("s1", 1, 2)], "s1", new Set())).toEqual({ action: "enqueue" });
+  });
+
+  it("writes the server's Parkplätze and routing point into the stored tour", () => {
+    const data = {
+      tour: {
+        id: "t1",
+        status: "RELEASED",
+        stops: [{ id: "s1", status: "PENDING" as const, problemReason: null, completedAt: null }],
+      },
+    };
+    const out = patchTourStates(data, [
+      {
+        tourId: "t1",
+        status: "RELEASED",
+        stops: [
+          {
+            id: "s1",
+            status: "PENDING",
+            problemReason: null,
+            completedAt: null,
+            parkingSpots: [{ label: null, note: null, lat: 48.2082, lng: 16.3738 }],
+          },
+        ],
+      },
+    ]);
+    expect(out.tour!.stops[0]).toMatchObject({ lat: 48.2082, lng: 16.3738 });
+  });
+});

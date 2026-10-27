@@ -61,8 +61,15 @@ export type NewMutation = {
   /** Type "key" only (NUD-142). */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "parking" only (NUD-144). */
+  lat?: number;
+  lng?: number;
   customerName: string;
 };
+
+/** Key and Parkplatz entries are no stop completions: each kind is compared only with its own. */
+const entryKind = (type: SyncMutationType): "key" | "parking" | "stop" =>
+  type === "key" || type === "parking" ? type : "stop";
 
 export const CONFIRMED_TTL_MS = 20_000;
 
@@ -157,10 +164,9 @@ export function createOutboxController(deps: OutboxControllerDeps) {
     return serial(async () => {
       const queued = sortEntries((await deps.store.entries()).filter((e) => e.userId === userId));
       // A second tap on the same thing (double tap) is the same intent: keep the first entry.
-      // Key entries are compared with the newest key entry (they are not stop completions).
       const last = queued
         .filter(
-          (e) => e.stopId === mutation.stopId && (e.type === "key") === (mutation.type === "key"),
+          (e) => e.stopId === mutation.stopId && entryKind(e.type) === entryKind(mutation.type),
         )
         .at(-1);
       if (
@@ -170,7 +176,8 @@ export function createOutboxController(deps: OutboxControllerDeps) {
         !state.inFlight.has(last.clientMutationId) &&
         (mutation.type !== "key" ||
           (last.hasKey === mutation.hasKey &&
-            (last.keyNumber ?? "") === (mutation.keyNumber ?? "")))
+            (last.keyNumber ?? "") === (mutation.keyNumber ?? ""))) &&
+        (mutation.type !== "parking" || (last.lat === mutation.lat && last.lng === mutation.lng))
       ) {
         return last;
       }
@@ -185,6 +192,9 @@ export function createOutboxController(deps: OutboxControllerDeps) {
           ? { hasKey: mutation.hasKey }
           : {}),
         ...(mutation.type === "key" && mutation.keyNumber ? { keyNumber: mutation.keyNumber } : {}),
+        ...(mutation.type === "parking" && mutation.lat !== undefined && mutation.lng !== undefined
+          ? { lat: mutation.lat, lng: mutation.lng }
+          : {}),
         createdAt: deps.now().toISOString(),
         seq: nextSeq(queued),
         customerName: mutation.customerName,

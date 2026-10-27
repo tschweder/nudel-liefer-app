@@ -100,7 +100,7 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
       body = <EmptyState title={t("noDataTitle")} description={t("noDataDescription")} />;
     } else if (view.view === "stop") {
       body = detail ? (
-        <StopDetail detail={detail} offline />
+        <StopDetail detail={detail} tiles={tiles} offline />
       ) : (
         <div className="space-y-4" data-testid="offline-stop-missing">
           <EmptyState title={t("stopMissingTitle")} description={t("stopMissingDescription")} />

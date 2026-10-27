@@ -2,6 +2,7 @@ import type {
   SyncEntry,
   SyncEntryResult,
   SyncMutationType,
+  SyncParkingSpot,
   SyncResponse,
   SyncStopState,
   SyncTourState,
@@ -27,6 +28,9 @@ export type OutboxEntry = {
   /** Type "key" only (NUD-142): a key exists / does not; the number only goes with `true`. */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "parking" only (NUD-144): the Parkplatz the driver set. */
+  lat?: number;
+  lng?: number;
   /** ISO time of the tap on the device; the server treats this as the time of the action. */
   createdAt: string;
   /** Monotonic order within the queue, breaks ties between taps in the same millisecond. */
@@ -75,6 +79,9 @@ export function toSyncEntry(entry: OutboxEntry): SyncEntry {
     ...(entry.type === "problem" && entry.note ? { note: entry.note } : {}),
     ...(entry.type === "key" && entry.hasKey !== undefined ? { hasKey: entry.hasKey } : {}),
     ...(entry.type === "key" && entry.keyNumber ? { keyNumber: entry.keyNumber } : {}),
+    ...(entry.type === "parking" && entry.lat !== undefined && entry.lng !== undefined
+      ? { lat: entry.lat, lng: entry.lng }
+      : {}),
     createdAt: entry.createdAt,
   };
 }
@@ -102,8 +109,10 @@ export function planUndo(
   stopId: string,
   inFlight: ReadonlySet<string>,
 ): UndoPlan {
-  // A queued key entry is not a completion: it neither gets cancelled nor hides one.
-  const last = sortEntries(entries.filter((e) => e.stopId === stopId && e.type !== "key")).at(-1);
+  // A queued key or Parkplatz entry is not a completion: it neither gets cancelled nor hides one.
+  const last = sortEntries(
+    entries.filter((e) => e.stopId === stopId && e.type !== "key" && e.type !== "parking"),
+  ).at(-1);
   if (!last) return { action: "enqueue" };
   if (last.type === "undo") return { action: "none" };
   if (inFlight.has(last.clientMutationId)) return { action: "enqueue" };
@@ -117,6 +126,30 @@ type StopLike = {
   completedAt: string | null;
 };
 
+type SpotStop = {
+  lat?: number | null;
+  lng?: number | null;
+  parkingSpots?: Array<{ label: string | null; note: string | null; lat: number; lng: number }>;
+};
+
+/**
+ * A queued Parkplatz (NUD-144) shows at once: appended to the stop's list, and the routing point
+ * (`lat`/`lng`) when there was no Parkplatz yet. Screens without Parkplatz data are left alone.
+ */
+function withQueuedSpot<T>(stop: T, entry: OutboxEntry): T {
+  const current = stop as SpotStop;
+  if (entry.lat === undefined || entry.lng === undefined || current.parkingSpots === undefined) {
+    return stop;
+  }
+  const { lat, lng } = entry;
+  if (current.parkingSpots.some((s) => s.lat === lat && s.lng === lng)) return stop;
+  return {
+    ...stop,
+    ...(current.parkingSpots.length === 0 ? { lat, lng } : {}),
+    parkingSpots: [...current.parkingSpots, { label: null, note: null, lat, lng }],
+  };
+}
+
 /**
  * The stop after the queued taps (in order) are applied to the state the server last told us. A
  * queued key entry (NUD-142) shows the new key at once; it is independent of the stop status.
@@ -124,7 +157,9 @@ type StopLike = {
 export function overlayStop<T extends StopLike>(stop: T, entries: readonly OutboxEntry[]): T {
   let next = stop;
   for (const entry of sortEntries(entries.filter((e) => e.stopId === stop.id))) {
-    if (entry.type === "key") {
+    if (entry.type === "parking") {
+      next = withQueuedSpot(next, entry);
+    } else if (entry.type === "key") {
       const hasKey = entry.hasKey ?? null;
       next = { ...next, hasKey, keyNumber: hasKey === true ? (entry.keyNumber ?? null) : null };
     } else if (entry.type === "undo") {
@@ -200,6 +235,18 @@ export function settle(
   return settlement;
 }
 
+/** The Parkplätze a sync answer carries and the routing point they imply (first = default). */
+export function withServerSpots(state: Pick<SyncStopState, "parkingSpots">): {
+  parkingSpots?: SyncParkingSpot[];
+  lat?: number;
+  lng?: number;
+} {
+  const spots = state.parkingSpots;
+  if (spots === undefined) return {};
+  const first = spots[0];
+  return { parkingSpots: spots, ...(first ? { lat: first.lat, lng: first.lng } : {}) };
+}
+
 /** The part of the stored tour JSON that a sync answer updates (structural, no zod). */
 type PatchableTour = {
   tour: null | {
@@ -212,6 +259,9 @@ type PatchableTour = {
       completedAt: string | null;
       hasKey?: boolean | null;
       keyNumber?: string | null;
+      lat?: number | null;
+      lng?: number | null;
+      parkingSpots?: SyncParkingSpot[];
     }>;
   };
 };
@@ -245,6 +295,7 @@ export function patchTourStates<T extends PatchableTour>(
               completedAt: s.completedAt,
               ...(s.hasKey !== undefined ? { hasKey: s.hasKey } : {}),
               ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber } : {}),
+              ...withServerSpots(s),
             }
           : stop;
       }),

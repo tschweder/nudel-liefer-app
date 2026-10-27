@@ -298,7 +298,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-141 | Parkplatz is the routing point; no more pin confirmation | M2.6 | 125, 139 | done |
 | NUD-142 | Customer key number (office + driver) | M2.6 | 139 | done |
 | NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | done |
-| NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | todo |
+| NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | done |
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | todo |
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | todo |
@@ -2416,7 +2416,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-144 · Driver sets Parkplatz coordinates
-**Status:** todo · **depends_on:** 125, 141 · F24 · D27
+**Status:** done · **depends_on:** 125, 141 · F24 · D27
 
 **Scope**
 - In the "Parken" slot of the stop detail: button **"Parkplatz festlegen"** with two modes:
@@ -2426,9 +2426,18 @@ General rules for every ticket in this block:
 - Coordinates rounded to 6 decimals.
 
 **Acceptance criteria**
-- [ ] Manual entry `48,2082` / `16,3738` saves a spot at 48.208200, 16.373800.
-- [ ] Next navigation link for that customer uses the new spot.
-- [ ] Works offline (queued, applied on reconnect).
+- [x] Manual entry `48,2082` / `16,3738` saves a spot at 48.208200, 16.373800. (Unit parking-setter.test.tsx (5 locales) + e2e driver-parking: `48,2082` / `16,3738` stores 48.2082 / 16.3738 (DB row, createdBy = driver, audit `parking.create`))
+- [x] Next navigation link for that customer uses the new spot. (e2e driver-parking: the Google link of the stop has `waypoints=48.2082,16.3738` at once (overlay) and after a reload (server payload); driver-parking.integration.test.ts checks the payload)
+- [x] Works offline (queued, applied on reconnect). (e2e driver-parking (desktop + mobile): queued while offline, link uses it at once, applied on reconnect (`via: sync`); outbox.test.ts, driver-parking.integration.test.ts)
+
+**Implementation notes**
+- New sync entry `type: "parking"` (`lat`, `lng`) in the existing outbox / `POST /api/driver/sync` (no new route, no new authz row): `applyDriverParking` in `src/server/parking-spots.ts` (stop must belong to the driver's tour, max 10 active spots, idempotent via `StopMutation` kind `PARKING` = migration `20261027120000_stop_mutation_parking`, audit `parking.create` with `via` driver/sync). `createParkingSpot` and the driver path share `insertSpot`. The sync answer carries the customer's active `parkingSpots` per stop; `patchTourStates` / `useOverlaidStop` write them (and the new routing point `lat`/`lng`) into the stored tour and the screen, a queued point shows at once (`overlayStop`).
+- UI: `src/components/driver/parking-setter.tsx`, button "Parkplatz festlegen" inside the stop screen's Parkplatz card (the card now also shows, with a hint, when the customer has no Parkplatz). Sheet with two modes (Aktueller Standort / Koordinaten eingeben), map preview with draggable marker (`PinPickerMapLazy`), Breite / Länge fields (comma or point via `parseCoordinate`, range check, 48+ px), refused / failed / unsupported position -> message + manual mode. `StopDetail` got a `tiles` prop. Texts `driver.parkingSet.*`, `driver.stop.parkingNone`, `driver.sync.mutationParking` in all five locales.
+- Surprise: the Permissions-Policy header forbade geolocation (`geolocation=()`), so the position fix could never work; now `geolocation=(self)` (security-headers.ts, its unit + e2e test, `docs/deploy.md` section 11). No tracking: the position is read once per tap (D19 unchanged); `docs/privacy.md` and `docs/offline.md` updated.
+- Not done / follow-ups: a spot set by the driver has no label or note (the office can add them); a driver cannot edit or remove a Parkplatz; an already planned tour is not re-optimised for the new point (NUD-141 uses it for the next planning).
+
+**Implementation notes**
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2034 passed / 4 skipped, i18n:check, fresh-DB migrate + seed (also `--demo --no-photos`), e2e desktop + mobile: driver-parking (new, 6), driver-key, driver-offline, driver-stop, driver-a11y, driver-today, driver-usability, parking-spots, security-headers all green; the offline reconnect tests of driver-key / driver-parking failed once each in a long batch and passed on rerun (known timing flake).
 
 ---
 
@@ -2954,6 +2963,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-143 | Details control is a stretched-link chevron (::after overlay) instead of making the card an <a>; photo actions sit below the placeholder tile, overlay icons when a photo exists. | Avoids nested interactive elements (axe) and keeps 48 px targets in the 148 px tile. |
 | 2026-10-27 | NUD-126 | One "Navigation starten" button to the default Parkplatz (then the Lieferadresse); the stop screen lists all active Parkplätze (label + note) read-only, with no picker and no entrance button | Amended ticket text (D30, owner test F21) asks for one button only; a picker would be a second navigation action. Choosing another spot is the office's reorder (NUD-125) |
 | 2026-10-27 | NUD-126 | The driver payload (and so the offline cache) carries `addressLat/addressLng` plus `parkingSpots[{label,note,lat,lng}]`; the schema defaults them to null/[] so caches written before this ticket still parse, and a missing address point falls back to the single routing point | D17/NUD-081 pattern: one JSON model online and offline; no schemaVersion bump needed because old caches stay readable; label/note are shown as typed (never translated, like customer names) |
+| 2026-10-27 | NUD-144 | A Parkplatz set by the driver is appended to the list: it is the default (routing / navigation point) only if the customer had none; no label or note. | D27 says no approval, and "becomes the default if none exists" in the ticket; a driver must not silently reorder the office's list. Simplest: append, office can reorder. |
+| 2026-10-27 | NUD-144 | Permissions-Policy now allows `geolocation=(self)` (was `()`). | The position fix needs it; one-off request on a button tap, no tracking, so D19 stands. Documented in deploy.md and privacy.md. |
+| 2026-10-27 | NUD-144 | Driver Parkplatz entries use the existing sync queue (`type: parking`, StopMutation kind PARKING) and audit action `parking.create` with `via`. | Reuses the idempotent outbox like NUD-142; no new route or audit action. |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

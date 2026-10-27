@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import type { SyncStopState } from "@/domain/driver-sync";
 
-import { type OutboxEntry, overlayStops, type StopStatus } from "./outbox";
+import { type OutboxEntry, overlayStops, type StopStatus, withServerSpots } from "./outbox";
 import { useOutbox } from "./outbox-browser";
 
 type StopLike = {
@@ -29,6 +29,7 @@ function withOverlay<T extends StopLike>(
               completedAt: c.completedAt,
               ...(c.hasKey !== undefined ? { hasKey: c.hasKey } : {}),
               ...(c.keyNumber !== undefined ? { keyNumber: c.keyNumber } : {}),
+              ...withServerSpots(c),
             }
           : s;
       })

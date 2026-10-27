@@ -17,3 +17,14 @@ export function isValidLatLng(point: LatLng): boolean {
     Math.abs(point.lng) <= 180
   );
 }
+
+/**
+ * Parses a coordinate typed by a person: comma or point as the decimal separator (`48,2082`),
+ * surrounding spaces ignored. `null` for anything that is not a finite number.
+ */
+export function parseCoordinate(text: string): number | null {
+  const normalized = text.trim().replace(",", ".");
+  if (!normalized) return null;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
