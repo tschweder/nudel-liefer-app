@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CachingGeocoder, LruCache } from "./cache";
 import { FakeGeocoder } from "./fake";
-import { getGeocoder, parseCountries, setGeocoderForTests } from "./index";
+import { getGeocoder, parseBaseUrl, parseCountries, setGeocoderForTests } from "./index";
 import { mapOrsResponse, OrsGeocoder } from "./ors";
 import { GeocoderError, normalizeAddress } from "./types";
 
@@ -241,5 +241,25 @@ describe("getGeocoder", () => {
   it("parseCountries ignores junk and defaults to AT,DE", () => {
     expect(parseCountries(undefined)).toEqual(["AT", "DE"]);
     expect(parseCountries("xx1, , de")).toEqual(["DE"]);
+  });
+
+  it("sends its requests to a self-hosted ORS when ORS_BASE_URL is set (NUD-156)", async () => {
+    const fetchFn = vi.fn(async () => jsonResponse(fixture("ors-search-vienna.json")));
+    vi.stubGlobal("fetch", fetchFn);
+    try {
+      const g = getGeocoder({ ORS_API_KEY: "k", ORS_BASE_URL: " http://127.0.0.1:8082/ " });
+      await g.search("Stephansplatz 1");
+      const parsed = new URL(String((fetchFn.mock.calls[0] as unknown as [string])[0]));
+      expect(parsed.origin + parsed.pathname).toBe("http://127.0.0.1:8082/geocode/search");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("parseBaseUrl trims, drops trailing slashes and treats blanks as unset", () => {
+    expect(parseBaseUrl(undefined)).toBeUndefined();
+    expect(parseBaseUrl("   ")).toBeUndefined();
+    expect(parseBaseUrl("http://127.0.0.1:8082/")).toBe("http://127.0.0.1:8082");
+    expect(parseBaseUrl(" https://geo.example.test/ors// ")).toBe("https://geo.example.test/ors");
   });
 });

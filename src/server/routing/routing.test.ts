@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FallbackRoutingProvider } from "./fallback";
 import { LocalHeuristicProvider } from "./heuristic";
-import { getRoutingProvider, parseProfile, setRoutingProviderForTests } from "./index";
+import { getRoutingProvider, parseBaseUrl, parseProfile, setRoutingProviderForTests } from "./index";
 import {
   mapDirectionsResponse,
   mapOptimizationResponse,
@@ -394,5 +394,31 @@ describe("getRoutingProvider", () => {
     expect(parseProfile(" driving-hgv ")).toBe("driving-hgv");
     expect(parseProfile("cycling-regular")).toBe("driving-car");
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends both requests to a self-hosted ORS when ORS_BASE_URL is set (NUD-156)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = orsFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const provider = getRoutingProvider({
+        ORS_API_KEY: "K",
+        ORS_BASE_URL: " http://127.0.0.1:8082/ ",
+      });
+      const result = await provider.optimize(input);
+      expect(result.approximate).toBe(false);
+      const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+      expect(urls[0]).toBe("http://127.0.0.1:8082/optimization");
+      expect(urls[1]).toBe("http://127.0.0.1:8082/v2/directions/driving-car/geojson");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("parseBaseUrl trims, drops trailing slashes and treats blanks as unset", () => {
+    expect(parseBaseUrl(undefined)).toBeUndefined();
+    expect(parseBaseUrl("   ")).toBeUndefined();
+    expect(parseBaseUrl("http://127.0.0.1:8082/")).toBe("http://127.0.0.1:8082");
+    expect(parseBaseUrl(" https://geo.example.test/ors// ")).toBe("https://geo.example.test/ors");
   });
 });

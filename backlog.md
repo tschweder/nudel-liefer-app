@@ -310,7 +310,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
-| NUD-156 | Self-hosted OpenRouteService (geocoding + routing without a quota) | M2.6 | – | in-progress |
+| NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
+| NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2708,8 +2709,11 @@ Overlap with NUD-147 checked: NUD-147 does not cover this (it only adds a whole-
 
 ---
 
-#### NUD-156 · Self-hosted OpenRouteService (geocoding + routing without a quota)
-**Status:** in-progress · **depends_on:** – · owner decision 2026-10-27 after the hosted ORS free key ran out of quota during the bulk geocoding of the 195 active customers. The 94 customers that are still without an Adresspunkt wait for this ticket.
+#### NUD-156 · Self-hosted OpenRouteService (routing/optimization without a quota)
+**Status:** in-progress · **depends_on:** – · owner decision 2026-10-27, **premise corrected during the session** (see Implementation notes): the self-hosted server has no geocoding endpoint, so this ticket covers the routing/optimization side only. The 94 customers without an Adresspunkt are tracked in NUD-157.
+
+**Premise correction (measured, not assumed)**
+The plan was to self-host ORS to get the 195 customers geocoded. The official `openrouteservice/openrouteservice` image serves **routing, matrix, isochrones, snapping, matching, export, health and status only**: `jar tf /ors.jar | grep api/controllers/` lists exactly `RoutingAPI, IsochronesAPI, MatrixAPI, SnappingAPI, MatchingAPI, ExportAPI, HealthAPI, StatusAPI`, and `BOOT-INF/classes/application.yml` contains no `geocod*` key at all. The public `/geocode/*` is a **separate Pelias service** run by HeiGIT. A self-hosted ORS therefore cannot produce a single coordinate — it removes the quota for *planning*, not for geocoding.
 
 **Problem**
 The app calls the hosted ORS for two different jobs: geocoding (`src/server/geocoder/ors.ts`, `/geocode/search`) and tour planning (`src/server/routing/ors.ts`, `/optimization` VROOM + `/v2/directions`). On 2026-10-27 the free key answered `429` after ~80 lookups and then `403 "Quota exceeded"`; the real daily quota of that key is around 100 requests, not the 1000/day `.env.example` and `docs/deploy.md` assume. Today's tour is not blocked — `FallbackRoutingProvider` ([`src/server/routing/index.ts`](./src/server/routing/index.ts)) silently falls back to `LocalHeuristicProvider` and flags the tour `approximate` — but a bulk geocoding of the customer master data is, and any busy planning day can be.
@@ -2718,28 +2722,51 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 **Scope**
 - Make the endpoint configurable: `ORS_BASE_URL` (default `https://api.openrouteservice.org`) read in [`src/server/geocoder/index.ts`](./src/server/geocoder/index.ts) and [`src/server/routing/index.ts`](./src/server/routing/index.ts) and passed into `OrsGeocoder` / `OrsRoutingProvider` — both classes already take a `baseUrl`, it is simply never fed from the environment. Document it in `.env.example`, `docs/env.md`, `docs/deploy.md` (section 5) and write it into `/etc/delivery-app.env`.
 - Deploy ORS beside the app: the official `openrouteservice/openrouteservice` image, a graph built from an OSM extract, a persistent graph volume, a restart policy, and a listener on `127.0.0.1` only — the box hosts other sites, so its nginx server blocks are not touched except for the delivery-app snippet.
-- Re-run the customer geocoding against the local instance for the customers that still have no Adresspunkt (the office button, or the operator path used on 2026-10-27) and compare the hit rate with the hosted API.
+- Verify against the local instance that planning returns `approximate: false` for a real tour, then decide whether the hosted API stays the default: planning volume is a few tours a day and a failed call already falls back to the heuristic, so this buys accuracy and quota independence, not availability.
 
 **Acceptance criteria**
-- [ ] `ORS_BASE_URL` is the only new knob; unset keeps today's hosted behaviour exactly. Unit tests assert the request URL for the geocoder and for the routing provider (directions and optimization) with the variable set and unset.
-- [ ] A local ORS answers `/geocode/search`, `/v2/directions` and `/optimization`; the app runs against it end to end (geocode one customer, plan one tour) with `approximate: false`.
+- [x] `ORS_BASE_URL` is the only new knob; unset keeps today's hosted behaviour exactly. Unit tests assert the request URL for the geocoder and for the routing provider (optimization and directions) with the variable set, plus the blank/whitespace/trailing-slash rules.
+- [ ] A local ORS answers `/v2/directions` and `/optimization`; the app plans one real tour against it with `approximate: false`.
 - [ ] The instance listens on `127.0.0.1` only, survives a restart of the box, and its graph can be rebuilt from a documented command.
-- [ ] `docs/runbook.md` gains the start/stop/health/rebuild steps; `docs/deploy.md` the RAM and disk requirement; `.env.example` and `docs/env.md` the new variable.
-- [ ] Definition of Done (lint, typecheck, test, i18n:check) green; no migration (no schema change).
+- [ ] `docs/runbook.md` gains the start/stop/health/rebuild steps; `docs/deploy.md` the RAM and disk requirement.
+- [x] Definition of Done for the code half: lint clean, typecheck 0 errors (after `prisma generate` + `next typegen`), test suite 2310 passed / 8 skipped, `i18n:check ok`; no migration.
 
 **Implementation notes**
-- 2026-10-27 (operator session, no code changed yet): the ticket exists and is scoped, but nothing was implemented — the host decision below is the blocker, and the local pnpm shim on the owner's PC is broken (`node_modules` and the tools are present, `pnpm -v` itself fails), so the Definition of Done cannot be run locally until that is fixed or the work runs on the server with `deploy/server-setup.sh`'s toolchain.
+- 2026-10-27, **code half done**: `parseBaseUrl` (trim, drop trailing slashes, blank = unset) beside `parseCountries` / `parseProfile`, `ORS_BASE_URL` wired into `OrsGeocoder` and `OrsRoutingProvider` in [`src/server/geocoder/index.ts`](./src/server/geocoder/index.ts) and [`src/server/routing/index.ts`](./src/server/routing/index.ts); new tests in `geocoder.test.ts` / `routing.test.ts`; `.env.example` and `docs/env.md` updated, including the corrected quota wording.
+- Tooling: run the gates with `node_modules/.bin/{vitest,tsc,eslint,tsx}.cmd` — the owner's `pnpm` shim is broken (it resolves to the DSH checkout's `pnpm.CMD`, whose target is missing), and `pnpm`/`corepack` in this repo also **rewrites `pnpm-lock.yaml`**. Fix: `corepack prepare pnpm@12.14.0 --activate`. A stale local Prisma client and `.next/dev/types` from an old dev run also produced ~200 phantom type errors; `prisma generate`, `next typegen` and deleting `.next/dev` cleared them.
+- Still open on the infra side: the Austria extract is downloaded to `C:\ors-local\files\austria-latest.osm.pbf` (776 MB) and the image is pulled, but the graph is **not** built — deliberately, after the premise correction above, so no PC time is spent on a geocoder that does not exist.
 - Measured today on the real box: `429` after ~80 lookups, `403 "Quota exceeded"` from the first request of the next minute; 103 of 197 active customers have a real Adresspunkt, 94 do not. `/opt/delivery-app.old` is the broken attempt-1 tree from the 2026-10-27 deploy, so it is **not** a rollback target; rebuild from a tarball instead.
 
 **Open decisions (owner)**
-- **Host.** Recommended: raise the existing vServer to 8 GB RAM and run ORS next to the app (61 GB disk free; an Austria-only extract is ~1 GB and the graph build needs the RAM only while it runs). Alternative: a separate VM. A home PC is fine for a local experiment but not for production — the vServer must reach the geocoder 24/7 while a driver is out in the field.
-- **Extract.** Austria only (small, fast — every customer is in AT) or AT + DE/Bavaria (larger, slower, covers German customers).
-- **Quality.** A self-hosted geocoder answers from the graph's OSM data alone, so the hit rate can be lower than the hosted API, which merges further sources. Measure it on the 195 addresses; if it is worse, keep the hosted key as the fallback for the office button.
+- **Host**, and only if routing is self-hosted at all: the existing vServer (2 GB RAM, 6 GB swap since 2026-10-27) or a separate VM. A home PC is fine as a local experiment but cannot be a production dependency for drivers in the field.
+- **Worth it?** Compared with NUD-157 this is low urgency — see the Scope note above.
 
 **Risks**
 - RAM: 2 vCPU / 2 GB today, and the build already needs swap (`deploy/server-setup.sh`, NUD-155 era). ORS wants more than the app does — do not start the deployment before the host decision, or the box will swap itself to death while drivers are working.
 - Disk: a DE extract plus its graph can exceed 20 GB; check `df -h /` before downloading.
-- The endpoint swap does not change planning quality (same VROOM behind `/optimization`); only the quota disappears.
+- The endpoint swap does not change planning quality (same VROOM behind `/optimization`).
+
+---
+
+#### NUD-157 · Geocoding quota: 94 active customers still without an Adresspunkt
+**Status:** todo · **depends_on:** – · found 2026-10-27 while geocoding the customer master data (NUD-156 analysis).
+
+**Problem**
+Bulk geocoding needs far more lookups than one free ORS key provides per day: on 2026-10-27 the key answered `429` after ~80 lookups and `403 "Quota exceeded"` for the rest of the day. Result: 103 of 197 active customers have a real Adresspunkt and **94 do not**; a customer without coordinates and without a Parkplatz gets no "Navigation starten" button in the driver app (the office can set a Parkplatz by hand per stop, which restores it for that stop).
+
+**Options (none started, owner decides)**
+- **Second free key, or simply the next day** — cheapest and normally sufficient: geocoding is a one-time load per customer, and afterwards only new customers trickle in. "Kunden → Import → Adressen geokodieren" resumes exactly where it stopped, free.
+- **Self-hosted geocoder (Photon, `komoot/photon`)** — imports an Austria PBF in one container (roughly 2–4 GB RAM, tens of minutes) and answers `GET /api?q=…&limit=5`. A **different API shape** from ORS/Pelias, so it needs a `PhotonGeocoder` behind the existing `Geocoder` interface (mapping + tests + env wiring, no schema change). This is the realistic self-hosted answer to the quota.
+- **Self-hosted Pelias** — what the public ORS geocoder runs: Elasticsearch plus several importers, 8–16 GB RAM, long import. Heavy for 195 addresses.
+- **Paid ORS plan** — no code change, recurring cost.
+
+**Acceptance criteria**
+- [ ] Every active customer has an Adresspunkt, or a recorded reason the address cannot be geocoded (check: active customers with `lat is null` and no active Parkplatz).
+- [ ] The chosen route is documented in `docs/env.md` / `docs/deploy.md`; the office button stays the operator path either way.
+- [ ] If a provider is added: unit tests for the response mapping, the same "no result is not an error" behaviour as `geocodeAddress`, and no secret in URLs.
+
+**Implementation notes**
+- 2026-10-27 operator run: a temporary script called `listCustomerIdsWithoutPin` + `geocodeCustomers` (the exact code behind the office button) in batches of 5 with the documented pacing. First pass stopped at `429`; the immediate resume got `403 Quota exceeded`. The script was deleted afterwards, the app was never touched, 103 customers were geocoded (all Austria, lat 48.03–48.39, lng 14.21–16.49).
 
 ---
 
@@ -3159,6 +3186,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-155 | Delivery day: `--date` or today in `Settings.timezone` (default Europe/Vienna); a past day is refused; the planned day is the given date even on a non-delivery weekday | The order service refuses past days; an explicit day was requested by the client |
 | 2026-10-27 | NUD-155 | Actor: first active ADMIN by creation date or `--actor <email>` (must be an active ADMIN) | Same user rule as the order audit entries; no password or session needed in a script |
 | 2026-10-27 | NUD-155 | Warnings never block: no address point and no Parkplatz, customer already has confirmed orders that day, customer repeated in the file; products are checked by sku, unit and weight (10 kg CRATE / 3 kg PACK) and the run is refused if the catalog differs | Client rule; a changed catalog means the mapping ja/nein would be a guess |
+| 2026-10-27 | NUD-156 | `ORS_BASE_URL` (trim, drop trailing slashes, blank = unset) is read by the geocoder and the routing provider; unset keeps `https://api.openrouteservice.org` | One knob for a self-hosted instance; both classes already accepted a `baseUrl`, it was just never fed from the environment |
+| 2026-10-27 | NUD-156 | **Self-hosting ORS does not solve the geocoding quota:** the official image ships no geocoding endpoint (only routing, matrix, isochrones, snapping, matching, export, health, status; the public `/geocode/*` is a separate Pelias service) | Evidence: `jar tf /ors.jar` lists exactly those 8 controllers and `application.yml` has no `geocod*` key. Recorded so nobody builds a routing graph expecting coordinates |
+| 2026-10-27 | NUD-157 | The geocoding quota gets its own ticket; the 94 customers without an Adresspunkt stay open and the office button remains the operator path | A self-hosted routing server cannot close that gap, and the bulk load does not fit into one free key's day |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

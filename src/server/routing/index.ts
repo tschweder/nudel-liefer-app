@@ -25,10 +25,17 @@ export function parseProfile(value: string | undefined): OrsProfile {
   return DEFAULT_PROFILE;
 }
 
+/** Same rule as the geocoder: trailing slashes are dropped, a blank value means "unset" (NUD-156). */
+export function parseBaseUrl(value: string | undefined): string | undefined {
+  const baseUrl = value?.trim().replace(/\/+$/, "");
+  return baseUrl ? baseUrl : undefined;
+}
+
 /**
  * Routing provider selected from the environment: ORS with automatic fallback to the local
  * heuristic when `ORS_API_KEY` is set, otherwise the heuristic alone and a single warning. Results
- * from the heuristic are always flagged `approximate: true`.
+ * from the heuristic are always flagged `approximate: true`. `ORS_BASE_URL` points at a
+ * self-hosted ORS (NUD-156); unset keeps the public API.
  */
 export function getRoutingProvider(
   env: Record<string, string | undefined> = process.env,
@@ -38,7 +45,11 @@ export function getRoutingProvider(
   const heuristic = new LocalHeuristicProvider();
   if (apiKey) {
     instance = new FallbackRoutingProvider(
-      new OrsRoutingProvider({ apiKey, profile: parseProfile(env.ORS_ROUTING_PROFILE) }),
+      new OrsRoutingProvider({
+        apiKey,
+        baseUrl: parseBaseUrl(env.ORS_BASE_URL),
+        profile: parseProfile(env.ORS_ROUTING_PROFILE),
+      }),
       heuristic,
     );
   } else {

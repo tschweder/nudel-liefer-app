@@ -21,16 +21,30 @@ export function parseCountries(value: string | undefined): string[] {
 }
 
 /**
+ * `ORS_BASE_URL="http://127.0.0.1:8082/"` -> `"http://127.0.0.1:8082"`. A blank value means "unset",
+ * so an empty variable cannot silently point the app at nothing. `undefined` = the public API.
+ */
+export function parseBaseUrl(value: string | undefined): string | undefined {
+  const baseUrl = value?.trim().replace(/\/+$/, "");
+  return baseUrl ? baseUrl : undefined;
+}
+
+/**
  * Geocoder selected from the environment: ORS (behind an LRU cache) when `ORS_API_KEY` is set,
  * otherwise the deterministic Fake and a single warning. The admin confirms every pin (D9), so
- * the Fake never silently becomes a delivery position.
+ * the Fake never silently becomes a delivery position. `ORS_BASE_URL` points at a self-hosted ORS
+ * (NUD-156) and keeps the public API as the default.
  */
 export function getGeocoder(env: Record<string, string | undefined> = process.env): Geocoder {
   if (instance) return instance;
   const apiKey = env.ORS_API_KEY?.trim();
   if (apiKey) {
     instance = new CachingGeocoder(
-      new OrsGeocoder({ apiKey, countries: parseCountries(env.ORS_GEOCODE_COUNTRIES) }),
+      new OrsGeocoder({
+        apiKey,
+        baseUrl: parseBaseUrl(env.ORS_BASE_URL),
+        countries: parseCountries(env.ORS_GEOCODE_COUNTRIES),
+      }),
     );
   } else {
     if (!warned) {
