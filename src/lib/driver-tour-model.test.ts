@@ -90,6 +90,30 @@ describe("driver tour model", () => {
     expect(driverTourResponseSchema.parse(JSON.parse(JSON.stringify(r)))).toEqual(r);
   });
 
+  it("reads a cache written before NUD-126 (no address point, no Parkplätze) as 'none'", () => {
+    const r = JSON.parse(JSON.stringify(response()));
+    expect(r.tour.stops[0].parkingSpots).toEqual([]);
+    delete r.tour.stops[0].addressLat;
+    delete r.tour.stops[0].addressLng;
+    delete r.tour.stops[0].parkingSpots;
+    const parsed = driverTourResponseSchema.parse(r);
+    expect(parsed.tour?.stops[0]).toMatchObject({
+      addressLat: null,
+      addressLng: null,
+      parkingSpots: [],
+    });
+  });
+
+  it("carries the Parkplätze into the stop view for the offline render", () => {
+    const r = JSON.parse(JSON.stringify(response()));
+    r.tour.stops[0].parkingSpots = [{ label: "Hof", note: "Tor", lat: 48.3, lng: 16.4 }];
+    const parsed = driverTourResponseSchema.parse(r);
+    const detail = toDriverStopDetail(parsed, parsed.tour!.stops[0]!.id, "de");
+    expect(detail?.stop.parkingSpots).toEqual([
+      { label: "Hof", note: "Tor", lat: 48.3, lng: 16.4 },
+    ]);
+  });
+
   it("rejects a wrong schema version or a damaged payload", () => {
     expect(driverTourResponseSchema.safeParse({ ...response(), schemaVersion: 2 }).success).toBe(
       false,

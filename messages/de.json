@@ -1431,7 +1431,11 @@
       "weekdayFr": "Fr",
       "weekdaySa": "Sa",
       "weekdaySu": "So",
-      "clockSuffix": "Uhr"
+      "clockSuffix": "Uhr",
+      "parkingTitle": "Parkplätze",
+      "parkingHint": "Die Navigation führt zuerst zum ersten Parkplatz, dann zur Lieferadresse.",
+      "parkingSpotNumber": "Parkplatz {number}",
+      "parkingFirst": "zuerst"
     },
     "status": {
       "delivered": "Geliefert",

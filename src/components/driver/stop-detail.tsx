@@ -5,6 +5,7 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CircleParkingIcon,
   ClockIcon,
   CopyIcon,
   MapPinIcon,
@@ -25,9 +26,9 @@ import { summarizeItems } from "@/domain/driver-today";
 import type { ProblemReasonName } from "@/domain/stop-status";
 import { Link } from "@/i18n/navigation";
 import { isIosDevice } from "@/lib/device";
-import type { DriverStopDetail, TodayItem } from "@/lib/driver-tour-model";
+import type { DriverStopDetail, TodayItem, TodayStop } from "@/lib/driver-tour-model";
 import { type AppFormatters, createAppFormatters } from "@/lib/format";
-import { appleMapsNavigationUrl, googleMapsNavigationUrl } from "@/lib/navigation";
+import { stopAppleNavigationUrl, stopGoogleNavigationUrl } from "@/lib/navigation";
 import { useOverlaidStop, useOverlaidStops } from "@/lib/offline/use-overlay";
 import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
 import { isPieceUnit } from "@/lib/units";
@@ -203,7 +204,7 @@ export function StopDetail({
           <>
             <Button asChild size="xl" className="w-full">
               <a
-                href={googleMapsNavigationUrl(stop.lat!, stop.lng!)}
+                href={stopGoogleNavigationUrl(stop)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() =>
@@ -218,7 +219,7 @@ export function StopDetail({
             {ios ? (
               <Button asChild variant="outline" size="lg" className="w-full">
                 <a
-                  href={appleMapsNavigationUrl(stop.lat!, stop.lng!)}
+                  href={stopAppleNavigationUrl(stop)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() =>
@@ -239,6 +240,8 @@ export function StopDetail({
           </p>
         )}
       </div>
+
+      <ParkingSpotsCard spots={stop.parkingSpots ?? []} />
 
       <DeliveryCard items={stop.items} fmt={fmt} locale={locale} />
 
@@ -266,6 +269,48 @@ export function StopDetail({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * The customer's Parkplätze (NUD-126): label + note, the first one is where the single
+ * "Navigation starten" button guides to first (D30). Hidden when the customer has none.
+ */
+function ParkingSpotsCard({ spots }: { spots: NonNullable<TodayStop["parkingSpots"]> }) {
+  const t = useTranslations("driver.stop");
+  if (spots.length === 0) return null;
+  return (
+    <section className="mt-3 rounded-xl border bg-card p-4" data-testid="parking-spots">
+      <h2 className="flex items-center gap-2 text-base font-semibold">
+        <CircleParkingIcon className="size-5 shrink-0" aria-hidden />
+        {t("parkingTitle")}
+      </h2>
+      <p className="mt-1 text-base text-muted-foreground">{t("parkingHint")}</p>
+      <ol className="mt-2 grid gap-2">
+        {spots.map((spot, index) => (
+          <li
+            key={`${spot.lat},${spot.lng},${index}`}
+            className="min-w-0 rounded-lg bg-muted px-3 py-2"
+            data-testid="parking-spot"
+            data-default={index === 0 ? "true" : "false"}
+          >
+            <p className="text-base font-semibold break-words">
+              {spot.label || t("parkingSpotNumber", { number: index + 1 })}
+              {index === 0 ? (
+                <span className="ml-2 text-sm font-medium text-muted-foreground">
+                  {t("parkingFirst")}
+                </span>
+              ) : null}
+            </p>
+            {spot.note ? (
+              <p className="text-base break-words whitespace-pre-line" data-testid="parking-note">
+                {spot.note}
+              </p>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

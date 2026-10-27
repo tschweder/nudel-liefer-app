@@ -39,7 +39,7 @@ import { Link } from "@/i18n/navigation";
 import type { DriverToday, TodayItem, TodayStop } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
-import { googleMapsNavigationUrl } from "@/lib/navigation";
+import { googleMapsNavigationUrl, stopGoogleNavigationUrl } from "@/lib/navigation";
 import { useOutbox } from "@/lib/offline/outbox-browser";
 import { useOverlaidStops } from "@/lib/offline/use-overlay";
 import { isPieceUnit } from "@/lib/units";
@@ -339,9 +339,9 @@ function NextStopCard({
       {stop.noteText ? <NoteStrip text={stop.noteText} /> : null}
       {unseen ? <ChangeHighlight stop={stop} /> : null}
       <div className="grid gap-2">
-        {stop.lat !== null && stop.lng !== null ? (
+        {stopGoogleNavigationUrl(stop) ? (
           <a
-            href={googleMapsNavigationUrl(stop.lat, stop.lng)}
+            href={stopGoogleNavigationUrl(stop)!}
             target="_blank"
             rel="noopener noreferrer"
             data-testid="navigate"

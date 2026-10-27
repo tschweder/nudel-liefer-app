@@ -113,6 +113,15 @@ test.beforeAll(async () => {
         i === 0 ? "Mo-Fr 8-11 Uhr" : null,
       ],
     );
+    if (i === 0) {
+      // NUD-126: two Parkplätze, the first (sortOrder) is the default; they travel in the cached tour.
+      await db.query(
+        `INSERT INTO "ParkingSpot" ("id","customerId","label","note","lat","lng","sortOrder","createdById","updatedAt")
+         VALUES ($1,$2,'Hof','Tor links, Schranke',48.25,16.41,0,$3,now()),
+                ($4,$2,NULL,'Gasse hinten',48.26,16.42,1,$3,now())`,
+        [`park-a-${tag}`, customerId, userId, `park-b-${tag}`],
+      );
+    }
     // Customer 0: shop + parking photo, customer 1: shop photo only, customer 2: none.
     const kinds = i === 0 ? ["STORE", "PARKING"] : i === 1 ? ["STORE"] : [];
     for (const kind of kinds) {
@@ -153,6 +162,7 @@ test.afterAll(async () => {
   await db.query(`DELETE FROM "Stop" WHERE "tourId"=$1`, [tourId]);
   await db.query(`DELETE FROM "Tour" WHERE "id"=$1`, [tourId]);
   await db.query(`DELETE FROM "Photo" WHERE "id" LIKE $1`, [`photo-%-${tag}`]);
+  await db.query(`DELETE FROM "ParkingSpot" WHERE "id" LIKE $1`, [`park-%-${tag}`]);
   await db.query(`DELETE FROM "Customer" WHERE "id" LIKE $1`, [`cust-%-${tag}`]);
   await db.query(`DELETE FROM "Product" WHERE "id" LIKE $1`, [`prod-%-${tag}`]);
   await db.query(`DELETE FROM "LoginAttempt" WHERE "key" LIKE $1`, [`%${tag}%`]).catch(() => {});
@@ -302,7 +312,13 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     header: await page.getByTestId("stop-header").innerText(),
     items: await page.getByTestId("stop-items").innerText(),
     info: await page.getByTestId("stop-info").innerText(),
+    parking: await page.getByTestId("parking-spots").innerText(),
+    navigate: await page.getByTestId("navigate").getAttribute("href"),
   };
+  expect(onlineDetail.parking).toContain("Tor links, Schranke");
+  expect(onlineDetail.navigate).toBe(
+    "https://www.google.com/maps/dir/?api=1&waypoints=48.25,16.41&destination=48.2,16.37&travelmode=driving",
+  );
   const onlinePhotoBox = await page.getByTestId("photo-store").boundingBox();
   await page.goto("/de/driver");
   await expect(page.getByTestId("offline-ready")).toBeVisible({ timeout: 30_000 });
@@ -339,6 +355,10 @@ test("offline: tour list, stop details and photos still render (375 px)", async 
     expect(await page.getByTestId("stop-header").innerText()).toBe(onlineDetail.header);
     expect(await page.getByTestId("stop-items").innerText()).toBe(onlineDetail.items);
     expect(await page.getByTestId("stop-info").innerText()).toBe(onlineDetail.info);
+    // NUD-126: the Parkplatz list and the combined navigation link come from the cached tour.
+    expect(await page.getByTestId("parking-spots").innerText()).toBe(onlineDetail.parking);
+    await expect(page.getByTestId("parking-spot")).toHaveCount(2);
+    await expect(page.getByTestId("navigate")).toHaveAttribute("href", onlineDetail.navigate!);
     await expect(page.getByTestId("stop-item").first().getByTestId("item-quantity")).toContainText(
       /13/,
     );

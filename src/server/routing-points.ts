@@ -10,6 +10,12 @@ export const parkingSpotsForRouting = {
   select: { sortOrder: true, active: true, lat: true, lng: true },
 } satisfies Prisma.Customer$parkingSpotsArgs;
 
+/** Same list plus the texts the driver reads next to the spot (NUD-126). */
+export const parkingSpotsForDriver = {
+  ...parkingSpotsForRouting,
+  select: { ...parkingSpotsForRouting.select, label: true, note: true },
+} satisfies Prisma.Customer$parkingSpotsArgs;
+
 export const customerLocationSelect = {
   id: true,
   customerNumber: true,

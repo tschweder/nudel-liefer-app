@@ -1431,7 +1431,11 @@
       "weekdayFr": "周五",
       "weekdaySa": "周六",
       "weekdaySu": "周日",
-      "clockSuffix": "时"
+      "clockSuffix": "时",
+      "parkingTitle": "停车位",
+      "parkingHint": "导航先到第一个停车位，再到送货地址。",
+      "parkingSpotNumber": "停车位 {number}",
+      "parkingFirst": "先到这里"
     },
     "status": {
       "delivered": "已送达",

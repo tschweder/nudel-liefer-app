@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { routingPoint } from "@/domain/parking";
+import { activeParkingSpots, routingPoint } from "@/domain/parking";
 import type { PhotoKind } from "@/domain/photos";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
@@ -13,7 +13,7 @@ import {
 import { localizedTextSchema } from "@/lib/localized-text";
 
 import type { Actor } from "./auth/guards";
-import { parkingSpotsForRouting } from "./routing-points";
+import { parkingSpotsForDriver } from "./routing-points";
 import type { Storage } from "./storage/types";
 import { getDriverTour } from "./tour-driver";
 
@@ -84,7 +84,7 @@ export async function getDriverTourResponse(
         city: true,
         lat: true,
         lng: true,
-        parkingSpots: parkingSpotsForRouting,
+        parkingSpots: parkingSpotsForDriver,
         notes: true,
         deliveryHoursInfo: true,
         hasKey: true,
@@ -144,6 +144,14 @@ export async function getDriverTourResponse(
       // Navigation and the map use the same point as the optimisation: Parkplatz, else address.
       lat: point?.lat ?? null,
       lng: point?.lng ?? null,
+      addressLat: customer?.lat ?? null,
+      addressLng: customer?.lng ?? null,
+      parkingSpots: activeParkingSpots(customer?.parkingSpots ?? []).map((spot) => ({
+        label: spot.label,
+        note: spot.note,
+        lat: spot.lat,
+        lng: spot.lng,
+      })),
       notes: notes.success ? notes.data : null,
       deliveryHoursInfo: customer?.deliveryHoursInfo?.trim() || null,
       hasKey: customer?.hasKey ?? null,

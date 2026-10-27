@@ -228,4 +228,51 @@ describe("StopDetail details", () => {
     );
     expect(screen.getByTestId("navigate")).toBeInTheDocument();
   });
+
+  it.each(Object.keys(LOCALES))(
+    "lists the Parkplätze and navigates Parkplatz first, address second in %s (NUD-126, D30)",
+    (locale) => {
+      vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+      );
+      const d = detail();
+      renderIn(locale, {
+        ...d,
+        stop: {
+          ...d.stop,
+          lat: 48.5,
+          lng: 16.9,
+          addressLat: 48.21,
+          addressLng: 16.38,
+          parkingSpots: [
+            { label: "Hof", note: "Tor links", lat: 48.5, lng: 16.9 },
+            { label: null, note: null, lat: 48.6, lng: 17 },
+          ],
+        },
+      });
+      expect(screen.getAllByTestId("navigate")).toHaveLength(1);
+      expect(screen.getByTestId("navigate")).toHaveAttribute(
+        "href",
+        "https://www.google.com/maps/dir/?api=1&waypoints=48.5,16.9&destination=48.21,16.38&travelmode=driving",
+      );
+      expect(screen.getByTestId("navigate-apple")).toHaveAttribute(
+        "href",
+        "https://maps.apple.com/?daddr=48.5,16.9",
+      );
+      const spots = screen.getAllByTestId("parking-spot");
+      expect(spots).toHaveLength(2);
+      expect(spots[0]).toHaveTextContent("Hof");
+      expect(spots[0]).toHaveTextContent("Tor links");
+      expect(spots[0]).toHaveAttribute("data-default", "true");
+      expect(spots[1]).toHaveAttribute("data-default", "false");
+    },
+  );
+
+  it.each(Object.keys(LOCALES))(
+    "shows no Parkplatz card for a customer without one in %s",
+    (locale) => {
+      renderIn(locale, detail());
+      expect(screen.queryByTestId("parking-spots")).toBeNull();
+    },
+  );
 });

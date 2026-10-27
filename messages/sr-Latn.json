@@ -283,7 +283,11 @@
       "weekdayFr": "pet",
       "weekdaySa": "sub",
       "weekdaySu": "ned",
-      "clockSuffix": "č"
+      "clockSuffix": "č",
+      "parkingTitle": "Parking mesta",
+      "parkingHint": "Navigacija vodi prvo do prvog parking mesta, a zatim do adrese isporuke.",
+      "parkingSpotNumber": "Parking mesto {number}",
+      "parkingFirst": "prvo"
     },
     "status": {
       "delivered": "Isporučeno",

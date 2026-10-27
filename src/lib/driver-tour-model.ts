@@ -67,6 +67,14 @@ export const payloadItemSchema = z.preprocess(
   }),
 );
 
+export const payloadParkingSpotSchema = z.object({
+  label: z.string().nullable(),
+  note: z.string().nullable(),
+  lat: z.number(),
+  lng: z.number(),
+});
+export type PayloadParkingSpot = z.infer<typeof payloadParkingSpotSchema>;
+
 export const payloadStopSchema = z.object({
   id: idSchema,
   sequence: z.number().int(),
@@ -83,8 +91,18 @@ export const payloadStopSchema = z.object({
   street: z.string(),
   postalCode: z.string(),
   city: z.string(),
+  /** Routing point of the stop: default Parkplatz, else the address point (D22). */
   lat: z.number().nullable(),
   lng: z.number().nullable(),
+  /**
+   * The geocoded Lieferadresse (NUD-126): the final destination of the combined navigation
+   * (Parkplatz first, address second, D30). Caches written before NUD-126 lack the fields and
+   * read as "unknown / no spots" until the next refresh replaces the copy.
+   */
+  addressLat: z.number().nullable().default(null),
+  addressLng: z.number().nullable().default(null),
+  /** Active Parkplätze in display order; the first one is the default (`lat`/`lng`). */
+  parkingSpots: z.array(payloadParkingSpotSchema).max(20).default([]),
   notes: localizedTextSchema.nullable(),
   deliveryHoursInfo: z.string().nullable(),
   /**
@@ -170,6 +188,10 @@ export type TodayStop = {
   city: string;
   lat: number | null;
   lng: number | null;
+  /** Lieferadresse point and the Parkplätze (NUD-126); optional like `noteText` (hand-built values). */
+  addressLat?: number | null;
+  addressLng?: number | null;
+  parkingSpots?: PayloadParkingSpot[];
   /**
    * Customer note for the driver, in the best language the device has (the note travels localized,
    * `LocalizedText`). `null` when the customer has none; optional so hand-built `TodayStop` values
@@ -255,6 +277,9 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     city: stop.city,
     lat: stop.lat,
     lng: stop.lng,
+    addressLat: stop.addressLat,
+    addressLng: stop.addressLng,
+    parkingSpots: stop.parkingSpots,
     noteText: stop.notes ? pick(stop.notes, locale).trim() || null : null,
     hasKey: stop.hasKey,
     keyNumber: stop.keyNumber,

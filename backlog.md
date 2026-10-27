@@ -280,7 +280,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | done |
 | NUD-124 | Product list: `PACK` → Beutel, six real products, archive the demo ones | M2 | – | superseded → NUD-138 |
 | NUD-125 | Parking spots: schema + office UI | M2 | – | done |
-| NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | todo |
+| NUD-126 | Parking spots: driver UI, park-first navigation, offline | M2 | 125 | done |
 | NUD-127 | 👤 Deploy to the vServer (handoff doc) | M2 | 122, 123, 124, 125, 126 | done |
 | NUD-128 | Realign the order e2e assertions with the redesign's plural unit labels | M2 | – | todo |
 | NUD-129 | Admin order list overflows horizontally at phone width | M2 | – | todo |
@@ -1985,7 +1985,7 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 ---
 
 #### NUD-126 · Parking spots: driver UI, park-first navigation, offline
-**Status:** todo · **depends_on:** 125
+**Status:** done · **depends_on:** 125
 
 **Goal:** the driver sees the parking spots of his stop and navigation guides him to the **parking spot first**, with the shop entrance as the secondary target.
 
@@ -1997,10 +1997,17 @@ Requested by the owner before the first deployment (T6 below). Work them **in or
 - Offline: the parking list is part of the cached tour (NUD-081 pattern); touch targets ≥ 48 px; text in `de` + `zh-Hans`.
 
 **Acceptance criteria**
-- [ ] The driver can pick a parking spot and open navigation to it directly; the entrance stays reachable as the secondary target.
-- [ ] The parking list is available offline from the cached tour.
-- [ ] Routing/optimisation output is unchanged (still one point per stop).
-- [ ] Driver screen checked at 375 px, no horizontal scroll; new text in `de` + `zh-Hans`.
+- [x] The driver can pick a parking spot and open navigation to it directly; the entrance stays reachable as the secondary target. (amended (D30): ONE "Navigation starten" button; with a Parkplatz it opens Google Maps with the default Parkplatz as `waypoints` and the Lieferadresse as `destination` (`travelmode=driving`), Apple Maps goes to the Parkplatz only; the stop screen lists every Parkplatz with label + note. No picker and no entrance button, see §9. Unit: navigation.test.ts, stop-detail.test.tsx (5 locales))
+- [x] The parking list is available offline from the cached tour. (payload carries `parkingSpots` + `addressLat/addressLng`; e2e driver-offline compares the offline Parkplatz card and navigation link with the online render (desktop + mobile))
+- [x] Routing/optimisation output is unchanged (still one point per stop). (void per the amendment: routing uses the Parkplatz since NUD-141 (D22); this ticket does not touch routing)
+- [x] Driver screen checked at 375 px, no horizontal scroll; new text in `de` + `zh-Hans`. (e2e driver-offline, driver-stop (375 px, all 5 locales), driver-today, driver-usability, driver-key, mvp-happy-path on desktop + mobile: 51 passed, 7 skipped; no horizontal scroll; the Parkplatz card has no tap targets of its own (the navigation button stays 48+ px); texts in de, en, zh-Hans, sr-Latn, cs)
+
+**Implementation notes**
+- `PayloadStop` (the one driver data model, online and offline) gained `addressLat/addressLng` and `parkingSpots[{label,note,lat,lng}]` (active spots in `sortOrder`; `parkingSpotsForDriver` in `routing-points.ts`); the zod schema defaults them to `null`/`[]`, so a cache written before this ticket still parses and navigates to the single routing point.
+- `src/lib/navigation.ts`: `stopGoogleNavigationUrl` (Parkplatz as `waypoints`, address as `destination`, `travelmode=driving`; single point when there is no Parkplatz or no address point) and `stopAppleNavigationUrl` (routing point = Parkplatz only). Used by the stop screen and the next-stop card; the depot link is unchanged.
+- Stop screen: read-only "Parkplätze" card (label or "Parkplatz N", note, "zuerst" on the default) between the navigation button and the delivery card; hidden when the customer has none. New keys `driver.stop.parking*` in all five locales. `docs/uat.md` D-15 and `docs/privacy.md` (note now also reaches the driver's offline copy) updated.
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 1996 passed / 4 skipped, i18n:check, fresh-DB migrate + seed (also `--demo --no-photos`), e2e as ticked above. driver-a11y was not re-run (its fixtures have no Parkplätze; the card adds no new interactive element).
+- Follow-up not done: drivers adding/correcting Parkplätze is NUD-144; the card is read-only here.
 
 ---
 
@@ -2945,6 +2952,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-142 | Key entries reuse /api/driver/sync (type key) and StopMutation kind KEY; no conflict rule, last write by sync order wins. | D27: driver field knowledge wins; reuses existing idempotent outbox. |
 | 2026-10-27 | NUD-142 | Stop-list rows show a display-only key chip (rows are links); chip is interactive on next-stop card and stop detail. Office form sends key fields only when edited. | Avoids nested interactive elements (axe) and stale-page overwrites. |
 | 2026-10-27 | NUD-143 | Details control is a stretched-link chevron (::after overlay) instead of making the card an <a>; photo actions sit below the placeholder tile, overlay icons when a photo exists. | Avoids nested interactive elements (axe) and keeps 48 px targets in the 148 px tile. |
+| 2026-10-27 | NUD-126 | One "Navigation starten" button to the default Parkplatz (then the Lieferadresse); the stop screen lists all active Parkplätze (label + note) read-only, with no picker and no entrance button | Amended ticket text (D30, owner test F21) asks for one button only; a picker would be a second navigation action. Choosing another spot is the office's reorder (NUD-125) |
+| 2026-10-27 | NUD-126 | The driver payload (and so the offline cache) carries `addressLat/addressLng` plus `parkingSpots[{label,note,lat,lng}]`; the schema defaults them to null/[] so caches written before this ticket still parse, and a missing address point falls back to the single routing point | D17/NUD-081 pattern: one JSON model online and offline; no schemaVersion bump needed because old caches stay readable; label/note are shown as typed (never translated, like customer names) |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

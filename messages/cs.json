@@ -283,7 +283,11 @@
       "weekdayFr": "Pá",
       "weekdaySa": "So",
       "weekdaySu": "Ne",
-      "clockSuffix": "hod."
+      "clockSuffix": "hod.",
+      "parkingTitle": "Parkovací místa",
+      "parkingHint": "Navigace vede nejdřív na první parkovací místo, potom na adresu dodání.",
+      "parkingSpotNumber": "Parkovací místo {number}",
+      "parkingFirst": "nejdřív"
     },
     "status": {
       "delivered": "Doručeno",

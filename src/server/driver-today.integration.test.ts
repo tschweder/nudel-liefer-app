@@ -176,10 +176,32 @@ describe.skipIf(!process.env.DATABASE_URL)("driver today screen data", { timeout
       data: { customerId: first.customerId, lat: 48.5, lng: 16.9, createdById: adminId },
     });
     const withSpot = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
-    expect(withSpot).toMatchObject({ lat: 48.5, lng: 16.9 });
+    expect(withSpot).toMatchObject({
+      lat: 48.5,
+      lng: 16.9,
+      // NUD-126: the address point and the spot list travel with the stop (offline cache).
+      addressLat: 48.21,
+      addressLng: 16.3,
+      parkingSpots: [{ label: null, note: null, lat: 48.5, lng: 16.9 }],
+    });
+    const second = await t.prisma.parkingSpot.create({
+      data: {
+        customerId: first.customerId,
+        lat: 48.6,
+        lng: 17,
+        label: "Hof",
+        note: "Tor links",
+        sortOrder: 5,
+        createdById: adminId,
+      },
+    });
+    const withTwo = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
+    expect(withTwo.parkingSpots?.map((p) => p.label)).toEqual([null, "Hof"]);
+    expect(withTwo.parkingSpots?.[1]).toMatchObject({ note: "Tor links", lat: 48.6 });
+    await t.prisma.parkingSpot.update({ where: { id: second.id }, data: { active: false } });
     await t.prisma.parkingSpot.update({ where: { id: spot.id }, data: { active: false } });
     const without = (await getDriverToday(t.prisma, actor(driverId), OPTIONS))!.stops[0]!;
-    expect(without).toMatchObject({ lat: 48.21, lng: 16.3 });
+    expect(without).toMatchObject({ lat: 48.21, lng: 16.3, parkingSpots: [] });
   });
 
   it("picks the product name in the requested locale", async () => {
