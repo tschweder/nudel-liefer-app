@@ -273,8 +273,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
 | NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | done |
 | NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
-| NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | todo |
-| NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | todo |
+| NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | blocked |
+| NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | done |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
 | NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | done |
 | NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
@@ -309,7 +309,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
-| NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | todo |
+| NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
@@ -317,6 +317,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
 | NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | todo |
 | NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | todo |
+| NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
+| NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -1850,7 +1852,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 ---
 
 #### NUD-118 · Driver app with two tours on one day (offline cache, hint, real device)
-**Status:** todo · **depends_on:** 099, 081
+**Status:** blocked · **depends_on:** 099, 081
 
 **Goal:** check and, where needed, fix what NUD-099 only covered on the server: a driver who finished tour 1 and receives a follow-up tour the same day.
 
@@ -1862,15 +1864,39 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 **Acceptance criteria**
 - [ ] Driver with a warm cache sees the released follow-up tour after the next sync / focus, without logging out (e2e with the offline helpers); findings of the real-device check noted.
 
+**Implementation notes**
+- Commit 843e5b1 (code + e2e done; **real-device criterion open: HUMAN**). `DriverTour` gained `tourNumber`/`tourCount` (zod defaults 1, no cache schema bump); `OfflineSync` calls `router.refresh()` when the stored tour id changes after a sync; `today-tour.tsx` shows a `tour-badge` ("Tour 2 von 2 · Folgetour") when `tourCount > 1`; keys `driver.today.tourBadge`/`followUpHint` in all five locales. Audit: the single IndexedDB record is always replaced, queued taps are keyed by stop id, the server already prefers the open follow-up; two gaps fixed (visible page did not follow the cache; no second-tour hint).
+- Verified by me: `driver-second-tour` 6 passed, `driver-outbox` 10 passed (the one flake the worker saw did not reproduce), `late-orders` 2 passed.
+- **Human steps (real device, extends NUD-107)** — needs a build with this commit, a test driver on a real Android Chrome phone with the PWA installed (iPhone/iOS Safari too if possible), an admin on a desktop:
+  1. Admin: order for today, build and release tour 1 for the test driver.
+  2. Phone: log in as the driver, wait for "Offline bereit", then do not log out.
+  3. Airplane mode on; mark all stops of tour 1 delivered (pending badge shows queued taps; "Alle Stopps erledigt" visible).
+  4. Admin: let the phone sync tour 1 once (or note the order you used), create a late order for today, "Folgetour erstellen", release the follow-up.
+  5. Phone: airplane mode off with the app open on the "all done" screen. Within ~1 minute, without logout or pull-to-refresh: queued taps sent, screen switches to "Tour 2 von 2 · Folgetour" with its stops and no "Tour finished" card, status chip back to "Offline bereit".
+  6. Repeat with the app in the background/locked while the follow-up is released; re-open: Tour 2 immediately or after one focus.
+  7. Offline again: the offline shell must show tour 2 (stops, photos).
+  8. Note device/browser versions, time until the switch, iOS PWA behaviour, 375 px screenshots under this ticket, then tick the open box.
+- Found: `pickDriverTour` picks the NEWEST open tour, so with two open tours for one driver on one day tour 1's pending stops are hidden (the normal follow-up flow requires all tours completed, so it is not reachable that way) -> NUD-163. Photos of tour 1 are dropped from the cache once a sync switches to the follow-up (acceptable, tour 1 is finished).
+
+---
+
+
 #### NUD-119 · Driver map: tap on a marker opens the stop detail
-**Status:** todo · **depends_on:** 081
+**Status:** done · **depends_on:** 081
 
 **Goal:** on the driver's map view a tap on a numbered marker leads to the stop screen (also offline, via the offline shell), as the driver expects from the list.
 
 **Scope**: marker click / keyboard activation navigates to `/driver/stops/<id>` (tooltip with the customer name stays on hover / first tap or a small popup with a "Details" link, simplest that stays usable with 48 px targets); works in the offline shell.
 
 **Acceptance criteria**
-- [ ] Tapping a marker reaches the stop detail online and offline (e2e, 375 px); axe stays clean.
+- [x] Tapping a marker reaches the stop detail online and offline (e2e, 375 px); axe stays clean.
+
+**Implementation notes**
+- Commit ed3541b. Marker tap and Enter/Space navigate straight to `/driver/stops/<id>` (`today-tour.tsx` `router.push`; `tour-map.tsx` gained `activationKey()` and keydown handlers because Leaflet turns Enter into a popup, not a click). No popup / first-tap tooltip: the name stays on hover/focus and in the accessible name. 48 px boxes asserted. New e2e in `driver-map-offline.spec.ts` (online, keyboard, offline shell, axe clean); my re-run: driver-map-offline 6 passed (both projects).
+- Behaviour change: a marker tap no longer opens the bottom stop-list sheet / highlights the row (cluster taps still do). Admin planner and maps demo markers now also fire `onSelect` on Enter/Space.
+
+---
+
 
 #### NUD-120 · 👤 Roll out the strict script CSP on the real deployment (report-only first)
 **Status:** todo · **depends_on:** 110, 113
@@ -2689,7 +2715,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-154 · A new order is offered to every open tour of its day
-**Status:** todo · **depends_on:** 135 · found while building NUD-135 ("+ Tour" and moving stops make several open tours per day reachable); run before NUD-153. Overlaps with NUD-147 (order scope per tour): do it there if NUD-147 is started first.
+**Status:** done · **depends_on:** 135 · found while building NUD-135 ("+ Tour" and moving stops make several open tours per day reachable); run before NUD-153. Overlaps with NUD-147 (order scope per tour): do it there if NUD-147 is started first.
 
 **Problem:** `listConfirmedOrdersForDate(db, date, { tourId })` scopes a tour to "orders not on a stop of another tour". A freshly confirmed order is on no stop, so it is in the scope of **every** open tour of the day, and `markOutdatedForDate` flags all open tours. With two open tours (tour A has other customers, tour B already has a stop of customer X), a new order of X shows up in A's diff as a new stop for X and in B's diff as a changed quantity; releasing or re-releasing both would put X on two tours.
 
@@ -2698,14 +2724,16 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 - `markOutdatedForDate` flags only the tour(s) the order belongs to.
 
 **Acceptance criteria**
-- [ ] Two open tours, a new order of a customer on tour B: only B is flagged outdated and only B's diff lists it (integration test).
-- [ ] A new order of a customer on no stop does not appear as "new stop" on more than one tour at release time.
-- [ ] Existing late-order / follow-up behaviour (NUD-099) is unchanged.
+- [x] Two open tours, a new order of a customer on tour B: only B is flagged outdated and only B's diff lists it (integration test).
+- [x] A new order of a customer on no stop does not appear as "new stop" on more than one tour at release time.
+- [x] Existing late-order / follow-up behaviour (NUD-099) is unchanged.
 
 **Implementation notes**
-Overlap with NUD-147 checked: NUD-147 does not cover this (it only adds a whole-day order scope for "Touren planen"). Still open, and more reachable now because the planner creates several open tours per day.
+- Commit 72f5b14. `markOutdatedForDate(date, client, { customerIds })` flags only the open tours holding a stop of those customers (pure helper `outdatedTourTargets` in `src/domain/tour-diff.ts`); `listConfirmedOrdersForDate` leaves out a stop-less order whose customer has a stop on an open tour outside the scope. Completed tours do not own customers (NUD-099 unchanged, `late-orders.integration.test.ts` unmodified). Customer on no open stop: all open tours flagged/in scope as before. Customer with stops on two open tours: offered to both until released onto one.
+- Verified by me on the merged tree: vitest 200 files / 2366 tests green; `late-orders` e2e 2 passed, `tours` 2 passed, `tour-rerelease` 1 passed, `tour-split` 3 passed, `mvp-happy-path` 5 passed (the last three on a fresh database, see NUD-162). Not done: the tour picker for an unattached customer still defaults to the selected/newest open tour.
 
 ---
+
 
 #### NUD-155 · One-off day import from CSV (customer number, quantity, Karton, notes)
 **Status:** done · **depends_on:** 138, 142, 148 · client request 2026-10-27 (the driver must use the app today; the route exists only as a handwritten sheet). NUD-152 stays postponed.
@@ -2912,6 +2940,27 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 **Acceptance criteria**
 - [ ] `CI=1 PORT=<free> pnpm test:e2e <spec>` starts reliably on a cold checkout.
 - [ ] Running against an already running foreign server still fails loudly.
+
+---
+
+#### NUD-162 · e2e specs that need an empty "today" and demo data cannot run on the dev database
+**Status:** todo · **depends_on:** – · found 2026-10-27 by the orchestrator.
+
+**Goal:** `late-orders.spec.ts` and `mvp-happy-path.spec.ts` abort with "Precondition failed" when the database already has a tour for today (here: an owner tour from 2026-10-26) or when the depot pin is not confirmed (no `db:seed --demo`); `tour-split.spec.ts` failed on the same dirty database without saying why. They pass on a fresh database (migrate, seed, `seed --demo --no-photos`). Document a dedicated e2e database (env + `docs/` note) or have the specs create their own isolated day, so the suite never needs the dev data emptied.
+
+**Acceptance criteria**
+- [ ] A documented one-command way to run the state-flipping specs against a throwaway database.
+- [ ] `tour-split.spec.ts` fails with a clear precondition message instead of "0 tour tabs" on a dirty database.
+
+---
+
+#### NUD-163 · Driver app shows only the newest open tour when a driver has two open tours on one day
+**Status:** todo · **depends_on:** 118 · found by the NUD-118 worker.
+
+**Goal:** `pickDriverTour` returns the newest open tour, so with two open tours for the same driver and date (D29 "+ Tour", D31 reloads) tour 1's pending stops are hidden. The normal follow-up flow (all tours completed) is safe. Decide what the driver should see (all open tours, ordered) and implement it with the offline cache.
+
+**Acceptance criteria**
+- [ ] A driver with two open tours on one day reaches the pending stops of both (e2e, 375 px, also offline).
 
 ---
 
@@ -3351,6 +3400,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-128 | Redesign drift beyond the plural labels (hidden range inputs, aria-checked, collapsed sums card) fixed inside the ticket as navigation/expectation steps | The spec could not go green otherwise; no assertion weakened |
 | 2026-10-27 | NUD-116 | Warning shows whenever every tour of the day is COMPLETED (also before a customer is picked); text says "if this order is confirmed"; separate action `dayTourCompletedAction` | The form has no status selector; date checked = planned day or window start |
 | 2026-10-27 | NUD-121 | `stop.problem` audit entries store `hasNote`/`noteLength` instead of the note text; retention periods unchanged | Removes the privacy gap with the smallest change |
+| 2026-10-27 | NUD-154 | `markOutdatedForDate` customer filter and the `listConfirmedOrdersForDate` ownership rule count only stops on non-COMPLETED tours; an order whose customer has no stop on an open tour keeps today's behaviour (all open tours flagged/in scope); a customer with stops on two open tours is offered to both until released onto one | Smallest rule that satisfies the criteria; NUD-099 unchanged |
+| 2026-10-27 | NUD-119 | Marker tap/Enter/Space navigates straight to `/driver/stops/<id>`, no intermediate popup | Simplest option; keeps 48 px targets; a first-tap tooltip would hide the name on touch |
+| 2026-10-27 | NUD-118 | Label "Tour n von m · Folgetour" only when the driver has 2+ released tours that day (n = creation order among that driver's tours); the page follows the offline copy via `router.refresh()` only when the stored tour id changes; `tourNumber`/`tourCount` default to 1 in the cache schema | No schema-version bump, no refresh on a mere revision change |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
