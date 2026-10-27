@@ -215,12 +215,17 @@ export async function LoadSheet({ tour, locale }: { tour: TourPrint; locale: App
           >
             <h2 className="mb-2 border-b-2 border-black pb-1 text-xl font-bold">
               {t("tripHeading", { n: index + 1, count: trips.length })}
+              {tripStops[0]?.vehicleName ? ` · ${tripStops[0].vehicleName}` : null}
             </h2>
             {renderTotals(tripStops, t("tripLoad"))}
             {renderStops(tripStops)}
             {index < trips.length - 1 ? (
               <p className="mt-2 font-semibold" data-testid="load-sheet-reload">
-                {t("reloadNote")}
+                {/* NUD-158: another vehicle on the next trip = the driver switches into it. */}
+                {trips[index + 1]![0]?.vehicleName &&
+                trips[index + 1]![0]!.vehicleName !== tripStops[0]?.vehicleName
+                  ? t("switchNote", { vehicle: trips[index + 1]![0]!.vehicleName! })
+                  : t("reloadNote")}
               </p>
             ) : null}
           </section>

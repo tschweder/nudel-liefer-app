@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { loadState, MAX_CAPACITY_KG, parseCapacityKg, tourLoadKg } from "./vehicle";
+import { loadState, MAX_CAPACITY_KG, parseCapacityKg, tourLoadKg, worstTripLoad } from "./vehicle";
 
 describe("parseCapacityKg", () => {
   it("accepts whole kilograms", () => {
@@ -57,5 +57,21 @@ describe("loadState", () => {
   it("is over above the capacity and says by how much", () => {
     expect(loadState(800, 500)).toMatchObject({ status: "over", overKg: 300, percent: 160 });
     expect(loadState(500.5, 500)).toMatchObject({ status: "over", overKg: 0.5 });
+  });
+});
+
+describe("worstTripLoad (NUD-158)", () => {
+  it("compares each trip with the vehicle that drives it", () => {
+    // Trip 2 is lighter but on a smaller vehicle: it is the overloaded one.
+    const state = worstTripLoad([900, 600], [1000, 500]);
+    expect(state).toMatchObject({ status: "over", trip: 2, loadKg: 600, capacityKg: 500 });
+  });
+
+  it("without any capacity: none, with the heaviest trip", () => {
+    expect(worstTripLoad([100, 300], [null, null])).toMatchObject({
+      status: "none",
+      loadKg: 300,
+      trip: 2,
+    });
   });
 });

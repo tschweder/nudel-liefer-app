@@ -59,13 +59,14 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 | D21 | Languages (2026-10-26) | **Admin:** `de`, `en`, `zh-Hans`. **Driver:** `de`, `en`, `sr-Latn` (Serbian, Latin script), `cs`, `zh-Hans`. Traditional Chinese (`zh-Hant-HK`, `zh-Hant-TW`) and the OpenCC build are removed. All message files are hand-maintained (agent-written first, native review via NUD-073). `LocalizedText` keys follow the five locales. Machine translation: DeepL where supported, otherwise the OpenRouter client (NUD-150). |
 | D22 | Routing point (2026-10-26) | Optimisation and navigation use the customer's **default Parkplatz** (`ParkingSpot`, NUD-125); without one, the geocoded **Lieferadresse**. No pin confirmation step; a customer is never excluded from a tour for a missing confirmation, only flagged "Parkplatz fehlt". The parking photo is what identifies the spot. |
 | D23 | Catalog & quantities (2026-10-26) | Three products: Nudeln (Beutel, 3 kg), Nudeln (Karton, 10 kg), Wantan-Teig (`PIECE`, 5 kg, shown "N ×"). Every product has an admin-editable `weightKgPerUnit`. Quantities are whole numbers (`Int`). Unit labels: `PACK` = Beutel, `CRATE` = Karton (cardboard; never "Kiste"). |
-| D24 | Fleet & multiple tours (2026-10-26) | Several drivers and tours per day. `Vehicle` with capacity in **kg**; driver and vehicle are assigned per tour per day. When the load does not fit: use all available vehicles first, then reload trips at the depot. |
+| D24 | Fleet & multiple tours (2026-10-26) | Several drivers and tours per day. `Vehicle` with capacity in **kg**; driver and vehicle are assigned per tour per day. When the load does not fit: use all available vehicles first, then reload trips at the depot. **Amended by D31 (2026-10-27).** |
 | D25 | Delivery window & recurring orders (2026-10-26) | Orders carry a requested delivery window (hours to days); the planned day is the earliest day inside the window with capacity, movable by the office. Recurring orders are in scope now: a rule is confirmed once, then generates CONFIRMED orders 14 days ahead (configurable). Setting a customer inactive pauses his rules and cancels his future open orders. |
 | D26 | AI order entry (2026-10-26) | Pasted customer message text and/or screenshot are turned into a DRAFT order by an LLM via **OpenRouter** behind `OrderExtractor`; the office always reviews and confirms. No WhatsApp/WeChat bots. |
 | D27 | Driver-maintained data (2026-10-26) | Drivers may set and correct customer key numbers and Parkplatz coordinates and add photos (camera or gallery). Saved directly with author, timestamp and audit history — no office approval. Drivers' field knowledge outranks the system data. |
 | D28 | Working time (2026-10-26) | Each driver has working days/hours. Utilization = tour time incl. loading/checking before departure (from checklist timestamps or a default loading time) vs. planned time and vs. contracted hours. Measured from app events only — no GPS tracking (D19 unchanged). |
 | D29 | Tour editing (2026-10-26) | "Bearbeiten" may change driver, vehicle, stop order and move stops between tours of the same date — also on released tours (via the "tour was updated" path). Not the date. Completed stops are locked. |
 | D30 | Navigation (2026-10-26) | One "Navigation starten" button. With a Parkplatz: Google Maps link with the Parkplatz as `waypoints` and the Lieferadresse as `destination`, `travelmode=driving`; without: the address point. Apple Maps link: Parkplatz only (one destination supported). |
+| D31 | Drivers before reloads (2026-10-27) | There are at most as many tours as available drivers. When there are fewer drivers than loaded vehicles, a driver who is back at the depot **switches into the next vehicle that was loaded in the morning** (5 min) instead of waiting for a reload (20 min); a vehicle is never shared by two drivers. Reload trips remain for what still does not fit. A day with more stops than one planning run can route (50) is planned anyway: the compact cluster around the depot is planned, the rest is shown as "not planned today". |
 
 ---
 
@@ -312,6 +313,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
+| NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2777,6 +2779,26 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 - **Run of 2026-10-27 (through the tunnel, preview first):** 94 customers processed → 93 hits, 1 no hit (1199), 0 failures. A plausibility screen (does the matched label contain the customer's own street) flagged **22 of the 93 as a street mismatch**. Because a wrong pin sends a driver to the wrong address, `--apply` wrote **only the 71 plausible hits**; the 22 were deliberately left without coordinates. Result: **174 of 197 active customers now have an Adresspunkt** (all inside AT, lat 48.037–48.385, lng 14.210–16.574).
 - **Open from that run:** the 23 remaining (22 street mismatches + 1 no hit) need a human pass in the office — the plausibility screen is a heuristic, so some of the 22 may be legitimate (abbreviated street names, place-name addresses such as a farm or business park). Customer numbers to review: 1108, 1110, 1112, 1120, 1125, 1126, 1142, 1147, 1151, 1155, 1158, 1159, 1163, 1164, 1167, 1168, 1169, 1172, 1174, 1185, 1188, 1190, 1199.
 
+#### NUD-158 · Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops
+**Status:** in-progress · **depends_on:** 147 · owner request 2026-10-27 (D31)
+
+**Goal:** "Touren planen" uses the available vehicles **and** drivers as well as possible. Example: 2 drivers, 5 vehicles, the day needs 3 vehicle loads → 2 tours; one driver drives a second trip with another, already loaded vehicle instead of waiting at the depot. A day with more than 50 stops is no longer refused.
+
+**Acceptance criteria**
+- [x] With fewer selected drivers than vehicles, the plan has at most one tour per driver; only as many vehicles are loaded as the day needs (largest first, at least one per driver); each vehicle's work (first trip + reloads) goes to one driver, longest first to the driver with the least work (`groupChainsByDriver`, `vehiclesForLoad`).
+- [x] A trip on another vehicle is stored as `Stop.vehicleId` (null = the tour's vehicle; migration `20261029090000_trip_vehicle`); the schedule counts 5 min for a switch (`VEHICLE_SWITCH_MINUTES`) and 20 min for a reload.
+- [x] Reorder, Bearbeiten and re-release keep each trip's vehicle by position; a moved-in stop takes the vehicle of the target tour's last trip.
+- [x] Load indicator and release check compare every trip with the capacity of the vehicle that drives it (`worstTripLoad`); a switched-into vehicle must be active for the release.
+- [x] Planner shows "Fahrzeugwechsel im Depot: <Fahrzeug>" instead of "Nachladen"; the load sheet names the vehicle per trip and says where to switch; the driver app shows "Fahrzeug wechseln" with the vehicle and what it is loaded with (all five driver locales).
+- [x] More than `MAX_STOPS` stops: the compact cluster around the depot is planned (`pickStopsWithinLimit`), the rest is returned as `deferred` (STOP_LIMIT) and listed on the planning page ("Heute nicht eingeplant") until moved.
+- [x] Unit + integration tests (2 drivers / 5 vehicles / 3 loads; 1 driver / 2 vehicles; reorder keeps vehicles; driver view; 51/52 stops).
+- [ ] `pnpm test:e2e` run and screens checked at 1280 px (admin) / 375 px (driver).
+
+**Implementation notes**
+- The 50-stop limit is per routing call and still applies to the whole day (one `distribute` call). Raising it needs a geographic pre-split into groups of ≤ 50 stops with one call each — separate ticket if needed.
+- Chains are routed with the departure time of the day; a driver's second vehicle starts later, so time windows on it are checked only by the ETAs (the tour reports a window it misses, as before).
+- Without selected drivers, or with at least as many drivers as needed vehicles, the plan is the same as before (one tour per used vehicle).
+
 ---
 
 ### M3 — Later (refine before starting)
@@ -3198,6 +3220,10 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-156 | `ORS_BASE_URL` (trim, drop trailing slashes, blank = unset) is read by the geocoder and the routing provider; unset keeps `https://api.openrouteservice.org` | One knob for a self-hosted instance; both classes already accepted a `baseUrl`, it was just never fed from the environment |
 | 2026-10-27 | NUD-156 | **Self-hosting ORS does not solve the geocoding quota:** the official image ships no geocoding endpoint (only routing, matrix, isochrones, snapping, matching, export, health, status; the public `/geocode/*` is a separate Pelias service) | Evidence: `jar tf /ors.jar` lists exactly those 8 controllers and `application.yml` has no `geocod*` key. Recorded so nobody builds a routing graph expecting coordinates |
 | 2026-10-27 | NUD-157 | The geocoding quota gets its own ticket; the 94 customers without an Adresspunkt stay open and the office button remains the operator path | A self-hosted routing server cannot close that gap, and the bulk load does not fit into one free key's day |
+| 2026-10-27 | NUD-158 | Per-trip vehicle is `Stop.vehicleId` (null = the tour's vehicle) rather than a trip table | Trip boundaries are already per stop (`Stop.trip`); one nullable FK column, existing rows need no migration of data |
+| 2026-10-27 | NUD-158 | Vehicle switch = 5 min constant at the depot (`VEHICLE_SWITCH_MINUTES`, not a setting), reload stays 20 min | Same simplest-model choice as the reload time in NUD-147; NUD-152 may make both settings |
+| 2026-10-27 | NUD-158 | Drivers get whole vehicle chains, longest first to the driver with the least work (LPT); a vehicle is never shared by two drivers | Simplest balanced rule; avoids two drivers needing the same vehicle at the same time |
+| 2026-10-27 | NUD-158 | Too many stops for one planning run: plan the compact cluster around the depot (Prim-style growth), list the rest as "Heute nicht eingeplant" from the live data (orders of a planned day on no tour) — nothing stored | Owner: never block the day; the list must survive a page reload without a new column |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

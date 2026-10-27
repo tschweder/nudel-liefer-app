@@ -3,7 +3,7 @@
 import { ScaleIcon, TriangleAlertIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
-import { loadState } from "@/domain/vehicle";
+import { loadState, worstTripLoad } from "@/domain/vehicle";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,19 +16,35 @@ export function TourLoad({
   tripLoadsKg = [],
   capacityKg,
   vehicleName,
+  tripVehicles = [],
 }: {
   loadKg: number;
   /** Kilograms per trip (NUD-147); with more than one entry the capacity applies to each trip. */
   tripLoadsKg?: number[];
   capacityKg: number | null;
   vehicleName: string | null;
+  /**
+   * Vehicle of each trip (NUD-158: after a vehicle switch another one); a missing entry is the
+   * tour's vehicle (`capacityKg`, `vehicleName`).
+   */
+  tripVehicles?: ReadonlyArray<{ name: string; capacityKg: number } | null>;
 }) {
   const t = useTranslations("admin.tours.load");
   const format = useFormatter();
   const kg = (value: number) => format.number(value, { maximumFractionDigits: 2 });
   const trips = tripLoadsKg.length > 1 ? tripLoadsKg : null;
-  // Reload trips: the heaviest trip is what the vehicle carries at once.
-  const state = loadState(trips ? Math.max(...trips) : loadKg, capacityKg);
+  // Reload trips: each trip against the vehicle that carries it; the worst trip decides.
+  const capacityOf = (index: number) =>
+    tripVehicles[index] ? tripVehicles[index].capacityKg : capacityKg;
+  const switches = trips
+    ? trips.some((_, i) => tripVehicles[i]?.name !== tripVehicles[0]?.name)
+    : false;
+  const state = trips
+    ? worstTripLoad(
+        trips,
+        trips.map((_, i) => capacityOf(i)),
+      )
+    : loadState(loadKg, capacityKg);
   const over = state.status === "over";
   return (
     <div
@@ -53,7 +69,7 @@ export function TourLoad({
                 ? t("tripsTotal", { load: kg(loadKg), count: trips.length })
                 : t("value", { load: kg(loadKg), capacity: kg(state.capacityKg ?? 0) })}
             </span>
-            {vehicleName ? (
+            {vehicleName && !switches ? (
               <span className="text-sm text-muted-foreground">{vehicleName}</span>
             ) : null}
             {over ? (
@@ -75,7 +91,9 @@ export function TourLoad({
       {trips ? (
         <ul className="flex flex-col gap-0.5 text-sm tabular-nums" data-testid="tour-load-trips">
           {trips.map((tripKg, index) => {
-            const tripOver = capacityKg !== null && tripKg > capacityKg;
+            const tripCapacity = capacityOf(index);
+            const tripOver = tripCapacity !== null && tripKg > tripCapacity;
+            const name = switches ? (tripVehicles[index]?.name ?? vehicleName) : null;
             return (
               <li
                 key={index}
@@ -83,10 +101,11 @@ export function TourLoad({
                 data-testid="tour-load-trip"
                 data-over={tripOver ? "true" : undefined}
               >
-                {capacityKg === null
+                {tripCapacity === null
                   ? t("tripNoCapacity", { n: index + 1, load: kg(tripKg) })
-                  : t("trip", { n: index + 1, load: kg(tripKg), capacity: kg(capacityKg) })}
-                {tripOver ? ` · ${t("over", { over: kg(tripKg - capacityKg) })}` : null}
+                  : t("trip", { n: index + 1, load: kg(tripKg), capacity: kg(tripCapacity) })}
+                {name ? ` · ${name}` : null}
+                {tripOver ? ` · ${t("over", { over: kg(tripKg - tripCapacity) })}` : null}
               </li>
             );
           })}

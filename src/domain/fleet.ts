@@ -9,6 +9,12 @@ import { haversineM, heuristicOrder, type LatLng } from "./routing";
 /** Time the vehicle stands at the depot to reload between two trips (seconds). */
 export const RELOAD_MINUTES = 20;
 export const RELOAD_SECONDS = RELOAD_MINUTES * 60;
+/**
+ * Time a driver needs at the depot to change into another vehicle that was loaded in the morning
+ * (NUD-158). Much shorter than a reload, so a free loaded vehicle beats reloading the same one.
+ */
+export const VEHICLE_SWITCH_MINUTES = 5;
+export const VEHICLE_SWITCH_SECONDS = VEHICLE_SWITCH_MINUTES * 60;
 
 export type FleetStop = {
   id: string;
@@ -210,6 +216,11 @@ export function computeTripSchedule(input: {
   trips: ReadonlyArray<{ stopLegDurationsS: readonly number[]; returnLegDurationS: number }>;
   serviceSecondsPerStop: number;
   reloadSeconds?: number;
+  /**
+   * Time at the depot after each trip but the last (NUD-158: a vehicle switch is shorter than a
+   * reload, `tripPausesS`). A missing entry is a reload (`reloadSeconds`).
+   */
+  pausesS?: readonly number[];
 }): TripSchedule {
   const { departure, trips, serviceSecondsPerStop } = input;
   const reloadSeconds = input.reloadSeconds ?? RELOAD_SECONDS;
@@ -226,8 +237,147 @@ export function computeTripSchedule(input: {
     if (trip.stopLegDurationsS.length > 0) elapsed += trip.returnLegDurationS;
     if (index < trips.length - 1) {
       reloadAt.push(at(elapsed));
-      elapsed += reloadSeconds;
+      elapsed += input.pausesS?.[index] ?? reloadSeconds;
     }
   });
   return { etas, reloadAt, returnAt: at(elapsed), totalDurationS: elapsed };
+}
+
+/**
+ * Picks at most `max` stops for one planning run when the day has more stops than the routing
+ * provider accepts (`MAX_STOPS`). It grows one compact cluster from the depot: the next stop is
+ * always the one nearest to the depot or to a stop already picked (Prim-style). The picked stops
+ * make the shortest drive; the outlying ones are left over and reported as "not planned today".
+ * Ties go to the id (deterministic). Both lists keep the input order.
+ */
+export function pickStopsWithinLimit<T extends { id: string; location: LatLng }>(
+  depot: LatLng,
+  stops: readonly T[],
+  max: number,
+): { picked: T[]; deferred: T[] } {
+  if (stops.length <= max) return { picked: [...stops], deferred: [] };
+  const distance = stops.map((s) => haversineM(depot, s.location));
+  const taken = new Array<boolean>(stops.length).fill(false);
+  for (let round = 0; round < Math.max(0, max); round++) {
+    let best = -1;
+    for (let i = 0; i < stops.length; i++) {
+      if (taken[i]) continue;
+      if (
+        best === -1 ||
+        distance[i]! < distance[best]! - 1e-9 ||
+        (Math.abs(distance[i]! - distance[best]!) <= 1e-9 &&
+          stops[i]!.id.localeCompare(stops[best]!.id) < 0)
+      ) {
+        best = i;
+      }
+    }
+    if (best === -1) break;
+    taken[best] = true;
+    for (let i = 0; i < stops.length; i++) {
+      if (taken[i]) continue;
+      distance[i] = Math.min(distance[i]!, haversineM(stops[best]!.location, stops[i]!.location));
+    }
+  }
+  return {
+    picked: stops.filter((_, i) => taken[i]),
+    deferred: stops.filter((_, i) => !taken[i]),
+  };
+}
+
+/**
+ * Vehicle of each stop after an edit that keeps trip boundaries by position (NUD-158): a stop gets
+ * the vehicle that its (raw, not yet normalized) trip number had on the tour before. A trip number
+ * the tour did not have (or `null` there) means the tour's own vehicle (`null`).
+ */
+export function vehiclesForTrips(
+  existing: ReadonlyArray<{ trip: number; vehicleId: string | null }>,
+  rawTrips: readonly number[],
+): Array<string | null> {
+  const byTrip = new Map<number, string | null>();
+  for (const stop of existing) if (!byTrip.has(stop.trip)) byTrip.set(stop.trip, stop.vehicleId);
+  return rawTrips.map((trip) => byTrip.get(trip) ?? null);
+}
+
+/**
+ * The vehicle that drives each trip (index 0 = trip 1; `trips` normalized): the `vehicleId` of the
+ * trip's first stop, or the tour's vehicle when that is `null`.
+ */
+export function tripVehicleIds(
+  trips: readonly number[],
+  stopVehicleIds: ReadonlyArray<string | null | undefined>,
+  tourVehicleId: string | null,
+): Array<string | null> {
+  const result: Array<string | null> = [];
+  trips.forEach((trip, index) => {
+    if (result.length < trip) result.push(stopVehicleIds[index] ?? tourVehicleId);
+  });
+  return result;
+}
+
+/**
+ * Time at the depot between trip k and k+1 (one entry per boundary): the same vehicle again is a
+ * reload (`RELOAD_SECONDS`), another vehicle is a switch into an already loaded one
+ * (`VEHICLE_SWITCH_SECONDS`, NUD-158).
+ */
+export function tripPausesS(tripVehicles: ReadonlyArray<string | null>): number[] {
+  return tripVehicles
+    .slice(1)
+    .map((vehicle, index) =>
+      vehicle === tripVehicles[index] ? RELOAD_SECONDS : VEHICLE_SWITCH_SECONDS,
+    );
+}
+
+/**
+ * Puts the work of the vehicles onto the drivers (NUD-158). A chain is everything one vehicle
+ * drives (its first trip plus its reload trips), with its duration. With fewer drivers than
+ * chains, a driver who is back at the depot takes the next loaded vehicle: chains are handed out
+ * longest first, each to the driver with the least work so far (+ a vehicle switch), so the day
+ * ends as early as possible. A vehicle is never shared by two drivers. Without drivers (assigned
+ * later) or with enough of them, every chain is a tour of its own. Returns, per tour, the chain
+ * indices in driving order.
+ */
+export function groupChainsByDriver(
+  chains: ReadonlyArray<{ durationS: number }>,
+  driverCount: number,
+  switchSeconds: number = VEHICLE_SWITCH_SECONDS,
+): number[][] {
+  if (driverCount <= 0 || driverCount >= chains.length) return chains.map((_, i) => [i]);
+  const order = chains
+    .map((chain, index) => ({ index, durationS: chain.durationS }))
+    .sort((a, b) => b.durationS - a.durationS || a.index - b.index);
+  const tours: Array<{ chains: number[]; workS: number }> = Array.from(
+    { length: driverCount },
+    () => ({ chains: [], workS: 0 }),
+  );
+  for (const { index, durationS } of order) {
+    let target = tours[0]!;
+    for (const tour of tours) if (tour.workS < target.workS) target = tour;
+    target.workS += durationS + (target.chains.length > 0 ? switchSeconds : 0);
+    target.chains.push(index);
+  }
+  return tours.map((t) => t.chains);
+}
+
+/**
+ * The vehicles to load in the morning when there are fewer drivers than vehicles (NUD-158): the
+ * largest ones, until their capacities cover the day's load, but at least one per driver (every
+ * driver gets a tour) and never more than there are. Keeps the order of `vehicles`.
+ */
+export function vehiclesForLoad<V extends FleetVehicle>(
+  vehicles: readonly V[],
+  driverCount: number,
+  stops: ReadonlyArray<{ weightKg: number }>,
+): V[] {
+  const totalKg = stops.reduce((sum, s) => sum + s.weightKg, 0);
+  const byCapacity = vehicles
+    .map((vehicle, index) => ({ vehicle, index }))
+    .sort((a, b) => b.vehicle.capacityKg - a.vehicle.capacityKg || a.index - b.index);
+  const chosen = new Set<number>();
+  let capacityKg = 0;
+  for (const { vehicle, index } of byCapacity) {
+    if (chosen.size >= driverCount && capacityKg >= totalKg) break;
+    chosen.add(index);
+    capacityKg += vehicle.capacityKg;
+  }
+  return vehicles.filter((_, index) => chosen.has(index));
 }

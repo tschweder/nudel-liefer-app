@@ -1222,7 +1222,8 @@
         "driverCleared": "Driver removed.",
         "released": "Tour released.",
         "vehicleSet": "Vehicle assigned.",
-        "vehicleCleared": "Vehicle removed."
+        "vehicleCleared": "Vehicle removed.",
+        "deferred": "{count, plural, one {# customer} other {# customers}} could not be planned today (too many stops). The list is on the tours page."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -1325,7 +1326,8 @@
         "noItems": "No products",
         "tripHeading": "Trip {n} of {count}",
         "tripLoad": "Load of this trip",
-        "reloadNote": "Then: back to the depot, reload for the next trip."
+        "reloadNote": "Then: back to the depot, reload for the next trip.",
+        "switchNote": "Then: back to the depot and switch into {vehicle} (already loaded)."
       },
       "late": {
         "title": "Late order after the tour was completed",
@@ -1382,7 +1384,7 @@
         "open": "Plan tours",
         "hint": "Distributes all stops of the day across the chosen vehicles by capacity",
         "title": "Plan tours",
-        "description": "The stops of this day are distributed across the chosen vehicles by capacity. All chosen vehicles are used first; if that is not enough, a vehicle returns to the depot in between and reloads.",
+        "description": "The stops of this day are distributed across the selected vehicles by capacity. There are at most as many tours as selected drivers: when a driver is back at the depot, they switch into the next vehicle that is already loaded. Reloading only happens when no loaded vehicle is free.",
         "vehicles": "Available vehicles",
         "capacity": "{capacity} kg",
         "noVehicles": "There is no active vehicle yet. Please add one under Vehicles first.",
@@ -1395,12 +1397,19 @@
         "toast": {
           "planned": "{count, plural, one {# tour} other {# tours}} planned.",
           "plannedReload": "{count, plural, one {# tour} other {# tours}} planned, with {reloads}× reload at the depot.",
-          "oversized": "{count, plural, one {# customer is} other {# customers are}} too heavy for every chosen vehicle. Releasing needs a confirmation."
+          "oversized": "{count, plural, one {# customer is} other {# customers are}} too heavy for every chosen vehicle. Releasing needs a confirmation.",
+          "plannedSwitch": "{count, plural, one {# tour} other {# tours}} planned, with {switches}× vehicle switch{reloads, plural, =0 {} other { and #× reload}} at the depot."
         }
       },
       "reload": {
         "title": "Reload at the depot",
-        "load": "Trip {trip}: load {load} kg"
+        "load": "Trip {trip}: load {load} kg",
+        "switchTitle": "Vehicle switch at the depot: {vehicle}"
+      },
+      "unplanned": {
+        "title": "Not planned today: {count, plural, one {# customer} other {# customers}}",
+        "body": "This day has more stops than one planning run can handle (at most {max}). The stops with the shortest drive from the depot were planned. The orders of these customers are on no tour: please move them to another day.",
+        "orders": "{count, plural, one {# order} other {# orders}}"
       }
     },
     "history": {
@@ -1625,7 +1634,9 @@
       "mapSheetCount": "{count, plural, one {# open stop} other {# open stops}}",
       "focusOnMap": "Show on the map",
       "reloadTitle": "Reload at the depot",
-      "reloadHint": "Return to the depot and load for trip {trip}:"
+      "reloadHint": "Return to the depot and load for trip {trip}:",
+      "switchTitle": "Switch vehicle",
+      "switchHint": "Return to the depot and switch into {vehicle}. Loaded for trip {trip}:"
     },
     "units": {
       "KG": "kg",

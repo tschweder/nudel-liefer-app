@@ -80,6 +80,8 @@ export const payloadStopSchema = z.object({
   sequence: z.number().int(),
   /** Trip of the tour (NUD-147); caches written before it read as trip 1. */
   trip: z.number().int().min(1).default(1),
+  /** Vehicle switch (NUD-158): the vehicle of this stop's trip; null = the tour's. Old caches: null. */
+  vehicleName: z.string().nullable().default(null),
   status: z.enum(["PENDING", "DELIVERED", "PROBLEM"]),
   problemReason: z.string().nullable(),
   completedAt: z.string().nullable(),
@@ -187,6 +189,8 @@ export type TodayStop = {
   sequence: number;
   /** Trip of the tour (NUD-147); optional like the other fields of hand-built values (1 = first trip). */
   trip?: number;
+  /** NUD-158: the vehicle of this stop's trip when the driver switched into it; null/absent = the tour's. */
+  vehicleName?: string | null;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   problemReason: string | null;
   completedAt: string | null;
@@ -286,6 +290,7 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     id: stop.id,
     sequence: stop.sequence,
     trip: stop.trip,
+    vehicleName: stop.vehicleName,
     status: stop.status,
     problemReason: stop.problemReason,
     completedAt: stop.completedAt,

@@ -2,7 +2,17 @@ import { z } from "zod";
 
 import { isOpenTour, sortDayTours } from "@/domain/day-tours";
 import { secondsOfDayIn } from "@/domain/delivery-window";
-import { type FleetStop, orderTrip, packReloadTrips, tripLoadsKg } from "@/domain/fleet";
+import {
+  type FleetStop,
+  groupChainsByDriver,
+  orderTrip,
+  packReloadTrips,
+  pickStopsWithinLimit,
+  RELOAD_SECONDS,
+  tripLoadsKg,
+  tripPausesS,
+  vehiclesForLoad,
+} from "@/domain/fleet";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
@@ -17,7 +27,7 @@ import { MAX_STOPS, RoutingError } from "./routing";
 import { customerLocationSelect } from "./routing-points";
 import { type TourBuilderDeps, type TourWarning } from "./tour-builder";
 import { MAX_TOURS_PER_DAY } from "./tour-edit";
-import { routeTrips, scheduleTrips } from "./tour-routing";
+import { concatRoutedTrips, routeTrips, scheduleTrips } from "./tour-routing";
 
 /**
  * "Touren planen" (NUD-147, D24): builds all tours of one delivery day at once. The office selects
@@ -29,8 +39,13 @@ import { routeTrips, scheduleTrips } from "./tour-routing";
  * Rules (backlog §9): unreleased tours of the day (DRAFT / OPTIMIZED) are rebuilt (their rows are
  * reused in creation order, surplus ones are emptied, never deleted); a released, running or
  * locked tour of the day refuses the plan; completed tours are history and their orders are left
- * alone. A vehicle that is not needed gets no tour. Drivers are paired with the used vehicles in
- * the order they were selected; missing drivers are assigned later.
+ * alone. A vehicle that is not needed gets no tour. Drivers are paired with the tours in the
+ * order they were selected; missing drivers are assigned later.
+ *
+ * Fewer drivers than vehicles (NUD-158): there are at most as many tours as selected drivers. A
+ * driver who is back at the depot switches into the next vehicle that was loaded in the morning
+ * (`VEHICLE_SWITCH_MINUTES`) instead of waiting for a reload; a vehicle is never shared by two
+ * drivers. Reload trips remain for what still does not fit.
  *
  * The caller must have checked the ADMIN role (see `tour-actions.ts`).
  */
@@ -55,10 +70,16 @@ export type PlannedTourSummary = {
   vehicleId: string;
   driverId: string | null;
   stopCount: number;
-  /** Number of trips (> 1 = reload trips at the depot). */
+  /** Vehicle of each trip (index 0 = trip 1); differs from `vehicleId` after a vehicle switch. */
+  tripVehicleIds: string[];
+  /** Number of trips (> 1 = reload trips or vehicle switches at the depot). */
   trips: number;
   /** Kilograms per trip. */
   tripLoadsKg: number[];
+  /** Trips that start with a reload of the same vehicle. */
+  reloads: number;
+  /** Trips that start with a switch into another, already loaded vehicle (NUD-158). */
+  vehicleSwitches: number;
 };
 
 export type PlanDayResult =
@@ -66,6 +87,8 @@ export type PlanDayResult =
       ok: true;
       tours: PlannedTourSummary[];
       reloadTrips: number;
+      /** Times a driver changes into another loaded vehicle at the depot (NUD-158). */
+      vehicleSwitches: number;
       approximate: boolean;
       /** Customers with no location at all (left out). */
       warnings: TourWarning[];
@@ -73,6 +96,11 @@ export type PlanDayResult =
       oversizedCustomerIds: string[];
       /** Customers that go to the address point because they have no Parkplatz. */
       parkingMissing: TourWarning[];
+      /**
+       * Customers not planned today (STOP_LIMIT): the day has more than `MAX_STOPS` stops, so only
+       * the compact cluster around the depot is planned; these orders stay on no tour.
+       */
+      deferred: TourWarning[];
     }
   | { ok: false; error: PlanDayError; maxStops?: number; warnings: TourWarning[] };
 
@@ -195,10 +223,26 @@ export async function planDayWith(
   };
   const warnings = unrouted.map(toWarning);
   if (routable.length === 0) return fail("no_stops", warnings);
-  if (routable.length > MAX_STOPS) return fail("too_many_stops", warnings, { maxStops: MAX_STOPS });
-  const parkingMissing = withoutParking.map(toWarning);
+  const depotPoint = { lat: depot.lat, lng: depot.lng };
+  // One routing call takes at most MAX_STOPS stops. Instead of refusing the day, plan the compact
+  // cluster around the depot (shortest drive) and report the outlying customers as not planned.
+  const limited = pickStopsWithinLimit(
+    depotPoint,
+    routable.map((stop) => {
+      const point = routingPoint(customerById.get(stop.customerId)!)!;
+      return { id: stop.customerId, location: { lat: point.lat, lng: point.lng }, stop };
+    }),
+    MAX_STOPS,
+  );
+  const toPlan = limited.picked.map((p) => p.stop);
+  const deferred: TourWarning[] = limited.deferred.map((p) => ({
+    ...toWarning(p.stop),
+    code: "STOP_LIMIT",
+  }));
+  const planIds = new Set(toPlan.map((s) => s.customerId));
+  const parkingMissing = withoutParking.filter((s) => planIds.has(s.customerId)).map(toWarning);
 
-  const productIds = [...new Set(routable.flatMap((s) => s.items.map((i) => i.productId)))];
+  const productIds = [...new Set(toPlan.flatMap((s) => s.items.map((i) => i.productId)))];
   const products = (
     await db.product.findMany({
       where: { id: { in: productIds } },
@@ -206,14 +250,13 @@ export async function planDayWith(
     })
   ).map((p) => ({ id: p.id, weightKgPerUnit: p.weightKgPerUnit.toString() }));
 
-  const depotPoint = { lat: depot.lat, lng: depot.lng };
   const serviceSeconds = settings.serviceMinutesPerStop * 60;
   const departureS = secondsOfDayIn(
     departureInstant(date, settings.departureTime, settings.timezone),
     settings.timezone,
   );
-  const byCustomer = new Map(routable.map((s) => [s.customerId, s]));
-  const fleetStops = routable.map((s) => {
+  const byCustomer = new Map(toPlan.map((s) => [s.customerId, s]));
+  const fleetStops = toPlan.map((s) => {
     const point = routingPoint(customerById.get(s.customerId)!)!;
     return {
       id: s.customerId,
@@ -227,25 +270,36 @@ export async function planDayWith(
   // ---- distribute, then reload trips for what fits nowhere, then route every tour
   const signature = orderSignature(orders);
   const dayState = toursSignature(dayTours);
-  type PlannedTour = {
-    vehicleId: string;
-    trips: string[][];
-  };
-  let used: PlannedTour[];
-  let oversized: string[];
-  let approximate = false;
-  let built: Array<{
-    plan: PlannedTour;
+  /** What one vehicle drives: its first trip and its reload trips (stop ids per trip). */
+  type VehicleChain = { vehicleId: string; trips: string[][] };
+  /** A tour = one driver's day: one or more vehicle chains after one another (NUD-158). */
+  type BuiltTour = {
+    vehicleIds: string[];
     ordered: PlannedStop[];
     tripOfStop: number[];
+    /** Per stop: the vehicle of its trip, `null` = the tour's vehicle (the first chain's). */
+    stopVehicleIds: Array<string | null>;
+    tripVehicles: string[];
+    pausesS: number[];
     routed: Awaited<ReturnType<typeof routeTrips>>;
     schedule: ReturnType<typeof scheduleTrips>;
     loads: number[];
-  }>;
+  };
+  let oversized: string[];
+  let approximate = false;
+  const built: BuiltTour[] = [];
+  const departure = departureInstant(date, settings.departureTime, settings.timezone);
   try {
+    // Fewer drivers than vehicles (NUD-158): load only as many vehicles as the day needs (the
+    // largest first), but at least one per driver. The drivers who come back early take the
+    // next loaded vehicle; reloading one comes last.
+    const firstLoadVehicles =
+      driverIds.length > 0 && driverIds.length < vehicles.length
+        ? vehiclesForLoad(vehicles, driverIds.length, fleetStops)
+        : vehicles;
     const distribution = await provider.distribute({
       depot: depotPoint,
-      vehicles: vehicles.map((v) => ({ id: v.id, capacityKg: v.capacityKg })),
+      vehicles: firstLoadVehicles.map((v) => ({ id: v.id, capacityKg: v.capacityKg })),
       stops: fleetStops.map((s) => ({ ...s, serviceSeconds })),
       departureS,
     });
@@ -255,6 +309,7 @@ export async function planDayWith(
     );
     for (const route of distribution.routes)
       tripsByVehicle.get(route.vehicleId)?.push(route.stopIds);
+    // What fits nowhere: a vehicle that is still loaded and unused first, then reload trips.
     const reload = packReloadTrips(
       depotPoint,
       vehicles,
@@ -284,20 +339,51 @@ export async function planDayWith(
       }
       tripsByVehicle.get(trip.vehicleId)!.push(order);
     }
-    used = vehicles
+    const chains: VehicleChain[] = vehicles
       .map((v) => ({ vehicleId: v.id, trips: tripsByVehicle.get(v.id)! }))
       .filter((v) => v.trips.length > 0);
 
-    built = [];
-    for (const plan of used) {
-      const ordered = plan.trips.flat().map((id) => byCustomer.get(id)!);
-      const tripOfStop = plan.trips.flatMap((ids, index) => ids.map(() => index + 1));
+    // Route every chain on its own (depot to depot), then hand the chains to the drivers.
+    const routedChains: Array<{
+      chain: VehicleChain;
+      ordered: PlannedStop[];
+      tripOfStop: number[];
+      routed: Awaited<ReturnType<typeof routeTrips>>;
+      durationS: number;
+    }> = [];
+    for (const chain of chains) {
+      const ordered = chain.trips.flat().map((id) => byCustomer.get(id)!);
+      const tripOfStop = chain.trips.flatMap((ids, index) => ids.map(() => index + 1));
       const points = ordered.map((s) => fleetById.get(s.customerId)!.location);
       const routed = await routeTrips(provider, depotPoint, points, tripOfStop);
       approximate = approximate || routed.approximate;
       const schedule = scheduleTrips(routed, tripOfStop, {
-        departure: departureInstant(date, settings.departureTime, settings.timezone),
+        departure,
         serviceSecondsPerStop: serviceSeconds,
+      });
+      routedChains.push({ chain, ordered, tripOfStop, routed, durationS: schedule.totalDurationS });
+    }
+
+    for (const group of groupChainsByDriver(routedChains, driverIds.length)) {
+      const parts = group.map((index) => routedChains[index]!);
+      const ordered = parts.flatMap((p) => p.ordered);
+      const tripOfStop: number[] = [];
+      const stopVehicleIds: Array<string | null> = [];
+      const tripVehicles: string[] = [];
+      for (const [partIndex, part] of parts.entries()) {
+        const offset = tripVehicles.length;
+        tripOfStop.push(...part.tripOfStop.map((trip) => trip + offset));
+        stopVehicleIds.push(
+          ...part.ordered.map(() => (partIndex === 0 ? null : part.chain.vehicleId)),
+        );
+        tripVehicles.push(...part.chain.trips.map(() => part.chain.vehicleId));
+      }
+      const pausesS = tripPausesS(tripVehicles);
+      const routed = concatRoutedTrips(parts.map((p) => p.routed));
+      const schedule = scheduleTrips(routed, tripOfStop, {
+        departure,
+        serviceSecondsPerStop: serviceSeconds,
+        pausesS,
       });
       const loads = tripLoadsKg(
         ordered.map((s, i) => ({
@@ -305,7 +391,17 @@ export async function planDayWith(
           weightKg: fleetById.get(s.customerId)!.weightKg,
         })),
       );
-      built.push({ plan, ordered, tripOfStop, routed, schedule, loads });
+      built.push({
+        vehicleIds: parts.map((p) => p.chain.vehicleId),
+        ordered,
+        tripOfStop,
+        stopVehicleIds,
+        tripVehicles,
+        pausesS,
+        routed,
+        schedule,
+        loads,
+      });
     }
   } catch (error) {
     if (error instanceof RoutingError && error.code === "TOO_MANY_STOPS") {
@@ -349,7 +445,7 @@ export async function planDayWith(
           isOutdated: false,
           locked: false,
           driverId,
-          vehicleId: item.plan.vehicleId,
+          vehicleId: item.vehicleIds[0]!,
           depotSnapshot: {
             name: depot.name,
             address: depot.address,
@@ -374,6 +470,7 @@ export async function planDayWith(
               customerId: stop.customerId,
               sequence: position + 1,
               trip: item.tripOfStop[position]!,
+              vehicleId: item.stopVehicleIds[position] ?? null,
               etaAt: item.schedule.etas[position],
               legDistanceM: item.routed.stopLegs[position]!.distanceM,
               legDurationS: item.routed.stopLegs[position]!.durationS,
@@ -384,11 +481,14 @@ export async function planDayWith(
         }
         const summary: PlannedTourSummary = {
           tourId,
-          vehicleId: item.plan.vehicleId,
+          vehicleId: item.vehicleIds[0]!,
+          tripVehicleIds: item.tripVehicles,
           driverId,
           stopCount: item.ordered.length,
-          trips: item.plan.trips.length,
+          trips: item.tripVehicles.length,
           tripLoadsKg: item.loads,
+          reloads: item.pausesS.filter((p) => p === RELOAD_SECONDS).length,
+          vehicleSwitches: item.pausesS.filter((p) => p !== RELOAD_SECONDS).length,
         };
         summaries.push(summary);
         await recordAudit(tx, {
@@ -399,13 +499,15 @@ export async function planDayWith(
           diff: {
             date: date.toISOString().slice(0, 10),
             mode: existing ? "replaced" : "created",
-            vehicleId: item.plan.vehicleId,
+            vehicleId: item.vehicleIds[0]!,
+            tripVehicleIds: item.tripVehicles,
             driverId,
             stopCount: item.ordered.length,
             trips: summary.trips,
             tripLoadsKg: summary.tripLoadsKg,
             customerIds: item.ordered.map((s) => s.customerId),
             approximate: item.routed.approximate,
+            deferredCustomerIds: deferred.map((w) => w.customerId),
             oversizedCustomerIds: oversized.filter((id) =>
               item.ordered.some((s) => s.customerId === id),
             ),
@@ -448,11 +550,13 @@ export async function planDayWith(
       return {
         ok: true,
         tours: summaries,
-        reloadTrips: summaries.reduce((sum, t) => sum + Math.max(0, t.trips - 1), 0),
+        reloadTrips: summaries.reduce((sum, t) => sum + t.reloads, 0),
+        vehicleSwitches: summaries.reduce((sum, t) => sum + t.vehicleSwitches, 0),
         approximate,
         warnings,
         oversizedCustomerIds: oversized,
         parkingMissing,
+        deferred,
       };
     },
     { timeout: 30_000, maxWait: 10_000 },

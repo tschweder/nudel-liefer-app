@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { normalizeTrips } from "@/domain/fleet";
+import { normalizeTrips, tripPausesS, tripVehicleIds, vehiclesForTrips } from "@/domain/fleet";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
@@ -97,6 +97,8 @@ type Routed = {
   stops: EditStop[];
   /** Trip of each final stop (reload trips, NUD-147; normalized). */
   trips: number[];
+  /** Vehicle of each final stop's trip, `null` = the tour's vehicle (NUD-158). */
+  vehicleIds: Array<string | null>;
   route: RoutedTrips | null;
   legs: Array<{ distanceM: number; durationS: number }>;
   etas: Date[];
@@ -109,11 +111,22 @@ async function routeStops(
   stops: EditStop[],
   rawTrips: readonly number[],
   settings: Pick<AppSettings, "timezone" | "departureTime" | "serviceMinutesPerStop">,
+  tourVehicleId: string | null = tour.vehicleId,
 ): Promise<Routed | "invalid" | "pin_missing" | "too_many_stops"> {
   if (stops.length === 0) {
-    return { stops, trips: [], route: null, legs: [], etas: [], totalDurationS: null };
+    return {
+      stops,
+      trips: [],
+      vehicleIds: [],
+      route: null,
+      legs: [],
+      etas: [],
+      totalDurationS: null,
+    };
   }
   const trips = normalizeTrips(rawTrips);
+  // A trip keeps its vehicle (NUD-158): raw trip numbers are those of this tour before the edit.
+  const vehicleIds = vehiclesForTrips(tour.stops, rawTrips);
   const depot = readDepot(tour.depotSnapshot);
   if (!depot) return "invalid";
   const points: Array<{ lat: number; lng: number }> = [];
@@ -132,10 +145,12 @@ async function routeStops(
   const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
     serviceSecondsPerStop: settings.serviceMinutesPerStop * 60,
+    pausesS: tripPausesS(tripVehicleIds(trips, vehicleIds, tourVehicleId)),
   });
   return {
     stops,
     trips,
+    vehicleIds,
     route,
     legs: route.stopLegs,
     etas: schedule.etas,
@@ -251,7 +266,14 @@ export async function editTourWith(
     const finalStops = finalIds.map((id) => stopById.get(id)!);
     // Trip boundaries stay at their positions; moved-away stops leave the trips they were in.
     const stayingTrips = tour.stops.filter((s) => !movedIds.has(s.id)).map((s) => s.trip);
-    const result = await routeStops(deps, tour, finalStops, stayingTrips, settings);
+    const result = await routeStops(
+      deps,
+      tour,
+      finalStops,
+      stayingTrips,
+      settings,
+      vehicleId !== undefined ? vehicleId : tour.vehicleId,
+    );
     if (typeof result === "string") return fail(result);
     sourceRouted = result;
     for (const [id, add] of incoming) {
@@ -320,6 +342,7 @@ export async function editTourWith(
                   tourId: current.id,
                   sequence,
                   trip: routed.trips[index],
+                  vehicleId: routed.vehicleIds[index] ?? null,
                   etaAt: routed.etas[index],
                   legDistanceM: routed.legs[index].distanceM,
                   legDurationS: routed.legs[index].durationS,
@@ -334,15 +357,24 @@ export async function editTourWith(
                 data: {
                   sequence,
                   trip: routed.trips[index],
+                  vehicleId: routed.vehicleIds[index] ?? null,
                   etaAt: routed.etas[index],
                   legDistanceM: routed.legs[index].distanceM,
                   legDurationS: routed.legs[index].durationS,
                 },
               });
-            } else if (stop.sequence !== sequence || stop.trip !== routed.trips[index]) {
+            } else if (
+              stop.sequence !== sequence ||
+              stop.trip !== routed.trips[index] ||
+              stop.vehicleId !== (routed.vehicleIds[index] ?? null)
+            ) {
               await tx.stop.update({
                 where: { id: stop.id },
-                data: { sequence, trip: routed.trips[index] },
+                data: {
+                  sequence,
+                  trip: routed.trips[index],
+                  vehicleId: routed.vehicleIds[index] ?? null,
+                },
               });
             }
           }

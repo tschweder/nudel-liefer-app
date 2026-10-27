@@ -70,11 +70,41 @@ export async function routeTrips(
   };
 }
 
+/**
+ * Joins tours routed on their own into one tour, one after the other (NUD-158: a driver who drives
+ * several vehicles). Every part starts and ends at the depot, so the legs and the geometry simply
+ * follow each other.
+ */
+export function concatRoutedTrips(parts: readonly RoutedTrips[]): RoutedTrips {
+  const coordinates: [number, number][] = [];
+  for (const part of parts) {
+    coordinates.push(
+      ...(coordinates.length === 0
+        ? part.geometry.coordinates
+        : part.geometry.coordinates.slice(1)),
+    );
+  }
+  return parts.length === 1
+    ? parts[0]!
+    : {
+        stopLegs: parts.flatMap((p) => p.stopLegs),
+        returnLegs: parts.flatMap((p) => p.returnLegs),
+        geometry: { type: "LineString", coordinates },
+        totalDistanceM: parts.reduce((sum, p) => sum + p.totalDistanceM, 0),
+        approximate: parts.some((p) => p.approximate),
+      };
+}
+
 /** ETAs, reload times and total duration of a routed tour (`computeTripSchedule` over its trips). */
 export function scheduleTrips(
   routed: Pick<RoutedTrips, "stopLegs" | "returnLegs">,
   trips: readonly number[],
-  options: { departure: Date; serviceSecondsPerStop: number },
+  options: {
+    departure: Date;
+    serviceSecondsPerStop: number;
+    /** Depot time after each trip but the last (`tripPausesS`); default: a reload each time. */
+    pausesS?: readonly number[];
+  },
 ): TripSchedule {
   const normalized = normalizeTrips(routed.stopLegs.map((_, i) => trips[i] ?? 1));
   const legGroups = groupByTrip(
@@ -84,6 +114,7 @@ export function scheduleTrips(
   return computeTripSchedule({
     departure: options.departure,
     serviceSecondsPerStop: options.serviceSecondsPerStop,
+    ...(options.pausesS ? { pausesS: options.pausesS } : {}),
     trips: legGroups.map((legs, index) => ({
       stopLegDurationsS: legs,
       returnLegDurationS: routed.returnLegs[index]?.durationS ?? 0,

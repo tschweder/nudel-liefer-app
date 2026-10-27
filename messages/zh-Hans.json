@@ -1222,7 +1222,8 @@
         "driverCleared": "已取消司机。",
         "released": "配送线路已发布。",
         "vehicleSet": "已分配车辆。",
-        "vehicleCleared": "已移除车辆。"
+        "vehicleCleared": "已移除车辆。",
+        "deferred": "{count, plural, other {# 位客户}}今天无法排入线路（站点太多）。名单见配送线路页面。"
       },
       "errors": {
         "generic": "出错了，请重试。",
@@ -1325,7 +1326,8 @@
         "noItems": "没有产品",
         "tripHeading": "第 {n} 趟（共 {count} 趟）",
         "tripLoad": "本趟装载",
-        "reloadNote": "之后：返回仓库，为下一趟补货。"
+        "reloadNote": "之后：返回仓库，为下一趟补货。",
+        "switchNote": "之后：返回仓库，换乘 {vehicle}（已装好货）。"
       },
       "late": {
         "title": "配送线路结束后的补单",
@@ -1382,7 +1384,7 @@
         "open": "规划配送线路",
         "hint": "按载重把当天所有站点分配给所选车辆",
         "title": "规划配送线路",
-        "description": "当天的站点将按载重分配给所选车辆。先使用所有所选车辆；如果仍然装不下，车辆会中途返回仓库补货。",
+        "description": "这一天的站点按载重分配给所选车辆。配送线路数量最多等于所选司机人数：司机回到仓库后，换乘下一辆已装好货的车辆。只有在没有空闲的已装货车辆时才返回补货。",
         "vehicles": "可用车辆",
         "capacity": "{capacity} 千克",
         "noVehicles": "还没有启用的车辆，请先在“车辆”中添加。",
@@ -1395,12 +1397,19 @@
         "toast": {
           "planned": "已规划 {count} 条配送线路。",
           "plannedReload": "已规划 {count} 条配送线路，其中返回仓库补货 {reloads} 次。",
-          "oversized": "有 {count} 位客户的货物超过任何所选车辆的载重，发布时需要确认。"
+          "oversized": "有 {count} 位客户的货物超过任何所选车辆的载重，发布时需要确认。",
+          "plannedSwitch": "已规划 {count} 条配送线路，在仓库换车 {switches} 次{reloads, plural, =0 {} other {，补货 # 次}}。"
         }
       },
       "reload": {
         "title": "返回仓库补货",
-        "load": "第 {trip} 趟：装载 {load} 千克"
+        "load": "第 {trip} 趟：装载 {load} 千克",
+        "switchTitle": "在仓库换车：{vehicle}"
+      },
+      "unplanned": {
+        "title": "今天未排入：{count, plural, other {# 位客户}}",
+        "body": "这一天的站点数超过一次规划可处理的上限（最多 {max} 个）。已规划从仓库出发行驶距离最短的站点。这些客户的订单不在任何配送线路上：请改到其他日期。",
+        "orders": "{count, plural, other {# 个订单}}"
       }
     },
     "history": {
@@ -1625,7 +1634,9 @@
       "mapSheetCount": "{count} 个待送站点",
       "focusOnMap": "在地图上显示",
       "reloadTitle": "返回仓库补货",
-      "reloadHint": "返回仓库，装载第 {trip} 趟的货物："
+      "reloadHint": "返回仓库，装载第 {trip} 趟的货物：",
+      "switchTitle": "换车",
+      "switchHint": "返回仓库，换乘 {vehicle}。第 {trip} 趟已装载："
     },
     "units": {
       "KG": "公斤",

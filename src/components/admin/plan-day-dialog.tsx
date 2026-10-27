@@ -23,8 +23,9 @@ import type { TourPlan } from "@/server/tour-planning";
 /**
  * "Touren planen" (NUD-147, D24): the office picks the vehicles and drivers that are available for
  * the day (default: all active ones); the server distributes the day's stops across the vehicles by
- * capacity and adds reload trips where the load still does not fit. Unreleased tours of the day are
- * rebuilt.
+ * capacity and adds reload trips where the load still does not fit. With fewer drivers than
+ * vehicles a driver switches into the next loaded vehicle at the depot (NUD-158). Unreleased tours
+ * of the day are rebuilt.
  */
 export function PlanDayDialog({
   plan,
@@ -73,13 +74,24 @@ export function PlanDayDialog({
       }
       setOpen(false);
       toast.success(
-        result.reloadTrips > 0
-          ? t("planDay.toast.plannedReload", {
+        result.vehicleSwitches > 0
+          ? t("planDay.toast.plannedSwitch", {
               count: result.tours.length,
+              switches: result.vehicleSwitches,
               reloads: result.reloadTrips,
             })
-          : t("planDay.toast.planned", { count: result.tours.length }),
+          : result.reloadTrips > 0
+            ? t("planDay.toast.plannedReload", {
+                count: result.tours.length,
+                reloads: result.reloadTrips,
+              })
+            : t("planDay.toast.planned", { count: result.tours.length }),
       );
+      if (result.deferred.length > 0) {
+        toast.warning(t("toast.deferred", { count: result.deferred.length }), {
+          duration: 15_000,
+        });
+      }
       if (result.oversizedCustomerIds.length > 0) {
         toast.warning(t("planDay.toast.oversized", { count: result.oversizedCustomerIds.length }));
       }

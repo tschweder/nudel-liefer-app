@@ -39,6 +39,11 @@ export type DriverStop = {
   sequence: number;
   /** Trip of the tour (NUD-147): a higher number than the stop before it means a reload at the depot in between. */
   trip: number;
+  /**
+   * NUD-158: name of the vehicle that drives this stop's trip when it is not the tour's vehicle
+   * (the driver switches into it at the depot); `null` = the tour's vehicle.
+   */
+  vehicleName: string | null;
   customerId: string;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   /** Why the stop is a PROBLEM (NUD-053), else `null`. */
@@ -91,7 +96,9 @@ export async function getDriverTour(
   const tour = pickDriverTour(
     await db.tour.findMany({
       where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
-      include: { stops: { orderBy: { sequence: "asc" } } },
+      include: {
+        stops: { orderBy: { sequence: "asc" }, include: { vehicle: { select: { name: true } } } },
+      },
     }),
   );
   if (!tour || !isReleasedStatus(tour.status)) return null;
@@ -123,6 +130,7 @@ export async function getDriverTour(
         id: stop.id,
         sequence: stop.sequence,
         trip: stop.trip,
+        vehicleName: stop.vehicle?.name ?? null,
         customerId: stop.customerId,
         status: stop.status,
         problemReason: stop.problemReason,

@@ -49,3 +49,30 @@ export function loadState(loadKg: number, capacityKg: number | null): LoadState 
     percent: Math.round((loadKg / capacityKg) * 100),
   };
 }
+
+/**
+ * The worst trip of a tour against the capacity of the vehicle that drives it (NUD-147, NUD-158:
+ * after a vehicle switch a trip has another vehicle). The most overloaded trip wins, otherwise the
+ * fullest one. A trip without a known capacity is not compared; with none at all the state is
+ * `none` with the heaviest trip as the load.
+ */
+export function worstTripLoad(
+  tripLoadsKg: readonly number[],
+  tripCapacitiesKg: ReadonlyArray<number | null>,
+): LoadState & { trip: number } {
+  let worst: (LoadState & { trip: number }) | null = null;
+  tripLoadsKg.forEach((loadKg, index) => {
+    const state = loadState(loadKg, tripCapacitiesKg[index] ?? null);
+    if (state.status === "none") return;
+    if (
+      !worst ||
+      state.overKg > worst.overKg ||
+      (state.overKg === worst.overKg && state.percent > worst.percent)
+    ) {
+      worst = { ...state, trip: index + 1 };
+    }
+  });
+  if (worst) return worst;
+  const heaviest = tripLoadsKg.length > 0 ? Math.max(...tripLoadsKg) : 0;
+  return { ...loadState(heaviest, null), trip: Math.max(1, tripLoadsKg.indexOf(heaviest) + 1) };
+}

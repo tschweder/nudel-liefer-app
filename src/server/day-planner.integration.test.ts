@@ -20,7 +20,7 @@ vi.mock("./db", async (importOriginal) => ({
 
 const { planDayWith } = await import("./day-planner");
 const { editTourWith } = await import("./tour-edit");
-const { releaseTourWith, reorderStopsWith } = await import("./tour-planning");
+const { getTourPlan, releaseTourWith, reorderStopsWith } = await import("./tour-planning");
 const { getDriverTour } = await import("./tour-driver");
 const { getTourPrint } = await import("./tour-print");
 
@@ -340,6 +340,142 @@ describe.skipIf(!process.env.DATABASE_URL)(
         ok: false,
         error: "tour_not_editable",
       });
+    });
+
+    it("2 drivers, 5 loaded vehicles, 3 loads -> 2 tours, one driver switches vehicle (NUD-158)", async () => {
+      const fleet = [];
+      for (let i = 1; i <= 5; i++) fleet.push(await vehicle(`Van ${i}`, 300));
+      await customers(8); // 8 x 100 kg = 800 kg -> 3 loads of at most 300 kg
+      const result = await planDayWith(deps(), {
+        date: DAY_TEXT,
+        vehicleIds: fleet,
+        driverIds: [drivers[0]!, drivers[1]!],
+      });
+      if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+      expect(result.tours).toHaveLength(2);
+      expect(result.vehicleSwitches).toBe(1);
+      expect(result.reloadTrips).toBe(0);
+      expect(result.tours.map((x) => x.driverId)).toEqual([drivers[0], drivers[1]]);
+
+      const day = await tours();
+      expect(day.flatMap((x) => x.stops)).toHaveLength(8);
+      const switching = day.find((x) => x.stops.some((s) => s.trip === 2))!;
+      const trip2 = switching.stops.filter((s) => s.trip === 2);
+      // The second trip runs on another vehicle, not the tour's own one.
+      expect(trip2.every((s) => s.vehicleId && s.vehicleId !== switching.vehicleId)).toBe(true);
+      expect(switching.stops.filter((s) => s.trip === 1).every((s) => s.vehicleId === null)).toBe(
+        true,
+      );
+      // Three different vehicles are used, none by two drivers, each trip within 300 kg.
+      const used = new Set([
+        ...day.map((x) => x.vehicleId),
+        ...day.flatMap((x) => x.stops.map((s) => s.vehicleId).filter(Boolean)),
+      ]);
+      expect(used.size).toBe(3);
+      for (const tour of day) expect(Math.max(...tripLoads(tour.stops))).toBeLessThanOrEqual(300);
+
+      // The driver sees the vehicle to switch into; the planning page knows each trip's vehicle.
+      expect(await getDriverTour(t.prisma, switching.driverId!, DAY_TEXT)).toBeNull();
+      const version = (
+        await t.prisma.tour.findUniqueOrThrow({ where: { id: switching.id } })
+      ).updatedAt.toISOString();
+      expect(
+        await releaseTourWith(t.prisma, adminId, { tourId: switching.id, version }, NOW),
+      ).toMatchObject({ ok: true });
+      const seen = await getDriverTour(t.prisma, switching.driverId!, DAY_TEXT);
+      const secondVan = await t.prisma.vehicle.findUniqueOrThrow({
+        where: { id: trip2[0]!.vehicleId! },
+      });
+      expect(seen!.stops.filter((s) => s.trip === 2).map((s) => s.vehicleName)).toEqual(
+        trip2.map(() => secondVan.name),
+      );
+      expect(seen!.stops.filter((s) => s.trip === 1).every((s) => s.vehicleName === null)).toBe(
+        true,
+      );
+      const plan = await getTourPlan(t.prisma, DAY_TEXT, "Europe/Vienna", switching.id);
+      expect(plan!.tour!.tripVehicleIds).toEqual([null, trip2[0]!.vehicleId]);
+    });
+
+    it("drivers >= vehicles: unchanged, one tour per used vehicle and no switch", async () => {
+      await vehicle("Van 1", 500);
+      await vehicle("Van 2", 500);
+      await customers(8);
+      const result = await planDayWith(deps(), { date: DAY_TEXT });
+      if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+      expect(result.vehicleSwitches).toBe(0);
+      expect(result.tours).toHaveLength(2);
+    });
+
+    it("1 driver, 2 vehicles: the driver switches instead of reloading", async () => {
+      await vehicle("Van 1", 500);
+      await vehicle("Van 2", 500);
+      await customers(8); // 800 kg: both vans needed
+      const result = await planDayWith(deps(), { date: DAY_TEXT, driverIds: [drivers[0]!] });
+      if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+      expect(result.tours).toHaveLength(1);
+      expect(result.tours[0]!.trips).toBe(2);
+      expect(result.vehicleSwitches).toBe(1);
+      expect(result.reloadTrips).toBe(0);
+      expect(new Set(result.tours[0]!.tripVehicleIds).size).toBe(2);
+
+      // A manual reorder keeps the trip boundaries and each trip's vehicle at their positions.
+      const [tour] = await tours();
+      const ids = tour!.stops.map((s) => s.id);
+      expect(
+        await reorderStopsWith(
+          { db: t.prisma, actorId: adminId, provider, loadSettings: async () => SETTINGS },
+          { tourId: tour!.id, orderedStopIds: [...ids].reverse() },
+        ),
+      ).toMatchObject({ ok: true, changed: true });
+      const [after] = await tours();
+      expect(after!.stops.map((s) => s.vehicleId)).toEqual(tour!.stops.map((s) => s.vehicleId));
+      expect(after!.stops.map((s) => s.id)).toEqual([...ids].reverse());
+    });
+
+    it("more stops than one planning run takes: plans the nearest 50, lists the rest as not planned", async () => {
+      await vehicle("Van 1", 5000);
+      await vehicle("Van 2", 5000);
+      // 52 customers on a line away from the depot, 1 Karton each.
+      for (let i = 0; i < 52; i++) {
+        const c = await t.prisma.customer.create({
+          data: {
+            customerNumber: `L${i}`,
+            name: `Linie ${i}`,
+            street: "Hauptstraße 1",
+            postalCode: "1010",
+            city: "Wien",
+            lat: DEPOT.lat + 0.001 * (i + 1),
+            lng: DEPOT.lng,
+          },
+        });
+        await t.prisma.order.create({
+          data: {
+            customerId: c.id,
+            deliveryDate: DAY,
+            windowFrom: DAY,
+            windowTo: DAY,
+            status: "CONFIRMED",
+            createdById: adminId,
+            items: { create: [{ productId, quantity: 1 }] },
+          },
+        });
+      }
+      const result = await planDayWith(deps(), { date: DAY_TEXT });
+      if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+      const far = await t.prisma.customer.findMany({
+        where: { customerNumber: { in: ["L50", "L51"] } },
+        select: { id: true },
+      });
+      expect(result.deferred.map((w) => w.code)).toEqual(["STOP_LIMIT", "STOP_LIMIT"]);
+      expect(result.deferred.map((w) => w.customerId).sort()).toEqual(far.map((c) => c.id).sort());
+      const day = await tours();
+      expect(day.flatMap((x) => x.stops)).toHaveLength(50);
+      expect(await t.prisma.stopOrder.count()).toBe(50);
+
+      // The planning page lists the left-over customers until they are moved.
+      const plan = await getTourPlan(t.prisma, DAY_TEXT, "Europe/Vienna");
+      expect(plan!.stopLimit).toBe(50);
+      expect(plan!.unplanned.map((w) => w.customerId).sort()).toEqual(far.map((c) => c.id).sort());
     });
 
     it("refuses the past, a missing depot and a day without orders", async () => {

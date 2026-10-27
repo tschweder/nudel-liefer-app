@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { toAuditQuantity } from "@/domain/audit";
-import { normalizeTrips } from "@/domain/fleet";
+import { normalizeTrips, tripPausesS, tripVehicleIds, vehiclesForTrips } from "@/domain/fleet";
 import { routingPoint } from "@/domain/parking";
 import { departureInstant, type StopItem } from "@/domain/tour";
 import {
@@ -421,6 +421,8 @@ export async function reReleaseTourWith(
     return entry.kind === "new" ? lastTrip : (tripByStop.get(entry.stopId) ?? 1);
   });
   const trips = normalizeTrips(rawTrips);
+  // Each trip keeps its vehicle (NUD-158); a new stop rides with the last trip's vehicle.
+  const vehicleIds = vehiclesForTrips(tour.stops, rawTrips);
   let route;
   try {
     route = await routeTrips(provider, depot.data, points, trips);
@@ -434,6 +436,7 @@ export async function reReleaseTourWith(
   const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
     serviceSecondsPerStop: settings.serviceMinutesPerStop * 60,
+    pausesS: tripPausesS(tripVehicleIds(trips, vehicleIds, tour.vehicleId)),
   });
 
   const revision = tour.releaseRevision + 1;
@@ -479,10 +482,15 @@ export async function reReleaseTourWith(
           if (entry.kind === "completed") {
             // Frozen: only the position may move (a stop removed before it closes the gap).
             const frozen = stopById.get(entry.stopId)!;
-            if (frozen.sequence !== sequence || frozen.trip !== trips[index]) {
+            const vehicleId = vehicleIds[index] ?? null;
+            if (
+              frozen.sequence !== sequence ||
+              frozen.trip !== trips[index] ||
+              frozen.vehicleId !== vehicleId
+            ) {
               await tx.stop.update({
                 where: { id: entry.stopId },
-                data: { sequence, trip: trips[index] },
+                data: { sequence, trip: trips[index], vehicleId },
               });
             }
             continue;
@@ -490,6 +498,7 @@ export async function reReleaseTourWith(
           const timing = {
             sequence,
             trip: trips[index],
+            vehicleId: vehicleIds[index] ?? null,
             etaAt: schedule.etas[index],
             legDistanceM: legs[index].distanceM,
             legDurationS: legs[index].durationS,

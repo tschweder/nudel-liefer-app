@@ -228,7 +228,9 @@
       "mapSheetCount": "{count, plural, one {# otevřená zastávka} few {# otevřené zastávky} many {# otevřené zastávky} other {# otevřených zastávek}}",
       "focusOnMap": "Ukázat na mapě",
       "reloadTitle": "Doplnění nákladu v depu",
-      "reloadHint": "Vraťte se do depa a naložte zboží pro jízdu {trip}:"
+      "reloadHint": "Vraťte se do depa a naložte zboží pro jízdu {trip}:",
+      "switchTitle": "Výměna vozidla",
+      "switchHint": "Vraťte se do depa a přesedněte do vozidla {vehicle}. Pro jízdu {trip} je naloženo:"
     },
     "units": {
       "KG": "kg",

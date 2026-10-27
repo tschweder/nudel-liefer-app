@@ -228,7 +228,9 @@
       "mapSheetCount": "{count, plural, one {# otvorena stanica} few {# otvorene stanice} other {# otvorenih stanica}}",
       "focusOnMap": "Prikaži na mapi",
       "reloadTitle": "Dopuna tovara u depou",
-      "reloadHint": "Vratite se u depo i utovarite robu za vožnju {trip}:"
+      "reloadHint": "Vratite se u depo i utovarite robu za vožnju {trip}:",
+      "switchTitle": "Promena vozila",
+      "switchHint": "Vratite se u depo i presedite u vozilo {vehicle}. Za vožnju {trip} je utovareno:"
     },
     "units": {
       "KG": "kg",

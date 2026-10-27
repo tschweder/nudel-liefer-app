@@ -134,6 +134,7 @@ export async function getDriverTourResponse(
       id: stop.id,
       sequence: stop.sequence,
       trip: stop.trip,
+      vehicleName: stop.vehicleName,
       status: stop.status,
       problemReason: stop.problemReason,
       completedAt: stop.completedAt,

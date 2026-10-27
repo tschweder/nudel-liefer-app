@@ -37,6 +37,7 @@ import {
   remainingSeconds,
   roundedMinutes,
   summarizeItems,
+  switchVehicle,
   tripLoadItems,
 } from "@/domain/driver-today";
 import { Link } from "@/i18n/navigation";
@@ -712,6 +713,7 @@ export function TodayTour({
               <ReloadStop
                 trip={reloadBefore.get(stop.id)!}
                 items={tripLoadItems(stops, reloadBefore.get(stop.id)!)}
+                switchTo={switchVehicle(stops, reloadBefore.get(stop.id)!)}
                 onChecklist={
                   today.departedAt === undefined
                     ? undefined

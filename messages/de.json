@@ -1222,7 +1222,8 @@
         "driverCleared": "Fahrer entfernt.",
         "released": "Tour freigegeben.",
         "vehicleSet": "Fahrzeug zugewiesen.",
-        "vehicleCleared": "Fahrzeug entfernt."
+        "vehicleCleared": "Fahrzeug entfernt.",
+        "deferred": "{count, plural, one {# Kunde konnte} other {# Kunden konnten}} heute nicht eingeplant werden (zu viele Stopps). Die Liste steht auf der Tourenseite."
       },
       "errors": {
         "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -1325,7 +1326,8 @@
         "noItems": "Keine Produkte",
         "tripHeading": "Fahrt {n} von {count}",
         "tripLoad": "Ladung dieser Fahrt",
-        "reloadNote": "Danach: zurück zum Depot, Nachladen für die nächste Fahrt."
+        "reloadNote": "Danach: zurück zum Depot, Nachladen für die nächste Fahrt.",
+        "switchNote": "Danach: zurück zum Depot und in {vehicle} umsteigen (schon beladen)."
       },
       "late": {
         "title": "Nachbestellung nach Abschluss der Tour",
@@ -1382,7 +1384,7 @@
         "open": "Touren planen",
         "hint": "Verteilt alle Stopps des Tages nach Kapazität auf die gewählten Fahrzeuge",
         "title": "Touren planen",
-        "description": "Die Stopps dieses Tages werden nach Kapazität auf die gewählten Fahrzeuge verteilt. Zuerst werden alle gewählten Fahrzeuge genutzt; reicht das nicht, fährt ein Fahrzeug zwischendurch zum Depot und lädt nach.",
+        "description": "Die Stopps dieses Tages werden nach Kapazität auf die gewählten Fahrzeuge verteilt. Es gibt höchstens so viele Touren wie gewählte Fahrer: Ist ein Fahrer zurück im Depot, steigt er in das nächste schon beladene Fahrzeug um. Erst wenn kein beladenes Fahrzeug mehr frei ist, wird nachgeladen.",
         "vehicles": "Verfügbare Fahrzeuge",
         "capacity": "{capacity} kg",
         "noVehicles": "Es gibt noch kein aktives Fahrzeug. Bitte zuerst unter Fahrzeuge eines anlegen.",
@@ -1395,12 +1397,19 @@
         "toast": {
           "planned": "{count, plural, one {# Tour} other {# Touren}} geplant.",
           "plannedReload": "{count, plural, one {# Tour} other {# Touren}} geplant, mit {reloads}× Nachladen im Depot.",
-          "oversized": "{count, plural, one {# Kunde ist} other {# Kunden sind}} für jedes gewählte Fahrzeug zu schwer. Die Freigabe braucht eine Bestätigung."
+          "oversized": "{count, plural, one {# Kunde ist} other {# Kunden sind}} für jedes gewählte Fahrzeug zu schwer. Die Freigabe braucht eine Bestätigung.",
+          "plannedSwitch": "{count, plural, one {# Tour} other {# Touren}} geplant, mit {switches}× Fahrzeugwechsel{reloads, plural, =0 {} other { und #× Nachladen}} im Depot."
         }
       },
       "reload": {
         "title": "Nachladen im Depot",
-        "load": "Fahrt {trip}: {load} kg laden"
+        "load": "Fahrt {trip}: {load} kg laden",
+        "switchTitle": "Fahrzeugwechsel im Depot: {vehicle}"
+      },
+      "unplanned": {
+        "title": "Heute nicht eingeplant: {count, plural, one {# Kunde} other {# Kunden}}",
+        "body": "Für diesen Tag gibt es mehr Stopps, als ein Planungslauf schafft (höchstens {max}). Geplant wurden die Stopps mit der kürzesten Fahrstrecke ab dem Depot. Die Bestellungen dieser Kunden sind auf keiner Tour: bitte auf einen anderen Tag verschieben.",
+        "orders": "{count, plural, one {# Bestellung} other {# Bestellungen}}"
       }
     },
     "history": {
@@ -1625,7 +1634,9 @@
       "mapSheetCount": "{count, plural, one {# offener Stopp} other {# offene Stopps}}",
       "focusOnMap": "Auf der Karte zeigen",
       "reloadTitle": "Nachladen im Depot",
-      "reloadHint": "Zurück ins Depot und für Fahrt {trip} aufladen:"
+      "reloadHint": "Zurück ins Depot und für Fahrt {trip} aufladen:",
+      "switchTitle": "Fahrzeug wechseln",
+      "switchHint": "Zurück ins Depot und in {vehicle} umsteigen. Für Fahrt {trip} ist geladen:"
     },
     "units": {
       "KG": "kg",

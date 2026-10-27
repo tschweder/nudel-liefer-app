@@ -1,5 +1,6 @@
 import { isOpenTour } from "@/domain/day-tours";
 import { secondsOfDayIn } from "@/domain/delivery-window";
+import { pickStopsWithinLimit } from "@/domain/fleet";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
@@ -31,7 +32,11 @@ import { type AppSettings, getSettings, requireDepotConfigured } from "./setting
  * it cannot be part of the tour (D22, NUD-141).
  */
 export type TourWarning = {
-  code: "NO_LOCATION";
+  /**
+   * NO_LOCATION: no Parkplatz and no address point. STOP_LIMIT: the day has more stops than one
+   * planning run can route (`MAX_STOPS`); the outlying ones are on no tour (not planned today).
+   */
+  code: "NO_LOCATION" | "STOP_LIMIT";
   customerId: string;
   customerNumber: string;
   name: string;
@@ -68,6 +73,8 @@ export type GenerateTourResult =
       warnings: TourWarning[];
       /** Customers on the tour that go to the address point because they have no Parkplatz. */
       parkingMissing: TourWarning[];
+      /** Customers left off because the day has more than `MAX_STOPS` stops (STOP_LIMIT). */
+      deferred: TourWarning[];
     }
   | { ok: false; error: GenerateTourError; maxStops?: number; warnings: TourWarning[] };
 
@@ -190,15 +197,13 @@ export async function generateTourWith(
     };
   };
   const warnings: TourWarning[] = unrouted.map(toWarning);
-  const keptCustomers = new Set(routable.map((s) => s.customerId));
-  const parkingMissing: TourWarning[] = withoutParking
-    .filter((s) => keptCustomers.has(s.customerId))
-    .map(toWarning);
-
   const locked = !!existing?.locked;
   let ordered: PlannedStop[];
   let added: string[] = [];
   let removed: string[] = [];
+  // More stops than one routing call takes: plan the compact cluster around the depot, report the
+  // rest as not planned today instead of refusing the whole tour.
+  let deferred: TourWarning[] = [];
   if (locked) {
     const merged = mergeLockedOrder(
       existing.stops.map((s) => s.customerId),
@@ -208,8 +213,25 @@ export async function generateTourWith(
     added = merged.added;
     removed = merged.removed;
   } else {
-    ordered = routable;
+    const limited = pickStopsWithinLimit(
+      { lat: depot.lat, lng: depot.lng },
+      routable.map((stop) => {
+        // Routable stops have a location by construction (`partitionByLocation`).
+        const point = routingPoint(customerById.get(stop.customerId)!)!;
+        return { id: stop.customerId, location: { lat: point.lat, lng: point.lng }, stop };
+      }),
+      MAX_STOPS,
+    );
+    ordered = limited.picked.map((p) => p.stop);
+    deferred = limited.deferred.map((p) => ({ ...toWarning(p.stop), code: "STOP_LIMIT" }));
   }
+  const deferredIds = new Set(deferred.map((w) => w.customerId));
+  const keptCustomers = new Set(
+    routable.map((s) => s.customerId).filter((id) => !deferredIds.has(id)),
+  );
+  const parkingMissing: TourWarning[] = withoutParking
+    .filter((s) => keptCustomers.has(s.customerId))
+    .map(toWarning);
   if (ordered.length === 0 && !existing) {
     return fail(followUp ? "no_late_orders" : "no_stops", warnings);
   }
@@ -377,6 +399,7 @@ export async function generateTourWith(
           approximate: route.approximate,
           unroutedCustomerIds: warnings.map((w) => w.customerId),
           parkingMissingCustomerIds: parkingMissing.map((w) => w.customerId),
+          deferredCustomerIds: deferred.map((w) => w.customerId),
         },
       });
 
@@ -390,6 +413,7 @@ export async function generateTourWith(
         approximate: route.approximate,
         warnings,
         parkingMissing,
+        deferred,
       };
     },
     { timeout: 20_000, maxWait: 10_000 },

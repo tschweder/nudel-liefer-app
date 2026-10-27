@@ -18,6 +18,8 @@ export type TourPrintStop = {
   sequence: number;
   /** Trip of the tour (NUD-147): 1 = first trip, higher numbers follow a reload at the depot. */
   trip: number;
+  /** NUD-158: the vehicle that drives this stop's trip (after a switch another one); `null` = none yet. */
+  vehicleName: string | null;
   customerNumber: string;
   name: string;
   street: string;
@@ -67,9 +69,11 @@ export async function getTourPrint(db: PrismaClient, rawId: unknown): Promise<To
     where: { id },
     include: {
       driver: { select: { displayName: true } },
+      vehicle: { select: { name: true } },
       stops: {
         orderBy: { sequence: "asc" },
         include: {
+          vehicle: { select: { name: true } },
           customer: {
             select: {
               customerNumber: true,
@@ -89,6 +93,7 @@ export async function getTourPrint(db: PrismaClient, rawId: unknown): Promise<To
     id: s.id,
     sequence: s.sequence,
     trip: s.trip,
+    vehicleName: s.vehicle?.name ?? tour.vehicle?.name ?? null,
     customerNumber: s.customer.customerNumber,
     name: s.customer.name,
     street: s.customer.street,

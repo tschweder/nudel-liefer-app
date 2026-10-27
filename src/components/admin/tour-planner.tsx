@@ -58,7 +58,7 @@ import { canEditTour } from "@/domain/tour-edit";
 import { durationParts, isTourEditable, moveItem, releaseBlocker } from "@/domain/tour-plan";
 import { isLiveStatus, showsStopResults, summarizeProgress } from "@/domain/tour-progress";
 import { isReReleasable } from "@/domain/tour-status";
-import { loadState } from "@/domain/vehicle";
+import { worstTripLoad } from "@/domain/vehicle";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
@@ -219,6 +219,7 @@ export function TourPlanner({
           stopCount: number;
           addedCustomerIds: string[];
           removedCustomerIds: string[];
+          deferred: unknown[];
         };
         toast.success(
           r.mode === "locked_extended"
@@ -228,6 +229,9 @@ export function TourPlanner({
               })
             : t("toast.generated", { count: r.stopCount }),
         );
+        if (r.deferred.length > 0) {
+          toast.warning(t("toast.deferred", { count: r.deferred.length }), { duration: 15_000 });
+        }
         router.refresh();
       },
     );
@@ -237,6 +241,7 @@ export function TourPlanner({
     return (
       <div className="flex flex-col gap-6">
         <Warnings plan={plan} />
+        <Unplanned plan={plan} />
         <ErrorAlert error={error} errorText={errorText} />
         <EmptyState
           icon={RouteIcon}
@@ -277,9 +282,17 @@ export function TourPlanner({
   });
   const driver = plan.drivers.find((d) => d.id === (driverValue || tour.driverId));
   const vehicle = plan.vehicles.find((v) => v.id === (vehicleValue || tour.vehicleId));
-  // With reload trips (NUD-147) the capacity applies to each trip: the heaviest one is compared.
-  const heaviestTripKg = tour.tripLoadsKg.length > 0 ? Math.max(...tour.tripLoadsKg) : tour.loadKg;
-  const load = loadState(heaviestTripKg, vehicle?.capacityKg ?? null);
+  // With reload trips (NUD-147) the capacity applies to each trip, against the vehicle that drives
+  // it (NUD-158: after a vehicle switch that is another one); the worst trip is compared.
+  const tripVehicles = (tour.tripLoadsKg.length > 0 ? tour.tripLoadsKg : [tour.loadKg]).map(
+    (_, index) =>
+      plan.vehicles.find((v) => v.id === (tour.tripVehicleIds[index] ?? vehicle?.id)) ?? null,
+  );
+  const load = worstTripLoad(
+    tour.tripLoadsKg.length > 0 ? tour.tripLoadsKg : [tour.loadKg],
+    tripVehicles.map((v) => v?.capacityKg ?? null),
+  );
+  const heaviestTripKg = load.loadKg;
   const duration = durationParts(tour.totalDurationS ?? 0);
   // "Gesamtdauer 0 Min." next to "Strecke —" claimed a value the routing data does not have (the
   // round-3 review: the tour was released without any routing result). Without a duration the tile
@@ -465,6 +478,7 @@ export function TourPlanner({
         <TourTabs plan={plan} />
         <LateOrdersBanner plan={plan} />
         <Warnings plan={plan} />
+        <Unplanned plan={plan} />
         <ErrorAlert error={error} errorText={errorText} />
         {tour.isOutdated && editable ? (
           <Alert variant="destructive" data-testid="tour-outdated">
@@ -657,6 +671,9 @@ export function TourPlanner({
           tripLoadsKg={tour.tripLoadsKg}
           capacityKg={vehicle?.capacityKg ?? null}
           vehicleName={vehicle?.name ?? null}
+          tripVehicles={tripVehicles.map((v) =>
+            v ? { name: v.name, capacityKg: v.capacityKg } : null,
+          )}
         />
 
         {/* KPI strip (§8.4): one row from 1280 px on so the map and the stop list stay above the
@@ -796,6 +813,13 @@ export function TourPlanner({
                 // while the list is reordered locally.
                 const tripHere = tour.stops[index]?.trip ?? 1;
                 const reloadBefore = index > 0 && tripHere > (tour.stops[index - 1]?.trip ?? 1);
+                // NUD-158: another vehicle on the next trip = a vehicle switch, not a reload.
+                const switchTo =
+                  reloadBefore &&
+                  (tour.tripVehicleIds[tripHere - 1] ?? null) !==
+                    (tour.tripVehicleIds[tripHere - 2] ?? null)
+                    ? tripVehicles[tripHere - 1]
+                    : null;
                 return (
                   <Fragment key={stop.id}>
                     {reloadBefore ? (
@@ -803,9 +827,14 @@ export function TourPlanner({
                         className="flex min-h-14 items-center gap-3 border-b border-border bg-warning-soft px-2 py-2 text-warning-soft-foreground"
                         data-testid="reload-stop"
                         data-trip={tripHere}
+                        data-switch={switchTo ? "true" : undefined}
                       >
                         <WarehouseIcon className="size-5 shrink-0" aria-hidden />
-                        <span className="min-w-0 flex-1 font-medium">{t("reload.title")}</span>
+                        <span className="min-w-0 flex-1 font-medium">
+                          {switchTo
+                            ? t("reload.switchTitle", { vehicle: switchTo.name })
+                            : t("reload.title")}
+                        </span>
                         <span className="shrink-0 tabular-nums" data-testid="reload-load">
                           {t("reload.load", {
                             trip: tripHere,
@@ -1261,6 +1290,35 @@ function ErrorAlert({
             {t("errors.settingsLink")}
           </Link>
         ) : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/** Orders of a planned day that are on no tour (more stops than one planning run can take). */
+function Unplanned({ plan }: { plan: TourPlan }) {
+  const t = useTranslations("admin.tours");
+  if (plan.unplanned.length === 0) return null;
+  return (
+    <Alert variant="warning" data-testid="tour-unplanned">
+      <TriangleAlertIcon aria-hidden />
+      <AlertTitle>{t("unplanned.title", { count: plan.unplanned.length })}</AlertTitle>
+      <AlertDescription>
+        <p>{t("unplanned.body", { max: plan.stopLimit })}</p>
+        <ul className="mt-2 flex flex-col gap-1">
+          {plan.unplanned.map((w) => (
+            <li
+              key={w.customerId}
+              data-testid="tour-unplanned-customer"
+              data-customer-id={w.customerId}
+            >
+              <Link href={`/admin/customers/${w.customerId}`} className="font-medium underline">
+                {w.name} ({w.customerNumber})
+              </Link>{" "}
+              – {t("unplanned.orders", { count: w.orderIds.length })}
+            </li>
+          ))}
+        </ul>
       </AlertDescription>
     </Alert>
   );

@@ -388,6 +388,7 @@ model Vehicle {
   updatedAt  DateTime @updatedAt
 
   tours Tour[]
+  stops Stop[]
 }
 
 model Stop {
@@ -395,8 +396,12 @@ model Stop {
   tourId            String
   customerId        String
   sequence          Int
-  /// Trip of the tour this stop belongs to (NUD-147): 1 = first trip; a higher number follows a reload at the depot.
+  /// Trip of the tour this stop belongs to (NUD-147): 1 = first trip; a higher number follows a reload at the depot
+  /// or, when the next trip has another vehicle, a vehicle switch (NUD-158).
   trip              Int            @default(1)
+  /// Vehicle of this stop's trip when it is not the tour's vehicle (NUD-158: the driver switches to another,
+  /// already loaded vehicle at the depot). Null = `Tour.vehicleId`. All stops of one trip carry the same value.
+  vehicleId         String?
   status            StopStatus     @default(PENDING)
   etaAt             DateTime?
   legDistanceM      Int?
@@ -420,11 +425,13 @@ model Stop {
 
   tour      Tour           @relation(fields: [tourId], references: [id], onDelete: Cascade)
   customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicle   Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   orders    StopOrder[]
   mutations StopMutation[]
 
   @@index([tourId, sequence])
   @@index([customerId])
+  @@index([vehicleId])
 }
 
 /// Driver stop-status mutation log (NUD-053): one row per accepted client mutation, keyed by the

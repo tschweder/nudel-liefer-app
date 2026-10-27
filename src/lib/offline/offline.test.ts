@@ -41,6 +41,7 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
         id: `s${i}`,
         sequence: i + 1,
         trip: 1,
+        vehicleName: null,
         status: "PENDING",
         problemReason: null,
         completedAt: null,

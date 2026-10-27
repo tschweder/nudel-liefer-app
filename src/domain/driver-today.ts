@@ -89,6 +89,20 @@ export function reloadBeforeStops(
 }
 
 /**
+ * Vehicle switch (NUD-158): the name of the vehicle that drives `trip` when it is not the one of
+ * the trip before (the driver changes into an already loaded vehicle at the depot instead of
+ * reloading); `null` when the same vehicle is reloaded.
+ */
+export function switchVehicle(
+  stops: ReadonlyArray<{ trip?: number; vehicleName?: string | null }>,
+  trip: number,
+): string | null {
+  const vehicleOf = (t: number) => stops.find((s) => (s.trip ?? 1) === t)?.vehicleName ?? null;
+  const next = vehicleOf(trip);
+  return next !== null && next !== vehicleOf(trip - 1) ? next : null;
+}
+
+/**
  * What the vehicle is loaded with for one trip: the quantities of all stops of that trip, summed
  * per product (the first occurrence keeps the name and unit), in order of first appearance.
  */

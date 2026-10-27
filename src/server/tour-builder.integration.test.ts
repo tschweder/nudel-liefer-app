@@ -323,7 +323,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     expect(await generate("2099-06-20")).toMatchObject({ ok: false, error: "no_stops" });
   });
 
-  it("explains too many stops with the limit and creates nothing", async () => {
+  it("plans the 50 nearest stops and reports the rest as not planned today", async () => {
     const rows = Array.from({ length: 51 }, (_, i) => ({
       customerNumber: `M${i}`,
       name: `Many ${i}`,
@@ -337,9 +337,16 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
     const all = await t.prisma.customer.findMany({ select: { id: true } });
     for (const c of all) await order(c.id, [[p1, 1]]);
     const result = await generate();
-    expect(result).toMatchObject({ ok: false, error: "too_many_stops", maxStops: 50 });
-    expect(await t.prisma.tour.count()).toBe(0);
-    // sanity: the provider's own error is what we translated
+    if (!result.ok) throw new Error(`expected ok, got ${result.error}`);
+    expect(result.stopCount).toBe(50);
+    // The customers sit on a line away from the depot: the farthest one is left over.
+    const farthest = await t.prisma.customer.findFirstOrThrow({ where: { customerNumber: "M50" } });
+    expect(result.deferred).toMatchObject([{ code: "STOP_LIMIT", customerId: farthest.id }]);
+    expect(await t.prisma.stop.count({ where: { tourId: result.tourId } })).toBe(50);
+    expect(
+      await t.prisma.stop.count({ where: { tourId: result.tourId, customerId: farthest.id } }),
+    ).toBe(0);
+    // sanity: one routing call still refuses more than MAX_STOPS stops
     await expect(
       provider.optimize({
         depot: DEPOT,

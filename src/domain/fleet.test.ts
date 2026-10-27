@@ -3,13 +3,20 @@ import { describe, expect, it } from "vitest";
 import {
   computeTripSchedule,
   groupByTrip,
+  groupChainsByDriver,
   normalizeTrips,
   orderTrip,
   packReloadTrips,
+  pickStopsWithinLimit,
   RELOAD_SECONDS,
   splitByCapacity,
   sweepOrder,
   tripLoadsKg,
+  tripPausesS,
+  tripVehicleIds,
+  VEHICLE_SWITCH_SECONDS,
+  vehiclesForLoad,
+  vehiclesForTrips,
 } from "./fleet";
 import { computeSchedule } from "./tour";
 
@@ -214,5 +221,119 @@ describe("computeTripSchedule", () => {
     });
     expect(schedule).toMatchObject({ etas: [], totalDurationS: 0 });
     expect(schedule.returnAt).toEqual(departure);
+  });
+});
+
+describe("pickStopsWithinLimit", () => {
+  const depot = { lat: 48.2, lng: 16.3 };
+  const at = (id: string, dLat: number, dLng: number) => ({
+    id,
+    location: { lat: depot.lat + dLat, lng: depot.lng + dLng },
+  });
+
+  it("keeps every stop when the limit is not exceeded", () => {
+    const stops = [at("a", 0.01, 0), at("b", 0.02, 0)];
+    expect(pickStopsWithinLimit(depot, stops, 2)).toEqual({ picked: stops, deferred: [] });
+  });
+
+  it("plans the compact cluster and leaves the outlying stops for another day", () => {
+    // A chain going north from the depot, plus two far-away stops in the south-east.
+    const stops = [
+      at("far1", -0.3, 0.3),
+      at("n1", 0.01, 0),
+      at("n2", 0.02, 0),
+      at("far2", -0.31, 0.31),
+      at("n3", 0.03, 0),
+    ];
+    const { picked, deferred } = pickStopsWithinLimit(depot, stops, 3);
+    expect(picked.map((s) => s.id)).toEqual(["n1", "n2", "n3"]);
+    expect(deferred.map((s) => s.id)).toEqual(["far1", "far2"]);
+  });
+
+  it("grows along neighbours, not only by distance to the depot", () => {
+    // n2 is farther from the depot than s1, but right next to n1.
+    const stops = [at("n1", 0.02, 0), at("n2", 0.025, 0), at("s1", -0.022, 0)];
+    expect(pickStopsWithinLimit(depot, stops, 2).picked.map((s) => s.id)).toEqual(["n1", "n2"]);
+  });
+});
+
+describe("vehicle switch between trips (NUD-158)", () => {
+  it("groupChainsByDriver: 3 vehicle loads, 2 drivers -> one driver drives two vehicles", () => {
+    const groups = groupChainsByDriver(
+      [{ durationS: 3600 }, { durationS: 3000 }, { durationS: 2000 }],
+      2,
+    );
+    expect(groups).toEqual([[0], [1, 2]]);
+  });
+
+  it("groupChainsByDriver: balances the work, longest chain first", () => {
+    const groups = groupChainsByDriver(
+      [1000, 4000, 3000, 2000, 1500].map((durationS) => ({ durationS })),
+      2,
+    );
+    // 4000 | 3000 -> +2000 (5000+switch) vs 4000 -> +1500 ... ends balanced, every chain used once.
+    expect(groups.flat().sort()).toEqual([0, 1, 2, 3, 4]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]![0]).toBe(1);
+    expect(groups[1]![0]).toBe(2);
+  });
+
+  it("groupChainsByDriver: no drivers or enough drivers -> one tour per vehicle", () => {
+    const chains = [{ durationS: 1 }, { durationS: 2 }];
+    expect(groupChainsByDriver(chains, 0)).toEqual([[0], [1]]);
+    expect(groupChainsByDriver(chains, 5)).toEqual([[0], [1]]);
+  });
+
+  it("vehiclesForLoad: as many as the load needs, at least one per driver, largest first", () => {
+    const vehicles = [
+      { id: "small", capacityKg: 500 },
+      { id: "big", capacityKg: 1500 },
+      { id: "mid", capacityKg: 1000 },
+      { id: "mid2", capacityKg: 1000 },
+      { id: "tiny", capacityKg: 200 },
+    ];
+    const stops = (kg: number) => [{ weightKg: kg }];
+    expect(vehiclesForLoad(vehicles, 2, stops(3200)).map((v) => v.id)).toEqual([
+      "big",
+      "mid",
+      "mid2",
+    ]);
+    expect(vehiclesForLoad(vehicles, 2, stops(3600)).map((v) => v.id)).toEqual([
+      "small",
+      "big",
+      "mid",
+      "mid2",
+    ]);
+    expect(vehiclesForLoad(vehicles, 2, stops(100)).map((v) => v.id)).toEqual(["big", "mid"]);
+    expect(vehiclesForLoad(vehicles, 2, stops(99_999))).toHaveLength(5);
+  });
+
+  it("tripPausesS: same vehicle = reload, another vehicle = switch", () => {
+    expect(tripPausesS(["a", "a", "b"])).toEqual([RELOAD_SECONDS, VEHICLE_SWITCH_SECONDS]);
+    expect(tripPausesS([null, "b"])).toEqual([VEHICLE_SWITCH_SECONDS]);
+    expect(tripPausesS(["a"])).toEqual([]);
+  });
+
+  it("tripVehicleIds and vehiclesForTrips keep a trip's vehicle by its position", () => {
+    expect(tripVehicleIds([1, 1, 2, 3], [null, null, "b", null], "a")).toEqual(["a", "b", "a"]);
+    const existing = [
+      { trip: 1, vehicleId: null },
+      { trip: 2, vehicleId: "b" },
+      { trip: 2, vehicleId: "b" },
+    ];
+    expect(vehiclesForTrips(existing, [2, 1, 2, 3])).toEqual(["b", null, "b", null]);
+  });
+
+  it("computeTripSchedule uses the pause of each boundary", () => {
+    const schedule = computeTripSchedule({
+      departure: new Date("2099-01-01T07:00:00Z"),
+      serviceSecondsPerStop: 0,
+      trips: [
+        { stopLegDurationsS: [100], returnLegDurationS: 100 },
+        { stopLegDurationsS: [100], returnLegDurationS: 100 },
+      ],
+      pausesS: [VEHICLE_SWITCH_SECONDS],
+    });
+    expect(schedule.totalDurationS).toBe(400 + VEHICLE_SWITCH_SECONDS);
   });
 });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { pickDefaultTour, sortDayTours } from "@/domain/day-tours";
+import { isOpenTour, pickDefaultTour, sortDayTours } from "@/domain/day-tours";
 import {
   checkArrival,
   formatTimeOfDay,
@@ -8,7 +8,7 @@ import {
   stopTimeWindow,
   type WindowViolation,
 } from "@/domain/delivery-window";
-import { normalizeTrips } from "@/domain/fleet";
+import { normalizeTrips, tripPausesS, tripVehicleIds, vehiclesForTrips } from "@/domain/fleet";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { buildStops, departureInstant, partitionByLocation } from "@/domain/tour";
@@ -20,14 +20,14 @@ import {
   sameOrder,
 } from "@/domain/tour-plan";
 import { canTransition, isReReleasable } from "@/domain/tour-status";
-import { loadState } from "@/domain/vehicle";
+import { worstTripLoad } from "@/domain/vehicle";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
 import { recordAudit } from "./audit";
 import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
-import { RoutingError, type RoutingProvider } from "./routing";
+import { MAX_STOPS, RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
@@ -145,6 +145,11 @@ export type PlanTour = {
   vehicleId: string | null;
   /** NUD-146: weight of everything on the tour's stops in kg (stop snapshots x weight per unit). */
   loadKg: number;
+  /**
+   * NUD-158: the vehicle of each trip (index 0 = trip 1) when it is not the tour's vehicle (a
+   * vehicle switch at the depot); `null` = the tour's vehicle.
+   */
+  tripVehicleIds: Array<string | null>;
   /** NUD-147: kilograms per trip (index 0 = trip 1); more than one entry when the tour has reloads. */
   tripLoadsKg: number[];
   /** `updatedAt` as ISO string: the release call must quote it, so the office releases what it saw. */
@@ -189,6 +194,14 @@ export type TourPlan = {
   late: LateOrdersView;
   /** Customers with confirmed orders for the day that are not routable (no Parkplatz and no address point). */
   warnings: TourWarning[];
+  /**
+   * Customers with confirmed, routable orders for the day that are on no tour of the day although
+   * the day is planned (STOP_LIMIT: more stops than one planning run can take). Empty while no open
+   * tour of the day has stops.
+   */
+  unplanned: TourWarning[];
+  /** Most stops one planning run can route (`MAX_STOPS`), for the `unplanned` notice. */
+  stopLimit: number;
   confirmedOrderCount: number;
   drivers: PlanDriver[];
   /** Active vehicles plus the one of the selected tour (NUD-146). */
@@ -327,6 +340,29 @@ export async function getTourPlan(
     orderIds: stop.orderIds,
   }));
 
+  // Orders of a planned day that are on no tour at all (e.g. left over by the stop limit).
+  const dayIsPlanned = dayTours.some((t) => isOpenTour(t.status) && t._count.stops > 0);
+  const unplannedStops = dayIsPlanned
+    ? buildStops(await listConfirmedOrdersForDate(db, date, { rebuildTourIds: [] }))
+    : [];
+  const unplannedCustomers =
+    unplannedStops.length > 0
+      ? await db.customer.findMany({
+          where: { id: { in: unplannedStops.map((s) => s.customerId) } },
+          select: customerLocationSelect,
+        })
+      : [];
+  const unplannedById = new Map(unplannedCustomers.map((c) => [c.id, c]));
+  const unplanned: TourWarning[] = partitionByLocation(unplannedStops, unplannedById).routable.map(
+    (stop) => ({
+      code: "STOP_LIMIT",
+      customerId: stop.customerId,
+      customerNumber: unplannedById.get(stop.customerId)?.customerNumber ?? "",
+      name: unplannedById.get(stop.customerId)?.name ?? "",
+      orderIds: stop.orderIds,
+    }),
+  );
+
   const drivers = await db.user.findMany({
     where: {
       role: "DRIVER",
@@ -337,7 +373,14 @@ export async function getTourPlan(
   });
 
   const vehicles = await db.vehicle.findMany({
-    where: { OR: [{ active: true }, ...(tour?.vehicleId ? [{ id: tour.vehicleId }] : [])] },
+    where: {
+      OR: [
+        { active: true },
+        ...(tour?.vehicleId ? [{ id: tour.vehicleId }] : []),
+        // Vehicles the driver switches into (NUD-158) stay visible while assigned.
+        ...(tour?.stops.flatMap((s) => (s.vehicleId ? [{ id: s.vehicleId }] : [])) ?? []),
+      ],
+    },
     orderBy: [{ name: "asc" }, { id: "asc" }],
     select: { id: true, name: true, plate: true, capacityKg: true, active: true },
   });
@@ -347,6 +390,8 @@ export async function getTourPlan(
     date: formatCalendarDate(date),
     timezone,
     warnings,
+    unplanned,
+    stopLimit: MAX_STOPS,
     vehicles,
     tours: dayTours.map((t, index) => ({
       id: t.id,
@@ -374,6 +419,11 @@ export async function getTourPlan(
           vehicleId: tour.vehicleId,
           loadKg: loads?.totalKg ?? 0,
           tripLoadsKg: loads?.tripLoadsKg ?? [],
+          tripVehicleIds: tripVehicleIds(
+            normalizeTrips(tour.stops.map((s) => s.trip)),
+            tour.stops.map((s) => s.vehicleId),
+            null,
+          ),
           version: tour.updatedAt.toISOString(),
           totalDistanceM: tour.totalDistanceM,
           totalDurationS: tour.totalDurationS,
@@ -535,6 +585,11 @@ export async function reorderStopsWith(
 
   // Reload trips (NUD-147): the trip boundaries stay at the same positions, the stops move.
   const trips = normalizeTrips(tour.stops.map((s) => s.trip));
+  // ... and each trip keeps its vehicle (NUD-158).
+  const vehicleIds = vehiclesForTrips(
+    tour.stops,
+    tour.stops.map((s) => s.trip),
+  );
   let route;
   try {
     route = await routeTrips(provider, { lat: depot.lat, lng: depot.lng }, points, trips);
@@ -549,6 +604,7 @@ export async function reorderStopsWith(
   const schedule = scheduleTrips(route, trips, {
     departure: departureInstant(tour.date, settings.departureTime, settings.timezone),
     serviceSecondsPerStop: serviceSeconds,
+    pausesS: tripPausesS(tripVehicleIds(trips, vehicleIds, tour.vehicleId)),
   });
 
   return db.$transaction(
@@ -576,6 +632,7 @@ export async function reorderStopsWith(
           data: {
             sequence: index + 1,
             trip: trips[index],
+            vehicleId: vehicleIds[index] ?? null,
             etaAt: schedule.etas[index],
             legDistanceM: legs[index].distanceM,
             legDurationS: legs[index].durationS,
@@ -737,7 +794,15 @@ export async function releaseTourWith(
           _count: { select: { stops: true } },
           driver: { select: { active: true, role: true } },
           vehicle: { select: { active: true, capacityKg: true } },
-          stops: { select: { items: true, trip: true } },
+          stops: {
+            orderBy: { sequence: "asc" },
+            select: {
+              items: true,
+              trip: true,
+              vehicleId: true,
+              vehicle: { select: { active: true, capacityKg: true } },
+            },
+          },
         },
       });
       if (!tour) return fail("not_found");
@@ -753,13 +818,20 @@ export async function releaseTourWith(
       if (!canTransition(tour.status, "RELEASED")) return fail("tour_not_editable");
       if (!tour.driver?.active || tour.driver.role !== "DRIVER") return fail("driver_invalid");
       if (!tour.vehicle?.active) return fail("vehicle_invalid");
+      // NUD-158: every vehicle the driver switches into must be active too.
+      if (tour.stops.some((s) => s.vehicleId && !s.vehicle?.active)) return fail("vehicle_invalid");
       if (tour.updatedAt.getTime() !== version.getTime()) return fail("conflict");
       // NUD-146: above the capacity only with the explicit override, which is logged below.
-      // With reload trips the capacity applies to each trip: the heaviest one decides (NUD-147).
-      const load = loadState(
-        (await tourLoadsOf(tx, tour.stops)).maxTripKg,
-        tour.vehicle.capacityKg,
-      );
+      // With reload trips the capacity applies to each trip (NUD-147), against the vehicle that
+      // drives that trip (NUD-158): the worst trip decides.
+      const trips = normalizeTrips(tour.stops.map((s) => s.trip));
+      const tripCapacities: number[] = [];
+      tour.stops.forEach((s, index) => {
+        if (tripCapacities.length < trips[index]!) {
+          tripCapacities.push(s.vehicle?.capacityKg ?? tour.vehicle!.capacityKg);
+        }
+      });
+      const load = worstTripLoad((await tourLoadsOf(tx, tour.stops)).tripLoadsKg, tripCapacities);
       const overridden = load.status === "over";
       if (overridden && input.data.overrideOverload !== true) return fail("overloaded");
       const updated = await tx.tour.updateMany({
