@@ -223,6 +223,8 @@ export async function seedDemo(
         data: {
           customerId: customer.id,
           deliveryDate,
+          windowFrom: deliveryDate,
+          windowTo: deliveryDate,
           status: "CONFIRMED",
           source: "MANUAL",
           internalNote: DEMO_ORDER_NOTE,

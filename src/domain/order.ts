@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { isScreenshotKey } from "@/lib/uploads";
 
+import { isValidWindow, type OrderWindow, parseTimeOfDay } from "./delivery-window";
+
 /**
  * Pure order-entry rules (NUD-030): quantity parsing, line merging, input validation and the
  * non-blocking warnings. No framework or database imports.
@@ -73,6 +75,41 @@ export function isPastDeliveryDate(date: Date, today: Date): boolean {
 
 const idSchema = z.string().trim().min(1).max(64);
 
+/** Optional `YYYY-MM-DD`; empty or missing = `null`, anything else must be a real day. */
+function dateField(message: string) {
+  return z
+    .string()
+    .trim()
+    .max(10)
+    .nullish()
+    .transform((value, ctx) => {
+      if (!value) return null;
+      const date = parseCalendarDate(value);
+      if (!date) {
+        ctx.addIssue({ code: "custom", message });
+        return z.NEVER;
+      }
+      return date;
+    });
+}
+
+/** Optional "HH:MM"; an empty string counts as not set. */
+function timeField(message: string) {
+  return z
+    .string()
+    .trim()
+    .max(5)
+    .nullish()
+    .transform((value, ctx) => {
+      if (!value) return null;
+      if (parseTimeOfDay(value) === null) {
+        ctx.addIssue({ code: "custom", message });
+        return z.NEVER;
+      }
+      return value;
+    });
+}
+
 const quantitySchema = z.union([z.string().max(32), z.number()]).transform((value, ctx) => {
   const quantity = parseQuantity(value);
   if (quantity === null) {
@@ -89,17 +126,15 @@ const quantitySchema = z.union([z.string().max(32), z.number()]).transform((valu
 export const orderInputSchema = z
   .object({
     customerId: idSchema,
-    deliveryDate: z
-      .string()
-      .trim()
-      .transform((value, ctx) => {
-        const date = parseCalendarDate(value);
-        if (!date) {
-          ctx.addIssue({ code: "custom", message: "deliveryDate" });
-          return z.NEVER;
-        }
-        return date;
-      }),
+    /**
+     * PLANNED day (NUD-148). Optional: without it the server picks the earliest day of the window
+     * with vehicle capacity. Alone (no window fields) it is also the window: the whole day.
+     */
+    deliveryDate: dateField("deliveryDate"),
+    windowFrom: dateField("windowFrom"),
+    windowTo: dateField("windowTo"),
+    windowFromTime: timeField("windowFromTime"),
+    windowToTime: timeField("windowToTime"),
     status: z.enum(["CONFIRMED", "DRAFT"]).default("CONFIRMED"),
     internalNote: z
       .string()
@@ -131,7 +166,24 @@ export const orderInputSchema = z
       ctx.addIssue({ code: "custom", message: "quantity" });
       return z.NEVER;
     }
-    return { ...value, lines: merged };
+    // Window (NUD-148): explicit, or the planned day alone = that whole day.
+    const from = value.windowFrom ?? value.deliveryDate;
+    const to = value.windowTo ?? value.windowFrom ?? value.deliveryDate;
+    if (!from || !to) {
+      ctx.addIssue({ code: "custom", message: "windowFrom" });
+      return z.NEVER;
+    }
+    const window: OrderWindow = {
+      from,
+      to,
+      fromTime: value.windowFromTime,
+      toTime: value.windowToTime,
+    };
+    if (!isValidWindow(window)) {
+      ctx.addIssue({ code: "custom", message: "window" });
+      return z.NEVER;
+    }
+    return { ...value, lines: merged, window };
   });
 
 export type OrderInput = z.input<typeof orderInputSchema>;

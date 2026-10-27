@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
 import { isOrderEditable } from "@/domain/order-overview";
 import { Link } from "@/i18n/navigation";
-import { createAppFormatters } from "@/lib/format";
+import { createAppFormatters, formatOrderWindow, isPlainWindow } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { OrderOverviewRow } from "@/server/orders";
 
@@ -223,6 +223,11 @@ function OrderRow({
         <div className="text-sm text-muted-foreground tabular-nums">
           {order.customer.customerNumber}
         </div>
+        {isPlainWindow(order.window, order.deliveryDate) ? null : (
+          <div className="text-sm text-muted-foreground" data-testid="order-window-text">
+            {t("window.label")}: {formatOrderWindow(fmt, order.window)}
+          </div>
+        )}
       </TableCell>
 
       {/* The flexible column: it carries the only free content of the row, so it takes every pixel
@@ -441,6 +446,8 @@ function OrderDrawer({
                     {order.customer.customerNumber}
                   </span>
                 </dd>
+                <dt className="text-muted-foreground">{t("window.label")}</dt>
+                <dd data-testid="drawer-window">{formatOrderWindow(fmt, order.window)}</dd>
                 <dt className="text-muted-foreground">{t("columns.status")}</dt>
                 <dd>
                   <StatusBadge

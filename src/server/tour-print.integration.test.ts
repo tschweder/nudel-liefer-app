@@ -68,6 +68,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tour print (load sheet)", { timeout:
         data: {
           customerId: customer.id,
           deliveryDate: DAY,
+          windowFrom: DAY,
+          windowTo: DAY,
           status: "CONFIRMED",
           createdById: adminId,
           items: {

@@ -235,16 +235,23 @@ model Screenshot {
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  customerId   String
-  deliveryDate DateTime    @db.Date
-  status       OrderStatus @default(DRAFT)
-  source       OrderSource @default(MANUAL)
-  screenshotId String?
-  internalNote String?
-  createdById  String
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  customerId     String
+  /// PLANNED delivery day (NUD-148, D25): set by planning (earliest day in the window with capacity), movable by the office.
+  deliveryDate   DateTime    @db.Date
+  /// Requested delivery window (first and last day, factory time zone), `windowFrom <= windowTo`.
+  windowFrom     DateTime    @db.Date
+  windowTo       DateTime    @db.Date
+  /// Optional time of day "HH:MM" (24 h) the window starts / ends at; applies to the planned day.
+  windowFromTime String?
+  windowToTime   String?
+  status         OrderStatus @default(DRAFT)
+  source         OrderSource @default(MANUAL)
+  screenshotId   String?
+  internalNote   String?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
   screenshot Screenshot? @relation(fields: [screenshotId], references: [id], onDelete: SetNull)
@@ -254,6 +261,7 @@ model Order {
 
   @@index([deliveryDate, status])
   @@index([customerId, deliveryDate])
+  @@index([windowFrom, windowTo])
 }
 
 model OrderItem {

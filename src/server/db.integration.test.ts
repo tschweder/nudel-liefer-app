@@ -57,6 +57,8 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
       data: {
         customerId: customer.id,
         deliveryDate: new Date("2026-11-03"),
+        windowFrom: new Date("2026-11-03"),
+        windowTo: new Date("2026-11-03"),
         status: "CONFIRMED",
         createdById: user.id,
         items: { create: [{ productId: product.id, quantity: 3 }] },
@@ -79,7 +81,13 @@ describe.skipIf(!process.env.DATABASE_URL)("database schema (integration)", () =
     const { prisma } = testDb;
     const { user, customer } = await createFixtures();
     await prisma.order.create({
-      data: { customerId: customer.id, deliveryDate: new Date("2026-11-04"), createdById: user.id },
+      data: {
+        customerId: customer.id,
+        deliveryDate: new Date("2026-11-04"),
+        windowFrom: new Date("2026-11-04"),
+        windowTo: new Date("2026-11-04"),
+        createdById: user.id,
+      },
     });
 
     await expect(prisma.customer.delete({ where: { id: customer.id } })).rejects.toThrow();

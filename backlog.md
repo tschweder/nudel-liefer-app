@@ -302,7 +302,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | done |
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | done |
-| NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | todo |
+| NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | done |
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | todo |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | todo |
@@ -2530,7 +2530,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-148 · Requested delivery window instead of a delivery date
-**Status:** todo · **depends_on:** 147 · F11 · D25 · **supersedes the time-window part of NUD-103**
+**Status:** done · **depends_on:** 147 · F11 · D25 · **supersedes the time-window part of NUD-103**
 
 **Scope**
 - Order gets `windowStart` / `windowEnd` (date + optional time, factory TZ) — "Gewünschter Lieferzeitraum", from a few hours to several days. Keep `deliveryDate` as the **planned** day (set by planning, editable by the office).
@@ -2539,8 +2539,22 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 - Order form, list, filters, totals and the AI draft (NUD-150) use the window; existing orders migrate to `windowStart = windowEnd = deliveryDate` (whole day).
 
 **Acceptance criteria**
-- [ ] Order with window Tue–Thu, Tue full → planned Wed (unit test on the pure helper).
-- [ ] Window 08:00–11:00 → the stop's ETA lies inside it or a warning is shown.
+- [x] Order with window Tue–Thu, Tue full → planned Wed (unit test on the pure helper). (Unit pickPlannedDay (delivery-window.test, window Tue-Thu with Tue full -> Wed) + integration order-window (createOrderAction plans Wed; editing excludes the order itself; audit carries the window))
+- [x] Window 08:00–11:00 → the stop's ETA lies inside it or a warning is shown. (Integration tour-window: ETA inside the window -> no issue, outside -> early/late/conflict flag shown on the stop in the tour planner (stop-time-window badge); the window reaches the optimiser (ORS job time_windows, unit routing-windows). live check: NUD-145)
+
+**Implementation notes**
+- **Data:** migration `20261027210000_order_delivery_window` adds `Order.windowFrom/windowTo` (DATE, NOT NULL, backfilled from `deliveryDate`), `windowFromTime/windowToTime` ("HH:MM", nullable), CHECKs (`windowFrom <= windowTo`, time format) and an index. Names differ from the scope text (`windowStart`/`windowEnd`) on purpose, see the decision log. Existing orders are the whole planned day.
+- **Pure rules** `src/domain/delivery-window.ts`: `pickPlannedDay` (earliest delivery weekday with capacity), `isValidWindow`, `stopTimeWindow` (intersection of the orders of a stop on the planned day), `checkArrival` (early / late / conflict), `secondsOfDayIn`. `orderInputSchema` accepts `windowFrom/windowTo/windowFromTime/windowToTime` and an optional `deliveryDate` (planned day); `deliveryDate` alone is a whole-day window.
+- **Server:** `src/server/planned-day.ts` (`resolvePlannedDay`: weekdays from Settings, capacity = sum of active vehicles, load = confirmed orders per day, the edited order excluded). `createOrder` / `updateOrder` store window + planned day and return `plannedDate` and `warnings` (`no_capacity`, `no_delivery_day`, `outside_window`); the audit entry carries the window. No new server action (existing rows in the authz matrix still cover create/update).
+- **Optimiser:** `OptimizeInput/DistributeInput` get `departureS` and per-stop `timeWindow`; `OrsRoutingProvider` sends VROOM `time_windows` and re-plans without them when they are infeasible. Tour builder and day planner pass the windows. `getTourPlan` returns `timeWindow` and `windowIssue` per stop; the tour planner shows the window and a warning when the ETA misses it.
+- **UI:** order form has the fieldset "Gewünschter Lieferzeitraum" (from/to day, from/to time) and the optional "Geplanter Liefertag" (empty = automatic, hint, inline warning outside the window, toasts after saving); list (customer cell), drawer and detail show the window. de/en/zh-Hans. Duplicate keeps a whole-day window on the chosen day.
+- **NUD-150 (AI draft):** the draft can fill `windowFrom/windowTo/windowFromTime/windowToTime` straight into `orderInputSchema`; nothing else is needed from this ticket.
+- **NUD-154:** unchanged and still open (a new order is offered to every open tour of its day); NUD-148 did not need it.
+- **Live check: NUD-145** (needs the ORS key): VROOM accepts `time_windows` on jobs and a vehicle `time_window` starting at the departure, and reports infeasible jobs as `unassigned` (fixtures are hand-written from the documented shape).
+- E2E: new `order-window.spec` (desktop); direct SQL inserts of orders in the other specs now set the window columns.
+
+**Implementation notes**
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2169 passed / 4 skipped, i18n:check, `pnpm build`, fresh-DB migrate + seed (also `--demo --no-photos`), e2e desktop + mobile: orders, order-window (new, desktop), mvp-happy-path, tours, tour-edit, tour-rerelease, tour-split, vehicles, load-sheet, late-orders (green; :101 flaky once, passes alone). Failing as before / not caused here: order-overview (known), order-screenshot (desktop :261 drop step and mobile, image preview of the second upload; the uploader and screenshot pane code is untouched by this ticket).
 
 ---
 
@@ -3036,6 +3050,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-147 | Reload trips are `Stop.trip` (no stop row); reload time is a constant of 20 min (not a setting); a vehicle not needed gets no tour; drivers are paired with the used vehicles in the order selected | Simplest model consistent with D24 ("all vehicles first, then reload"); NUD-152 may turn the 20 minutes into a setting |
 | 2026-10-27 | NUD-147 | "Touren planen" rebuilds unreleased tours in place (surplus ones emptied, not deleted) and refuses a day with a released or locked tour; "Neu optimieren" of one tour yields one trip | Soft delete only; released tours are the driver's (D29) and are edited via Bearbeiten |
 | 2026-10-27 | NUD-147 | Capacity applies per trip: indicator, release gate and override compare the heaviest trip; manual edits keep trip boundaries positional, new/moved stops join the last trip | A reload empties the vehicle, so the total over all trips is not what it carries |
+| 2026-10-27 | NUD-148 | Columns `windowFrom`/`windowTo` (DATE) plus optional `windowFromTime`/`windowToTime` ("HH:MM") instead of `windowStart`/`windowEnd` timestamps; `deliveryDate` stays the planned day. NOT NULL after a backfill from `deliveryDate`; CHECK constraints for order and time format | A date plus optional hours matches the form ("a few hours to several days"), avoids time-zone arithmetic in the DB and keeps every existing `deliveryDate` query working |
+| 2026-10-27 | NUD-148 | Hours apply on the planned day if it lies inside the window (each order of a stop contributes; the stop gets the intersection, an empty intersection is the warning `conflict`); window at most 31 days; a single-day window needs start < end | Simplest consistent reading of "time-of-day parts"; keeps the stop constraint a single interval |
+| 2026-10-27 | NUD-148 | Default planned day: earliest delivery weekday in the window (not before today) where confirmed orders of that day plus this order fit the SUM of the active vehicles' kg; an empty day always accepts (oversized orders are served by reload trips); without vehicles capacity is unlimited. Nothing fits -> earliest delivery weekday + warning `no_capacity`; no delivery weekday in the window -> first day + warning `no_delivery_day` | Matches D25 "earliest day inside the window with capacity"; warnings never block saving |
+| 2026-10-27 | NUD-148 | Order input: `deliveryDate` alone still means a whole-day window (compatible with old callers/tests/duplicate); the form sends the window and leaves the planned day empty (= automatic). On edit the planned day is kept unless the window changed and the day was not touched (then planned again) | Keeps existing flows and e2e specs working; the office can always override the day, outside the window with a warning (toast + inline hint) |
+| 2026-10-27 | NUD-148 | Time windows reach the optimiser as VROOM `time_windows` (+ vehicle `time_window` from the departure); when they cannot all be met ORS plans again without them (`optimize` on NO_ROUTE, `distribute` when jobs stay unassigned) and the tour shows the stops whose ETA misses the window as warnings (badge `stop-time-window` in the tour planner, computed from stored ETA, so it also holds after reorder/edit). The heuristic ignores the windows | Infeasible windows are reported, never silently drop a stop or turn it into a reload trip; windows are not in the generate/plan-day result toasts (kept to the tour view) |
+| 2026-10-27 | NUD-148 | Order list and filters stay on the PLANNED day (what is produced/loaded that day, totals unchanged); the window is shown in the list (customer cell, only when it differs from the planned day), drawer and detail. Audit log records `window` as text `YYYY-MM-DD..YYYY-MM-DD HH:MM-HH:MM` | Totals and tours are per planned day; filtering by window overlap would double-count orders |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

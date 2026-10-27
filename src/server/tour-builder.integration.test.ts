@@ -81,6 +81,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tour builder", { timeout: 60_000 }, 
         data: {
           customerId,
           deliveryDate: extra.date ?? DAY,
+          windowFrom: extra.date ?? DAY,
+          windowTo: extra.date ?? DAY,
           status: extra.status ?? "CONFIRMED",
           createdById: adminId,
           items: { create: lines.map(([productId, quantity]) => ({ productId, quantity })) },

@@ -152,8 +152,8 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   const addOrder = async (customerId: string, sku: string, quantity: string) => {
     const id = `late-ord-${customerId}-${Math.random().toString(36).slice(2, 8)}`;
     await db.query(
-      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-       VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
       [id, customerId, today, admin.id],
     );
     await db.query(
@@ -408,8 +408,8 @@ test("all four languages render the late-order banner and the tabs without error
   const order = async (key: string) => {
     const oid = `late-ord-L-${key}-${tag}`;
     await db.query(
-      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-       VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
       [oid, id, today, admin.id],
     );
     await db.query(

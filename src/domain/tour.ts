@@ -3,12 +3,19 @@
  * rules for re-running the builder on an existing tour. No framework imports.
  */
 
+import { type OrderWindow, stopTimeWindow, type TimeWindowS } from "./delivery-window";
 import { type ParkingPointLike, routingPoint } from "./parking";
 
 export type StopOrderInput = {
   id: string;
   customerId: string;
   items: ReadonlyArray<{ productId: string; quantity: number }>;
+  /** Planned day and requested window (NUD-148); absent in tests that do not care. */
+  deliveryDate?: Date;
+  windowFrom?: Date;
+  windowTo?: Date;
+  windowFromTime?: string | null;
+  windowToTime?: string | null;
 };
 
 export type StopItem = { productId: string; quantity: number };
@@ -19,6 +26,11 @@ export type PlannedStop = {
   orderIds: string[];
   /** Quantities summed per product, in order of first appearance. */
   items: StopItem[];
+  /**
+   * Time-of-day constraint of the stop on its planned day (NUD-148): the intersection of the time
+   * parts of its orders' windows. Absent = unconstrained.
+   */
+  timeWindow?: TimeWindowS & { conflict: boolean };
 };
 
 /**
@@ -40,6 +52,23 @@ export function buildStops(orders: readonly StopOrderInput[]): PlannedStop[] {
       if (line) line.quantity += item.quantity;
       else stop.items.push({ productId: item.productId, quantity: item.quantity });
     }
+  }
+  for (const stop of stops.values()) {
+    const windows: OrderWindow[] = [];
+    let day: Date | undefined;
+    for (const order of orders) {
+      if (order.customerId !== stop.customerId || !order.deliveryDate || !order.windowFrom)
+        continue;
+      day = order.deliveryDate;
+      windows.push({
+        from: order.windowFrom,
+        to: order.windowTo ?? order.windowFrom,
+        fromTime: order.windowFromTime ?? null,
+        toTime: order.windowToTime ?? null,
+      });
+    }
+    const timeWindow = day ? stopTimeWindow(windows, day) : null;
+    if (timeWindow) stop.timeWindow = timeWindow;
   }
   return [...stops.values()];
 }

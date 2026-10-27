@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isOpenTour, sortDayTours } from "@/domain/day-tours";
+import { secondsOfDayIn } from "@/domain/delivery-window";
 import { type FleetStop, orderTrip, packReloadTrips, tripLoadsKg } from "@/domain/fleet";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
@@ -207,6 +208,10 @@ export async function planDayWith(
 
   const depotPoint = { lat: depot.lat, lng: depot.lng };
   const serviceSeconds = settings.serviceMinutesPerStop * 60;
+  const departureS = secondsOfDayIn(
+    departureInstant(date, settings.departureTime, settings.timezone),
+    settings.timezone,
+  );
   const byCustomer = new Map(routable.map((s) => [s.customerId, s]));
   const fleetStops = routable.map((s) => {
     const point = routingPoint(customerById.get(s.customerId)!)!;
@@ -214,6 +219,7 @@ export async function planDayWith(
       id: s.customerId,
       location: { lat: point.lat, lng: point.lng },
       weightKg: orderWeightKg(s.items, products),
+      ...(s.timeWindow ? { timeWindow: { fromS: s.timeWindow.fromS, toS: s.timeWindow.toS } } : {}),
     } satisfies FleetStop;
   });
   const fleetById = new Map(fleetStops.map((s) => [s.id, s]));
@@ -241,6 +247,7 @@ export async function planDayWith(
       depot: depotPoint,
       vehicles: vehicles.map((v) => ({ id: v.id, capacityKg: v.capacityKg })),
       stops: fleetStops.map((s) => ({ ...s, serviceSeconds })),
+      departureS,
     });
     approximate = distribution.approximate;
     const tripsByVehicle = new Map<string, string[][]>(
@@ -261,7 +268,13 @@ export async function planDayWith(
       if (stops.length > 1) {
         const optimized = await provider.optimize({
           depot: depotPoint,
-          stops: stops.map((s) => ({ id: s.id, location: s.location, serviceSeconds })),
+          departureS,
+          stops: stops.map((s) => ({
+            id: s.id,
+            location: s.location,
+            serviceSeconds,
+            ...(s.timeWindow ? { timeWindow: s.timeWindow } : {}),
+          })),
         });
         approximate = approximate || optimized.approximate;
         order =

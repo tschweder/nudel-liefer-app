@@ -180,7 +180,7 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
           { productId: p2, quantity: 10 },
         ],
       });
-      expect(result).toEqual({ ok: true, id, status: "DRAFT" });
+      expect(result).toMatchObject({ ok: true, id, status: "DRAFT" });
       const order = await load(id);
       expect(order).toMatchObject({ status: "DRAFT", internalNote: "neu", customerId });
       expect(order.deliveryDate).toEqual(date(D2));
@@ -252,6 +252,8 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         data: {
           customerId,
           deliveryDate: date("2020-01-01"),
+          windowFrom: date("2020-01-01"),
+          windowTo: date("2020-01-01"),
           status: "CONFIRMED",
           createdById: adminId,
         },
@@ -317,6 +319,8 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
         data: {
           customerId,
           deliveryDate: date("2020-01-01"),
+          windowFrom: date("2020-01-01"),
+          windowTo: date("2020-01-01"),
           status: "CONFIRMED",
           createdById: adminId,
         },
@@ -633,6 +637,8 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       data: {
         customerId,
         deliveryDate: date("2020-01-01"),
+        windowFrom: date("2020-01-01"),
+        windowTo: date("2020-01-01"),
         status: "CONFIRMED",
         createdById: adminId,
       },

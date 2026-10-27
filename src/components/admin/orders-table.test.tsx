@@ -42,6 +42,12 @@ const row = (
 ): OrderOverviewRow => ({
   id,
   deliveryDate: new Date(`${date}T00:00:00.000Z`),
+  window: {
+    from: new Date(`${date}T00:00:00.000Z`),
+    to: new Date(`${date}T00:00:00.000Z`),
+    fromTime: null,
+    toTime: null,
+  },
   status: "CONFIRMED",
   source: "MANUAL",
   customer: { id: `c-${id}`, customerNumber: `K-${id}`, name: `Kunde ${id}` },

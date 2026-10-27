@@ -51,6 +51,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         data: {
           customerId: customer.id,
           deliveryDate: new Date("2030-01-01"),
+          windowFrom: new Date("2030-01-01"),
+          windowTo: new Date("2030-01-01"),
           source: "SCREENSHOT",
           screenshotId: old.id,
           createdById: user.id,
@@ -60,6 +62,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
         data: {
           customerId: customer.id,
           deliveryDate: new Date("2030-01-02"),
+          windowFrom: new Date("2030-01-02"),
+          windowTo: new Date("2030-01-02"),
           source: "SCREENSHOT",
           screenshotId: recent.id,
           createdById: user.id,

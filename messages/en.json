@@ -887,7 +887,7 @@
         "customerPlaceholder": "Choose a customer",
         "customerSearch": "Search by name or number",
         "customerEmpty": "No customer found.",
-        "date": "Delivery date",
+        "date": "Planned delivery day",
         "linesHeading": "Products",
         "product": "Product",
         "productPlaceholder": "Choose a product",
@@ -920,7 +920,8 @@
           "screenshotMissing": "The screenshot was not found. Please upload it again.",
           "screenshotInUse": "This screenshot already belongs to another order.",
           "notEditable": "This order can no longer be changed (cancelled or delivery day over).",
-          "notFound": "The order was not found."
+          "notFound": "The order was not found.",
+          "windowInvalid": "Please enter a valid delivery window (end not before start, at most 31 days; for a single day the end time must be after the start time)."
         },
         "savedConfirmed": "Order saved.",
         "savedDraft": "Draft saved.",
@@ -934,7 +935,21 @@
         },
         "savedChanges": "Changes saved.",
         "editTitle": "Edit order",
-        "customerFixed": "The customer cannot be changed afterwards. If the customer is wrong, cancel the order and enter it again."
+        "customerFixed": "The customer cannot be changed afterwards. If the customer is wrong, cancel the order and enter it again.",
+        "window": {
+          "heading": "Requested delivery window",
+          "hint": "When the customer accepts the delivery: a few hours up to several days. The times of day are optional.",
+          "from": "From (day)",
+          "to": "To (day)",
+          "fromTime": "From time",
+          "toTime": "To time"
+        },
+        "dateHint": "Leave empty to choose automatically (earliest delivery day in the window with free vehicle capacity).",
+        "planWarnings": {
+          "no_capacity": "Every delivery day in the window is fully booked. The order was planned for {date}.",
+          "no_delivery_day": "The window contains no delivery day. The order was planned for {date}.",
+          "outside_window": "The planned delivery day {date} lies outside the requested delivery window."
+        }
       },
       "detail": {
         "title": "Order",
@@ -1039,6 +1054,9 @@
         "hint": "You will find the internal note and the screenshot in the detail view.",
         "open": "Open order",
         "edit": "Edit"
+      },
+      "window": {
+        "label": "Delivery window"
       }
     },
     "tours": {
@@ -1097,7 +1115,13 @@
         "moveUp": "Move {name} up",
         "moveDown": "Move {name} down",
         "drag": "Move {name} by dragging",
-        "recalculating": "Calculating …"
+        "recalculating": "Calculating …",
+        "window": "Window {from}–{to}",
+        "windowIssue": {
+          "late": "Window {from}–{to} missed: arrival too late",
+          "early": "Window {from}–{to}: arrival too early",
+          "conflict": "The windows of the orders do not fit together ({from}–{to})"
+        }
       },
       "dialog": {
         "title": "Release the tour?",
@@ -1348,7 +1372,8 @@
       },
       "fields": {
         "status": "Status",
-        "deliveryDate": "Delivery date",
+        "deliveryDate": "Planned delivery day",
+        "window": "Delivery window",
         "internalNote": "Internal note",
         "locked": "Lock",
         "driver": "Driver",

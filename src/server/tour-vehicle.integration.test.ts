@@ -85,6 +85,8 @@ describe.skipIf(!process.env.DATABASE_URL)("tour vehicle and load", { timeout: 6
         data: {
           customerId: c.id,
           deliveryDate: DAY,
+          windowFrom: DAY,
+          windowTo: DAY,
           status: "CONFIRMED",
           createdById: adminId,
           items: { create: [{ productId, quantity: 1 }] },

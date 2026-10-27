@@ -17,7 +17,32 @@ import {
   ROUTING_TIMEOUT_MS,
   RoutingError,
   type RoutingProvider,
+  type StopTimeWindow,
 } from "./types";
+
+/**
+ * VROOM time windows (NUD-148): jobs get `time_windows` in seconds since midnight, the vehicle a
+ * working window that starts at the departure, so the arrival times VROOM computes are comparable.
+ * Empty when no stop has a window.
+ */
+export function timeWindowFields(
+  stops: readonly { timeWindow?: StopTimeWindow }[],
+  departureS: number | undefined,
+  enabled: boolean,
+): {
+  job: (index: number) => { time_windows?: [number, number][] };
+  vehicle: { time_window?: [number, number] };
+} {
+  const active = enabled && stops.some((s) => s.timeWindow);
+  const start = Math.max(0, Math.floor(departureS ?? 0));
+  return {
+    job: (index) => {
+      const w = active ? stops[index]?.timeWindow : undefined;
+      return w ? { time_windows: [[Math.floor(w.fromS), Math.ceil(w.toS)]] } : {};
+    },
+    vehicle: active ? { time_window: [start, start + 86_400] } : {},
+  };
+}
 
 export const ORS_DEFAULT_BASE_URL = "https://api.openrouteservice.org";
 export const ORS_PROFILES = ["driving-car", "driving-hgv"] as const;
@@ -192,19 +217,32 @@ export class OrsRoutingProvider implements RoutingProvider {
     if (input.stops.length === 0) return { orderedStopIds: [], ...emptyRoute(input.depot, false) };
     const signal = AbortSignal.timeout(this.timeoutMs);
     const depot = lngLat(input.depot);
-    const body = await this.post(
-      "/optimization",
-      {
-        jobs: input.stops.map((s, i) => ({
-          id: i + 1,
-          location: lngLat(s.location),
-          service: Math.round(s.serviceSeconds),
-        })),
-        vehicles: [{ id: 1, profile: this.profile, start: depot, end: depot }],
-      },
-      signal,
-    );
-    const order = mapOptimizationResponse(body, input.stops.length);
+    const hasWindows = input.stops.some((s) => s.timeWindow);
+    const solve = async (withWindows: boolean) => {
+      const tw = timeWindowFields(input.stops, input.departureS, withWindows);
+      const body = await this.post(
+        "/optimization",
+        {
+          jobs: input.stops.map((s, i) => ({
+            id: i + 1,
+            location: lngLat(s.location),
+            service: Math.round(s.serviceSeconds),
+            ...tw.job(i),
+          })),
+          vehicles: [{ id: 1, profile: this.profile, start: depot, end: depot, ...tw.vehicle }],
+        },
+        signal,
+      );
+      return mapOptimizationResponse(body, input.stops.length);
+    };
+    // Windows that cannot all be met leave jobs unassigned: plan without them, the planner then
+    // reports the stops whose ETA misses the window as warnings.
+    const order = await solve(hasWindows).catch((error: unknown) => {
+      if (hasWindows && error instanceof RoutingError && error.code === "NO_ROUTE") {
+        return solve(false);
+      }
+      throw error;
+    });
     const ordered = order.map((i) => input.stops[i]!);
     const route = await this.directions(
       input.depot,
@@ -224,26 +262,36 @@ export class OrsRoutingProvider implements RoutingProvider {
     if (input.stops.length === 0) return { routes: [], unassigned: [], approximate: false };
     const signal = AbortSignal.timeout(this.timeoutMs);
     const depot = lngLat(input.depot);
-    const body = await this.post(
-      "/optimization",
-      {
-        jobs: input.stops.map((s, i) => ({
-          id: i + 1,
-          location: lngLat(s.location),
-          service: Math.round(s.serviceSeconds),
-          delivery: [Math.ceil(s.weightKg)],
-        })),
-        vehicles: input.vehicles.map((v, i) => ({
-          id: i + 1,
-          profile: this.profile,
-          start: depot,
-          end: depot,
-          capacity: [Math.floor(v.capacityKg)],
-        })),
-      },
-      signal,
-    );
-    const mapped = mapFleetResponse(body, input.stops.length, input.vehicles.length);
+    const hasWindows = input.stops.some((s) => s.timeWindow);
+    const solve = async (withWindows: boolean) => {
+      const tw = timeWindowFields(input.stops, input.departureS, withWindows);
+      const body = await this.post(
+        "/optimization",
+        {
+          jobs: input.stops.map((s, i) => ({
+            id: i + 1,
+            location: lngLat(s.location),
+            service: Math.round(s.serviceSeconds),
+            delivery: [Math.ceil(s.weightKg)],
+            ...tw.job(i),
+          })),
+          vehicles: input.vehicles.map((v, i) => ({
+            id: i + 1,
+            profile: this.profile,
+            start: depot,
+            end: depot,
+            capacity: [Math.floor(v.capacityKg)],
+            ...tw.vehicle,
+          })),
+        },
+        signal,
+      );
+      return mapFleetResponse(body, input.stops.length, input.vehicles.length);
+    };
+    let mapped = await solve(hasWindows);
+    // Jobs left over because of their time windows (not only capacity) would wrongly become
+    // reload trips: plan without the windows and let the ETA warnings speak.
+    if (hasWindows && mapped.unassigned.length > 0) mapped = await solve(false);
     return {
       routes: mapped.routes.map((r) => ({
         vehicleId: input.vehicles[r.vehicle]!.id,

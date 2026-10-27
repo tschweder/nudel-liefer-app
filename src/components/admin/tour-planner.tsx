@@ -919,6 +919,27 @@ export function TourPlanner({
                               {t("stop.noParkingSpot")}
                             </span>
                           ) : null}
+                          {stop.timeWindow ? (
+                            <span
+                              className={
+                                "inline-flex shrink-0 items-center gap-1 tabular-nums " +
+                                (stop.windowIssue ? "text-warning-soft-foreground" : "")
+                              }
+                              data-testid="stop-time-window"
+                              data-issue={stop.windowIssue ?? "none"}
+                            >
+                              <ClockIcon className="size-4" aria-hidden />
+                              {stop.windowIssue
+                                ? t(`stop.windowIssue.${stop.windowIssue}`, {
+                                    from: stop.timeWindow.from,
+                                    to: stop.timeWindow.to,
+                                  })
+                                : t("stop.window", {
+                                    from: stop.timeWindow.from,
+                                    to: stop.timeWindow.to,
+                                  })}
+                            </span>
+                          ) : null}
                           {!stop.hasStorePhoto ? (
                             <span
                               className="inline-flex shrink-0 items-center gap-1 text-warning-soft-foreground"

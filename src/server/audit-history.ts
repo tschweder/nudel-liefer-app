@@ -30,7 +30,14 @@ export type AuditDetail =
   | {
       kind: "field";
       field:
-        "status" | "deliveryDate" | "internalNote" | "locked" | "driver" | "vehicle" | "tourStatus";
+        | "status"
+        | "deliveryDate"
+        | "window"
+        | "internalNote"
+        | "locked"
+        | "driver"
+        | "vehicle"
+        | "tourStatus";
       type: AuditFieldType;
       before: string | null;
       after: string | null;
@@ -82,6 +89,7 @@ const orderCreate = z.object({
   customerId: z.string(),
   status: z.string(),
   deliveryDate: z.string(),
+  window: z.string().optional(),
   source: z.string().optional(),
   internalNote: str,
   lines: z.array(lineSchema).default([]),
@@ -89,6 +97,7 @@ const orderCreate = z.object({
 const orderUpdate = z.object({
   status: changeSchema.optional(),
   deliveryDate: changeSchema.optional(),
+  window: changeSchema.optional(),
   internalNote: changeSchema.optional(),
   lines: z.array(lineSchema).optional(),
 });
@@ -248,6 +257,15 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
             after: d.data.deliveryDate,
           },
         ];
+        if (d.data.window) {
+          out.push({
+            kind: "field",
+            field: "window",
+            type: "text",
+            before: null,
+            after: d.data.window,
+          });
+        }
         if (d.data.internalNote) {
           out.push({
             kind: "field",
@@ -278,6 +296,14 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
             type: "date",
             before: d.data.deliveryDate.from,
             after: d.data.deliveryDate.to,
+          });
+        if (d.data.window)
+          out.push({
+            kind: "field",
+            field: "window",
+            type: "text",
+            before: d.data.window.from,
+            after: d.data.window.to,
           });
         if (d.data.internalNote)
           out.push({

@@ -20,9 +20,14 @@ export type RouteResult = {
 
 export type OptimizeResult = RouteResult & { orderedStopIds: string[] };
 
+/** Time-of-day window of a stop in seconds since midnight (NUD-148). */
+export type StopTimeWindow = { fromS: number; toS: number };
+
 export type OptimizeInput = {
   depot: LatLng;
-  stops: { id: string; location: LatLng; serviceSeconds: number }[];
+  stops: { id: string; location: LatLng; serviceSeconds: number; timeWindow?: StopTimeWindow }[];
+  /** Departure from the depot in seconds since midnight; the time windows are relative to it (NUD-148). */
+  departureS?: number;
 };
 
 export type RouteInput = { depot: LatLng; orderedStops: LatLng[] };
@@ -31,7 +36,14 @@ export type RouteInput = { depot: LatLng; orderedStops: LatLng[] };
 export type DistributeInput = {
   depot: LatLng;
   vehicles: { id: string; capacityKg: number }[];
-  stops: { id: string; location: LatLng; serviceSeconds: number; weightKg: number }[];
+  stops: {
+    id: string;
+    location: LatLng;
+    serviceSeconds: number;
+    weightKg: number;
+    timeWindow?: StopTimeWindow;
+  }[];
+  departureS?: number;
 };
 
 export type DistributeResult = {

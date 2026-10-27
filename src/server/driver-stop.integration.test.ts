@@ -118,6 +118,8 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
         data: {
           customerId,
           deliveryDate: DAY,
+          windowFrom: DAY,
+          windowTo: DAY,
           status,
           createdById: adminId,
           items: { create: lines.map(([productId, quantity]) => ({ productId, quantity })) },

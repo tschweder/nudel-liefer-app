@@ -160,8 +160,8 @@ test("Tour load: red above the capacity, release only with the explicit override
       );
       const orderId = `ord-${tag}-${suffix}`;
       await client.query(
-        `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-         VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+        `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+         VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
         [orderId, customerId, day, admin.id],
       );
       await client.query(

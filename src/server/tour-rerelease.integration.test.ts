@@ -98,6 +98,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
           data: {
             customerId,
             deliveryDate: DAY,
+            windowFrom: DAY,
+            windowTo: DAY,
             status: "CONFIRMED",
             createdById: adminId,
             items: { create: [{ productId, quantity }] },

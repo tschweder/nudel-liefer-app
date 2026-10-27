@@ -4,7 +4,7 @@ import { ImagePreview } from "@/components/shared/image-preview";
 import { Badge } from "@/components/ui/badge";
 import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
-import { createAppFormatters } from "@/lib/format";
+import { createAppFormatters, formatOrderWindow } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { AuditEntryView } from "@/server/audit-history";
 import type { OrderDetail } from "@/server/orders";
@@ -81,6 +81,12 @@ export function OrderDetailView({
               {order.customer.name}
             </Link>
             <div className="text-sm text-muted-foreground">{order.customer.customerNumber}</div>
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-sm text-muted-foreground">{t("window.label")}</dt>
+          <dd className="text-base" data-testid="detail-window">
+            {formatOrderWindow(fmt, order.window)}
           </dd>
         </div>
         <div className="flex flex-col gap-0.5">

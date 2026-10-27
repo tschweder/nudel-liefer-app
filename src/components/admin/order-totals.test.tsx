@@ -104,6 +104,12 @@ const rows: OrderOverviewRow[] = [
   {
     id: "o1",
     deliveryDate: new Date(`${D1}T00:00:00.000Z`),
+    window: {
+      from: new Date(`${D1}T00:00:00.000Z`),
+      to: new Date(`${D1}T00:00:00.000Z`),
+      fromTime: null,
+      toTime: null,
+    },
     status: "CONFIRMED",
     source: "MANUAL",
     customer: { id: "c1", customerNumber: "K-1", name: "Osteria A" },

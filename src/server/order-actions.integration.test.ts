@@ -320,6 +320,8 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
       data: {
         customerId,
         deliveryDate: new Date("2020-01-01T00:00:00Z"),
+        windowFrom: new Date("2020-01-01T00:00:00Z"),
+        windowTo: new Date("2020-01-01T00:00:00Z"),
         status: "CONFIRMED",
         createdById: adminId,
       },

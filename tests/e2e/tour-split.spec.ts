@@ -89,8 +89,8 @@ test.describe("Touren planen", () => {
         );
         const orderId = `ord-${tag}-${index}`;
         await client.query(
-          `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-           VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+          `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+           VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
           [orderId, customerId, day, admin.id],
         );
         await client.query(

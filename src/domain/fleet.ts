@@ -10,7 +10,13 @@ import { haversineM, heuristicOrder, type LatLng } from "./routing";
 export const RELOAD_MINUTES = 20;
 export const RELOAD_SECONDS = RELOAD_MINUTES * 60;
 
-export type FleetStop = { id: string; location: LatLng; weightKg: number };
+export type FleetStop = {
+  id: string;
+  location: LatLng;
+  weightKg: number;
+  /** Time-of-day window in seconds since midnight (NUD-148); only the optimiser uses it. */
+  timeWindow?: { fromS: number; toS: number };
+};
 export type FleetVehicle = { id: string; capacityKg: number };
 
 export type FleetRoute = { vehicleId: string; stopIds: string[] };

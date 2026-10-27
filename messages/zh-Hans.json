@@ -887,7 +887,7 @@
         "customerPlaceholder": "选择客户",
         "customerSearch": "按名称或编号搜索",
         "customerEmpty": "未找到客户。",
-        "date": "送货日期",
+        "date": "计划送货日",
         "linesHeading": "产品",
         "product": "产品",
         "productPlaceholder": "选择产品",
@@ -920,7 +920,8 @@
           "screenshotMissing": "未找到该截图，请重新上传。",
           "screenshotInUse": "该截图已属于另一个订单。",
           "notEditable": "该订单无法再修改（已取消或送货日已过）。",
-          "notFound": "未找到该订单。"
+          "notFound": "未找到该订单。",
+          "windowInvalid": "请填写有效的送货时间段（截止不得早于起始，最长 31 天；单日时，截止时间须晚于起始时间）。"
         },
         "savedConfirmed": "订单已保存。",
         "savedDraft": "草稿已保存。",
@@ -934,7 +935,21 @@
         },
         "savedChanges": "修改已保存。",
         "editTitle": "编辑订单",
-        "customerFixed": "客户无法事后更改。如果客户选错，请取消该订单并重新录入。"
+        "customerFixed": "客户无法事后更改。如果客户选错，请取消该订单并重新录入。",
+        "window": {
+          "heading": "客户要求的送货时间段",
+          "hint": "客户接收送货的时间段：从几个小时到几天。具体时间可不填。",
+          "from": "起始日期",
+          "to": "截止日期",
+          "fromTime": "起始时间",
+          "toTime": "截止时间"
+        },
+        "dateHint": "留空则自动选择（时间段内最早且仍有车辆运力的送货日）。",
+        "planWarnings": {
+          "no_capacity": "时间段内所有送货日的运力均已占满。订单已安排在 {date}。",
+          "no_delivery_day": "时间段内没有送货日。订单已安排在 {date}。",
+          "outside_window": "计划送货日 {date} 不在客户要求的送货时间段内。"
+        }
       },
       "detail": {
         "title": "订单",
@@ -1039,6 +1054,9 @@
         "hint": "内部备注和截图请在详情页查看。",
         "open": "打开订单",
         "edit": "编辑"
+      },
+      "window": {
+        "label": "送货时间段"
       }
     },
     "tours": {
@@ -1097,7 +1115,13 @@
         "moveUp": "上移 {name}",
         "moveDown": "下移 {name}",
         "drag": "拖动 {name} 调整顺序",
-        "recalculating": "计算中…"
+        "recalculating": "计算中…",
+        "window": "时间段 {from}–{to}",
+        "windowIssue": {
+          "late": "未赶上时间段 {from}–{to}：到达过晚",
+          "early": "时间段 {from}–{to}：到达过早",
+          "conflict": "订单的时间段互相冲突（{from}–{to}）"
+        }
       },
       "dialog": {
         "title": "发布配送线路？",
@@ -1348,7 +1372,8 @@
       },
       "fields": {
         "status": "状态",
-        "deliveryDate": "送货日期",
+        "deliveryDate": "计划送货日",
+        "window": "送货时间段",
         "internalNote": "内部备注",
         "locked": "锁定",
         "driver": "司机",

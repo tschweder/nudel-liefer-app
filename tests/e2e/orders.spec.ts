@@ -85,8 +85,10 @@ test("manual order entry: three lines via keyboard, saved and visible in the lis
     await page.goto("/de/admin/orders/new");
     await expect(page.getByTestId("section-title")).toHaveText("Neue Bestellung erfassen");
 
-    // The date is preselected with the next delivery day (NUD-012 default).
-    const dateValue = await page.getByTestId("order-date").inputValue();
+    // The window starts at the next delivery day (NUD-012 default); the planned day stays empty
+    // (= automatic, NUD-148).
+    const dateValue = await page.getByTestId("order-window-from").inputValue();
+    await expect(page.getByTestId("order-date")).toHaveValue("");
     expect(dateValue).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(dateValue > new Date().toISOString().slice(0, 10)).toBe(true);
 
@@ -191,8 +193,8 @@ test("manual order entry: warnings, validation and merged duplicate products", a
     const admin = (await f.client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
       .rows[0] as { id: string };
     await f.client.query(
-      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-       VALUES ($1,$2,'2099-04-01','CONFIRMED','MANUAL',$3,now())`,
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,'2099-04-01','2099-04-01','2099-04-01','CONFIRMED','MANUAL',$3,now())`,
       [`ord-${f.tag}`, f.confirmed.id, admin.id],
     );
     await loginAdmin(page);

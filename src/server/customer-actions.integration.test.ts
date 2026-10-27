@@ -378,6 +378,8 @@ describe.skipIf(!process.env.DATABASE_URL)("customer admin actions", { timeout: 
         data: {
           customerId,
           deliveryDate: day(date),
+          windowFrom: day(date),
+          windowTo: day(date),
           status,
           createdById: adminId,
           items: { create: [{ productId: product.id, quantity: qty }] },

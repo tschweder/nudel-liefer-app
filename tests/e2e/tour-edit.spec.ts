@@ -90,8 +90,8 @@ async function fixture() {
   const order = async (customerId: string, quantity: string) => {
     const id = `ord-${tag}-${n++}`;
     await client.query(
-      `INSERT INTO "Order" ("id","customerId","deliveryDate","status","source","createdById","updatedAt")
-       VALUES ($1,$2,$3,'CONFIRMED','MANUAL',$4,now())`,
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
       [id, customerId, day, admin.id],
     );
     await client.query(

@@ -109,7 +109,7 @@ describe("orderInputSchema", () => {
     const parsed = orderInputSchema.parse(base);
     expect(parsed.status).toBe("CONFIRMED");
     expect(parsed.internalNote).toBeNull();
-    expect(parsed.deliveryDate.toISOString()).toBe("2026-10-19T00:00:00.000Z");
+    expect(parsed.deliveryDate!.toISOString()).toBe("2026-10-19T00:00:00.000Z");
     expect(parsed.lines).toEqual([{ productId: "p1", quantity: 3 }]);
   });
 

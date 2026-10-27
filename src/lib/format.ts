@@ -31,3 +31,32 @@ export function createAppFormatters(format: Formatter, timeZone: string = DEFAUL
 }
 
 export type AppFormatters = ReturnType<typeof createAppFormatters>;
+
+/**
+ * Requested delivery window as one line (NUD-148): `03.11.2026`, `03.11.2026 – 05.11.2026` and an
+ * optional `08:00–11:00` (24 h, factory time; the same in every locale).
+ */
+export function formatOrderWindow(
+  fmt: Pick<AppFormatters, "calendarDate">,
+  window: { from: Date; to: Date; fromTime: string | null; toTime: string | null },
+): string {
+  const days =
+    window.from.getTime() === window.to.getTime()
+      ? fmt.calendarDate(window.from)
+      : `${fmt.calendarDate(window.from)} – ${fmt.calendarDate(window.to)}`;
+  if (!window.fromTime && !window.toTime) return days;
+  return `${days}, ${window.fromTime ?? ""}–${window.toTime ?? ""}`;
+}
+
+/** True when the window is just the planned day (whole day): nothing worth showing in a list. */
+export function isPlainWindow(
+  window: { from: Date; to: Date; fromTime: string | null; toTime: string | null },
+  plannedDay: Date,
+): boolean {
+  return (
+    !window.fromTime &&
+    !window.toTime &&
+    window.from.getTime() === plannedDay.getTime() &&
+    window.to.getTime() === plannedDay.getTime()
+  );
+}

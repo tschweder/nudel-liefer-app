@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isInsideWindow, isValidWindow } from "@/domain/delivery-window";
 import {
   hasDuplicateProducts,
   orderWarnings,
@@ -34,7 +35,13 @@ export type ProductOption = ComboboxOption & { unit: "KG" | "PACK" | "CRATE" | "
 export type EditableOrder = {
   id: string;
   customerId: string;
+  /** Planned day. */
   date: string;
+  /** Requested delivery window (NUD-148). */
+  windowFrom: string;
+  windowTo: string;
+  windowFromTime: string;
+  windowToTime: string;
   status: "CONFIRMED" | "DRAFT";
   note: string;
   lines: Array<{ productId: string; quantity: string }>;
@@ -94,7 +101,14 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   const nextKey = useRef(order ? order.lines.length + 1 : 2);
   const focusKey = useRef<number | null>(null);
   const [customerId, setCustomerId] = useState<string | undefined>(order?.customerId);
-  const [date, setDate] = useState(order?.date ?? defaultDate);
+  // Requested window (NUD-148). The planned day below stays empty = automatic unless the office sets it.
+  const [windowFrom, setWindowFrom] = useState(order?.windowFrom ?? defaultDate);
+  const [windowTo, setWindowTo] = useState(order?.windowTo ?? defaultDate);
+  const [windowFromTime, setWindowFromTime] = useState(order?.windowFromTime ?? "");
+  const [windowToTime, setWindowToTime] = useState(order?.windowToTime ?? "");
+  const [plannedDay, setPlannedDay] = useState(order?.date ?? "");
+  const windowTouched = useRef(Boolean(order));
+  const plannedTouched = useRef(false);
   const [lines, setLines] = useState<Line[]>(
     order && order.lines.length > 0
       ? order.lines.map((l, i) => ({ key: i + 1, productId: l.productId, quantity: l.quantity }))
@@ -111,7 +125,26 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
 
   const customer = customers.find((c) => c.value === customerId);
   const productById = new Map(products.map((p) => [p.value, p]));
-  const dateValid = parseCalendarDate(date) !== null;
+  const fromDate = parseCalendarDate(windowFrom);
+  const toDate = parseCalendarDate(windowTo);
+  const plannedDate = plannedDay ? parseCalendarDate(plannedDay) : null;
+  const windowValid =
+    fromDate !== null &&
+    toDate !== null &&
+    isValidWindow({
+      from: fromDate,
+      to: toDate,
+      fromTime: windowFromTime || null,
+      toTime: windowToTime || null,
+    });
+  const plannedValid = plannedDay === "" || plannedDate !== null;
+  const dateValid = windowValid && plannedValid;
+  // The day the order is expected on, for the "combined stop" hint and the list after saving.
+  const date = plannedDay || windowFrom;
+  const outsideWindow =
+    plannedDate !== null && fromDate !== null && toDate !== null
+      ? !isInsideWindow(plannedDate, { from: fromDate, to: toDate })
+      : false;
 
   // Focus the product picker of a freshly added line.
   useEffect(() => {
@@ -148,7 +181,13 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
    */
   function resetForm() {
     setCustomerId(undefined);
-    setDate(defaultDate);
+    setWindowFrom(defaultDate);
+    setWindowTo(defaultDate);
+    setWindowFromTime("");
+    setWindowToTime("");
+    setPlannedDay("");
+    windowTouched.current = false;
+    plannedTouched.current = false;
     setLines([{ key: nextKey.current++, productId: undefined, quantity: "" }]);
     setNote("");
     setSubmitted(false);
@@ -207,7 +246,9 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   const formError = !customerId
     ? "customerRequired"
     : !dateValid
-      ? "dateInvalid"
+      ? windowValid
+        ? "dateInvalid"
+        : "windowInvalid"
       : filled.length === 0
         ? "linesRequired"
         : filled.some((l) => lineErrors(l) !== null)
@@ -218,9 +259,20 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
     setSubmitted(true);
     setServerError(null);
     if (formError !== null || !customerId) return;
+    // Editing: a changed window without a touched planned day is planned again by the server.
+    const windowChanged =
+      order !== undefined &&
+      (windowFrom !== order.windowFrom ||
+        windowTo !== order.windowTo ||
+        windowFromTime !== order.windowFromTime ||
+        windowToTime !== order.windowToTime);
     const input = {
       customerId,
-      deliveryDate: date,
+      deliveryDate: order && windowChanged && !plannedTouched.current ? "" : plannedDay,
+      windowFrom,
+      windowTo,
+      windowFromTime,
+      windowToTime,
       status,
       internalNote: note,
       screenshotKey: editing ? null : (screenshot?.storageKey ?? null),
@@ -234,13 +286,19 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
         return setServerError("generic");
       }
       if (!result.ok) return setServerError(SERVER_ERRORS[result.error] ?? "generic");
+      for (const warning of result.warnings) {
+        toast.warning(t(`planWarnings.${warning}`, { date: result.plannedDate }));
+      }
       if (order) {
         toast.success(t("savedChanges"));
         router.push(`/admin/orders/${order.id}`);
       } else {
         toast.success(t(result.status === "DRAFT" ? "savedDraft" : "savedConfirmed"));
         resetForm();
-        router.push({ pathname: "/admin/orders", query: { from: date, to: date } });
+        router.push({
+          pathname: "/admin/orders",
+          query: { from: result.plannedDate, to: result.plannedDate },
+        });
       }
       router.refresh();
     });
@@ -302,7 +360,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
             ) : null}
           </section>
         )}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="order-customer">{t("customer")}</Label>
             <Combobox
@@ -329,27 +387,121 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
               </p>
             ) : null}
           </div>
-          <div className="flex flex-col gap-2">
+        </div>
+
+        <fieldset
+          className="flex max-w-3xl flex-col gap-3 rounded-md border border-input p-4"
+          data-testid="order-window"
+        >
+          <legend className="px-1 text-base font-semibold">{t("window.heading")}</legend>
+          <p className="text-sm text-muted-foreground">{t("window.hint")}</p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="order-window-from">{t("window.from")}</Label>
+              <Input
+                id="order-window-from"
+                type="date"
+                value={windowFrom}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  windowTouched.current = true;
+                  setWindowFrom(value);
+                  if (windowTo < value || windowTo === windowFrom) setWindowTo(value);
+                  setServerError(null);
+                }}
+                aria-invalid={(submitted && !windowValid) || undefined}
+                required
+                data-testid="order-window-from"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="order-window-to">{t("window.to")}</Label>
+              <Input
+                id="order-window-to"
+                type="date"
+                value={windowTo}
+                min={windowFrom || undefined}
+                onChange={(e) => {
+                  windowTouched.current = true;
+                  setWindowTo(e.target.value);
+                  setServerError(null);
+                }}
+                aria-invalid={(submitted && !windowValid) || undefined}
+                required
+                data-testid="order-window-to"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="order-window-from-time">{t("window.fromTime")}</Label>
+              <Input
+                id="order-window-from-time"
+                type="time"
+                value={windowFromTime}
+                onChange={(e) => {
+                  windowTouched.current = true;
+                  setWindowFromTime(e.target.value);
+                  setServerError(null);
+                }}
+                data-testid="order-window-from-time"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="order-window-to-time">{t("window.toTime")}</Label>
+              <Input
+                id="order-window-to-time"
+                type="time"
+                value={windowToTime}
+                onChange={(e) => {
+                  windowTouched.current = true;
+                  setWindowToTime(e.target.value);
+                  setServerError(null);
+                }}
+                data-testid="order-window-to-time"
+              />
+            </div>
+          </div>
+          {submitted && !windowValid ? (
+            <p className="text-sm text-destructive" role="alert" data-testid="error-window">
+              {t("errors.windowInvalid")}
+            </p>
+          ) : null}
+          <div className="flex max-w-xs flex-col gap-2">
             <Label htmlFor="order-date">{t("date")}</Label>
             <Input
               id="order-date"
               type="date"
-              value={date}
+              value={plannedDay}
               onChange={(e) => {
-                setDate(e.target.value);
+                const value = e.target.value;
+                plannedTouched.current = true;
+                setPlannedDay(value);
+                // Without a window of its own the chosen day is the window: the whole day.
+                if (!windowTouched.current && value) {
+                  setWindowFrom(value);
+                  setWindowTo(value);
+                }
                 setServerError(null);
               }}
-              aria-invalid={(submitted && !dateValid) || undefined}
-              required
+              aria-invalid={(submitted && !plannedValid) || undefined}
               data-testid="order-date"
             />
-            {submitted && !dateValid ? (
+            <p className="text-sm text-muted-foreground">{t("dateHint")}</p>
+            {submitted && !plannedValid ? (
               <p className="text-sm text-destructive" role="alert" data-testid="error-date">
                 {t("errors.dateInvalid")}
               </p>
             ) : null}
+            {outsideWindow ? (
+              <p
+                className="text-sm text-warning"
+                role="status"
+                data-testid="warning-outside-window"
+              >
+                {t("planWarnings.outside_window", { date: plannedDay })}
+              </p>
+            ) : null}
           </div>
-        </div>
+        </fieldset>
 
         {warnings.length > 0 && customer && customerId ? (
           <div className="flex flex-col gap-3" data-testid="order-warnings">

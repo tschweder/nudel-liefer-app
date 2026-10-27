@@ -1,4 +1,5 @@
 import { isOpenTour } from "@/domain/day-tours";
+import { secondsOfDayIn } from "@/domain/delivery-window";
 import { isPastDeliveryDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
 import { calendarDayIn, type Depot, DepotNotSetError } from "@/domain/settings";
@@ -228,7 +229,19 @@ export async function generateTourWith(
     } else {
       const optimized = await provider.optimize({
         depot: depotPoint,
-        stops: ordered.map((s) => ({ id: s.customerId, location: location(s), serviceSeconds })),
+        // Time-of-day windows of the orders (NUD-148); a window nobody can meet is reported on the tour.
+        departureS: secondsOfDayIn(
+          departureInstant(date, settings.departureTime, settings.timezone),
+          settings.timezone,
+        ),
+        stops: ordered.map((s) => ({
+          id: s.customerId,
+          location: location(s),
+          serviceSeconds,
+          ...(s.timeWindow
+            ? { timeWindow: { fromS: s.timeWindow.fromS, toS: s.timeWindow.toS } }
+            : {}),
+        })),
       });
       const byCustomer = new Map(ordered.map((s) => [s.customerId, s]));
       const sequence = optimized.orderedStopIds.map((id) => byCustomer.get(id));

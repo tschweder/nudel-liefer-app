@@ -887,7 +887,7 @@
         "customerPlaceholder": "Kunde wählen",
         "customerSearch": "Nach Name oder Nummer suchen",
         "customerEmpty": "Kein Kunde gefunden.",
-        "date": "Lieferdatum",
+        "date": "Geplanter Liefertag",
         "linesHeading": "Produkte",
         "product": "Produkt",
         "productPlaceholder": "Produkt wählen",
@@ -920,7 +920,8 @@
           "screenshotMissing": "Der Screenshot wurde nicht gefunden. Bitte erneut hochladen.",
           "screenshotInUse": "Dieser Screenshot gehört bereits zu einer anderen Bestellung.",
           "notEditable": "Diese Bestellung kann nicht mehr geändert werden (storniert oder Liefertag vorbei).",
-          "notFound": "Die Bestellung wurde nicht gefunden."
+          "notFound": "Die Bestellung wurde nicht gefunden.",
+          "windowInvalid": "Bitte einen gültigen Lieferzeitraum angeben (Ende nicht vor dem Beginn, höchstens 31 Tage; bei einem einzelnen Tag muss die Uhrzeit bis nach der Uhrzeit ab liegen)."
         },
         "savedConfirmed": "Bestellung gespeichert.",
         "savedDraft": "Entwurf gespeichert.",
@@ -934,7 +935,21 @@
         },
         "savedChanges": "Änderungen gespeichert.",
         "editTitle": "Bestellung bearbeiten",
-        "customerFixed": "Der Kunde kann nachträglich nicht geändert werden. Bei einem falschen Kunden die Bestellung stornieren und neu erfassen."
+        "customerFixed": "Der Kunde kann nachträglich nicht geändert werden. Bei einem falschen Kunden die Bestellung stornieren und neu erfassen.",
+        "window": {
+          "heading": "Gewünschter Lieferzeitraum",
+          "hint": "Von wann bis wann der Kunde die Lieferung annimmt: wenige Stunden bis mehrere Tage. Die Uhrzeiten sind optional.",
+          "from": "Von (Tag)",
+          "to": "Bis (Tag)",
+          "fromTime": "Ab Uhrzeit",
+          "toTime": "Bis Uhrzeit"
+        },
+        "dateHint": "Leer lassen: Der Tag wird automatisch gewählt (frühester Liefertag im Zeitraum mit freier Fahrzeugkapazität).",
+        "planWarnings": {
+          "no_capacity": "Alle Liefertage im Zeitraum sind ausgelastet. Die Bestellung wurde für den {date} eingeplant.",
+          "no_delivery_day": "Im Zeitraum liegt kein Liefertag. Die Bestellung wurde für den {date} eingeplant.",
+          "outside_window": "Der geplante Liefertag {date} liegt außerhalb des gewünschten Lieferzeitraums."
+        }
       },
       "detail": {
         "title": "Bestellung",
@@ -1039,6 +1054,9 @@
         "hint": "Interne Notiz und Screenshot findest du in der Detailansicht.",
         "open": "Bestellung öffnen",
         "edit": "Bearbeiten"
+      },
+      "window": {
+        "label": "Lieferzeitraum"
       }
     },
     "tours": {
@@ -1097,7 +1115,13 @@
         "moveUp": "{name} nach oben",
         "moveDown": "{name} nach unten",
         "drag": "{name} per Ziehen verschieben",
-        "recalculating": "Berechnet …"
+        "recalculating": "Berechnet …",
+        "window": "Zeitfenster {from}–{to}",
+        "windowIssue": {
+          "late": "Zeitfenster {from}–{to} verfehlt: Ankunft zu spät",
+          "early": "Zeitfenster {from}–{to}: Ankunft zu früh",
+          "conflict": "Zeitfenster der Bestellungen passen nicht zusammen ({from}–{to})"
+        }
       },
       "dialog": {
         "title": "Tour freigeben?",
@@ -1348,7 +1372,8 @@
       },
       "fields": {
         "status": "Status",
-        "deliveryDate": "Lieferdatum",
+        "deliveryDate": "Geplanter Liefertag",
+        "window": "Lieferzeitraum",
         "internalNote": "Interne Notiz",
         "locked": "Sperre",
         "driver": "Fahrer",

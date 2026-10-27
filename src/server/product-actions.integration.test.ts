@@ -286,6 +286,8 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
       data: {
         customerId: customer.id,
         deliveryDate: new Date("2026-11-02"),
+        windowFrom: new Date("2026-11-02"),
+        windowTo: new Date("2026-11-02"),
         status: "CONFIRMED",
         createdById: adminId,
         items: { create: [{ productId: b, quantity: 3 }] },
@@ -321,6 +323,8 @@ describe.skipIf(!process.env.DATABASE_URL)("product catalog", { timeout: 60_000 
       data: {
         customerId: customer.id,
         deliveryDate: new Date("2026-11-02"),
+        windowFrom: new Date("2026-11-02"),
+        windowTo: new Date("2026-11-02"),
         createdById: adminId,
         items: { create: [{ productId: id, quantity: 1 }] },
       },

@@ -98,6 +98,8 @@ export type OrderSnapshot = {
   status: string;
   /** `YYYY-MM-DD` */
   deliveryDate: string;
+  /** Requested window as text, e.g. `2026-11-03..2026-11-05 08:00-11:00` (NUD-148); omitted = not tracked. */
+  window?: string;
   internalNote: string | null;
   items: ReadonlyArray<{ productId: string; quantity: number }>;
 };
@@ -140,6 +142,7 @@ export type FieldChange<T = string | null> = { from: T; to: T };
 export type OrderUpdateDiff = {
   status?: FieldChange<string>;
   deliveryDate?: FieldChange<string>;
+  window?: FieldChange<string>;
   internalNote?: FieldChange;
   lines?: LineChange[];
 };
@@ -153,6 +156,9 @@ export function diffOrderUpdate(
   if (before.status !== after.status) diff.status = { from: before.status, to: after.status };
   if (before.deliveryDate !== after.deliveryDate) {
     diff.deliveryDate = { from: before.deliveryDate, to: after.deliveryDate };
+  }
+  if (before.window !== undefined && after.window !== undefined && before.window !== after.window) {
+    diff.window = { from: before.window, to: after.window };
   }
   const noteBefore = before.internalNote?.trim() || null;
   const noteAfter = after.internalNote?.trim() || null;

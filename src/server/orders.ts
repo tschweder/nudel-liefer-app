@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { diffOrderUpdate, type LineChange, toAuditQuantity } from "@/domain/audit";
+import { formatTimeOfDay, type OrderWindow, parseTimeOfDay } from "@/domain/delivery-window";
 import {
   formatCalendarDate,
   isPastDeliveryDate,
@@ -14,6 +15,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import { recordAudit } from "./audit";
+import { type PlannedDayWarning, resolvePlannedDay } from "./planned-day";
 import type { Storage } from "./storage/types";
 import type { TourDb, TourService } from "./tour-service";
 
@@ -22,8 +24,46 @@ export type TourHook = Pick<TourService, "markOutdatedForDate">;
 
 type OrderDb = Pick<
   PrismaClient,
-  "order" | "customer" | "product" | "screenshot" | "auditLog" | "$transaction"
+  | "order"
+  | "customer"
+  | "product"
+  | "screenshot"
+  | "auditLog"
+  | "settings"
+  | "vehicle"
+  | "$transaction"
 >;
+
+/** Window as one comparable text for the audit log: `2026-11-03..2026-11-05 08:00-11:00`. */
+export function windowText(w: {
+  from: Date;
+  to: Date;
+  fromTime: string | null;
+  toTime: string | null;
+}): string {
+  const days = `${formatCalendarDate(w.from)}..${formatCalendarDate(w.to)}`;
+  if (!w.fromTime && !w.toTime) return days;
+  const t = (v: string | null) =>
+    v && parseTimeOfDay(v) !== null ? formatTimeOfDay(parseTimeOfDay(v)!) : "";
+  return `${days} ${t(w.fromTime)}-${t(w.toTime)}`;
+}
+
+/** Non-blocking hints the order form shows after saving (NUD-148). */
+export type OrderPlanWarning = Exclude<PlannedDayWarning, "ok">;
+
+function rowWindow(row: {
+  windowFrom: Date;
+  windowTo: Date;
+  windowFromTime: string | null;
+  windowToTime: string | null;
+}): OrderWindow {
+  return {
+    from: row.windowFrom,
+    to: row.windowTo,
+    fromTime: row.windowFromTime,
+    toTime: row.windowToTime,
+  };
+}
 
 /**
  * Flags the tours of every delivery day that a change from `before` to `after` affects, through
@@ -42,7 +82,14 @@ async function flagAffectedTours(
 }
 
 export type OrderSaveResult =
-  | { ok: true; id: string; status: "CONFIRMED" | "DRAFT" }
+  | {
+      ok: true;
+      id: string;
+      status: "CONFIRMED" | "DRAFT";
+      /** The planned day (`YYYY-MM-DD`) and why it may not be ideal (NUD-148). */
+      plannedDate: string;
+      warnings: OrderPlanWarning[];
+    }
   | {
       ok: false;
       error:
@@ -84,7 +131,10 @@ export async function createOrder(
   const parsed = orderInputSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const v = parsed.data;
-  if (isPastDeliveryDate(v.deliveryDate, today)) return { ok: false, error: "date_in_past" };
+  if (isPastDeliveryDate(v.window.to, today)) return { ok: false, error: "date_in_past" };
+  if (v.deliveryDate && isPastDeliveryDate(v.deliveryDate, today)) {
+    return { ok: false, error: "date_in_past" };
+  }
 
   const customer = await db.customer.findUnique({
     where: { id: v.customerId },
@@ -112,11 +162,22 @@ export async function createOrder(
     if (used) return { ok: false, error: "screenshot_in_use" };
   }
 
+  const planned = await resolvePlannedDay(db, {
+    window: v.window,
+    requested: v.deliveryDate,
+    items: v.lines,
+    today,
+  });
+
   const order = await db.$transaction(async (tx) => {
     const created = await tx.order.create({
       data: {
         customer: { connect: { id: v.customerId } },
-        deliveryDate: v.deliveryDate,
+        deliveryDate: planned.day,
+        windowFrom: v.window.from,
+        windowTo: v.window.to,
+        windowFromTime: v.window.fromTime,
+        windowToTime: v.window.toTime,
         status: v.status,
         source: v.screenshotKey ? "SCREENSHOT" : "MANUAL",
         screenshot: v.screenshotKey
@@ -141,7 +202,8 @@ export async function createOrder(
       diff: {
         customerId: v.customerId,
         status: v.status,
-        deliveryDate: formatCalendarDate(v.deliveryDate),
+        deliveryDate: formatCalendarDate(planned.day),
+        window: windowText(v.window),
         source: v.screenshotKey ? "SCREENSHOT" : "MANUAL",
         internalNote: v.internalNote ?? null,
         lines: v.lines.map((l): LineChange => ({
@@ -154,7 +216,7 @@ export async function createOrder(
     await flagAffectedTours(tours, tx, null, {
       status: v.status,
       customerId: v.customerId,
-      deliveryDate: v.deliveryDate,
+      deliveryDate: planned.day,
       items: v.lines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,
@@ -162,7 +224,13 @@ export async function createOrder(
     });
     return created;
   });
-  return { ok: true, id: order.id, status: v.status };
+  return {
+    ok: true,
+    id: order.id,
+    status: v.status,
+    plannedDate: formatCalendarDate(planned.day),
+    warnings: planned.warnings,
+  };
 }
 
 export type OrderableCustomer = {
@@ -215,8 +283,10 @@ export async function countConfirmedOrders(
 
 export type OrderOverviewRow = {
   id: string;
-  /** `DATE` value as UTC midnight. */
+  /** PLANNED day, `DATE` value as UTC midnight. */
   deliveryDate: Date;
+  /** Requested delivery window (NUD-148). */
+  window: OrderWindow;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
   source: "MANUAL" | "SCREENSHOT";
   customer: { id: string; customerNumber: string; name: string };
@@ -267,6 +337,7 @@ export async function listOrderOverview(
     rows: rows.slice(0, OVERVIEW_LIMIT).map((o) => ({
       id: o.id,
       deliveryDate: o.deliveryDate,
+      window: rowWindow(o),
       status: o.status,
       source: o.source,
       customer: o.customer,
@@ -421,8 +492,10 @@ export async function listCustomersForFilter(
 
 export type OrderDetail = {
   id: string;
-  /** `DATE` value as UTC midnight. */
+  /** PLANNED day, `DATE` value as UTC midnight. */
   deliveryDate: Date;
+  /** Requested delivery window (NUD-148). */
+  window: OrderWindow;
   status: "DRAFT" | "CONFIRMED" | "CANCELLED";
   source: "MANUAL" | "SCREENSHOT";
   internalNote: string | null;
@@ -489,6 +562,7 @@ export async function getOrderDetail(
   return {
     id: o.id,
     deliveryDate: o.deliveryDate,
+    window: rowWindow(o),
     status: o.status,
     source: o.source,
     internalNote: o.internalNote,
@@ -538,7 +612,13 @@ export type OrderMutationError =
   | "product_inactive";
 
 export type OrderUpdateResult =
-  | { ok: true; id: string; status: "CONFIRMED" | "DRAFT" }
+  | {
+      ok: true;
+      id: string;
+      status: "CONFIRMED" | "DRAFT";
+      plannedDate: string;
+      warnings: OrderPlanWarning[];
+    }
   | { ok: false; error: OrderMutationError };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -581,13 +661,23 @@ export async function updateOrder(
   });
   if (!parsed.success) return { ok: false, error: "invalid" };
   const v = parsed.data;
-  if (isPastDeliveryDate(v.deliveryDate, today)) return { ok: false, error: "date_in_past" };
+  if (isPastDeliveryDate(v.window.to, today)) return { ok: false, error: "date_in_past" };
+  if (v.deliveryDate && isPastDeliveryDate(v.deliveryDate, today)) {
+    return { ok: false, error: "date_in_past" };
+  }
 
   const products = await db.product.findMany({
     where: { id: { in: v.lines.map((l) => l.productId) } },
     select: { id: true, active: true },
   });
   if (products.length !== v.lines.length) return { ok: false, error: "product_not_found" };
+  const planned = await resolvePlannedDay(db, {
+    window: v.window,
+    requested: v.deliveryDate,
+    items: v.lines,
+    today,
+    excludeOrderId: id.data,
+  });
   const already = new Set(existing.items.map((i) => i.productId));
   if (products.some((p) => !p.active && !already.has(p.id))) {
     return { ok: false, error: "product_inactive" };
@@ -601,6 +691,10 @@ export async function updateOrder(
         customerId: true,
         status: true,
         deliveryDate: true,
+        windowFrom: true,
+        windowTo: true,
+        windowFromTime: true,
+        windowToTime: true,
         internalNote: true,
         items: { select: { productId: true, quantity: true } },
       },
@@ -609,7 +703,11 @@ export async function updateOrder(
     await tx.order.update({
       where: { id: id.data },
       data: {
-        deliveryDate: v.deliveryDate,
+        deliveryDate: planned.day,
+        windowFrom: v.window.from,
+        windowTo: v.window.to,
+        windowFromTime: v.window.fromTime,
+        windowToTime: v.window.toTime,
         status: v.status,
         internalNote: v.internalNote,
         items: {
@@ -627,12 +725,14 @@ export async function updateOrder(
       {
         status: before.status,
         deliveryDate: formatCalendarDate(before.deliveryDate),
+        window: windowText(rowWindow(before)),
         internalNote: before.internalNote,
         items: before.items,
       },
       {
         status: v.status,
-        deliveryDate: formatCalendarDate(v.deliveryDate),
+        deliveryDate: formatCalendarDate(planned.day),
+        window: windowText(v.window),
         internalNote: v.internalNote ?? null,
         items: v.lines.map((l) => ({
           productId: l.productId,
@@ -652,7 +752,7 @@ export async function updateOrder(
     await flagAffectedTours(tours, tx, before, {
       status: v.status,
       customerId: before.customerId,
-      deliveryDate: v.deliveryDate,
+      deliveryDate: planned.day,
       items: v.lines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,
@@ -661,7 +761,13 @@ export async function updateOrder(
     return true;
   });
   if (!stored) return { ok: false, error: "not_found" };
-  return { ok: true, id: id.data, status: v.status };
+  return {
+    ok: true,
+    id: id.data,
+    status: v.status,
+    plannedDate: formatCalendarDate(planned.day),
+    warnings: planned.warnings,
+  };
 }
 
 export type OrderCancelResult =
@@ -756,6 +862,9 @@ export async function duplicateOrder(
       data: {
         customer: { connect: { id: source.customerId } },
         deliveryDate: date,
+        // A copy for a chosen day is wanted exactly that day (the whole day, NUD-148).
+        windowFrom: date,
+        windowTo: date,
         status: "DRAFT",
         source: "MANUAL",
         internalNote: source.internalNote,

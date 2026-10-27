@@ -1,6 +1,13 @@
 import { z } from "zod";
 
 import { pickDefaultTour, sortDayTours } from "@/domain/day-tours";
+import {
+  checkArrival,
+  formatTimeOfDay,
+  secondsOfDayIn,
+  stopTimeWindow,
+  type WindowViolation,
+} from "@/domain/delivery-window";
 import { normalizeTrips } from "@/domain/fleet";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
 import { routingPoint } from "@/domain/parking";
@@ -35,6 +42,37 @@ import { routeTrips, scheduleTrips } from "./tour-routing";
  * (`tour_not_editable`); changing a released tour is NUD-043.
  */
 
+/** Time-of-day window of a stop and whether its ETA misses it (NUD-148). */
+function stopWindowInfo(
+  orders: ReadonlyArray<{
+    deliveryDate: Date;
+    windowFrom: Date;
+    windowTo: Date;
+    windowFromTime: string | null;
+    windowToTime: string | null;
+  }>,
+  etaAt: Date | null,
+  timezone: string,
+): Pick<PlanStop, "timeWindow" | "windowIssue"> {
+  const day = orders[0]?.deliveryDate;
+  const window = day
+    ? stopTimeWindow(
+        orders.map((o) => ({
+          from: o.windowFrom,
+          to: o.windowTo,
+          fromTime: o.windowFromTime,
+          toTime: o.windowToTime,
+        })),
+        day,
+      )
+    : null;
+  if (!window) return { timeWindow: null, windowIssue: null };
+  return {
+    timeWindow: { from: formatTimeOfDay(window.fromS), to: formatTimeOfDay(window.toS) },
+    windowIssue: etaAt ? checkArrival(secondsOfDayIn(etaAt, timezone), window) : null,
+  };
+}
+
 export type PlanStop = {
   id: string;
   sequence: number;
@@ -54,6 +92,10 @@ export type PlanStop = {
   legDurationS: number | null;
   /** The stop goes to the address point because the customer has no Parkplatz (D22 flag). */
   parkingMissing: boolean;
+  /** Requested hours on the planned day ("HH:MM"), `null` without a time constraint (NUD-148). */
+  timeWindow: { from: string; to: string } | null;
+  /** The ETA misses `timeWindow` (or the orders of the stop demand disjoint hours). */
+  windowIssue: WindowViolation | null;
   /** Distinct products on the stop (all linked orders). */
   itemCount: number;
   orderCount: number;
@@ -243,7 +285,18 @@ export async function getTourPlan(
                   },
                 },
                 orders: {
-                  select: { order: { select: { items: { select: { productId: true } } } } },
+                  select: {
+                    order: {
+                      select: {
+                        deliveryDate: true,
+                        windowFrom: true,
+                        windowTo: true,
+                        windowFromTime: true,
+                        windowToTime: true,
+                        items: { select: { productId: true } },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -348,6 +401,11 @@ export async function getTourPlan(
                     lat: point.lat,
                     lng: point.lng,
                     parkingMissing: point.source === "address",
+                    ...stopWindowInfo(
+                      s.orders.map((o) => o.order),
+                      s.etaAt,
+                      timezone,
+                    ),
                     etaAt: s.etaAt?.toISOString() ?? null,
                     legDistanceM: s.legDistanceM,
                     legDurationS: s.legDurationS,
