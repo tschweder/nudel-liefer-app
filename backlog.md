@@ -314,6 +314,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
+| NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2798,6 +2799,73 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 - The 50-stop limit is per routing call and still applies to the whole day (one `distribute` call). Raising it needs a geographic pre-split into groups of ≤ 50 stops with one call each — separate ticket if needed.
 - Chains are routed with the departure time of the day; a driver's second vehicle starts later, so time windows on it are checked only by the ETAs (the tour reports a window it misses, as before).
 - Without selected drivers, or with at least as many drivers as needed vehicles, the plan is the same as before (one tour per used vehicle).
+
+---
+
+#### NUD-159 · Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3)
+**Status:** todo · **depends_on:** – · owner request 2026-10-27 · **jumps the queue** (asked for by the owner directly), like NUD-132. **This ticket amends D23 (§2) and the glossary (§3)** — both currently say `PACK` = Beutel, `CRATE` = Karton, and §3 explicitly forbids the word "Kiste".
+
+**Goal:** in German the `PACK` unit is called **Sackerl**, the `CRATE` unit **Kiste**. Change that in every German UI string, in the docs and in the tests that assert them. The enum values `PACK` / `CRATE` stay; only the German label changes. It is a **pure 1:1 word swap** — no new key, no ICU change, no behaviour change.
+
+**German only — the other four locales keep their words on purpose**
+
+| Locale | `PACK` today | `CRATE` today | Change |
+|---|---|---|---|
+| `de` | Beutel | Karton | **→ Sackerl / Kiste** |
+| `en` | Bag | Carton | none — "Sackerl" is Austrian German, and English "Carton" is not the German word "Karton" |
+| `cs` | Sáček | Karton (genitive plural `Kartonů`) | none — *karton* **is** the Czech word |
+| `sr-Latn` | Kesa | Karton | none — *karton* **is** the Serbian word |
+| `zh-Hans` | 袋 | 纸箱 | none — 纸箱 is the correct Chinese word for a cardboard box |
+
+So `en.json`, `cs.json`, `sr-Latn.json` and `zh-Hans.json` are **not touched at all**. `pnpm i18n:build` has nothing to regenerate (no key added or removed); run it anyway and commit only if it reports a difference.
+
+**The nine German strings** in `messages/de.json`:
+
+| Key | from | to |
+|---|---|---|
+| `common.units.PACK` | Beutel | Sackerl |
+| `common.units.CRATE` | Karton | Kiste |
+| `common.unitNames.PACK` | Beutel | Sackerl |
+| `common.unitNames.CRATE` | Karton | Kiste |
+| `driver.units.PACK` | Beutel | Sackerl |
+| `driver.units.CRATE` | Karton | Kiste |
+| `driver.unitsTotal.PACK` | Beutel | Sackerl |
+| `driver.unitsTotal.CRATE` | Karton | Kiste |
+| `admin.products.form.weightHint` | …3 für einen Beutel, 10 für einen Karton. | …3 für ein Sackerl, 10 für eine Kiste. |
+
+The words stay **invariant after a number** ("14 Kiste Nudeln"), exactly as "14 Karton" does today. Deliberate: it keeps this a wording swap with no ICU/CLDR risk. A German plural ("Kisten") is a separate nicety, see the notes.
+
+**Guard test is inverted** — `src/lib/forbidden-words.test.ts`: "Kiste" stops being a forbidden word, "Beutel" and "Karton" become forbidden.
+- `{ word: /\bKisten?\b/, hint: '"Kiste" (use Karton)' }` → `{ word: /\bBeuteln?\b/, hint: '"Beutel" (use Sackerl)' }`
+- add `{ word: /\bKartons?\b/, hint: '"Karton" (use Kiste)' }`
+- keep `{ word: /Packung/, … }`, hint becomes `(use Sackerl)`; keep the `Pin` / `Kartenpunkt` / `Position` / Chinese (`箱子|筐`) rules untouched
+- update the doc comment at the top (lines 6–11)
+
+The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot break the Czech/Serbian files. **Do not** extend it to the other locales.
+
+**Text outside the UI (same words)**
+- Docs: `docs/orders.md`, `docs/data-model.md`, `docs/demo.md`, `docs/day-import.md`, `docs/deploy.md`, `docs/handoff-vserver-deploy-and-help.md`, `docs/uat.md`, `docs/examples/day-import-sample.csv`, `HANDOVER-NEXT-STEPS.md`.
+- `content/hand-off/index.ts` (the generated hand-off page): the "Einheit wählen: kg, Beutel, Karton oder Stück" line and the glossary rows `{ de: "Beutel" }` / `{ de: "Karton" }`. The Chinese column stays 袋 / 纸箱.
+- Comments that merely name the label (cosmetic, no behaviour): `src/lib/units.ts`, `src/lib/weight.ts`, the two doc comments in `prisma/schema.prisma`, the "unit labels live under `driver.units`" comments in `src/components/**`, `tests/e2e/mvp-happy-path.spec.ts`, `src/server/day-planner.integration.test.ts`, `src/server/tour-departure.integration.test.ts`, `src/domain/order.test.ts`, `src/components/admin/order-totals.test.tsx`, `src/components/admin/load-sheet.tsx`, `src/components/driver/departure-checklist.test.tsx`.
+- `scripts/import-day-orders.ts`: the operator-facing output `Karton 10 kg` / `Beutel 3 kg` → `Kiste 10 kg` / `Sackerl 3 kg`. The CSV **header** column 3 is documented as `Kiste`, and `Karton` keeps working as a legacy alias (files and templates already on the server must not break). The function name `parseKarton` stays.
+- Tests that assert the German words and are green today: `tests/e2e/orders.spec.ts` (lines 118, 152–154, 252), `tests/e2e/driver-departure.spec.ts` (101, 107), `scripts/import-day-orders.cli.test.ts` (66, 91), `src/server/day-import.integration.test.ts` (101).
+
+**Out of scope — do not touch**
+- Identifiers and data keys: the Prisma enum values `PACK` / `CRATE`, the SKUs `NUDELN-BEUTEL` / `NUDELN-KARTON`, `parseKarton`, `KARTON_KG`, `BEUTEL_KG`. Renaming them is a data migration and breaks the NUD-155 import.
+- The other four locales' values (see the table above).
+- Historical records: `docs/qa-2026-10-26/**` (frozen production copy), `docs/redesign/NOTES.md`, `QA-REPORT-2026-10-26-manual.md`, `messages/_fragments/**` (untracked redesign fragments, NUD-133), the **§9 decision log** (append-only) and the older ticket sections (NUD-124/137/138/139/151/155 record what was true then).
+- **NUD-128:** `order-overview.spec.ts` and `order-screenshot.spec.ts` stay red for the plural-label reason. Do replace the *words* on their unit lines; do **not** touch their plural expectations.
+
+**Acceptance criteria**
+- [ ] `grep -riE "beutel|karton" messages/de.json` returns nothing.
+- [ ] `grep -riE "beutel|karton" src/ docs/ content/ scripts/` returns only identifiers (`NUDELN-BEUTEL`, `parseKarton`, …) and the deliberately kept notes about the Czech/Serbian word.
+- [ ] `src/lib/forbidden-words.test.ts` fails when "Beutel" or "Karton" is put back into `de.json` (verify by temporarily editing one string) and passes with Sackerl/Kiste.
+- [ ] D23 (§2), the glossary (§3: the `PACK`/`CRATE` row, the `Product` row and the "never Kiste" sentence) and §4.3 ("no half Beutel, no half Karton") say Sackerl/Kiste; §9 gets a new decision-log line (2026-10-27 · NUD-159).
+- [ ] `pnpm db:seed` and `pnpm db:seed --demo` still run; product names and SKUs unchanged.
+- [ ] The word assertions in the specs named above are green.
+
+**Implementation notes**
+- (to be filled in. State explicitly: the label stays invariant after a number, and why that was chosen; and that cs/sr-Latn keep "Karton" because it is their own word, not the German one.)
 
 ---
 
