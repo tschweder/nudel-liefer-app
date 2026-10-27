@@ -412,10 +412,14 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         customerId: stops[1]!.customerId,
         status: { from: "PENDING", to: "PROBLEM" },
         reason: "CLOSED",
-        note: "Tür zu",
+        hasNote: true,
+        noteLength: 6,
         tourStatus: { from: "RELEASED", to: "IN_PROGRESS" },
         via: "online",
       });
+      // NUD-121: the driver's free text is never copied into the append-only log.
+      expect(JSON.stringify(rows[0]!.diff)).not.toContain("Tür zu");
+      expect(rows[0]!.diff).not.toHaveProperty("note");
       expect(rows[1]!.diff).toMatchObject({
         status: { from: "PROBLEM", to: "PENDING" },
         previousReason: "CLOSED",

@@ -139,7 +139,9 @@ const stopEntry = z.object({
   customerId: z.string(),
   status: changeSchema.optional(),
   reason: str,
+  // Entries before NUD-121 hold the (cut) driver text here; newer ones only `hasNote`.
   note: str,
+  hasNote: z.boolean().optional(),
   previousReason: str,
   tourStatus: changeSchema.optional(),
   clientCreatedAt: z.string().optional(),

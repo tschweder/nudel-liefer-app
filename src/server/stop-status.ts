@@ -279,7 +279,13 @@ export async function applyStopMutation(
             customerId: stop.customerId,
             status: { from: stop.status, to: mine.status },
             ...(input.type === "problem"
-              ? { reason: input.reason, note: input.note?.trim() || null }
+              ? // The driver's text itself is not copied into the append-only audit log (NUD-121):
+                // it would outlive the stop's own text (NUD-112) and cannot be scrubbed there.
+                {
+                  reason: input.reason,
+                  hasNote: Boolean(input.note?.trim()),
+                  ...(input.note?.trim() ? { noteLength: input.note.trim().length } : {}),
+                }
               : {}),
             ...(input.type === "undo" ? { previousReason: stop.problemReason } : {}),
             ...(newTourStatus !== tourStatus

@@ -164,7 +164,7 @@ Vercel's request logs and in `LoginAttempt` (above). Where to read them: `docs/r
 | `Customer.keyNumber`, `Customer.hasKey`                                               | No. A number on a key tag (max 20 characters) typed by the office or a driver; master data of the customer, kept with it (NUD-142). The audit entry `customer.key` holds the old and the new number.                                            | Keep; not in the retention jobs                                                        |
 | `Tour`, `Stop` (sequence, times, quantities, `problemReason`, status, route geometry) | No. Enum values, ids, times, distances. No driver positions are stored (D19); the route is the planned road path.                                                                                                                               | Keep                                                                                   |
 | `Stop.problemNote`                                                                    | **Yes, possibly**: free text typed by the driver, in his language and as German machine translation (DeepL); can contain a person's name or phone number.                                                                                       | **Scrub after 365 days** (implemented)                                                 |
-| `AuditLog.diff` of `stop.problem` / order entries                                     | **Possibly**: a copy of the driver problem text and order notes, cut to 200 characters.                                                                                                                                                         | Deleted with the entry after 730 days (section 7); see the gap below                   |
+| `AuditLog.diff` of `stop.problem` / order entries                                     | **Possibly**: order notes cut to 200 characters. `stop.problem` entries hold no driver text (only `hasNote` and `noteLength`, NUD-121); entries written before that change may still hold the cut text.                                         | Deleted with the entry after 730 days (section 7); see the note below                  |
 
 **Conclusion.** Orders, tours and stops carry no personal data of their own beyond user ids and
 the two free-text fields. Deleting them is **neither needed for data protection nor safe without a
@@ -202,11 +202,12 @@ section: 3 years) stays an open question for the client (`backlog.md` section 10
   delivery are raised within months, the structured reason remains afterwards, and a free text
   has no further use for the office. A different value is only the variable.
 
-**Known gap (audit copy).** The audit entry of a problem report (`stop.problem`) contains the note
-cut to 200 characters. It is not touched by this job and disappears with the audit retention
-(730 days, section 7), i.e. up to a year after the stop's own text. If the client wants the text
-gone at 365 days everywhere, the audit entry should stop storing the text (tracked as
-NUD-121 in `backlog.md`); until then the audit period is the real upper limit for the text.
+**Audit copy (closed by NUD-121).** The audit entry of a problem report (`stop.problem`) no longer
+contains the driver text: it stores the reason, `hasNote` (true/false) and `noteLength` only, so the
+text lives only in `Stop.problemNote` and is scrubbed after 365 days (the history view still shows
+reason and status). Entries written **before** this change may still hold the note cut to 200
+characters; the log is append-only (trigger), they cannot be edited and disappear with the audit
+retention (730 days, section 7).
 
 ### Requests of people (access, rectification, erasure)
 
@@ -220,8 +221,9 @@ and the database. Data in backups expires with the backups (section 3).
 The audit log is **append-only**: the application has no update path and exactly one delete path
 (a test scans the code), and a PostgreSQL trigger (`AuditLog_append_only`, function
 `audit_log_append_only`) rejects `UPDATE` and `DELETE`. Entries contain ids, enum values, dates and
-quantities; the only free text is order / problem notes cut to 200 characters, so a note can still
-contain a name someone typed.
+quantities; the only free text is order notes cut to 200 characters (driver problem texts are not copied
+here since NUD-121; older entries may hold one), so a note can still contain a name someone
+typed.
 
 **Retention: 730 days (24 months)**, configurable with `AUDIT_RETENTION_DAYS` (whole days, 90 to
 36500; empty, invalid or below the floor falls back to 730 so a typo can never delete history). The

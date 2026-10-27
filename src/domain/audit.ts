@@ -4,7 +4,7 @@
  * What an entry stores: ids, enum values, dates and quantities only (in hundredths, see `toAuditQuantity`).
  * Names (customers, products, drivers) are resolved when the history is read, so a renamed
  * product shows its current name and the log never holds a copy of personal data. Free text
- * (internal order notes, driver problem notes) is truncated to `AUDIT_TEXT_MAX` characters.
+ * (internal order notes; driver problem notes are not stored at all, NUD-121) is truncated to `AUDIT_TEXT_MAX` characters.
  */
 
 export const AUDIT_ENTITIES = [
