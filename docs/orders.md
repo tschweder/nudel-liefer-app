@@ -33,7 +33,7 @@ database before reading the input.
 | `src/server/order-queries.ts`   | `"use server"` reads: `orderableCustomersQuery`, `orderOverviewQuery`, `orderDetailQuery`                                                                                  |
 | `src/server/late-orders.ts`     | Read model for orders stranded after their tours completed                                                                                                                 |
 | `src/server/products.ts`        | DB-facing product functions (`create/update/setActive/move/list/get`)                                                                                                      |
-| `src/server/product-actions.ts` | `"use server"` product mutations plus the automatic name translation                                                                                                               |
+| `src/server/product-actions.ts` | `"use server"` product mutations plus the automatic name translation                                                                                                       |
 | `src/server/product-queries.ts` | `"use server"` product reads                                                                                                                                               |
 
 ## Entry and overview rules (domain)
@@ -57,7 +57,7 @@ database before reading the input.
   `isScreenshotKey`), and 1..100 lines each with quantity `> 0`. Lines are merged on the
   server; the client's merged state is never trusted.
 - `orderWarnings` emits non-blocking warnings: `combined_stop` (the customer already has
-  confirmed orders that day, so they merge into one stop). A missing Parkplatz or address point is no order warning (NUD-141, D22).
+  confirmed orders that day, so they merge into one stop) and `tour_completed` (NUD-116: every tour of the delivery day is COMPLETED, so a confirmed order needs a follow-up tour; read through `dayTourCompletedAction`). A missing Parkplatz or address point is no order warning (NUD-141, D22).
 
 `src/domain/order-overview.ts`:
 

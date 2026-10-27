@@ -180,6 +180,17 @@ describe("orderInputSchema", () => {
 });
 
 describe("orderWarnings", () => {
+  it("warns when the day's tours are all completed (NUD-116)", () => {
+    expect(orderWarnings({ confirmedOrdersOnDate: 0, tourCompletedOnDate: true })).toEqual([
+      "tour_completed",
+    ]);
+    expect(orderWarnings({ confirmedOrdersOnDate: 2, tourCompletedOnDate: true })).toEqual([
+      "combined_stop",
+      "tour_completed",
+    ]);
+    expect(orderWarnings({ confirmedOrdersOnDate: 0, tourCompletedOnDate: false })).toEqual([]);
+  });
+
   it("is empty for a customer without other orders", () => {
     expect(orderWarnings({ confirmedOrdersOnDate: 0 })).toEqual([]);
   });

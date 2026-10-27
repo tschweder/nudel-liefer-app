@@ -20,6 +20,7 @@ const {
   cancelOrderAction,
   confirmedOrderCountAction,
   createOrderAction,
+  dayTourCompletedAction,
   duplicateOrderAction,
   screenshotPreviewUrlAction,
   updateOrderAction,
@@ -310,6 +311,20 @@ describe.skipIf(!process.env.DATABASE_URL)("manual order entry", { timeout: 60_0
     await t.prisma.order.updateMany({ data: { status: "CANCELLED" } });
     expect(await confirmedOrderCountAction(customerId, FUTURE)).toBe(0);
     expect(await confirmedOrderCountAction("", "garbage")).toBe(0);
+  });
+
+  it("flags a day only when it has tours and all of them are completed (NUD-116)", async () => {
+    asAdmin();
+    const tour = (status: "COMPLETED" | "RELEASED") =>
+      t.prisma.tour.create({ data: { date: FUTURE_DATE, status, depotSnapshot: {} } });
+    expect(await dayTourCompletedAction(FUTURE)).toBe(false); // no tour
+    await tour("COMPLETED");
+    expect(await dayTourCompletedAction(FUTURE)).toBe(true);
+    expect(await dayTourCompletedAction("2099-06-16")).toBe(false); // other day
+    await tour("RELEASED"); // an open follow-up tour absorbs the order
+    expect(await dayTourCompletedAction(FUTURE)).toBe(false);
+    expect(await dayTourCompletedAction("garbage")).toBe(false);
+    await t.prisma.tour.deleteMany({});
   });
 
   it("lists the orders of the filtered days with items, not other days", async () => {

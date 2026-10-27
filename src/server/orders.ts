@@ -281,6 +281,23 @@ export async function countConfirmedOrders(
   });
 }
 
+/**
+ * True when the day has tours and all of them are COMPLETED (NUD-116): an order confirmed for that
+ * day is late and needs a follow-up tour. A day with an open (e.g. follow-up) tour is not flagged.
+ */
+export async function isDayTourCompleted(
+  db: Pick<PrismaClient, "tour">,
+  rawDate: unknown,
+): Promise<boolean> {
+  const date = typeof rawDate === "string" ? parseCalendarDate(rawDate.trim()) : null;
+  if (!date) return false;
+  const [total, open] = await Promise.all([
+    db.tour.count({ where: { date } }),
+    db.tour.count({ where: { date, status: { not: "COMPLETED" } } }),
+  ]);
+  return total > 0 && open === 0;
+}
+
 export type OrderOverviewRow = {
   id: string;
   /** PLANNED day, `DATE` value as UTC midnight. */

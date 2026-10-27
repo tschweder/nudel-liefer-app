@@ -979,6 +979,7 @@
         "saveConfirmed": "Bestätigt speichern",
         "saveDraft": "Als Entwurf speichern",
         "warningCombined": "{count, plural, one {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellung} other {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellungen}}. Alle Bestellungen werden zu einem Stopp zusammengefasst.",
+        "warningTourCompleted": "Die Tour für den {date} ist schon abgeschlossen. Wird diese Bestellung bestätigt, braucht sie eine Folgetour.",
         "errors": {
           "customerRequired": "Bitte einen Kunden wählen.",
           "dateInvalid": "Bitte ein gültiges Lieferdatum angeben.",

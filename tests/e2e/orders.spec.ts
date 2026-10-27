@@ -275,3 +275,49 @@ test("order pages require an admin", async ({ page }) => {
   await page.goto("/de/admin/orders");
   await expect(page).toHaveURL(/\/de\/login/);
 });
+
+test("order form warns while entering and editing when the day's tour is completed (NUD-116)", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const f = await fixture(testInfo.project.name);
+  const doneDay = "2098-05-04";
+  const openDay = "2098-05-05";
+  const tourIds = [`tour-${f.tag}-1`, `tour-${f.tag}-2`, `tour-${f.tag}-3`];
+  try {
+    const admin = (await f.client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
+      .rows[0] as { id: string };
+    const tour = (id: string, date: string, status: string) =>
+      f.client.query(
+        `INSERT INTO "Tour" ("id","date","status","depotSnapshot","updatedAt") VALUES ($1,$2,$3::"TourStatus",'{}',now())`,
+        [id, date, status],
+      );
+    await tour(tourIds[0], doneDay, "COMPLETED");
+    await tour(tourIds[1], openDay, "COMPLETED"); // all completed ...
+    await tour(tourIds[2], openDay, "RELEASED"); // ... except an open follow-up tour
+    await f.client.query(
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
+      [`ord-${f.tag}`, f.confirmed.id, doneDay, admin.id],
+    );
+    await loginAdmin(page);
+    await page.goto("/de/admin/orders/new");
+    const warning = page.getByTestId("warning-tour-completed");
+    await pickCustomer(page, f.confirmed.number, new RegExp(f.confirmed.number));
+    await page.getByTestId("order-date").fill(doneDay);
+    await expect(warning).toContainText("schon abgeschlossen");
+    await expect(warning).toContainText("Folgetour");
+    await expect(noHorizontalScroll(page)).resolves.toBe(true);
+    await page.getByTestId("order-date").fill(openDay); // open follow-up tour
+    await expect(warning).toHaveCount(0);
+    await page.getByTestId("order-date").fill("2098-05-06"); // no tour at all
+    await expect(warning).toHaveCount(0);
+
+    // Editing an order on the completed day shows it as well.
+    await page.goto(`/de/admin/orders/ord-${f.tag}/edit`);
+    await expect(warning).toContainText("schon abgeschlossen");
+  } finally {
+    await f.client.query(`DELETE FROM "Tour" WHERE "id" = ANY($1)`, [tourIds]);
+    await f.cleanup();
+  }
+});

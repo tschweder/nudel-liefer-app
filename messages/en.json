@@ -979,6 +979,7 @@
         "saveConfirmed": "Save as confirmed",
         "saveDraft": "Save as draft",
         "warningCombined": "{count, plural, one {This customer already has # confirmed order on this day} other {This customer already has # confirmed orders on this day}}. All orders are combined into one stop.",
+        "warningTourCompleted": "The tour for {date} is already completed. If this order is confirmed, it needs a follow-up tour.",
         "errors": {
           "customerRequired": "Please choose a customer.",
           "dateInvalid": "Please enter a valid delivery date.",

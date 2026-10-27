@@ -979,6 +979,7 @@
         "saveConfirmed": "确认并保存",
         "saveDraft": "保存为草稿",
         "warningCombined": "该客户在这一天已有 {count} 个已确认订单，所有订单将合并为一个停靠点。",
+        "warningTourCompleted": "{date} 的配送路线已完成。如果确认此订单，需要安排补充路线。",
         "errors": {
           "customerRequired": "请选择客户。",
           "dateInvalid": "请填写有效的送货日期。",

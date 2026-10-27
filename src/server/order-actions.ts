@@ -8,6 +8,7 @@ import {
   createOrder,
   duplicateOrder,
   getScreenshotPreviewUrl,
+  isDayTourCompleted,
   type OrderCancelResult,
   type OrderDuplicateResult,
   type OrderSaveResult,
@@ -79,6 +80,12 @@ export async function confirmedOrderCountAction(
 ): Promise<number> {
   await requireRole("ADMIN");
   return countConfirmedOrders(getDb(), customerId, deliveryDate, excludeOrderId);
+}
+
+/** Live warning while typing: every tour of that delivery day is already completed (NUD-116). */
+export async function dayTourCompletedAction(deliveryDate: unknown): Promise<boolean> {
+  await requireRole("ADMIN");
+  return isDayTourCompleted(getDb(), deliveryDate);
 }
 
 /** Signed URL to show a freshly uploaded screenshot next to the form (`null` if it is not one). */

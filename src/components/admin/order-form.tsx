@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import {
   confirmedOrderCountAction,
   createOrderAction,
+  dayTourCompletedAction,
   screenshotPreviewUrlAction,
   updateOrderAction,
 } from "@/server/order-actions";
@@ -122,6 +123,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   );
   const [screenshotError, setScreenshotError] = useState(false);
   const [counted, setCounted] = useState<{ key: string; count: number } | null>(null);
+  const [dayDone, setDayDone] = useState<{ key: string; done: boolean } | null>(null);
 
   const customer = customers.find((c) => c.value === customerId);
   const productById = new Map(products.map((p) => [p.value, p]));
@@ -172,7 +174,28 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   }, [countKey, customerId, date, order?.id]);
   const confirmedCount = counted && counted.key === countKey ? counted.count : 0;
 
-  const warnings = customer ? orderWarnings({ confirmedOrdersOnDate: confirmedCount }) : [];
+  // Warning (NUD-116): every tour of that day is completed, so a confirmed order is late.
+  const dayKey = dateValid ? date : null;
+  useEffect(() => {
+    if (dayKey === null) return;
+    let current = true;
+    dayTourCompletedAction(dayKey)
+      .then((done) => {
+        if (current) setDayDone({ key: dayKey, done });
+      })
+      .catch(() => {
+        if (current) setDayDone({ key: dayKey, done: false });
+      });
+    return () => {
+      current = false;
+    };
+  }, [dayKey]);
+  const tourCompleted = dayDone !== null && dayDone.key === dayKey && dayDone.done;
+
+  const warnings = orderWarnings({
+    confirmedOrdersOnDate: customer ? confirmedCount : 0,
+    tourCompletedOnDate: tourCompleted,
+  });
   const usedProducts = lines.map((l) => l.productId).filter((p): p is string => Boolean(p));
 
   /**
@@ -195,6 +218,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
     setScreenshot(null);
     setScreenshotError(false);
     setCounted(null);
+    setDayDone(null);
   }
 
   async function onScreenshotUploaded(image: { storageKey: string }) {
@@ -503,7 +527,7 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
           </div>
         </fieldset>
 
-        {warnings.length > 0 && customer && customerId ? (
+        {warnings.length > 0 ? (
           <div className="flex flex-col gap-3" data-testid="order-warnings">
             {warnings.includes("combined_stop") ? (
               <Alert
@@ -513,6 +537,16 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
               >
                 <AlertTriangleIcon aria-hidden />
                 <div>{t("warningCombined", { count: confirmedCount })}</div>
+              </Alert>
+            ) : null}
+            {warnings.includes("tour_completed") ? (
+              <Alert
+                role="status"
+                className="border-warning text-warning"
+                data-testid="warning-tour-completed"
+              >
+                <AlertTriangleIcon aria-hidden />
+                <div>{t("warningTourCompleted", { date })}</div>
               </Alert>
             ) : null}
           </div>
