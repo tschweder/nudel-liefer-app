@@ -32,7 +32,8 @@ export function sameOrder(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id, i) => id === b[i]);
 }
 
-export type ReleaseBlocker = "tour_not_editable" | "no_stops" | "driver_required" | "outdated";
+export type ReleaseBlocker =
+  "tour_not_editable" | "no_stops" | "driver_required" | "vehicle_required" | "outdated";
 
 /**
  * Why a tour cannot be released yet (first match), or `null`. A tour whose orders changed after it
@@ -42,11 +43,14 @@ export function releaseBlocker(tour: {
   status: string;
   stopCount: number;
   driverId: string | null;
+  /** NUD-146: a release needs a vehicle as well as a driver (D24). */
+  vehicleId: string | null;
   isOutdated: boolean;
 }): ReleaseBlocker | null {
   if (!isTourEditable(tour.status)) return "tour_not_editable";
   if (tour.stopCount === 0) return "no_stops";
   if (!tour.driverId) return "driver_required";
+  if (!tour.vehicleId) return "vehicle_required";
   if (tour.isOutdated) return "outdated";
   return null;
 }

@@ -54,6 +54,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
   let storage: FakeStorage;
   let adminId: string;
   let driverId: string;
+  let vehicleId: string;
   let p1: string;
   let p2: string;
   let c1: string;
@@ -100,6 +101,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
   async function release(tourId: string) {
     asAdmin();
     await tourActions.assignDriverAction({ tourId, driverId });
+    await tourActions.assignVehicleAction({ tourId, vehicleId });
     const tour = await t.prisma.tour.findUniqueOrThrow({ where: { id: tourId } });
     const res = await tourActions.releaseTourAction({
       tourId,
@@ -129,6 +131,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         data: { role: "DRIVER", username: "drv", passwordHash: hash, displayName: "Dora Driver" },
       })
     ).id;
+    vehicleId = (await t.prisma.vehicle.create({ data: { name: "Van", capacityKg: 1000 } })).id;
     const product = (sku: string, de: string) =>
       t.prisma.product
         .create({
@@ -302,6 +305,7 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         "tour.lock",
         "tour.unlock",
         "tour.assign_driver",
+        "tour.assign_vehicle",
         "tour.release",
       ]);
       expect(rows.every((r) => r.actorId === adminId)).toBe(true);
@@ -310,7 +314,8 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
         customerIdsAfter: stops.map((s) => s.customerId).reverse(),
       });
       expect(rows[5]!.diff).toEqual({ driverId: { from: null, to: driverId } });
-      expect(rows[6]!.diff).toMatchObject({ stopCount: 2, driverId });
+      expect(rows[6]!.diff).toEqual({ vehicleId: { from: null, to: vehicleId } });
+      expect(rows[7]!.diff).toMatchObject({ stopCount: 2, driverId, vehicleId });
     });
 
     it("records a re-release with the quantities before and after, and the unchanged variant", async () => {
@@ -524,17 +529,27 @@ describe.skipIf(!process.env.DATABASE_URL)("audit log", { timeout: 90_000 }, () 
       expect(history.map((h) => h.action)).toEqual([
         "stop.delivered",
         "tour.release",
+        "tour.assign_vehicle",
         "tour.assign_driver",
         "tour.generate",
       ]);
       expect(history[0]!.actor).toEqual({ name: "Dora Driver", role: "DRIVER" });
       expect(history[0]!.details[0]).toMatchObject({ kind: "customer", name: "Kunde C1" });
-      expect(history[2]!.details[0]).toMatchObject({
+      expect(history[3]!.details[0]).toMatchObject({
         kind: "field",
         field: "driver",
         before: null,
         after: "Dora Driver",
       });
+      expect(history[2]!.details[0]).toMatchObject({
+        kind: "field",
+        field: "vehicle",
+        before: null,
+        after: "Van",
+      });
+      expect(history[1]!.details).toContainEqual(
+        expect.objectContaining({ kind: "field", field: "vehicle", after: "Van" }),
+      );
     });
   });
 

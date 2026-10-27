@@ -300,7 +300,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | done |
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | done |
 | NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
-| NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | todo |
+| NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | done |
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | todo |
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | todo |
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | todo |
@@ -2467,7 +2467,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-146 · Vehicles with kg capacity, one vehicle per tour
-**Status:** todo · **depends_on:** 138, 135 · F2 · D24
+**Status:** done · **depends_on:** 138, 135 · F2 · D24
 
 **Scope**
 - Prisma `Vehicle { id, name, plate?, capacityKg Int, active, createdAt, updatedAt }`; `Tour.vehicleId?`; migrations; soft delete only.
@@ -2476,8 +2476,19 @@ General rules for every ticket in this block:
 - Load indicator on the tour: total kg (NUD-138 weights) vs. vehicle capacity, red when over.
 
 **Acceptance criteria**
-- [ ] A tour over capacity shows the overload and cannot be released without an explicit override (logged in audit).
-- [ ] Authz rows for the new actions; screens at 1280 px.
+- [x] A tour over capacity shows the overload and cannot be released without an explicit override (logged in audit). (Tour page: load indicator (red, text 'Überladen um N kg'), release dialog with confirmation checkbox, server refuses `overloaded` without `overrideOverload`; audit `tour.release` carries `overloadOverride`, load and capacity. Integration tour-vehicle + e2e vehicles.spec)
+- [x] Authz rows for the new actions; screens at 1280 px. (authz-matrix rows for createVehicleAction, updateVehicleAction, setVehicleActiveAction, assignVehicleAction; 1280 px screenshots in vehicles.spec)
+
+**Implementation notes**
+- **Data:** migration `20261027150000_vehicles` (table `Vehicle` with CHECK capacityKg > 0, `Tour.vehicleId` FK RESTRICT, index; additive, hand-written SQL). Soft delete only (`active`).
+- **Fahrzeuge page** `/admin/vehicles` (nav entry under Stammdaten): `VehiclesManager` table with inline Aktiv/Inaktiv switch (deactivate behind a confirm dialog), one dialog for create / edit. Server: `src/server/vehicles.ts` (zod `.strict()` with `.max()`, capacity whole kg 1..50000, name unique ignoring case), actions in `vehicle-actions.ts` (requireRole ADMIN, audit entity `Vehicle`: `vehicle.create/update/activate/deactivate`, in the same transaction), read in `vehicle-queries.ts`.
+- **Tour planning:** vehicle select next to the driver (`assignVehicleAction`, unreleased tours, audit `tour.assign_vehicle`), vehicle select in "Bearbeiten" (`editTourWith` accepts `vehicleId`, also on released tours via the 'tour updated' path, revision +1; a released tour cannot lose its vehicle, an old released tour without one may stay without). Release needs driver **and** an active vehicle (`vehicle_required` / `vehicle_invalid`, `releaseBlocker` got `vehicleId`).
+- **Load:** `tourLoadKgOf` = quantities of the stop snapshots (`Stop.items`, what the driver sees) x `weightKgPerUnit` (NUD-138, `orderWeightKg`), all stops of the tour; pure rules in `src/domain/vehicle.ts` (`loadState`, `parseCapacityKg`). `TourLoad` component under the header: "Beladung 60 kg von 50 kg", bar, red with the text "Überladen um 10 kg" over capacity; without vehicle only the load. Exactly the capacity is fine.
+- **Override:** `releaseTourAction({tourId, version, overrideOverload: true})`; without it an overloaded tour gets `overloaded`; the dialog shows the overload and enables "Jetzt freigeben" only after the checkbox "Trotz Überladung freigeben". The audit entry of the release records `overloadOverride`, `loadKg`, `capacityKg`, `vehicleId`; the tour history shows "Freigabe trotz Überladung". The flag is ignored (not logged) when the load fits.
+- **Strings:** `admin.vehicles.*`, `admin.nav.vehicles`, `admin.tours.vehicle*` / `load.*` / `dialog.*` / new `errors.*`, `admin.history.*` (de, en, zh-Hans; admin only). Forbidden words checked. Demo seed (`--demo`) adds two placeholder vehicles (Transporter 1: 800 kg, Transporter 2: 1200 kg); the base seed / production gets none, the owner enters the real fleet on the Fahrzeuge page.
+- **Existing tests adapted:** releasing needs a vehicle now (integration tests set `vehicleId`, e2e specs select one through `tests/e2e/helpers/vehicle.ts`). New: `domain/vehicle.test.ts`, `tour-vehicle.integration.test.ts` (16), `e2e/vehicles.spec.ts` (desktop; mobile skipped by design like the other admin screens).
+- **Not in this ticket:** re-release (NUD-043) and Bearbeiten do not gate an overload (the indicator turns red; only the first release needs the override); the driver app does not show the vehicle; multi-vehicle distribution by capacity is NUD-147.
+- Checks: lint (only the expected fontstub warning), typecheck, `pnpm test` 2096 passed / 4 skipped, i18n:check, `pnpm build`, fresh-DB migrate + seed (also `--demo --no-photos`), e2e desktop + mobile: vehicles, tours, tour-edit, tour-rerelease, late-orders, mvp-happy-path, shells green (admin specs skip the mobile project by design).
 
 ---
 
@@ -2997,6 +3008,9 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-135 | On a RELEASED / IN_PROGRESS tour every driver-visible edit (driver, order, stop moved in or out) raises `releaseRevision`, sets `reReleasedAt` / `lastChange`; an arriving stop gets `ADDED`, a leaving one is listed as removed; the driver of a released tour cannot be cleared; completed stops keep their slot and cannot be moved (`stop_locked`) | D29: released tours are edited through the existing "tour was updated" path; completed stops are locked |
 | 2026-10-27 | NUD-135 | "+ Tour" creates an empty OPTIMIZED tour (no routing call, at most 10 per day, not for past days); the tour tabs are always shown and read "Tour N · Fahrer" (the word "Folgetour" is dropped from the tab) | Owner F14/F15; the status machine cannot release a DRAFT tour, and a manual tab is not always a follow-up |
 | 2026-10-27 | NUD-135 | Vehicle is not in the edit form yet; NUD-146 (depends on 135) adds the select. Audit reuses `tour.reorder` / `tour.assign_driver` and adds `tour.move_stop` (on both tours) and `tour.create_empty` | Vehicles do not exist before NUD-146; one audit vocabulary instead of a parallel `tour.edit` |
+| 2026-10-27 | NUD-146 | Release needs driver and an active vehicle; a tour above capacity needs `overrideOverload: true` on the release call (checkbox in the dialog), logged in the `tour.release` audit entry (`overloadOverride`, `loadKg`, `capacityKg`). Re-release and Bearbeiten do not gate an overload, the indicator just turns red | Smallest reading of 'cannot be released without an explicit override' (D24); the first release is the moment the driver gets the tour |
+| 2026-10-27 | NUD-146 | Tour load = `Stop.items` snapshot x `weightKgPerUnit` over all stops of the tour (completed ones included); a vehicle change through Bearbeiten on a released tour bumps the revision ('tour updated'); a released tour cannot lose its vehicle, an old one without vehicle may stay without | Same snapshot the driver sees; same rules as the driver in NUD-135 (D29) |
+| 2026-10-27 | NUD-146 | Vehicle master data on one page with a dialog (no separate form pages); name unique ignoring case, capacity whole kg 1..50000, plate optional; audit entity `Vehicle`; demo seed adds two placeholder vehicles, the production seed none | Simplest consistent with the product list pattern; the real fleet is owner data |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

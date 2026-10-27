@@ -275,6 +275,8 @@ model Tour {
   id              String     @id @default(cuid())
   date            DateTime   @db.Date
   driverId        String?
+  /// Vehicle of this tour (NUD-146, D24); driver and vehicle are assigned per tour per day.
+  vehicleId       String?
   status          TourStatus @default(DRAFT)
   isOutdated      Boolean    @default(false)
   locked          Boolean    @default(false)
@@ -296,10 +298,27 @@ model Tour {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  driver User?  @relation(fields: [driverId], references: [id], onDelete: Restrict)
-  stops  Stop[]
+  driver  User?    @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  stops   Stop[]
 
   @@index([date])
+  @@index([vehicleId])
+}
+
+/// A delivery vehicle with a load capacity in kg (NUD-146, D24). Soft delete only (`active`); a tour
+/// keeps pointing at a deactivated vehicle.
+model Vehicle {
+  id         String   @id @default(cuid())
+  name       String
+  plate      String?
+  /// Maximum load in kg (whole number, CHECK > 0 in the migration).
+  capacityKg Int
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tours Tour[]
 }
 
 model Stop {

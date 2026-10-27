@@ -49,6 +49,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
   let storage: FakeStorage;
   let adminId: string;
   let driverId: string;
+  let vehicleId: string;
   let otherDriverId: string;
   let tourId: string;
   let stopIds: string[];
@@ -71,6 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     adminId = await user({ role: "ADMIN", email: "a@example.com", displayName: "A" });
     driverId = await user({ role: "DRIVER", username: "drv", displayName: "D" });
     otherDriverId = await user({ role: "DRIVER", username: "drv2", displayName: "O" });
+    vehicleId = (await t.prisma.vehicle.create({ data: { name: "Van", capacityKg: 1000 } })).id;
 
     const spaghetti = await t.prisma.product.create({
       data: {
@@ -149,7 +151,7 @@ describe.skipIf(!process.env.DATABASE_URL)("driver stop detail", { timeout: 60_0
     );
     if (!built.ok) throw new Error(`generate failed: ${built.error}`);
     tourId = built.tourId;
-    await t.prisma.tour.update({ where: { id: tourId }, data: { driverId } });
+    await t.prisma.tour.update({ where: { id: tourId }, data: { driverId, vehicleId } });
     const version = (await t.prisma.tour.findUniqueOrThrow({ where: { id: tourId } })).updatedAt;
     const released = await releaseTourWith(t.prisma, adminId, {
       tourId,

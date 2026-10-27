@@ -234,7 +234,8 @@
         "operations": "Betrieb",
         "masterData": "Stammdaten",
         "system": "System"
-      }
+      },
+      "vehicles": "Fahrzeuge"
     },
     "drivers": {
       "title": "Fahrer",
@@ -1104,7 +1105,12 @@
         "stops": "Stopps",
         "duration": "Gesamtdauer",
         "driver": "Fahrer",
-        "confirm": "Jetzt freigeben"
+        "confirm": "Jetzt freigeben",
+        "vehicle": "Fahrzeug",
+        "load": "Beladung",
+        "overloadTitle": "Die Tour ist überladen",
+        "overloadBody": "Die Beladung liegt {over} kg über der Kapazität des Fahrzeugs. Wenn Sie trotzdem freigeben, wird das im Verlauf festgehalten.",
+        "overloadConfirm": "Trotz Überladung freigeben"
       },
       "toast": {
         "generated": "Tour mit {count, plural, one {# Stopp} other {# Stopps}} erstellt.",
@@ -1114,7 +1120,9 @@
         "unlocked": "Sperre aufgehoben.",
         "driverSet": "Fahrer zugewiesen.",
         "driverCleared": "Fahrer entfernt.",
-        "released": "Tour freigegeben."
+        "released": "Tour freigegeben.",
+        "vehicleSet": "Fahrzeug zugewiesen.",
+        "vehicleCleared": "Fahrzeug entfernt."
       },
       "errors": {
         "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -1139,7 +1147,10 @@
         "stop_locked": "Ein bereits erledigter Stopp kann nicht verschoben werden. Die Seite wird neu geladen.",
         "target_invalid": "Die Ziel-Tour ist nicht mehr verfügbar. Bitte die Seite neu laden.",
         "customer_in_target": "Die Ziel-Tour hat schon einen Stopp für diesen Kunden.",
-        "too_many_tours": "An einem Tag sind höchstens 10 Touren möglich."
+        "too_many_tours": "An einem Tag sind höchstens 10 Touren möglich.",
+        "vehicle_required": "Bitte zuerst ein Fahrzeug zuweisen.",
+        "vehicle_invalid": "Dieses Fahrzeug ist nicht aktiv. Bitte ein anderes Fahrzeug wählen.",
+        "overloaded": "Die Tour ist überladen. Die Freigabe muss ausdrücklich bestätigt werden."
       },
       "change": {
         "title": "Bestellungen seit der Freigabe geändert – prüfen und erneut freigeben",
@@ -1246,6 +1257,18 @@
           "savedReleased": "Tour gespeichert (Version {revision}). Der Fahrer sieht „Tour aktualisiert“.",
           "nothingChanged": "Keine Änderungen."
         }
+      },
+      "vehicle": "Fahrzeug",
+      "vehicleNone": "Kein Fahrzeug gewählt",
+      "vehicleOption": "{name} · {kg} kg",
+      "vehicleInactive": "{name} (inaktiv)",
+      "load": {
+        "label": "Beladung",
+        "value": "{load} kg von {capacity} kg",
+        "noVehicle": "{load} kg. Fahrzeug wählen, um die Auslastung zu sehen.",
+        "percent": "Auslastung {percent} %",
+        "over": "Überladen um {over} kg",
+        "bar": "Beladung im Verhältnis zur Kapazität des Fahrzeugs"
       }
     },
     "history": {
@@ -1283,7 +1306,12 @@
         "parking_deactivate": "Parkplatz entfernt",
         "customer_key": "Schlüssel geändert",
         "tour_move_stop": "Stopp in andere Tour verschoben",
-        "tour_create_empty": "Leere Tour angelegt"
+        "tour_create_empty": "Leere Tour angelegt",
+        "tour_assign_vehicle": "Fahrzeug zugewiesen",
+        "vehicle_create": "Fahrzeug angelegt",
+        "vehicle_update": "Fahrzeug geändert",
+        "vehicle_activate": "Fahrzeug aktiviert",
+        "vehicle_deactivate": "Fahrzeug deaktiviert"
       },
       "fields": {
         "status": "Status",
@@ -1291,7 +1319,8 @@
         "internalNote": "Interne Notiz",
         "locked": "Sperre",
         "driver": "Fahrer",
-        "tourStatus": "Tourstatus"
+        "tourStatus": "Tourstatus",
+        "vehicle": "Fahrzeug"
       },
       "values": {
         "none": "–",
@@ -1305,7 +1334,8 @@
         "stopCountBefore": "vorher {value, plural, one {# Stopp} other {# Stopps}}",
         "addedCount": "{value, plural, one {# Kunde ergänzt} other {# Kunden ergänzt}}",
         "removedCount": "{value, plural, one {# Kunde entfernt} other {# Kunden entfernt}}",
-        "revision": "Freigabe-Version {value}"
+        "revision": "Freigabe-Version {value}",
+        "overloadOverride": "Freigabe trotz Überladung (Beladung / Kapazität in kg): {value}"
       },
       "stopGroup": {
         "added": "Neuer Stopp",
@@ -1330,6 +1360,58 @@
         }
       },
       "unknownActor": "Unbekannter Benutzer"
+    },
+    "vehicles": {
+      "title": "Fahrzeuge",
+      "description": "Lieferfahrzeuge mit Ladekapazität in kg. Fahrer und Fahrzeug werden pro Tour und Tag zugewiesen.",
+      "new": "Neues Fahrzeug",
+      "emptyTitle": "Noch keine Fahrzeuge",
+      "empty": "Es wurden noch keine Fahrzeuge angelegt. Ohne Fahrzeug kann keine Tour freigegeben werden.",
+      "columns": {
+        "name": "Name",
+        "plate": "Kennzeichen",
+        "capacity": "Kapazität",
+        "status": "Status",
+        "actions": "Aktionen"
+      },
+      "capacityValue": "{kg} kg",
+      "status": {
+        "active": "Aktiv",
+        "inactive": "Inaktiv"
+      },
+      "toggleStatus": "Status von {name} umschalten",
+      "rowMenu": {
+        "label": "Aktionen für {name}"
+      },
+      "edit": "Bearbeiten",
+      "deactivate": "Deaktivieren",
+      "activate": "Aktivieren",
+      "deactivated": "Fahrzeug deaktiviert. Es kann keiner neuen Tour mehr zugewiesen werden.",
+      "activated": "Fahrzeug wieder aktiviert.",
+      "confirm": {
+        "deactivateTitle": "{name} deaktivieren?",
+        "deactivateBody": "Das Fahrzeug bleibt gespeichert, kann aber keiner Tour mehr zugewiesen werden. Bereits zugewiesene Touren behalten es. Eine Tour mit deaktiviertem Fahrzeug lässt sich erst nach Wahl eines anderen Fahrzeugs freigeben."
+      },
+      "form": {
+        "newTitle": "Neues Fahrzeug",
+        "editTitle": "Fahrzeug bearbeiten",
+        "name": "Name",
+        "plate": "Kennzeichen (optional)",
+        "capacity": "Kapazität (kg)",
+        "capacityHint": "Höchste Ladung in ganzen Kilogramm, zum Beispiel 800.",
+        "capacityInvalid": "Bitte eine ganze Zahl zwischen 1 und 50000 angeben.",
+        "nameRequired": "Bitte einen Namen angeben.",
+        "nameTaken": "Ein Fahrzeug mit diesem Namen gibt es schon.",
+        "invalid": "Bitte Eingaben prüfen.",
+        "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+        "savedNew": "Fahrzeug angelegt.",
+        "savedEdit": "Fahrzeug gespeichert.",
+        "save": "Speichern",
+        "saving": "Speichert …"
+      },
+      "errors": {
+        "generic": "Etwas ist schiefgelaufen. Bitte erneut versuchen."
+      }
     }
   },
   "driver": {

@@ -15,6 +15,7 @@ import {
 } from "./tour-edit";
 import {
   assignDriverWith,
+  assignVehicleWith,
   type PlanResult,
   releaseTourWith,
   reorderStopsWith,
@@ -74,7 +75,16 @@ export async function assignDriverAction(input: unknown): Promise<PlanResult> {
   return assignDriverWith(getDb(), actor.id, input);
 }
 
-/** Admin-only: release the tour to its driver. `{tourId, version}` (version from the page). */
+/** Admin-only (NUD-146): assign an active vehicle (`vehicleId: null` clears it). `{tourId, vehicleId}`. */
+export async function assignVehicleAction(input: unknown): Promise<PlanResult> {
+  const actor = await requireRole("ADMIN");
+  return assignVehicleWith(getDb(), actor.id, input);
+}
+
+/**
+ * Admin-only: release the tour to its driver. `{tourId, version, overrideOverload?}` (version from
+ * the page). A tour above its vehicle's capacity needs `overrideOverload: true` (logged in audit).
+ */
 export async function releaseTourAction(
   input: unknown,
 ): Promise<PlanResult<{ releasedAt: string; stopCount: number }>> {

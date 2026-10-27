@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
+import { ensureVehicle } from "./helpers/vehicle";
+
 // NUD-042. Needs a seeded database (product NUDELN-BEUTEL, demo drivers), DATABASE_URL and
 // SEED_ADMIN_PASSWORD in the environment. Desktop only (the planning screen is an admin desktop
 // screen). The fixture confirms the depot pin for its duration and restores the old value
@@ -242,6 +244,10 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
 
     // Assign the driver, confirm the release dialog (stop count, total time, driver).
     await tid(page, "tour-driver").selectOption(f.driver.id);
+    // Driver alone is not enough (NUD-146): the release also needs a vehicle.
+    await expect(tid(page, "tour-release")).toBeDisabled();
+    await expect(tid(page, "release-hint")).toContainText("Fahrzeug");
+    await tid(page, "tour-vehicle").selectOption(await ensureVehicle(f.client));
     await expect(tid(page, "tour-release")).toBeEnabled();
     await tid(page, "tour-release").click();
     const dialog = tid(page, "release-dialog");
@@ -249,6 +255,9 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
     await expect(tid(page, "release-stops")).toHaveText("3 Stopps");
     await expect(tid(page, "release-duration")).toHaveText(/Min\.$/);
     await expect(tid(page, "release-driver")).toHaveText(f.driver.displayName);
+    await expect(tid(page, "release-vehicle")).toHaveText("E2E Transporter");
+    await expect(tid(page, "release-load")).toHaveText("27 kg von 5.000 kg");
+    await expect(tid(page, "release-overload")).toHaveCount(0);
     await page.screenshot({ path: "test-results/nud-042-release-dialog-1280.png" });
     await tid(page, "release-confirm").click();
     await expect(tid(page, "tour-status")).toHaveText("Freigegeben");
@@ -283,7 +292,13 @@ test("tour planning: generate, reorder (drag and buttons), lock, driver, release
       els.map((el) => el.getAttribute("data-action")),
     );
     expect(actionsShown[0]).toBe("tour.release");
-    for (const action of ["tour.generate", "tour.lock", "tour.assign_driver", "tour.reorder"]) {
+    for (const action of [
+      "tour.generate",
+      "tour.lock",
+      "tour.assign_driver",
+      "tour.assign_vehicle",
+      "tour.reorder",
+    ]) {
       expect(actionsShown).toContain(action);
     }
     await expect(

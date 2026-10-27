@@ -7,7 +7,7 @@
  * (internal order notes, driver problem notes) is truncated to `AUDIT_TEXT_MAX` characters.
  */
 
-export const AUDIT_ENTITIES = ["Order", "Tour", "Stop", "Customer"] as const;
+export const AUDIT_ENTITIES = ["Order", "Tour", "Stop", "Customer", "Vehicle"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 export const AUDIT_ACTIONS = [
@@ -22,6 +22,7 @@ export const AUDIT_ACTIONS = [
   "tour.lock",
   "tour.unlock",
   "tour.assign_driver",
+  "tour.assign_vehicle",
   "tour.move_stop",
   "tour.create_empty",
   "tour.release",
@@ -36,6 +37,10 @@ export const AUDIT_ACTIONS = [
   "parking.reorder",
   "parking.deactivate",
   "customer.key",
+  "vehicle.create",
+  "vehicle.update",
+  "vehicle.activate",
+  "vehicle.deactivate",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

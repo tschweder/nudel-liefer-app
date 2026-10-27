@@ -203,6 +203,9 @@ const MATRIX: Record<string, Row> = {
   "src/server/tour-actions.ts#reReleaseTourAction": adminAction("tour planning", async () =>
     (await import("./tour-actions")).reReleaseTourAction({}),
   ),
+  "src/server/tour-actions.ts#assignVehicleAction": adminAction("tour planning", async () =>
+    (await import("./tour-actions")).assignVehicleAction({}),
+  ),
   "src/server/tour-actions.ts#editTourAction": adminAction("tour planning", async () =>
     (await import("./tour-actions")).editTourAction({}),
   ),
@@ -308,6 +311,16 @@ const MATRIX: Record<string, Row> = {
   ),
   "src/server/product-actions.ts#moveProductAction": adminAction("catalog", async () =>
     (await import("./product-actions")).moveProductAction("x", "up"),
+  ),
+
+  "src/server/vehicle-actions.ts#createVehicleAction": adminAction("fleet", async () =>
+    (await import("./vehicle-actions")).createVehicleAction({}),
+  ),
+  "src/server/vehicle-actions.ts#updateVehicleAction": adminAction("fleet", async () =>
+    (await import("./vehicle-actions")).updateVehicleAction("x", {}),
+  ),
+  "src/server/vehicle-actions.ts#setVehicleActiveAction": adminAction("fleet", async () =>
+    (await import("./vehicle-actions")).setVehicleActiveAction("x", false),
   ),
 
   // ---- driver-only server actions

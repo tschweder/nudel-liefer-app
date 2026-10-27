@@ -53,6 +53,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let t: TestDb;
     let adminId: string;
     let driverId: string;
+    let vehicleId: string;
     let otherDriverId: string;
     let p1: string;
     let p2: string;
@@ -125,7 +126,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       for (const id of customerIds) orderIds.push(await order(id, 2));
       const built = await generate();
       if (!built.ok) throw new Error(`generate failed: ${built.error}`);
-      await t.prisma.tour.update({ where: { id: built.tourId }, data: { driverId } });
+      await t.prisma.tour.update({ where: { id: built.tourId }, data: { driverId, vehicleId } });
       const version = (await t.prisma.tour.findUniqueOrThrow({ where: { id: built.tourId } }))
         .updatedAt;
       const released = await releaseTourWith(t.prisma, adminId, {
@@ -181,6 +182,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           data: { role: "DRIVER", username: "drv", passwordHash: hash, displayName: "Driver" },
         })
       ).id;
+      vehicleId = (await t.prisma.vehicle.create({ data: { name: "Van", capacityKg: 1000 } })).id;
       otherDriverId = (
         await t.prisma.user.create({
           data: { role: "DRIVER", username: "drv2", passwordHash: hash, displayName: "Other" },
@@ -562,7 +564,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         await order(id);
         const built = await generate();
         if (!built.ok) throw new Error("generate");
-        await t.prisma.tour.update({ where: { id: built.tourId }, data: { driverId } });
+        await t.prisma.tour.update({ where: { id: built.tourId }, data: { driverId, vehicleId } });
         expect(await getDriverTour(t.prisma, driverId, DAY_TEXT)).toBeNull(); // not released yet
         await t.prisma.tour.update({ where: { id: built.tourId }, data: { status: "RELEASED" } });
         expect(await getDriverTour(t.prisma, driverId, DAY_TEXT)).toMatchObject({

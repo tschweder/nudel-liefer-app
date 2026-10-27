@@ -40,6 +40,8 @@ const editSchema = z
     /** `updatedAt` of the tour the office saw. */
     version: z.string().max(40),
     driverId: idSchema.nullable(),
+    /** NUD-146: the vehicle of the tour; omitted = unchanged, `null` = none. */
+    vehicleId: idSchema.nullable().optional(),
     /** The pending stops that stay on the tour, in the new order. */
     orderedStopIds: z.array(idSchema).max(200),
     moves: z.array(z.object({ stopId: idSchema, targetTourId: idSchema }).strict()).max(200),
@@ -156,6 +158,7 @@ export async function editTourWith(
   const input = editSchema.safeParse(rawInput);
   if (!input.success) return fail("invalid");
   const { tourId, driverId, orderedStopIds, moves } = input.data;
+  const vehicleId = input.data.vehicleId;
   const version = new Date(input.data.version);
   if (!Number.isFinite(version.getTime())) return fail("invalid");
   const { db } = deps;
@@ -177,6 +180,20 @@ export async function editTourWith(
         select: { id: true },
       });
       if (!driver) return fail("driver_invalid");
+    }
+  }
+
+  // ---- vehicle (NUD-146): like the driver, a released tour cannot lose it; legacy tours without one stay as they are
+  const vehicleChanged = vehicleId !== undefined && vehicleId !== tour.vehicleId;
+  if (vehicleChanged) {
+    if (vehicleId === null) {
+      if (released) return fail("vehicle_required");
+    } else {
+      const vehicle = await db.vehicle.findFirst({
+        where: { id: vehicleId, active: true },
+        select: { id: true },
+      });
+      if (!vehicle) return fail("vehicle_invalid");
     }
   }
 
@@ -220,7 +237,7 @@ export async function editTourWith(
   const currentIds = tour.stops.map((s) => s.id);
   const stayingIds = currentIds.filter((id) => !movedIds.has(id));
   const reordered = !sameOrder(stayingIds, finalIds);
-  if (!driverChanged && !reordered && moves.length === 0) {
+  if (!driverChanged && !vehicleChanged && !reordered && moves.length === 0) {
     return { ok: true, changed: false, revision: tour.releaseRevision, moved: 0 };
   }
 
@@ -244,7 +261,7 @@ export async function editTourWith(
   }
 
   const sourceRevision =
-    released && (driverChanged || needsRoute) ? tour.releaseRevision + 1 : null;
+    released && (driverChanged || vehicleChanged || needsRoute) ? tour.releaseRevision + 1 : null;
   const customerLabel = (stop: EditStop) => ({
     customerId: stop.customerId,
     customerNumber: stop.customer.customerNumber,
@@ -345,6 +362,7 @@ export async function editTourWith(
           data: {
             ...(sourceRouted ? tourData(sourceRouted, tour) : {}),
             ...(driverChanged ? { driverId } : {}),
+            ...(vehicleChanged ? { vehicleId } : {}),
             ...(sourceRevision !== null
               ? {
                   releaseRevision: sourceRevision,
@@ -369,6 +387,18 @@ export async function editTourWith(
             action: "tour.assign_driver",
             diff: {
               driverId: { from: tour.driverId, to: driverId },
+              ...(sourceRevision !== null ? { revision: sourceRevision } : {}),
+            },
+          });
+        }
+        if (vehicleChanged) {
+          await recordAudit(tx, {
+            actorId: deps.actorId,
+            entity: "Tour",
+            entityId: tour.id,
+            action: "tour.assign_vehicle",
+            diff: {
+              vehicleId: { from: tour.vehicleId, to: vehicleId },
               ...(sourceRevision !== null ? { revision: sourceRevision } : {}),
             },
           });

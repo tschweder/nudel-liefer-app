@@ -29,7 +29,8 @@ export type AuditDetail =
   | AuditProductLine
   | {
       kind: "field";
-      field: "status" | "deliveryDate" | "internalNote" | "locked" | "driver" | "tourStatus";
+      field:
+        "status" | "deliveryDate" | "internalNote" | "locked" | "driver" | "vehicle" | "tourStatus";
       type: AuditFieldType;
       before: string | null;
       after: string | null;
@@ -103,7 +104,15 @@ const tourReorder = z.object({ customerIdsAfter: z.array(z.string()) });
 const tourLock = z.object({ locked: z.object({ from: z.boolean(), to: z.boolean() }) });
 const tourMove = z.object({ customerId: z.string() });
 const tourAssign = z.object({ driverId: changeSchema });
-const tourRelease = z.object({ stopCount: z.number(), driverId: z.string().nullable() });
+const tourAssignVehicle = z.object({ vehicleId: changeSchema });
+const tourRelease = z.object({
+  stopCount: z.number(),
+  driverId: z.string().nullable(),
+  vehicleId: z.string().nullable().optional(),
+  overloadOverride: z.boolean().optional(),
+  loadKg: z.number().optional(),
+  capacityKg: z.number().optional(),
+});
 const tourRerelease = z.object({
   changed: z.boolean(),
   revision: z.number(),
@@ -137,6 +146,7 @@ function collectIds(rows: Row[]) {
   const products = new Set<string>();
   const customers = new Set<string>();
   const users = new Set<string>(rows.map((r) => r.actorId));
+  const vehicles = new Set<string>();
   const walk = (value: unknown, key?: string): void => {
     if (Array.isArray(value)) return value.forEach((v) => walk(v, key));
     if (value && typeof value === "object") {
@@ -147,6 +157,7 @@ function collectIds(rows: Row[]) {
     if (key === "productId") products.add(value);
     else if (key === "customerId" || key === "customerIdsAfter") customers.add(value);
     else if (key === "driverId") users.add(value);
+    else if (key === "vehicleId") vehicles.add(value);
   };
   for (const row of rows) {
     walk(row.diff);
@@ -156,15 +167,21 @@ function collectIds(rows: Row[]) {
         for (const id of [d.data.driverId.from, d.data.driverId.to]) if (id) users.add(id);
       }
     }
+    if (row.action === "tour.assign_vehicle") {
+      const d = tourAssignVehicle.safeParse(row.diff);
+      if (d.success) {
+        for (const id of [d.data.vehicleId.from, d.data.vehicleId.to]) if (id) vehicles.add(id);
+      }
+    }
   }
-  return { products, customers, users };
+  return { products, customers, users, vehicles };
 }
 
-type DbForHistory = Pick<PrismaClient, "auditLog" | "product" | "customer" | "user">;
+type DbForHistory = Pick<PrismaClient, "auditLog" | "product" | "customer" | "user" | "vehicle">;
 
 async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]> {
   const ids = collectIds(rows);
-  const [products, customers, users] = await Promise.all([
+  const [products, customers, users, vehicleRows] = await Promise.all([
     db.product.findMany({
       where: { id: { in: [...ids.products] } },
       select: { id: true, sku: true, name: true, unit: true },
@@ -177,7 +194,12 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
       where: { id: { in: [...ids.users] } },
       select: { id: true, displayName: true, role: true },
     }),
+    db.vehicle.findMany({
+      where: { id: { in: [...ids.vehicles] } },
+      select: { id: true, name: true },
+    }),
   ]);
+  const vehicleById = new Map(vehicleRows.map((v) => [v.id, v.name]));
   const productById = new Map(products.map((p) => [p.id, p]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const userById = new Map(users.map((u) => [u.id, u.displayName]));
@@ -200,6 +222,8 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
     return { kind: "customer", name: c?.name ?? "", number: c?.customerNumber ?? "" };
   };
   const person = (id: string | null): string | null => (id ? (userById.get(id) ?? "") : null);
+  const vehicleName = (id: string | null): string | null =>
+    id ? (vehicleById.get(id) ?? "") : null;
 
   const details = (row: Row, action: AuditAction): AuditDetail[] => {
     switch (action) {
@@ -336,6 +360,20 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
             ]
           : [];
       }
+      case "tour.assign_vehicle": {
+        const d = tourAssignVehicle.safeParse(row.diff);
+        return d.success
+          ? [
+              {
+                kind: "field",
+                field: "vehicle",
+                type: "text",
+                before: vehicleName(d.data.vehicleId.from),
+                after: vehicleName(d.data.vehicleId.to),
+              },
+            ]
+          : [];
+      }
       case "tour.move_stop": {
         const d = tourMove.safeParse(row.diff);
         return d.success ? [customerDetail(d.data.customerId)] : [];
@@ -344,18 +382,34 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
         return [];
       case "tour.release": {
         const d = tourRelease.safeParse(row.diff);
-        return d.success
-          ? [
-              { kind: "fact", key: "stopCount", value: d.data.stopCount },
-              {
-                kind: "field",
-                field: "driver",
-                type: "person",
-                before: null,
-                after: person(d.data.driverId),
-              },
-            ]
-          : [];
+        if (!d.success) return [];
+        const out: AuditDetail[] = [
+          { kind: "fact", key: "stopCount", value: d.data.stopCount },
+          {
+            kind: "field",
+            field: "driver",
+            type: "person",
+            before: null,
+            after: person(d.data.driverId),
+          },
+        ];
+        if (d.data.vehicleId) {
+          out.push({
+            kind: "field",
+            field: "vehicle",
+            type: "text",
+            before: null,
+            after: vehicleName(d.data.vehicleId),
+          });
+        }
+        if (d.data.overloadOverride) {
+          out.push({
+            kind: "fact",
+            key: "overloadOverride",
+            value: `${d.data.loadKg ?? 0} / ${d.data.capacityKg ?? 0}`,
+          });
+        }
+        return out;
       }
       case "tour.rerelease": {
         const d = tourRerelease.safeParse(row.diff);
@@ -406,6 +460,11 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
       case "parking.deactivate":
       // Key entries (NUD-142) are shown in the customer's own key history, not here.
       case "customer.key":
+      // Vehicle master data has no order / tour page; its entries are not shown in a timeline.
+      case "vehicle.create":
+      case "vehicle.update":
+      case "vehicle.activate":
+      case "vehicle.deactivate":
         return [];
     }
   };

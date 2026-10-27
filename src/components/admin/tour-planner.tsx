@@ -57,12 +57,14 @@ import { canEditTour } from "@/domain/tour-edit";
 import { durationParts, isTourEditable, moveItem, releaseBlocker } from "@/domain/tour-plan";
 import { isLiveStatus, showsStopResults, summarizeProgress } from "@/domain/tour-progress";
 import { isReReleasable } from "@/domain/tour-status";
+import { loadState } from "@/domain/vehicle";
 import { Link, useRouter } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import type { MapTileConfig } from "@/lib/map-config";
 import { cn } from "@/lib/utils";
 import {
   assignDriverAction,
+  assignVehicleAction,
   editTourAction,
   generateTourAction,
   releaseTourAction,
@@ -76,6 +78,7 @@ import { LateOrdersBanner, TourTabs } from "./late-orders-banner";
 import { ProblemNote } from "./problem-note";
 import { TourDiffList } from "./tour-diff-list";
 import { TourEditDialog, type TourEditPayload } from "./tour-edit-dialog";
+import { TourLoad } from "./tour-load";
 
 const selectClass = "h-10 min-w-56 rounded-md border border-input bg-background px-3 text-base";
 
@@ -148,6 +151,8 @@ export function TourPlanner({
   const [syncKey, setSyncKey] = useState(tour?.version ?? "");
   const [order, setOrder] = useState<string[] | null>(null);
   const [driverValue, setDriverValue] = useState(tour?.driverId ?? "");
+  const [vehicleValue, setVehicleValue] = useState(tour?.vehicleId ?? "");
+  const [overrideOverload, setOverrideOverload] = useState(false);
   const [error, setError] = useState<{ code: string; max?: number } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
@@ -161,6 +166,7 @@ export function TourPlanner({
     setSyncKey(tour?.version ?? "");
     setOrder(null);
     setDriverValue(tour?.driverId ?? "");
+    setVehicleValue(tour?.vehicleId ?? "");
   }
 
   // Tapping a marker brings the matching row into view.
@@ -263,9 +269,12 @@ export function TourPlanner({
     status: tour.status,
     stopCount: tour.stops.length,
     driverId: driverValue || null,
+    vehicleId: vehicleValue || null,
     isOutdated: tour.isOutdated,
   });
   const driver = plan.drivers.find((d) => d.id === (driverValue || tour.driverId));
+  const vehicle = plan.vehicles.find((v) => v.id === (vehicleValue || tour.vehicleId));
+  const load = loadState(tour.loadKg, vehicle?.capacityKg ?? null);
   const duration = durationParts(tour.totalDurationS ?? 0);
   // "Gesamtdauer 0 Min." next to "Strecke —" claimed a value the routing data does not have (the
   // round-3 review: the tour was released without any routing result). Without a duration the tile
@@ -317,6 +326,18 @@ export function TourPlanner({
     );
   }
 
+  function changeVehicle(id: string) {
+    setVehicleValue(id);
+    run(
+      () => assignVehicleAction({ tourId: tour!.id, vehicleId: id || null }),
+      () => {
+        toast.success(id ? t("toast.vehicleSet") : t("toast.vehicleCleared"));
+        router.refresh();
+      },
+      () => setVehicleValue(tour!.vehicleId ?? ""),
+    );
+  }
+
   function edit(payload: TourEditPayload) {
     run(
       () => editTourAction({ tourId: tour!.id, version: tour!.version, ...payload }),
@@ -344,13 +365,21 @@ export function TourPlanner({
 
   function release() {
     run(
-      () => releaseTourAction({ tourId: tour!.id, version: tour!.version }),
+      () =>
+        releaseTourAction({
+          tourId: tour!.id,
+          version: tour!.version,
+          ...(load.status === "over" && overrideOverload ? { overrideOverload: true } : {}),
+        }),
       () => {
         setReleaseOpen(false);
         toast.success(t("toast.released"));
         router.refresh();
       },
-      () => setReleaseOpen(false),
+      (code) => {
+        // An overload is answered in the dialog (checkbox); every other refusal closes it.
+        if (code !== "overloaded") setReleaseOpen(false);
+      },
     );
   }
 
@@ -501,7 +530,10 @@ export function TourPlanner({
               <>
                 <Button
                   type="button"
-                  onClick={() => setReleaseOpen(true)}
+                  onClick={() => {
+                    setOverrideOverload(false);
+                    setReleaseOpen(true);
+                  }}
                   disabled={busy || blocker !== null}
                   data-testid="tour-release"
                 >
@@ -525,9 +557,9 @@ export function TourPlanner({
                 </Button>
               </>
             )}
-            {editable && blocker === "driver_required" ? (
+            {editable && (blocker === "driver_required" || blocker === "vehicle_required") ? (
               <p className="basis-full text-sm text-muted-foreground" data-testid="release-hint">
-                {t("errors.driver_required")}
+                {t(`errors.${blocker}`)}
               </p>
             ) : null}
           </div>
@@ -536,9 +568,11 @@ export function TourPlanner({
             <Alert variant="info" data-testid="tour-readonly">
               <InfoIcon aria-hidden />
               <AlertTitle>{t("releasedNotice")}</AlertTitle>
-              {driver ? (
+              {driver || vehicle ? (
                 <AlertDescription>
-                  {t("driver")}: {driver.displayName}
+                  {driver ? `${t("driver")}: ${driver.displayName}` : null}
+                  {driver && vehicle ? " · " : null}
+                  {vehicle ? `${t("vehicle")}: ${vehicle.name}` : null}
                 </AlertDescription>
               ) : null}
             </Alert>
@@ -586,9 +620,37 @@ export function TourPlanner({
                   ))}
                 </select>
               </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="tour-vehicle" className="text-sm font-medium">
+                  {t("vehicle")}
+                </label>
+                <select
+                  id="tour-vehicle"
+                  className={selectClass}
+                  value={vehicleValue}
+                  disabled={busy}
+                  onChange={(e) => changeVehicle(e.target.value)}
+                  data-testid="tour-vehicle"
+                >
+                  <option value="">{t("vehicleNone")}</option>
+                  {plan.vehicles.map((v) => (
+                    <option key={v.id} value={v.id} disabled={!v.active}>
+                      {v.active
+                        ? t("vehicleOption", { name: v.name, kg: v.capacityKg })
+                        : t("vehicleInactive", { name: v.name })}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </section>
+
+        <TourLoad
+          loadKg={tour.loadKg}
+          capacityKg={vehicle?.capacityKg ?? null}
+          vehicleName={vehicle?.name ?? null}
+        />
 
         {/* KPI strip (§8.4): one row from 1280 px on so the map and the stop list stay above the
             fold (round-3 review); the "Näherungswerte" hint lives in a tooltip on Dauer / Strecke. */}
@@ -1002,7 +1064,40 @@ export function TourPlanner({
               <dd className="font-medium" data-testid="release-driver">
                 {driver?.displayName ?? "–"}
               </dd>
+              <dt className="text-muted-foreground">{t("dialog.vehicle")}</dt>
+              <dd className="font-medium" data-testid="release-vehicle">
+                {vehicle?.name ?? "–"}
+              </dd>
+              <dt className="text-muted-foreground">{t("dialog.load")}</dt>
+              <dd className="font-medium tabular-nums" data-testid="release-load">
+                {load.status === "none"
+                  ? t("load.noVehicle", { load: format.number(tour.loadKg) })
+                  : t("load.value", {
+                      load: format.number(tour.loadKg),
+                      capacity: format.number(load.capacityKg ?? 0),
+                    })}
+              </dd>
             </dl>
+            {load.status === "over" ? (
+              <Alert variant="destructive" data-testid="release-overload">
+                <TriangleAlertIcon aria-hidden />
+                <AlertTitle>{t("dialog.overloadTitle")}</AlertTitle>
+                <AlertDescription className="gap-2">
+                  <p>{t("dialog.overloadBody", { over: format.number(load.overKg) })}</p>
+                  <label className="flex min-h-10 items-center gap-2 text-base font-medium">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-destructive"
+                      checked={overrideOverload}
+                      disabled={pending}
+                      onChange={(e) => setOverrideOverload(e.target.checked)}
+                      data-testid="release-overload-confirm"
+                    />
+                    {t("dialog.overloadConfirm")}
+                  </label>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <ErrorAlert error={error} errorText={errorText} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setReleaseOpen(false)}>
@@ -1011,7 +1106,7 @@ export function TourPlanner({
               <Button
                 type="button"
                 onClick={release}
-                disabled={pending}
+                disabled={pending || (load.status === "over" && !overrideOverload)}
                 data-testid="release-confirm"
               >
                 {t("dialog.confirm")}

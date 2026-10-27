@@ -1,6 +1,8 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
+import { ensureVehicle } from "./helpers/vehicle";
+
 // NUD-060, the M1 end-to-end happy path:
 //   admin creates a customer + an order for TODAY -> generates the tour -> releases it to a driver
 //   -> the driver (own phone context, one of the four UI languages) opens the tour, opens the stop,
@@ -211,6 +213,10 @@ for (const { locale, username } of DRIVER_LOCALES) {
     await expect(visible(admin, "tour-status")).toHaveText("Optimiert");
     await expect(visible(admin, "tour-release")).toBeDisabled();
     await visible(admin, "tour-driver").selectOption(driverRow!.id);
+    // Release needs a driver and a vehicle (NUD-146).
+    await expect(visible(admin, "tour-release")).toBeDisabled();
+    await expect(visible(admin, "release-hint")).toContainText("Fahrzeug");
+    await visible(admin, "tour-vehicle").selectOption(await ensureVehicle(db));
     await expect(visible(admin, "tour-release")).toBeEnabled();
     await visible(admin, "tour-release").click();
     await expect(visible(admin, "release-dialog")).toBeVisible();

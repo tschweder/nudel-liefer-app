@@ -232,3 +232,9 @@ export function demoOrderLines(index: number): { sku: string; quantity: number }
     return { sku, quantity: ((index + k * 2) % 6) + 1 };
   });
 }
+
+/** Two demo vehicles (NUD-146): the capacities are placeholders, the owner enters the real fleet. */
+export const DEMO_VEHICLES = [
+  { name: "Transporter 1", plate: "W-12345A", capacityKg: 800 },
+  { name: "Transporter 2", plate: "W-67890B", capacityKg: 1200 },
+] as const;

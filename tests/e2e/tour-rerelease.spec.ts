@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
+import { ensureVehicle } from "./helpers/vehicle";
+
 // NUD-043. Needs a seeded database (product NUDELN-BEUTEL, demo driver), DATABASE_URL and
 // SEED_ADMIN_PASSWORD. Desktop only. Like tours.spec.ts it confirms the depot pin for its
 // duration, so do not run it at the same time as settings.spec.ts or tours.spec.ts.
@@ -127,6 +129,7 @@ test("order quantity changed after release: banner with diff, re-release keeps d
     const rows = page.locator('[data-testid="stop-row"]:visible');
     await expect(rows).toHaveCount(3);
     await tid(page, "tour-driver").selectOption(f.driver.id);
+    await tid(page, "tour-vehicle").selectOption(await ensureVehicle(f.client));
     await tid(page, "tour-release").click();
     await tid(page, "release-confirm").click();
     await expect(tid(page, "tour-status")).toHaveText("Freigegeben");

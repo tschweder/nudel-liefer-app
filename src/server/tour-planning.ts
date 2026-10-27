@@ -12,6 +12,7 @@ import {
   sameOrder,
 } from "@/domain/tour-plan";
 import { canTransition, isReReleasable } from "@/domain/tour-status";
+import { loadState } from "@/domain/vehicle";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
@@ -22,6 +23,7 @@ import { RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
+import { tourLoadKgOf } from "./tour-load";
 import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
 
 /**
@@ -77,6 +79,15 @@ export type PlanStop = {
 
 export type PlanDriver = { id: string; displayName: string; username: string; active: boolean };
 
+/** A vehicle the tour can be assigned to (NUD-146); a deactivated one only appears while assigned. */
+export type PlanVehicle = {
+  id: string;
+  name: string;
+  plate: string | null;
+  capacityKg: number;
+  active: boolean;
+};
+
 export type PlanTour = {
   id: string;
   status: "DRAFT" | "OPTIMIZED" | "RELEASED" | "IN_PROGRESS" | "COMPLETED";
@@ -84,6 +95,10 @@ export type PlanTour = {
   isOutdated: boolean;
   approximate: boolean;
   driverId: string | null;
+  /** NUD-146: the vehicle of this tour (`null` = none yet). */
+  vehicleId: string | null;
+  /** NUD-146: weight of everything on the tour's stops in kg (stop snapshots x weight per unit). */
+  loadKg: number;
   /** `updatedAt` as ISO string: the release call must quote it, so the office releases what it saw. */
   version: string;
   totalDistanceM: number | null;
@@ -128,6 +143,8 @@ export type TourPlan = {
   warnings: TourWarning[];
   confirmedOrderCount: number;
   drivers: PlanDriver[];
+  /** Active vehicles plus the one of the selected tour (NUD-146). */
+  vehicles: PlanVehicle[];
 };
 
 // unbounded-ok-start: stored Tour.geometry / Tour.depotSnapshot JSON
@@ -260,10 +277,18 @@ export async function getTourPlan(
     select: { id: true, displayName: true, username: true, active: true },
   });
 
+  const vehicles = await db.vehicle.findMany({
+    where: { OR: [{ active: true }, ...(tour?.vehicleId ? [{ id: tour.vehicleId }] : [])] },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    select: { id: true, name: true, plate: true, capacityKg: true, active: true },
+  });
+  const loadKg = tour ? await tourLoadKgOf(db, tour.stops) : 0;
+
   return {
     date: formatCalendarDate(date),
     timezone,
     warnings,
+    vehicles,
     tours: dayTours.map((t, index) => ({
       id: t.id,
       number: index + 1,
@@ -287,6 +312,8 @@ export async function getTourPlan(
           isOutdated: tour.isOutdated,
           approximate: tour.approximate,
           driverId: tour.driverId,
+          vehicleId: tour.vehicleId,
+          loadKg,
           version: tour.updatedAt.toISOString(),
           totalDistanceM: tour.totalDistanceM,
           totalDurationS: tour.totalDurationS,
@@ -346,6 +373,11 @@ export type PlanError =
   | "no_stops"
   | "driver_required"
   | "driver_invalid"
+  /** NUD-146: a release needs a vehicle; the vehicle must exist and be active. */
+  | "vehicle_required"
+  | "vehicle_invalid"
+  /** NUD-146: the load is above the vehicle's capacity and the release was not confirmed as an override. */
+  | "overloaded"
   | "outdated"
   | "not_released"
   /** Edit (NUD-135): a stop to move is already completed. */
@@ -364,7 +396,15 @@ const reorderSchema = z
   .strict();
 const lockSchema = z.object({ tourId: idSchema, locked: z.boolean() }).strict();
 const driverSchema = z.object({ tourId: idSchema, driverId: idSchema.nullable() }).strict();
-const releaseSchema = z.object({ tourId: idSchema, version: z.string().max(40) }).strict();
+const vehicleSchema = z.object({ tourId: idSchema, vehicleId: idSchema.nullable() }).strict();
+const releaseSchema = z
+  .object({
+    tourId: idSchema,
+    version: z.string().max(40),
+    /** NUD-146: the office confirmed to release although the load exceeds the capacity. */
+    overrideOverload: z.boolean().optional(),
+  })
+  .strict();
 
 const fail = (error: PlanError): { ok: false; error: PlanError } => ({ ok: false, error });
 
@@ -575,6 +615,46 @@ export async function assignDriverWith(
   });
 }
 
+/** Assigns an active vehicle (or clears it with `null`) on an unreleased tour (NUD-146). */
+export async function assignVehicleWith(
+  db: PrismaClient,
+  actorId: string,
+  rawInput: unknown,
+): Promise<PlanResult> {
+  const input = vehicleSchema.safeParse(rawInput);
+  if (!input.success) return fail("invalid");
+  if (input.data.vehicleId !== null) {
+    const vehicle = await db.vehicle.findFirst({
+      where: { id: input.data.vehicleId, active: true },
+      select: { id: true },
+    });
+    if (!vehicle) return fail("vehicle_invalid");
+  }
+  return db.$transaction(async (tx): Promise<PlanResult> => {
+    const before = await tx.tour.findUnique({
+      where: { id: input.data.tourId },
+      select: { vehicleId: true },
+    });
+    const result = await tx.tour.updateMany({
+      where: { id: input.data.tourId, status: { in: [...EDITABLE_TOUR_STATUSES] } },
+      data: { vehicleId: input.data.vehicleId },
+    });
+    if (result.count === 1) {
+      if (before && before.vehicleId !== input.data.vehicleId) {
+        await recordAudit(tx, {
+          actorId,
+          entity: "Tour",
+          entityId: input.data.tourId,
+          action: "tour.assign_vehicle",
+          diff: { vehicleId: { from: before.vehicleId, to: input.data.vehicleId } },
+        });
+      }
+      return { ok: true };
+    }
+    return fail(before ? "tour_not_editable" : "not_found");
+  });
+}
+
 /**
  * Release: DRAFT / OPTIMIZED -> RELEASED with `releasedAt`. Needs at least one stop, an assigned
  * and still active driver, and a tour that is not outdated (orders changed after it was built).
@@ -599,6 +679,8 @@ export async function releaseTourWith(
         include: {
           _count: { select: { stops: true } },
           driver: { select: { active: true, role: true } },
+          vehicle: { select: { active: true, capacityKg: true } },
+          stops: { select: { items: true } },
         },
       });
       if (!tour) return fail("not_found");
@@ -607,12 +689,18 @@ export async function releaseTourWith(
         status: tour.status,
         stopCount: tour._count.stops,
         driverId: tour.driverId,
+        vehicleId: tour.vehicleId,
         isOutdated: tour.isOutdated,
       });
       if (blocker) return fail(blocker);
       if (!canTransition(tour.status, "RELEASED")) return fail("tour_not_editable");
       if (!tour.driver?.active || tour.driver.role !== "DRIVER") return fail("driver_invalid");
+      if (!tour.vehicle?.active) return fail("vehicle_invalid");
       if (tour.updatedAt.getTime() !== version.getTime()) return fail("conflict");
+      // NUD-146: above the capacity only with the explicit override, which is logged below.
+      const load = loadState(await tourLoadKgOf(tx, tour.stops), tour.vehicle.capacityKg);
+      const overridden = load.status === "over";
+      if (overridden && input.data.overrideOverload !== true) return fail("overloaded");
       const updated = await tx.tour.updateMany({
         where: {
           id: tour.id,
@@ -631,7 +719,11 @@ export async function releaseTourWith(
           date: tour.date.toISOString().slice(0, 10),
           stopCount: tour._count.stops,
           driverId: tour.driverId,
+          vehicleId: tour.vehicleId,
           releasedAt: now.toISOString(),
+          ...(overridden
+            ? { overloadOverride: true, loadKg: load.loadKg, capacityKg: load.capacityKg }
+            : {}),
         },
       });
       return { ok: true, releasedAt: now.toISOString(), stopCount: tour._count.stops };

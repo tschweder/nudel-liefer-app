@@ -24,6 +24,7 @@ const selectClass = "h-10 w-full rounded-md border border-input bg-background px
 
 export type TourEditPayload = {
   driverId: string | null;
+  vehicleId: string | null;
   orderedStopIds: string[];
   moves: Array<{ stopId: string; targetTourId: string }>;
 };
@@ -98,6 +99,7 @@ function EditForm({
   const tt = useTranslations("admin.tours.tabs");
   const tc = useTranslations("common");
   const [driverId, setDriverId] = useState(tour.driverId ?? "");
+  const [vehicleId, setVehicleId] = useState(tour.vehicleId ?? "");
   // The pending stops in the requested order (also those that leave for another tour).
   const [order, setOrder] = useState(() => tour.stops.filter(isStopMovable).map((s) => s.id));
   const [targets, setTargets] = useState<Record<string, string>>({});
@@ -124,6 +126,7 @@ function EditForm({
       .map((id) => ({ stopId: id, targetTourId: targets[id] }));
     onSave({
       driverId: driverId || null,
+      vehicleId: vehicleId || null,
       orderedStopIds: order.filter((id) => !targets[id]),
       moves,
     });
@@ -155,6 +158,32 @@ function EditForm({
           {plan.drivers.map((d) => (
             <option key={d.id} value={d.id} disabled={!d.active && d.id !== tour.driverId}>
               {d.active ? d.displayName : t("driverInactive", { name: d.displayName })}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="edit-vehicle" className="text-sm font-medium">
+          {t("vehicle")}
+        </label>
+        <select
+          id="edit-vehicle"
+          className={selectClass}
+          value={vehicleId}
+          disabled={pending}
+          onChange={(e) => setVehicleId(e.target.value)}
+          data-testid="edit-vehicle"
+        >
+          {/* A released tour cannot lose its vehicle; an old one that never had a vehicle may stay without. */}
+          <option value="" disabled={released && tour.vehicleId !== null}>
+            {t("vehicleNone")}
+          </option>
+          {plan.vehicles.map((v) => (
+            <option key={v.id} value={v.id} disabled={!v.active && v.id !== tour.vehicleId}>
+              {v.active
+                ? t("vehicleOption", { name: v.name, kg: v.capacityKg })
+                : t("vehicleInactive", { name: v.name })}
             </option>
           ))}
         </select>

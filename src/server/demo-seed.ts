@@ -10,6 +10,7 @@ import {
   DEMO_DEPOT,
   DEMO_ORDER_NOTE,
   DEMO_PRODUCT_SKUS,
+  DEMO_VEHICLES,
   demoOrderLines,
 } from "./demo-data";
 import { readS3Config, type Storage } from "./storage";
@@ -128,6 +129,15 @@ export async function seedDemo(
       data: { ...DEMO_DEPOT, depotPinConfirmed: true },
     });
     depotUpdated = true;
+  }
+
+  // Vehicles (NUD-146): a tour cannot be released without one. Looked up by name, never touched twice.
+  for (const v of DEMO_VEHICLES) {
+    const exists = await prisma.vehicle.findFirst({
+      where: { name: { equals: v.name, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (!exists) await prisma.vehicle.create({ data: { ...v } });
   }
 
   // Products come from the base seed (the three of the catalog, NUD-138).

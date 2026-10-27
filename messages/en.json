@@ -234,7 +234,8 @@
         "operations": "Operations",
         "masterData": "Master data",
         "system": "System"
-      }
+      },
+      "vehicles": "Vehicles"
     },
     "drivers": {
       "title": "Drivers",
@@ -1104,7 +1105,12 @@
         "stops": "Stops",
         "duration": "Total duration",
         "driver": "Driver",
-        "confirm": "Release now"
+        "confirm": "Release now",
+        "vehicle": "Vehicle",
+        "load": "Load",
+        "overloadTitle": "The tour is overloaded",
+        "overloadBody": "The load is {over} kg above the vehicle's capacity. If you release anyway, this is recorded in the history.",
+        "overloadConfirm": "Release despite overload"
       },
       "toast": {
         "generated": "Tour with {count, plural, one {# stop} other {# stops}} created.",
@@ -1114,7 +1120,9 @@
         "unlocked": "Lock removed.",
         "driverSet": "Driver assigned.",
         "driverCleared": "Driver removed.",
-        "released": "Tour released."
+        "released": "Tour released.",
+        "vehicleSet": "Vehicle assigned.",
+        "vehicleCleared": "Vehicle removed."
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -1139,7 +1147,10 @@
         "stop_locked": "A stop that is already completed cannot be moved. The page is reloading.",
         "target_invalid": "The target tour is no longer available. Please reload the page.",
         "customer_in_target": "The target tour already has a stop for this customer.",
-        "too_many_tours": "A day can have at most 10 tours."
+        "too_many_tours": "A day can have at most 10 tours.",
+        "vehicle_required": "Please assign a vehicle first.",
+        "vehicle_invalid": "This vehicle is not active. Please choose another vehicle.",
+        "overloaded": "The tour is overloaded. The release has to be confirmed explicitly."
       },
       "change": {
         "title": "Orders changed since the release – check and release again",
@@ -1246,6 +1257,18 @@
           "savedReleased": "Tour saved (version {revision}). The driver sees “Tour updated”.",
           "nothingChanged": "No changes."
         }
+      },
+      "vehicle": "Vehicle",
+      "vehicleNone": "No vehicle selected",
+      "vehicleOption": "{name} · {kg} kg",
+      "vehicleInactive": "{name} (inactive)",
+      "load": {
+        "label": "Load",
+        "value": "{load} kg of {capacity} kg",
+        "noVehicle": "{load} kg. Choose a vehicle to see the utilization.",
+        "percent": "Utilization {percent} %",
+        "over": "Overloaded by {over} kg",
+        "bar": "Load compared with the vehicle's capacity"
       }
     },
     "history": {
@@ -1283,7 +1306,12 @@
         "parking_deactivate": "Parking spot removed",
         "customer_key": "Key changed",
         "tour_move_stop": "Stop moved to another tour",
-        "tour_create_empty": "Empty tour created"
+        "tour_create_empty": "Empty tour created",
+        "tour_assign_vehicle": "Vehicle assigned",
+        "vehicle_create": "Vehicle created",
+        "vehicle_update": "Vehicle changed",
+        "vehicle_activate": "Vehicle activated",
+        "vehicle_deactivate": "Vehicle deactivated"
       },
       "fields": {
         "status": "Status",
@@ -1291,7 +1319,8 @@
         "internalNote": "Internal note",
         "locked": "Lock",
         "driver": "Driver",
-        "tourStatus": "Tour status"
+        "tourStatus": "Tour status",
+        "vehicle": "Vehicle"
       },
       "values": {
         "none": "–",
@@ -1305,7 +1334,8 @@
         "stopCountBefore": "before {value, plural, one {# stop} other {# stops}}",
         "addedCount": "{value, plural, one {# customer added} other {# customers added}}",
         "removedCount": "{value, plural, one {# customer removed} other {# customers removed}}",
-        "revision": "Release version {value}"
+        "revision": "Release version {value}",
+        "overloadOverride": "Released despite overload (load / capacity in kg): {value}"
       },
       "stopGroup": {
         "added": "New stop",
@@ -1330,6 +1360,58 @@
         }
       },
       "unknownActor": "Unknown user"
+    },
+    "vehicles": {
+      "title": "Vehicles",
+      "description": "Delivery vehicles with a load capacity in kg. Driver and vehicle are assigned per tour and day.",
+      "new": "New vehicle",
+      "emptyTitle": "No vehicles yet",
+      "empty": "No vehicles have been created yet. A tour cannot be released without a vehicle.",
+      "columns": {
+        "name": "Name",
+        "plate": "Plate",
+        "capacity": "Capacity",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "capacityValue": "{kg} kg",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "toggleStatus": "Toggle status of {name}",
+      "rowMenu": {
+        "label": "Actions for {name}"
+      },
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "deactivated": "Vehicle deactivated. It can no longer be assigned to a new tour.",
+      "activated": "Vehicle activated again.",
+      "confirm": {
+        "deactivateTitle": "Deactivate {name}?",
+        "deactivateBody": "The vehicle stays saved but can no longer be assigned to a tour. Tours it is already assigned to keep it. A tour with a deactivated vehicle can only be released after choosing another vehicle."
+      },
+      "form": {
+        "newTitle": "New vehicle",
+        "editTitle": "Edit vehicle",
+        "name": "Name",
+        "plate": "Plate (optional)",
+        "capacity": "Capacity (kg)",
+        "capacityHint": "Maximum load in whole kilograms, for example 800.",
+        "capacityInvalid": "Please enter a whole number between 1 and 50000.",
+        "nameRequired": "Please enter a name.",
+        "nameTaken": "A vehicle with this name already exists.",
+        "invalid": "Please check the entries.",
+        "generic": "Saving failed. Please try again.",
+        "savedNew": "Vehicle created.",
+        "savedEdit": "Vehicle saved.",
+        "save": "Save",
+        "saving": "Saving …"
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again."
+      }
     }
   },
   "driver": {

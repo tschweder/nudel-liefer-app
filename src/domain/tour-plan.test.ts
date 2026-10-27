@@ -40,11 +40,19 @@ describe("tour plan rules", () => {
   });
 
   it("releaseBlocker reports the first blocker", () => {
-    const ok = { status: "OPTIMIZED", stopCount: 2, driverId: "d1", isOutdated: false };
+    const ok = {
+      status: "OPTIMIZED",
+      stopCount: 2,
+      driverId: "d1",
+      vehicleId: "v1",
+      isOutdated: false,
+    };
     expect(releaseBlocker(ok)).toBeNull();
     expect(releaseBlocker({ ...ok, status: "RELEASED" })).toBe("tour_not_editable");
     expect(releaseBlocker({ ...ok, stopCount: 0 })).toBe("no_stops");
     expect(releaseBlocker({ ...ok, driverId: null })).toBe("driver_required");
+    expect(releaseBlocker({ ...ok, vehicleId: null })).toBe("vehicle_required");
+    expect(releaseBlocker({ ...ok, driverId: null, vehicleId: null })).toBe("driver_required");
     expect(releaseBlocker({ ...ok, isOutdated: true })).toBe("outdated");
     expect(releaseBlocker({ ...ok, driverId: null, isOutdated: true })).toBe("driver_required");
   });

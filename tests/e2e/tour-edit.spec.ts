@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
+import { ensureVehicle } from "./helpers/vehicle";
+
 // NUD-135 (Bearbeiten). Fixture copied from tours.spec.ts. Original header: NUD-042. Needs a seeded database (product NUDELN-BEUTEL, demo drivers), DATABASE_URL and
 // SEED_ADMIN_PASSWORD in the environment. Desktop only (the planning screen is an admin desktop
 // screen). The fixture confirms the depot pin for its duration and restores the old value
@@ -180,6 +182,8 @@ test("tour edit: + Tour, Bearbeiten (driver, order, move), released tour, comple
     await expect(dialog).toBeVisible();
     await expect(tid(page, "edit-released-note")).toHaveCount(0);
     await tid(page, "edit-driver").selectOption(f.driver.id);
+    const vehicleId = await ensureVehicle(f.client);
+    await tid(page, "edit-vehicle").selectOption(vehicleId);
     const editRows = dialog.locator('[data-testid="edit-stop"]');
     await expect(editRows).toHaveCount(3);
     await editRows.nth(0).locator('[data-testid="edit-stop-down"]').click();
@@ -200,6 +204,7 @@ test("tour edit: + Tour, Bearbeiten (driver, order, move), released tour, comple
     await expect(tabs.nth(0)).toContainText("2 Stopps");
     await expect(tabs.nth(1)).toContainText("1 Stopp");
     await expect(tid(page, "tour-driver")).toHaveValue(f.driver.id);
+    await expect(tid(page, "tour-vehicle")).toHaveValue(vehicleId);
     await tabs.nth(1).click();
     await expect.poll(async () => names(rows)).toEqual([f.b.name]);
     await expect(rows.nth(0).locator('[data-testid="stop-eta"]')).toHaveText(/^\d\d:\d\d$/);
@@ -212,6 +217,9 @@ test("tour edit: + Tour, Bearbeiten (driver, order, move), released tour, comple
     await expect(tid(page, "tour-status")).toHaveText("Freigegeben");
     await tid(page, "tour-edit").click();
     await expect(tid(page, "edit-released-note")).toBeVisible();
+    // A released tour keeps its vehicle: "no vehicle" is not selectable any more.
+    await expect(tid(page, "edit-vehicle")).toHaveValue(vehicleId);
+    await expect(tid(page, "edit-vehicle").locator('option[value=""]')).toBeDisabled();
     await tid(page, "edit-driver").selectOption(f.driver2.id);
     await dialog
       .locator('[data-testid="edit-stop"]', { hasText: f.c.name })

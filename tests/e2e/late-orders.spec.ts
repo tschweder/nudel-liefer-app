@@ -2,6 +2,8 @@ import { devices, expect, type Locator, type Page, test } from "@playwright/test
 import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
+import { ensureVehicle } from "./helpers/vehicle";
+
 // NUD-099: an order confirmed after the tour of its day is COMPLETED.
 //   complete the tour (driver on a phone) -> the office adds a late order -> the overview, the
 //   dashboard and the planning page tell it -> "Folgetour erstellen" -> second tour for the same
@@ -178,6 +180,7 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   await visible(adminPage, "tour-generate").click();
   await expect(adminPage.locator('[data-testid="stop-row"]:visible')).toHaveCount(2);
   await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-vehicle").selectOption(await ensureVehicle(db));
   await visible(adminPage, "tour-release").click();
   await visible(adminPage, "release-confirm").click();
   await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");
@@ -293,6 +296,7 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   await adminPage.locator('[data-testid="tour-tab"]:visible').nth(1).click();
   await expect(visible(adminPage, "tour-status")).toHaveText("Optimiert");
   await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-vehicle").selectOption(await ensureVehicle(db));
   await visible(adminPage, "tour-release").click();
   await visible(adminPage, "release-confirm").click();
   await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");

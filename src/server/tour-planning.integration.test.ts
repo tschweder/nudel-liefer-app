@@ -40,6 +40,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
   let t: TestDb;
   let adminId: string;
   let driverId: string;
+  let vehicleId: string;
   let driver2Id: string;
   let productId: string;
   const provider = new LocalHeuristicProvider();
@@ -115,6 +116,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
         data: { role: "DRIVER", username: "drv", passwordHash: hash, displayName: "Driver" },
       })
     ).id;
+    vehicleId = (await t.prisma.vehicle.create({ data: { name: "Van", capacityKg: 1000 } })).id;
     driver2Id = (
       await t.prisma.user.create({
         data: {
@@ -306,7 +308,7 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
         ok: false,
         error: "driver_required",
       });
-      await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId } });
+      await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId, vehicleId } });
       const now = new Date("2099-06-20T12:00:00Z");
       const result = await releaseTourWith(
         t.prisma,
@@ -329,7 +331,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
 
     it("refuses an inactive driver, an outdated tour, a stale version and an empty tour", async () => {
       const { tour } = await buildTour();
-      await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId: driver2Id } });
+      await t.prisma.tour.update({
+        where: { id: tour.id },
+        data: { driverId: driver2Id, vehicleId },
+      });
       expect(
         await releaseTourWith(t.prisma, adminId, {
           tourId: tour.id,
@@ -339,7 +344,10 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
         ok: false,
         error: "driver_invalid",
       });
-      await t.prisma.tour.update({ where: { id: tour.id }, data: { driverId, isOutdated: true } });
+      await t.prisma.tour.update({
+        where: { id: tour.id },
+        data: { driverId, vehicleId, isOutdated: true },
+      });
       expect(
         await releaseTourWith(t.prisma, adminId, {
           tourId: tour.id,
@@ -478,6 +486,9 @@ describe.skipIf(!process.env.DATABASE_URL)("tour planning", { timeout: 60_000 },
         }),
       ).toMatchObject({ ok: true, changed: true });
       expect(await actions.assignDriverAction({ tourId: tour.id, driverId })).toEqual({ ok: true });
+      expect(await actions.assignVehicleAction({ tourId: tour.id, vehicleId })).toEqual({
+        ok: true,
+      });
       const plan = await (await import("./tour-queries")).tourPlanQuery("2099-07-01");
       expect(plan.tour?.stops.map((s) => s.id)).toEqual([...stopIds].reverse());
       const released = await actions.releaseTourAction({

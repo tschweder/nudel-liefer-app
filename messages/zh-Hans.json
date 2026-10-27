@@ -234,7 +234,8 @@
         "operations": "运营",
         "masterData": "基础数据",
         "system": "系统"
-      }
+      },
+      "vehicles": "车辆"
     },
     "drivers": {
       "title": "司机",
@@ -1104,7 +1105,12 @@
         "stops": "站点",
         "duration": "总时长",
         "driver": "司机",
-        "confirm": "立即发布"
+        "confirm": "立即发布",
+        "vehicle": "车辆",
+        "load": "装载量",
+        "overloadTitle": "路线超载",
+        "overloadBody": "装载量比车辆载重量多 {over} 千克。如果仍然发布，会记录在历史中。",
+        "overloadConfirm": "超载仍然发布"
       },
       "toast": {
         "generated": "已生成包含 {count} 个站点的配送线路。",
@@ -1114,7 +1120,9 @@
         "unlocked": "已解除锁定。",
         "driverSet": "已指派司机。",
         "driverCleared": "已取消司机。",
-        "released": "配送线路已发布。"
+        "released": "配送线路已发布。",
+        "vehicleSet": "已分配车辆。",
+        "vehicleCleared": "已移除车辆。"
       },
       "errors": {
         "generic": "出错了，请重试。",
@@ -1139,7 +1147,10 @@
         "stop_locked": "已完成的站点不能移动。页面将重新加载。",
         "target_invalid": "目标线路已不可用。请重新加载页面。",
         "customer_in_target": "目标线路已有该客户的站点。",
-        "too_many_tours": "每天最多 10 条线路。"
+        "too_many_tours": "每天最多 10 条线路。",
+        "vehicle_required": "请先分配车辆。",
+        "vehicle_invalid": "该车辆已停用，请选择其他车辆。",
+        "overloaded": "路线超载，必须明确确认后才能发布。"
       },
       "change": {
         "title": "发布后订单已更改——请检查并重新发布",
@@ -1246,6 +1257,18 @@
           "savedReleased": "线路已保存（版本 {revision}）。司机会看到“线路已更新”。",
           "nothingChanged": "没有更改。"
         }
+      },
+      "vehicle": "车辆",
+      "vehicleNone": "未选择车辆",
+      "vehicleOption": "{name} · {kg} 千克",
+      "vehicleInactive": "{name}（已停用）",
+      "load": {
+        "label": "装载量",
+        "value": "{load} 千克 / {capacity} 千克",
+        "noVehicle": "{load} 千克。选择车辆后可查看装载率。",
+        "percent": "装载率 {percent}%",
+        "over": "超载 {over} 千克",
+        "bar": "装载量与车辆载重量的比例"
       }
     },
     "history": {
@@ -1283,7 +1306,12 @@
         "parking_deactivate": "已移除停车位",
         "customer_key": "钥匙已更改",
         "tour_move_stop": "站点已移至其他线路",
-        "tour_create_empty": "已创建空线路"
+        "tour_create_empty": "已创建空线路",
+        "tour_assign_vehicle": "已分配车辆",
+        "vehicle_create": "车辆已创建",
+        "vehicle_update": "车辆已更改",
+        "vehicle_activate": "车辆已启用",
+        "vehicle_deactivate": "车辆已停用"
       },
       "fields": {
         "status": "状态",
@@ -1291,7 +1319,8 @@
         "internalNote": "内部备注",
         "locked": "锁定",
         "driver": "司机",
-        "tourStatus": "路线状态"
+        "tourStatus": "路线状态",
+        "vehicle": "车辆"
       },
       "values": {
         "none": "–",
@@ -1305,7 +1334,8 @@
         "stopCountBefore": "之前 {value} 个停靠点",
         "addedCount": "新增 {value} 位客户",
         "removedCount": "移除 {value} 位客户",
-        "revision": "发布版本 {value}"
+        "revision": "发布版本 {value}",
+        "overloadOverride": "超载仍然发布（装载量 / 载重量，千克）：{value}"
       },
       "stopGroup": {
         "added": "新增停靠点",
@@ -1330,6 +1360,58 @@
         }
       },
       "unknownActor": "未知用户"
+    },
+    "vehicles": {
+      "title": "车辆",
+      "description": "配送车辆及其载重量（千克）。司机和车辆按每天、每趟路线分配。",
+      "new": "新建车辆",
+      "emptyTitle": "还没有车辆",
+      "empty": "尚未创建任何车辆。没有车辆的路线无法发布。",
+      "columns": {
+        "name": "名称",
+        "plate": "车牌",
+        "capacity": "载重量",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "capacityValue": "{kg} 千克",
+      "status": {
+        "active": "启用",
+        "inactive": "停用"
+      },
+      "toggleStatus": "切换{name}的状态",
+      "rowMenu": {
+        "label": "{name}的操作"
+      },
+      "edit": "编辑",
+      "deactivate": "停用",
+      "activate": "启用",
+      "deactivated": "车辆已停用，不能再分配给新的路线。",
+      "activated": "车辆已重新启用。",
+      "confirm": {
+        "deactivateTitle": "停用{name}？",
+        "deactivateBody": "车辆会保留在系统中，但不能再分配给路线。已分配的路线仍保留该车辆。使用已停用车辆的路线需先换一辆车才能发布。"
+      },
+      "form": {
+        "newTitle": "新建车辆",
+        "editTitle": "编辑车辆",
+        "name": "名称",
+        "plate": "车牌（可选）",
+        "capacity": "载重量（千克）",
+        "capacityHint": "最大载重，整数千克，例如 800。",
+        "capacityInvalid": "请输入 1 到 50000 之间的整数。",
+        "nameRequired": "请输入名称。",
+        "nameTaken": "已有同名车辆。",
+        "invalid": "请检查输入。",
+        "generic": "保存失败，请重试。",
+        "savedNew": "车辆已创建。",
+        "savedEdit": "车辆已保存。",
+        "save": "保存",
+        "saving": "正在保存…"
+      },
+      "errors": {
+        "generic": "出错了，请重试。"
+      }
     }
   },
   "driver": {

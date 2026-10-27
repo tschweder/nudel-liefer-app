@@ -53,6 +53,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let t: TestDb;
     let adminId: string;
     let driverId: string;
+    let vehicleId: string;
     let p1: string;
     let p2: string;
     const provider = new LocalHeuristicProvider();
@@ -114,7 +115,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         })
         .then((o) => o.id);
     const release = async (tourId: string) => {
-      await t.prisma.tour.update({ where: { id: tourId }, data: { driverId } });
+      await t.prisma.tour.update({ where: { id: tourId }, data: { driverId, vehicleId } });
       const version = (await t.prisma.tour.findUniqueOrThrow({ where: { id: tourId } })).updatedAt;
       const released = await releaseTourWith(t.prisma, adminId, {
         tourId,
@@ -167,6 +168,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           data: { role: "DRIVER", username: "drv", passwordHash: hash, displayName: "Driver" },
         })
       ).id;
+      vehicleId = (await t.prisma.vehicle.create({ data: { name: "Van", capacityKg: 1000 } })).id;
       const product = (sku: string) =>
         t.prisma.product
           .create({
