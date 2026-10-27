@@ -58,7 +58,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 | D20 | Code language | Code, identifiers, commits, comments: **English**. UI text: via i18n only. |
 | D21 | Languages (2026-10-26) | **Admin:** `de`, `en`, `zh-Hans`. **Driver:** `de`, `en`, `sr-Latn` (Serbian, Latin script), `cs`, `zh-Hans`. Traditional Chinese (`zh-Hant-HK`, `zh-Hant-TW`) and the OpenCC build are removed. All message files are hand-maintained (agent-written first, native review via NUD-073). `LocalizedText` keys follow the five locales. Machine translation: DeepL where supported, otherwise the OpenRouter client (NUD-150). |
 | D22 | Routing point (2026-10-26) | Optimisation and navigation use the customer's **default Parkplatz** (`ParkingSpot`, NUD-125); without one, the geocoded **Lieferadresse**. No pin confirmation step; a customer is never excluded from a tour for a missing confirmation, only flagged "Parkplatz fehlt". The parking photo is what identifies the spot. |
-| D23 | Catalog & quantities (2026-10-26) | Three products: Nudeln (Beutel, 3 kg), Nudeln (Karton, 10 kg), Wantan-Teig (`PIECE`, 5 kg, shown "N ×"). Every product has an admin-editable `weightKgPerUnit`. Quantities are whole numbers (`Int`). Unit labels: `PACK` = Beutel, `CRATE` = Karton (cardboard; never "Kiste"). |
+| D23 | Catalog & quantities (2026-10-26) | Three products: Nudeln (Sackerl, 3 kg), Nudeln (Kiste, 10 kg), Wantan-Teig (`PIECE`, 5 kg, shown "N ×"). Every product has an admin-editable `weightKgPerUnit`. Quantities are whole numbers (`Int`). Unit labels: `PACK` = Sackerl, `CRATE` = Kiste (German; other locales keep their own words). **Amended 2026-10-27 (NUD-159).** |
 | D24 | Fleet & multiple tours (2026-10-26) | Several drivers and tours per day. `Vehicle` with capacity in **kg**; driver and vehicle are assigned per tour per day. When the load does not fit: use all available vehicles first, then reload trips at the depot. **Amended by D31 (2026-10-27).** |
 | D25 | Delivery window & recurring orders (2026-10-26) | Orders carry a requested delivery window (hours to days); the planned day is the earliest day inside the window with capacity, movable by the office. Recurring orders are in scope now: a rule is confirmed once, then generates CONFIRMED orders 14 days ahead (configurable). Setting a customer inactive pauses his rules and cancels his future open orders. |
 | D26 | AI order entry (2026-10-26) | Pasted customer message text and/or screenshot are turned into a DRAFT order by an LLM via **OpenRouter** behind `OrderExtractor`; the office always reviews and confirms. No WhatsApp/WeChat bots. |
@@ -75,7 +75,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 | Term (code) | German UI | Meaning |
 |---|---|---|
 | `Customer` | Kunde | A business that receives deliveries. Has exactly one delivery address (**Lieferadresse**) and zero or more parking spots; optional key number. |
-| `Product` | Produkt | A sellable article with a unit and a weight per unit (e.g. Nudeln in `CRATE` = Karton, 10 kg). |
+| `Product` | Produkt | A sellable article with a unit and a weight per unit (e.g. Nudeln in `CRATE` = Kiste, 10 kg). |
 | `Order` | Bestellung | What one customer ordered for one `deliveryDate`. Contains `OrderItem`s. |
 | `OrderItem` | Produkt (in an order; plural "Produkte" — **never "Position"**) | Product + whole-number quantity within an order. |
 | `Depot` | Fabrik / Depot | Start and end point of every tour. Stored in `Settings`. |
@@ -87,7 +87,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 | `Vehicle` | Fahrzeug | A delivery vehicle with a capacity in kg (D24). |
 | `RecurringOrder` | Dauerbestellung | Rule that generates orders on a schedule (D25). |
 | delivery window | Lieferzeitraum | The time span in which the customer accepts the delivery (D25). |
-| `PACK` / `CRATE` / `PIECE` | Beutel / Karton / "N ×" | Unit labels (D23). Never "Kiste" or "Packung". |
+| `PACK` / `CRATE` / `PIECE` | Sackerl / Kiste / "N ×" | Unit labels (D23, amended by NUD-159). Say Sackerl and Kiste; never Beutel, Karton or Packung in German UI strings (guarded by `src/lib/forbidden-words.test.ts`). The other locales keep their own words (Bag/Carton, Sáček/Karton, Kesa/Karton, 袋/纸箱). |
 | `LocalizedText` | – | JSON value `{ de, en, "sr-Latn", cs, "zh-Hans", meta }` (D21; Hant keys until NUD-140 lands) used for any user-generated text the driver must read. |
 
 ---
@@ -139,7 +139,7 @@ A pasta factory delivers to business customers (mostly restaurants). The office 
 - All server mutations: zod validation + role check on the server. Never trust the client.
 - Domain logic in `src/domain/` must be pure and unit-tested; providers (geocoder, routing, translator, storage) are injected via interfaces and have a **Fake** implementation used in tests and when the API key is missing (log a warning).
 - Dates: `deliveryDate` is a `DATE` column. "Today" is computed in the factory time zone (`Settings.timezone`, default `Europe/Vienna`).
-- Quantities: `Int` (whole numbers, D23). No decimals anywhere: no half Beutel, no half Karton.
+- Quantities: `Int` (whole numbers, D23). No decimals anywhere: no half Sackerl, no half Kiste.
 - Driver UI: touch targets ≥ 48 px, body text ≥ 16 px, quantities ≥ 28 px bold, icons alongside text so the screen is understandable even with an unexpected language.
 - Accessibility: WCAG AA contrast, keyboard-navigable admin.
 - Use soft delete (`active=false` / archive) for customers, products and users. Never hard-delete business data.
@@ -314,7 +314,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
-| NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | todo |
+| NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2803,7 +2803,7 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 ---
 
 #### NUD-159 · Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3)
-**Status:** todo · **depends_on:** – · owner request 2026-10-27 · **jumps the queue** (asked for by the owner directly), like NUD-132. **This ticket amends D23 (§2) and the glossary (§3)** — both currently say `PACK` = Beutel, `CRATE` = Karton, and §3 explicitly forbids the word "Kiste".
+**Status:** done · **depends_on:** – · owner request 2026-10-27 · **jumps the queue** (asked for by the owner directly), like NUD-132. **This ticket amends D23 (§2) and the glossary (§3)** — both currently say `PACK` = Beutel, `CRATE` = Karton, and §3 explicitly forbids the word "Kiste".
 
 **Goal:** in German the `PACK` unit is called **Sackerl**, the `CRATE` unit **Kiste**. Change that in every German UI string, in the docs and in the tests that assert them. The enum values `PACK` / `CRATE` stay; only the German label changes. It is a **pure 1:1 word swap** — no new key, no ICU change, no behaviour change.
 
@@ -2857,15 +2857,16 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 - **NUD-128:** `order-overview.spec.ts` and `order-screenshot.spec.ts` stay red for the plural-label reason. Do replace the *words* on their unit lines; do **not** touch their plural expectations.
 
 **Acceptance criteria**
-- [ ] `grep -riE "beutel|karton" messages/de.json` returns nothing.
-- [ ] `grep -riE "beutel|karton" src/ docs/ content/ scripts/` returns only identifiers (`NUDELN-BEUTEL`, `parseKarton`, …) and the deliberately kept notes about the Czech/Serbian word.
-- [ ] `src/lib/forbidden-words.test.ts` fails when "Beutel" or "Karton" is put back into `de.json` (verify by temporarily editing one string) and passes with Sackerl/Kiste.
-- [ ] D23 (§2), the glossary (§3: the `PACK`/`CRATE` row, the `Product` row and the "never Kiste" sentence) and §4.3 ("no half Beutel, no half Karton") say Sackerl/Kiste; §9 gets a new decision-log line (2026-10-27 · NUD-159).
-- [ ] `pnpm db:seed` and `pnpm db:seed --demo` still run; product names and SKUs unchanged.
-- [ ] The word assertions in the specs named above are green.
+- [x] `grep -riE "beutel|karton" messages/de.json` returns nothing.
+- [x] `grep -riE "beutel|karton" src/ docs/ content/ scripts/` returns only identifiers (`NUDELN-BEUTEL`, `parseKarton`, …) and the deliberately kept notes about the Czech/Serbian word.
+- [x] `src/lib/forbidden-words.test.ts` fails when "Beutel" or "Karton" is put back into `de.json` (verify by temporarily editing one string) and passes with Sackerl/Kiste.
+- [x] D23 (§2), the glossary (§3: the `PACK`/`CRATE` row, the `Product` row and the "never Kiste" sentence) and §4.3 ("no half Beutel, no half Karton") say Sackerl/Kiste; §9 gets a new decision-log line (2026-10-27 · NUD-159).
+- [x] `pnpm db:seed` and `pnpm db:seed --demo` still run; product names and SKUs unchanged.
+- [x] The word assertions in the specs named above are green.
 
 **Implementation notes**
-- (to be filled in. State explicitly: the label stays invariant after a number, and why that was chosen; and that cs/sr-Latn keep "Karton" because it is their own word, not the German one.)
+- Commit ba1f75a. 9 strings in `de.json`; docs, hand-off page, comments, specs and the forbidden-words guard updated. The label stays invariant after a number ("14 Kiste Nudeln"): keeps this a pure word swap with no ICU/CLDR risk. cs/sr-Latn keep "Karton" because it is their own word, not the German one. Import CSV header column 3 is now `Kiste`; `Karton` stays accepted as a legacy alias (`LEGACY_CRATE_COLUMN`).
+- Found, not done: `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` (storage, not wording; baseline status unchecked) and the Playwright webServer timeout (180 s) is shorter than the CI double build here. `driver-departure.spec.ts:162` (offline queue, mobile) was flaky once. Full `pnpm test` needs `--maxWorkers=2 --hookTimeout=60000` on this machine.
 
 ---
 
@@ -3292,6 +3293,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-158 | Vehicle switch = 5 min constant at the depot (`VEHICLE_SWITCH_MINUTES`, not a setting), reload stays 20 min | Same simplest-model choice as the reload time in NUD-147; NUD-152 may make both settings |
 | 2026-10-27 | NUD-158 | Drivers get whole vehicle chains, longest first to the driver with the least work (LPT); a vehicle is never shared by two drivers | Simplest balanced rule; avoids two drivers needing the same vehicle at the same time |
 | 2026-10-27 | NUD-158 | Too many stops for one planning run: plan the compact cluster around the depot (Prim-style growth), list the rest as "Heute nicht eingeplant" from the live data (orders of a planned day on no tour) — nothing stored | Owner: never block the day; the list must survive a page reload without a new column |
+- 2026-10-27 · NUD-159 · German unit words are Sackerl (PACK) and Kiste (CRATE), replacing Beutel and Karton in de.json, docs, the hand-off page and comments; the label stays invariant after a number. Identifiers (PACK/CRATE, SKUs, parseKarton) and the other four locales are unchanged. Import CSV header column 3 is `Kiste`; `Karton` stays a legacy alias. Forbidden-words guard inverted.
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
