@@ -140,12 +140,17 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     // Default filter = next delivery date (one day, no other filters).
     await page.goto("/de/admin/orders");
     await expect(tid(page, "section-title")).toHaveText("Bestellungen");
-    const from = await tid(page, "filter-from").inputValue();
+    // Von/Bis only show under "Benutzerdefiniert" (re-design.md §8.3) but stay in the DOM, so the
+    // default range is read from the hidden inputs and the "Nächster Liefertag" quick pick is on.
+    await expect(tid(page, "quick-next")).toHaveAttribute("aria-checked", "true");
+    const fromInput = page.locator('[data-testid="filter-from"]');
+    const toInput = page.locator('[data-testid="filter-to"]');
+    const from = await fromInput.inputValue();
     expect(from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(from > new Date().toISOString().slice(0, 10)).toBe(true);
-    await expect(tid(page, "filter-to")).toHaveValue(from);
-    // Status and Quelle are chip groups now (re-design.md §8.3): pressed, not selected.
-    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-pressed", "true");
+    await expect(toInput).toHaveValue(from);
+    // Status and Quelle are segmented radio groups now (re-design.md §8.3): aria-checked.
+    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-checked", "true");
 
     // Date range via the URL (bookmarkable) and via the controls.
     await page.goto(`/de/admin/orders?from=${D1}&to=${D2}`);
@@ -203,16 +208,19 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     await expect(rows).toHaveCount(2);
     for (const row of await rows.all()) await expect(row).toContainText(f.b.name);
 
-    // Range via the date controls: moving "to" before "from" pulls "from" along.
+    // Range via the date controls (revealed by "Benutzerdefiniert"): moving "to" before "from"
+    // pulls "from" along.
+    await tid(page, "quick-custom").click();
     await tid(page, "filter-to").fill(D1);
     await expect(page).toHaveURL(new RegExp(`to=${D1}`));
     await expect(tid(page, "filter-from")).toHaveValue(D1);
 
     // Reset returns to the default day.
     await tid(page, "filter-reset").click();
-    await expect(tid(page, "filter-from")).toHaveValue(from);
-    // Status and Quelle are chip groups now (re-design.md §8.3): pressed, not selected.
-    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-pressed", "true");
+    await expect(fromInput).toHaveValue(from);
+    await expect(tid(page, "quick-next")).toHaveAttribute("aria-checked", "true");
+    // Status and Quelle are segmented radio groups now (re-design.md §8.3): aria-checked.
+    await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-checked", "true");
   } finally {
     await f.cleanup();
   }
@@ -273,6 +281,10 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
 
     // Totals reflect the edit.
     await page.goto(`/de/admin/orders?from=${D1}&to=${D1}`);
+    // The sums card is collapsed by default (re-design.md §8.3): open it before reading.
+    const totalsToggle = tid(page, "totals-toggle");
+    await expect(totalsToggle).toBeVisible();
+    await totalsToggle.click();
     await expect(
       page.locator(`[data-testid="totals-day"][data-date="${D1}"]:visible tr`, {
         hasText: "Sackerl",
@@ -316,6 +328,8 @@ test("order detail: edit a quantity, cancel, duplicate; tours are flagged outdat
     await page.goto(`/de/admin/orders?from=${D2}&to=${D2}`);
     await expect(page.locator(`[data-order-id="${f.ids.a2}"]:visible`)).toContainText("Storniert");
     await expect(tid(page, "totals-day")).toHaveCount(0);
+    // The sums card is collapsed by default (re-design.md §8.3): open it to see the empty note.
+    await tid(page, "totals-toggle").click();
     await expect(tid(page, "totals-empty")).toBeVisible();
 
     // A cancelled order cannot be opened for editing.
