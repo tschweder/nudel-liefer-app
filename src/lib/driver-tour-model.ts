@@ -163,8 +163,18 @@ export const driverTourResponseSchema = z.object({
   generatedAt: z.string(),
   timezone: z.string().min(1),
   serviceSecondsPerStop: z.number(),
-  /** `null`: no tour released for this driver today. */
+  /**
+   * The active tour: the newest open tour of the day, or the newest completed one when the day is
+   * finished. `null`: no tour released for this driver today.
+   */
   tour: driverTourSchema.nullable(),
+  /**
+   * Every tour the driver must see today, oldest first (NUD-163). With two open tours of the day
+   * (D29 "+ Tour", D31 reloads) both are here, so the pending stops of the older one stay reachable;
+   * the last element is the active `tour`. A cache written before NUD-163 has only `tour` and reads as
+   * that single tour until the next refresh replaces the copy.
+   */
+  tours: z.array(driverTourSchema).default([]),
 });
 export type DriverTourResponse = z.infer<typeof driverTourResponseSchema>;
 
@@ -337,10 +347,20 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
   };
 }
 
-/** The list screen model ("today's tour") for `locale`, or `null` when there is no tour. */
-export function toDriverToday(response: DriverTourResponse, locale: AppLocale): DriverToday | null {
-  const tour = response.tour;
-  if (!tour) return null;
+/**
+ * Every tour the payload carries for the day, oldest first (NUD-163): `tours`, or only `tour` when the
+ * copy was cached before that field existed.
+ */
+export function responseTours(response: DriverTourResponse): DriverTourData[] {
+  if (response.tours.length > 0) return response.tours;
+  return response.tour ? [response.tour] : [];
+}
+
+function tourToday(
+  tour: DriverTourData,
+  response: DriverTourResponse,
+  locale: AppLocale,
+): DriverToday {
   return {
     tourId: tour.id,
     date: response.date,
@@ -363,9 +383,30 @@ export function toDriverToday(response: DriverTourResponse, locale: AppLocale): 
   };
 }
 
+/** The list screen model ("today's tour") for `locale`, or `null` when there is no tour. */
+export function toDriverToday(response: DriverTourResponse, locale: AppLocale): DriverToday | null {
+  const tour = response.tour;
+  if (!tour) return null;
+  return tourToday(tour, response, locale);
+}
+
 /**
- * The stop detail screen model, or `null` when the stop is not part of the tour. `photoUrl` maps a
- * photo to the URL the `<img>` loads: the signed storage URL online, the same-origin cache URL
+ * The *other* open tours of the day (NUD-163), oldest first, as list screen models: the driver home
+ * screen shows them below the active tour so their pending stops stay reachable with two open tours.
+ * The active tour is never included, neither is a COMPLETED one (history, only shown once the day is
+ * finished). Empty for the ordinary one-tour day and for a cache written before NUD-163.
+ */
+export function toDriverOtherTours(response: DriverTourResponse, locale: AppLocale): DriverToday[] {
+  const activeId = response.tour?.id;
+  return responseTours(response)
+    .filter((tour) => tour.id !== activeId && tour.status !== "COMPLETED")
+    .map((tour) => tourToday(tour, response, locale));
+}
+
+/**
+ * The stop detail screen model, or `null` when the stop is not part of any tour of the day. NUD-163:
+ * a stop of an *other* open tour is found too, so both tours' stops open identically. `photoUrl` maps
+ * a photo to the URL the `<img>` loads: the signed storage URL online, the same-origin cache URL
  * (served by the service worker from Cache Storage) offline.
  */
 export function toDriverStopDetail(
@@ -374,7 +415,9 @@ export function toDriverStopDetail(
   locale: AppLocale,
   photoUrl: (photo: PayloadPhoto) => string = (photo) => photo.url,
 ): DriverStopDetail | null {
-  const tour = response.tour;
+  const tour = responseTours(response).find((candidate) =>
+    candidate.stops.some((s) => s.id === stopId),
+  );
   const stop = tour?.stops.find((s) => s.id === stopId);
   if (!tour || !stop) return null;
   const nav = neighbourStops(tour.stops, stopId);
@@ -405,12 +448,17 @@ export function toDriverStopDetail(
   };
 }
 
-/** Every photo of the tour (each once), the photos to prefetch for offline use. */
+/**
+ * Every photo of the day's tours (each once), the photos to prefetch for offline use. NUD-163: the
+ * photos of every open tour, so the stops of the older tour work offline as well.
+ */
 export function tourPhotos(response: DriverTourResponse): PayloadPhoto[] {
   const byId = new Map<string, PayloadPhoto>();
-  for (const stop of response.tour?.stops ?? []) {
-    for (const photo of [stop.photos.STORE, stop.photos.PARKING]) {
-      if (photo) byId.set(photo.id, photo);
+  for (const tour of responseTours(response)) {
+    for (const stop of tour.stops) {
+      for (const photo of [stop.photos.STORE, stop.photos.PARKING]) {
+        if (photo) byId.set(photo.id, photo);
+      }
     }
   }
   return [...byId.values()];

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { pickDriverTour, sortDayTours } from "@/domain/day-tours";
+import { driverDayTours, sortDayTours } from "@/domain/day-tours";
 import { parseCalendarDate } from "@/domain/order";
 import { isReleasedStatus } from "@/domain/tour-status";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -87,31 +87,37 @@ const removedSchema = z.object({
 // unbounded-ok-end
 
 /**
- * The released tour of `driverId` on `date` (`YYYY-MM-DD`), or `null`. The caller (NUD-051) has
+ * The tours `driverId` sees on `date` (`YYYY-MM-DD`), oldest first, or `[]`. The caller (NUD-051) has
  * checked that the session user is this driver (`requireRole("DRIVER")`).
+ *
+ * NUD-163: usually one tour. A day can have several of his tours that still need work (D29 "+ Tour",
+ * D31 reloads); all open ones are returned so the home screen can list the pending stops of each
+ * (`driverDayTours`), and the last element is the active tour. Once they are all COMPLETED only the
+ * newest one is returned (the "tour finished" screen).
  */
-export async function getDriverTour(
+export async function getDriverTours(
   db: Pick<PrismaClient, "tour" | "product">,
   driverId: string,
   rawDate: string,
-): Promise<DriverTour | null> {
+): Promise<DriverTour[]> {
   const date = parseCalendarDate(rawDate);
-  if (!date) return null;
-  // A day can have several tours of this driver (a completed one and a follow-up tour, NUD-099):
-  // the active one wins over the completed one, whatever their creation order.
+  if (!date) return [];
   const dayTours = await db.tour.findMany({
     where: { date, driverId, status: { in: ["RELEASED", "IN_PROGRESS", "COMPLETED"] } },
     include: {
       stops: { orderBy: { sequence: "asc" }, include: { vehicle: { select: { name: true } } } },
     },
   });
-  const tour = pickDriverTour(dayTours);
-  if (!tour || !isReleasedStatus(tour.status)) return null;
-  // "Tour 2 of 2": the position among the driver's released tours of the day, oldest first.
-  const tourNumber = sortDayTours(dayTours).findIndex((t) => t.id === tour.id) + 1;
+  const visible = driverDayTours(dayTours).filter((tour) => isReleasedStatus(tour.status));
+  if (visible.length === 0) return [];
 
-  const snapshots = tour.stops.map((s) => ({ stop: s, items: readStopItems(s.items) }));
-  const productIds = new Set(snapshots.flatMap(({ items }) => items.map((i) => i.productId)));
+  const snapshots = visible.map((tour) => ({
+    tour,
+    stops: tour.stops.map((stop) => ({ stop, items: readStopItems(stop.items) })),
+  }));
+  const productIds = new Set(
+    snapshots.flatMap(({ stops }) => stops.flatMap(({ items }) => items.map((i) => i.productId))),
+  );
   const products = new Map(
     (
       await db.product.findMany({
@@ -120,43 +126,61 @@ export async function getDriverTour(
       })
     ).map((p) => [p.id, p]),
   );
-  const removed = removedSchema.safeParse(tour.lastChange);
-  return {
-    id: tour.id,
-    date: rawDate,
-    status: tour.status as DriverTour["status"],
-    revision: tour.releaseRevision,
-    updated: tour.reReleasedAt !== null,
-    tourNumber,
-    tourCount: dayTours.length,
-    reReleasedAt: tour.reReleasedAt?.toISOString() ?? null,
-    removedCustomers: removed.success ? removed.data.removed : [],
-    stops: snapshots.map(({ stop, items }) => {
-      const previous = new Map(
-        readStopItems(stop.previousItems).map((i) => [i.productId, i.quantity]),
-      );
-      return {
-        id: stop.id,
-        sequence: stop.sequence,
-        trip: stop.trip,
-        vehicleName: stop.vehicle?.name ?? null,
-        customerId: stop.customerId,
-        status: stop.status,
-        problemReason: stop.problemReason,
-        completedAt: stop.completedAt?.toISOString() ?? null,
-        etaAt: stop.etaAt?.toISOString() ?? null,
-        legDurationS: stop.legDurationS,
-        change: stop.changeKind,
-        changedInRevision: stop.changedInRevision,
-        items: items.map((i) => ({
-          productId: i.productId,
-          sku: products.get(i.productId)?.sku ?? "",
-          name: products.get(i.productId)?.name ?? null,
-          unit: products.get(i.productId)?.unit ?? "PACK",
-          quantity: i.quantity,
-          previousQuantity: stop.changeKind === "CHANGED" ? (previous.get(i.productId) ?? 0) : null,
-        })),
-      };
-    }),
-  };
+  const ordered = sortDayTours(dayTours);
+  return snapshots.map(({ tour, stops }) => {
+    const removed = removedSchema.safeParse(tour.lastChange);
+    return {
+      id: tour.id,
+      date: rawDate,
+      status: tour.status as DriverTour["status"],
+      revision: tour.releaseRevision,
+      updated: tour.reReleasedAt !== null,
+      // "Tour 2 of 2": the position among the driver's released tours of the day, oldest first.
+      tourNumber: ordered.findIndex((t) => t.id === tour.id) + 1,
+      tourCount: dayTours.length,
+      reReleasedAt: tour.reReleasedAt?.toISOString() ?? null,
+      removedCustomers: removed.success ? removed.data.removed : [],
+      stops: stops.map(({ stop, items }) => {
+        const previous = new Map(
+          readStopItems(stop.previousItems).map((i) => [i.productId, i.quantity]),
+        );
+        return {
+          id: stop.id,
+          sequence: stop.sequence,
+          trip: stop.trip,
+          vehicleName: stop.vehicle?.name ?? null,
+          customerId: stop.customerId,
+          status: stop.status,
+          problemReason: stop.problemReason,
+          completedAt: stop.completedAt?.toISOString() ?? null,
+          etaAt: stop.etaAt?.toISOString() ?? null,
+          legDurationS: stop.legDurationS,
+          change: stop.changeKind,
+          changedInRevision: stop.changedInRevision,
+          items: items.map((i) => ({
+            productId: i.productId,
+            sku: products.get(i.productId)?.sku ?? "",
+            name: products.get(i.productId)?.name ?? null,
+            unit: products.get(i.productId)?.unit ?? "PACK",
+            quantity: i.quantity,
+            previousQuantity:
+              stop.changeKind === "CHANGED" ? (previous.get(i.productId) ?? 0) : null,
+          })),
+        };
+      }),
+    };
+  });
+}
+
+/**
+ * The one tour the driver works on right now: the last of `getDriverTours` (the newest open tour, or
+ * the newest completed one when the day is finished), `null` without a released tour.
+ */
+export async function getDriverTour(
+  db: Pick<PrismaClient, "tour" | "product">,
+  driverId: string,
+  rawDate: string,
+): Promise<DriverTour | null> {
+  const tours = await getDriverTours(db, driverId, rawDate);
+  return tours.at(-1) ?? null;
 }

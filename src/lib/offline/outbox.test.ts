@@ -233,6 +233,40 @@ describe("patchTourStates", () => {
     const none = { tour: null };
     expect(patchTourStates(none, [])).toBe(none);
   });
+
+  it("patches the other open tour of the day as well (NUD-163)", () => {
+    const both = {
+      ...data,
+      tours: [
+        {
+          id: "t0",
+          status: "RELEASED",
+          stops: [{ id: "s9", status: "PENDING" as const, problemReason: null, completedAt: null }],
+        },
+        data.tour,
+      ],
+    };
+    const out = patchTourStates(both, [
+      { tourId: "t0", status: "IN_PROGRESS", stops: [] },
+      {
+        tourId: "t1",
+        status: "IN_PROGRESS",
+        stops: [
+          {
+            id: "s9",
+            status: "DELIVERED",
+            problemReason: null,
+            completedAt: "2099-07-02T09:00:00Z",
+          },
+        ],
+      },
+    ]);
+    // The active tour does not hold s9: it keeps its own stops, the other tour gets the state.
+    expect(out.tour!.stops.map((s) => s.status)).toEqual(["PENDING", "PENDING"]);
+    expect(out.tours![0]!.status).toBe("IN_PROGRESS");
+    expect(out.tour!.status).toBe("IN_PROGRESS");
+    expect(patchTourStates(both, [{ tourId: "t0", status: "X", stops: [] }]).tour).toBe(data.tour);
+  });
 });
 
 describe("backoff", () => {

@@ -5,6 +5,8 @@ import {
   DRIVER_TOUR_SCHEMA_VERSION,
   type DriverTourResponse,
   driverTourResponseSchema,
+  responseTours,
+  toDriverOtherTours,
   toDriverStopDetail,
   toDriverToday,
   tourPhotos,
@@ -192,5 +194,62 @@ describe("driver tour model", () => {
   it("computes the day in the factory time zone", () => {
     expect(dayInTimezone(new Date("2099-07-01T22:30:00Z"), "Europe/Vienna")).toBe("2099-07-02");
     expect(dayInTimezone(new Date("2099-07-01T22:30:00Z"), "UTC")).toBe("2099-07-01");
+  });
+});
+
+/** Two open tours of the same day (NUD-163): tour 1 is still open, tour 2 is the active one. */
+const twoOpenTours = (): DriverTourResponse => {
+  const base = response();
+  const first = { ...base.tour!, id: "t1", tourNumber: 1, tourCount: 2, stops: [stop(1), stop(2)] };
+  const second = { ...base.tour!, id: "t2", tourNumber: 2, tourCount: 2, stops: [stop(7)] };
+  return driverTourResponseSchema.parse({ ...base, tour: second, tours: [first, second] });
+};
+
+describe("driver tour model with two open tours of the day (NUD-163)", () => {
+  it("round-trips the tours array through JSON (the shape stored offline)", () => {
+    const r = twoOpenTours();
+    expect(driverTourResponseSchema.parse(JSON.parse(JSON.stringify(r)))).toEqual(r);
+    expect(responseTours(r).map((t) => t.id)).toEqual(["t1", "t2"]);
+  });
+
+  it("reads a cache written before NUD-163 as the single tour it holds", () => {
+    const raw = JSON.parse(JSON.stringify(response()));
+    delete raw.tours;
+    const legacy = driverTourResponseSchema.parse(raw);
+    expect(legacy.tours).toEqual([]);
+    expect(responseTours(legacy).map((t) => t.id)).toEqual(["t1"]);
+    expect(toDriverOtherTours(legacy, "de")).toEqual([]);
+  });
+
+  it("lists the other open tour for the home screen, oldest first, active one excluded", () => {
+    const others = toDriverOtherTours(twoOpenTours(), "de");
+    expect(others.map((t) => t.tourId)).toEqual(["t1"]);
+    expect(others[0]).toMatchObject({ tourNumber: 1, tourCount: 2 });
+    expect(others[0]!.stops.map((s) => s.id)).toEqual(["s1", "s2"]);
+    // The active tour stays the newest one.
+    expect(toDriverToday(twoOpenTours(), "de")?.tourId).toBe("t2");
+  });
+
+  it("never lists a completed tour as an 'other' tour (history)", () => {
+    const r = twoOpenTours();
+    const withCompleted = {
+      ...r,
+      tours: [{ ...r.tours[0]!, status: "COMPLETED" as const }, r.tours[1]!],
+    };
+    expect(toDriverOtherTours(withCompleted, "de")).toEqual([]);
+  });
+
+  it("opens the stop detail of a stop of either tour", () => {
+    const r = twoOpenTours();
+    const fromOther = toDriverStopDetail(r, "s2", "de")!;
+    expect(fromOther).toMatchObject({ tourId: "t1", position: 2, total: 2 });
+    expect(toDriverStopDetail(r, "s7", "de")).toMatchObject({ tourId: "t2", position: 1 });
+    expect(toDriverStopDetail(r, "unknown", "de")).toBeNull();
+  });
+
+  it("prefetches the photos of every open tour", () => {
+    const ids = tourPhotos(twoOpenTours()).map((p) => p.id);
+    expect(ids).toEqual(expect.arrayContaining(["store1", "store2", "store7"]));
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

@@ -133,4 +133,25 @@ describe("patchTourPhoto", () => {
     const none: Data = { tour: null };
     expect(patchTourPhoto(none, "c1", "STORE", photo)).toBe(none);
   });
+
+  it("patches the stop of an other open tour of the day too (NUD-163)", () => {
+    const both = {
+      ...data,
+      tours: [
+        {
+          id: "t0",
+          stops: [{ id: "s0", customerId: "c7", photos: { STORE: null, PARKING: null } }],
+        },
+        data.tour!,
+      ],
+    };
+    const next = patchTourPhoto(both, "c7", "STORE", photo);
+    expect(next.tours![0]!.stops[0]!.photos.STORE?.id).toBe("p9");
+    // The active tour holds no stop of that customer: unchanged.
+    expect(next.tours![1]).toBe(data.tour);
+    expect(next.tour).toBe(data.tour);
+    // An old cache without `tours` keeps its shape.
+    expect(next).not.toBe(both);
+    expect(patchTourPhoto(both, "c9", "STORE", photo)).toBe(both);
+  });
 });

@@ -318,10 +318,11 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | todo |
 | NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | todo |
 | NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
-| NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | todo |
+| NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | done |
 | NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
 | NUD-165 | 👤 One-off parking-spot import from the 2026-10 captures (archived, not a product feature) | M2.6 | – | done |
 | NUD-166 | Dauerbestellung directly from the order form | M2.6 | 149 | done |
+| NUD-167 | Scheduled jobs on the vServer never ran (env file unreadable for `deliveryapp`) | M2.6 | – | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2970,9 +2971,21 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 ---
 
 #### NUD-163 · Driver app shows only the newest open tour when a driver has two open tours on one day
-**Status:** todo · **depends_on:** 118 · found by the NUD-118 worker.
+**Status:** done (2026-10-28) · **depends_on:** 118 · found by the NUD-118 worker.
 
 **Goal:** `pickDriverTour` returns the newest open tour, so with two open tours for the same driver and date (D29 "+ Tour", D31 reloads) tour 1's pending stops are hidden. The normal follow-up flow (all tours completed) is safe. Decide what the driver should see (all open tours, ordered) and implement it with the offline cache.
+
+**Acceptance criteria**
+- [x] The driver reaches the pending stops of every open tour of the day, online and from the cached copy.
+- [ ] Extended `tests/e2e/driver-second-tour.spec.ts` (two open tours) and a 375 px look — prepared, not executed.
+
+**Implementation notes (NUD-163)**
+- Decision: the **newest open tour stays the active tour** and keeps the whole existing screen (progress ring, next stop, departure card, list/map); every *other* open tour of the day is rendered below it as its own compact block, **oldest first** ("Tour n von m", one-line hint, its open stops as the normal 76 px rows, its done stops in the existing collapsible group), all linking into the shared stop detail. A COMPLETED tour is never shown next to the active one, so the ordinary one-tour day and the follow-up flow render exactly as before; once everything is done only the newest completed tour shows (the "tour finished" screen).
+- Data: `driverDayTours` (`src/domain/day-tours.ts`) is the pure rule; the payload (`src/lib/driver-tour-model.ts`) gained `tours: DriverTour[]` (every open released tour, oldest first, the last one also in `tour`), with `tours` defaulting to `[]` and `DRIVER_TOUR_SCHEMA_VERSION` unchanged, so an old IndexedDB cache still reads as its single tour. Server side: `getDriverTours` / `getDriverDay` (`src/server/tour-driver.ts`, `driver-today.ts`, `driver-tour-payload.ts`); `getDriverTour`/`getDriverToday` stay as the single-tour view for existing callers.
+- Offline: the sync stores every tour and prefetches the photos of every open tour, `patchTourStates`/`patchTourPhoto` patch all stored tours, and `OfflineSync` refreshes the open page when the **set** of tours changes (`OfflineStatus.tourIds` / `toursChanged()`, replacing `tourSwitched`), so a follow-up *or* a second open tour appears without a manual reload. `toDriverStopDetail` resolves a stop of any tour of the day — that is what makes the other tour's stops reachable from the cached copy.
+- i18n: one new key `driver.today.otherTourHint` in all five locales (existing plural keys reused, no new CLDR categories). Docs: `docs/driver-tour.md`, `docs/offline.md`.
+- Tests: domain rule, the model views (two tours, old cache, stop detail of either tour, photos of both), offline sync/caching and both cached-copy patches, a component test in all five locales, and a new `driver-tours.integration.test.ts` (6 tests on embedded Postgres) plus the existing driver/late-order integration suites (36 tests). Typecheck, ESLint, `i18n:check` and the non-DB Vitest suite (159 files / 1954 tests) are green.
+- NOT verified: no browser, no Playwright, no 375 px measurement, no real-device cold start. The other tours' blocks are list-only (the map, the progress ring and the departure checklist still cover the active tour only) — deliberate, and worth a ticket if the drivers miss it.
 
 **Acceptance criteria**
 - [ ] A driver with two open tours on one day reaches the pending stops of both (e2e, 375 px, also offline).
@@ -3050,6 +3063,24 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 - Tests: `order-recurring-dialog.test.tsx` (5: prefill from the form, exact payload incl. the exception, no exception when the checkbox is cleared, missing delivery day, archived customer). Full suite: 211 files / 2501 tests green.
 - Browser check at 1280 px (dev server, seeded admin): button disabled → enabled with customer + line, dialog opens with the typed line ("2 Sackerl Nudeln (NUDELN-BEUTEL)"), weekday prefilled from the default delivery day, skip checkbox on, no horizontal overflow, cancel closes.
 - NOT run: `pnpm test:e2e` — the local dev database is behind the NUD-150 migration (`Order.sourceText` missing), so the admin pages fail there for an unrelated reason. No new e2e spec was added; `tests/e2e/recurring-orders.spec.ts` still covers the customer-page path only.
+
+---
+
+#### NUD-167 · Scheduled jobs on the vServer never ran (env file unreadable for `deliveryapp`)
+**Status:** done (2026-10-28) · **depends_on:** – · found while taking the production inventory (owner request "Block 1 kannst du selbst machen").
+
+**Goal:** all six `/api/cron/*` routes of `docs/deploy.md` 13.1 (translation retries, recurring orders, retention, audit retention, driver-text retention, orphan cleanup) read `CRON_SECRET` from `/etc/delivery-app.env`. The deploy script wrote that file as `chmod 600 root:deliveryapp`, so the helper script — which runs as `deliveryapp` — died on `cannot open /etc/delivery-app.env: Permission denied` and every job exited 2. Since the first vServer deploy nothing was generated or cleaned up by a schedule; only the immediate generation at rule save (NUD-149) and manual runs worked.
+
+**Fix**
+- Live on the server: `chgrp deliveryapp /etc/delivery-app.env && chmod 640 …`; all six routes now answer `exit=0`.
+- `deploy/server-setup.sh` writes `640` instead of `600` (with a comment naming the reason), so the next deploy cannot reintroduce it. `docs/deploy.md` 13.1 already required the group to read it — the script contradicted its own documentation.
+
+**Acceptance criteria**
+- [x] All six cron routes exit 0 as `deliveryapp` against the running service.
+- [x] The deploy script keeps the file group-readable.
+- [ ] Follow-up (👤): after the next deploy, `sudo -u deliveryapp /usr/local/bin/delivery-app-cron recurring-orders; echo $?` prints 0 again — this verifies the script change on the server, not just in the repo.
+
+**Not done here:** no scheduler alerting. A job that fails silently again would go unnoticed; the uptime monitor of NUD-114 only watches `/api/health`. Worth a ticket once NUD-114 is set up.
 
 ---
 

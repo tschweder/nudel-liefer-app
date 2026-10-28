@@ -54,6 +54,22 @@ export function pickDriverTour<T extends DayTour>(tours: readonly T[]): T | null
 }
 
 /**
+ * The tours a driver sees on his home screen, oldest first (NUD-163). A day can have several tours
+ * of one driver that still need work (D29 "+ Tour", D31 reloads); the driver must reach the pending
+ * stops of *all* of them, so `pickDriverTour` (which returns one) is not enough. Pass the driver's
+ * released tours of the day: every open one is listed — usually exactly one — and once they are all
+ * COMPLETED only the newest one is left (the "tour finished" screen). The last element is the active
+ * tour, i.e. what `pickDriverTour` returns, so callers that need one tour take that.
+ */
+export function driverDayTours<T extends DayTour>(tours: readonly T[]): T[] {
+  const ordered = sortDayTours(tours);
+  const open = ordered.filter((t) => isOpenTour(t.status));
+  if (open.length > 0) return open;
+  const newest = ordered.at(-1);
+  return newest ? [newest] : [];
+}
+
+/**
  * Late orders: CONFIRMED orders of a day that no stop of any of its tours contains, while every
  * tour of the day is COMPLETED. Nothing will pick them up by itself: a completed tour is never
  * flagged outdated or re-released. With an open tour in the picture the ordinary outdated flag and

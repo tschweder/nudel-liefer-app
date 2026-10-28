@@ -1,14 +1,15 @@
 ---
 covers:
-- src/server/driver-*.ts
-- src/server/stop-*.ts
-- src/domain/driver-*.ts
-- src/domain/stop-status.ts
-- src/lib/driver-tour-model.ts
+  - src/server/driver-*.ts
+  - src/server/stop-*.ts
+  - src/domain/driver-*.ts
+  - src/domain/stop-status.ts
+  - src/lib/driver-tour-model.ts
 stamp: a7f4a01beaec37e4499397c60a866d6d12d381851c3a67873a2f84f9d0bad85b
 status: fresh
 stale_since: null
 ---
+
 # Driver tour
 
 The driver tour module is the driver-facing half of tour execution: it serves the driver's "today"
@@ -25,14 +26,20 @@ This is the one payload of the driver screens (NUD-081): `GET /api/driver/tour/t
 - `DRIVER_TOUR_SCHEMA_VERSION` (`1`): the payload version; responses carry it in `schemaVersion`.
 - Zod schemas + inferred types: `payloadPhotoSchema`/`PayloadPhoto`, `payloadItemSchema`,
   `payloadStopSchema`/`PayloadStop`, `driverTourSchema`/`DriverTourData`,
-  `driverTourResponseSchema`/`DriverTourResponse`.
+  `driverTourResponseSchema`/`DriverTourResponse`. The response carries `tour` (the _active_ tour: the
+  newest open tour of the day, or the newest COMPLETED one when the day is finished) and `tours`
+  (NUD-163: every open tour of the day, oldest first, the last one being `tour`; a cache written
+  before NUD-163 has only `tour` and reads as that single tour).
 - `dayInTimezone(now, timeZone)` → `YYYY-MM-DD` of `now` in the factory IANA time zone ("today").
 - Pure view functions derived from a `DriverTourResponse`: `toDriverToday(response, locale)`
-  (list screen model `DriverToday`, `null` when there is no tour), `toDriverStopDetail(response,
-  stopId, locale, photoUrl?)` (stop detail model `DriverStopDetail`, `null` when the stop is not in
-  the tour; `photoUrl` maps a `PayloadPhoto` to the URL the `<img>` loads — the signed storage URL
-  online, a same-origin cache URL offline), and `tourPhotos(response)` (every photo once, the set
-  to prefetch).
+  (list screen model `DriverToday` for the active tour, `null` when there is no tour),
+  `toDriverOtherTours(response, locale)` (the other open tours of the day, oldest first, for the extra
+  blocks of the home screen; empty on the ordinary one-tour day), `toDriverStopDetail(response,
+stopId, locale, photoUrl?)` (stop detail model `DriverStopDetail` for a stop of _any_ tour of the
+  day, `null` when no tour contains it; `photoUrl` maps a `PayloadPhoto` to the URL the `<img>` loads —
+  the signed storage URL online, a same-origin cache URL offline), `responseTours(response)` (the
+  tours of the payload, `tours` with a fallback to `tour` for old caches) and `tourPhotos(response)`
+  (every photo of every open tour once, the set to prefetch).
 - Language-dependent texts (product names, notes) travel as `LocalizedText` in all four locales
   and are picked per viewer locale (`pickWithSource`). Customer names, addresses and postal codes
   are never translated.
@@ -67,21 +74,23 @@ the page and the service worker.
 
 - `src/server/driver-tour-payload.ts`: `DRIVER_PHOTO_URL_TTL_SECONDS` (12 h, the validity of the
   signed photo URLs) and `getDriverTourResponse(db, actor, options)` — builds the `DriverTourResponse`.
-  Only an actual `DRIVER` gets a tour (`tour: null` otherwise, so an admin in the support view sees
-  none). The driver id is always the authenticated actor, never a request parameter. Quantities are
-  the released snapshot from `getDriverTour` (see `server/tour-driver.ts`, NUD-043). Customers come
+  Only an actual `DRIVER` gets a tour (`tour: null`, `tours: []` otherwise, so an admin in the support
+  view sees none). The driver id is always the authenticated actor, never a request parameter.
+  Quantities are the released snapshot from `getDriverTours` (see `server/tour-driver.ts`, NUD-043);
+  with several open tours of the day (NUD-163) every one of them is in `tours`. Customers come
   from `customer`, the newest current photo per customer and kind from `photo` (signed URLs only
   when `options.photos.storage` is given; `onlyStopId` limits them to one stop's customer).
 - `src/server/driver-tour-api.ts`: `driverTourTodayResponse(now)` — `GET /api/driver/tour/today`.
   `requireRole("DRIVER")` first; the answer is personal data and is never cached (`Cache-Control:
-  private, no-store`).
-- `src/server/driver-today.ts`: `todayInTimezone`, `getDriverToday` and the page query
-  `driverTodayQuery(locale)` (allows `requireRole("ADMIN", "DRIVER")`; timezone and
+private, no-store`).
+- `src/server/driver-today.ts`: `todayInTimezone`, `getDriverDay` / `driverDayQuery(locale)` (the
+  active tour plus the other open tours, NUD-163), `getDriverToday` / `driverTodayQuery(locale)` (the
+  active tour only; both allow `requireRole("ADMIN", "DRIVER")`; timezone and
   `serviceMinutesPerStop` come from `getSettings`, defaulting to `Europe/Vienna` / 10).
 - `src/server/driver-stop.ts`: `getDriverStopDetail` (the stop detail derived from the same tour
   payload, with photos limited to that stop) and the page query `driverStopQuery(locale, stopId)`.
-  A stop that is not in the actor's own released tour of today yields `null` — same answer for a
-  foreign stop, another day or an unreleased tour.
+  A stop that is not in any of the actor's own released tours of today yields `null` — same answer
+  for a foreign stop, another day or an unreleased tour.
 
 ### Stop status — `src/server/stop-status.ts`, `src/server/stop-status-actions.ts`
 

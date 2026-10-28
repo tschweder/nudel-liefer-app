@@ -7,13 +7,16 @@ import { EmptyState, LoadingSkeleton } from "@/components/shared/states";
 import type { AppLocale } from "@/lib/localized-text";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
-import { driverTodayQuery } from "@/server/driver-today";
+import { driverDayQuery } from "@/server/driver-today";
 
 async function Today({ locale }: { locale: string }) {
   await requirePageActor("driver", locale);
   const t = await getTranslations({ locale, namespace: "driver" });
-  const today = await driverTodayQuery(locale as AppLocale);
-  const hasTour = today !== null && today.stops.length > 0;
+  // NUD-163: the active tour plus every other open tour of the day (usually none).
+  const { primary: today, others } = await driverDayQuery(locale as AppLocale);
+  const stopCount =
+    (today?.stops.length ?? 0) + others.reduce((sum, tour) => sum + tour.stops.length, 0);
+  const hasTour = today !== null && stopCount > 0;
   return (
     <>
       {hasTour ? null : (
@@ -23,7 +26,7 @@ async function Today({ locale }: { locale: string }) {
         </h1>
       )}
       {today && hasTour ? (
-        <TodayTour today={today} tiles={getMapTileConfig()} />
+        <TodayTour today={today} others={others} tiles={getMapTileConfig()} />
       ) : (
         <EmptyState
           title={t("today.emptyTitle")}

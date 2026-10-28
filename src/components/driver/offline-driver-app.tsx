@@ -10,7 +10,7 @@ import { TodayTour } from "@/components/driver/today-tour";
 import { EmptyState, LoadingSkeleton } from "@/components/shared/states";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { toDriverStopDetail, toDriverToday } from "@/lib/driver-tour-model";
+import { toDriverOtherTours, toDriverStopDetail, toDriverToday } from "@/lib/driver-tour-model";
 import { createAppFormatters } from "@/lib/format";
 import type { AppLocale } from "@/lib/localized-text";
 import type { MapTileConfig } from "@/lib/map-config";
@@ -92,6 +92,8 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
     const view = parseOfflineView(pathname);
     const response = record.data;
     const today = toDriverToday(response, locale);
+    // NUD-163: the other open tours of the day come from the same cached payload.
+    const others = toDriverOtherTours(response, locale);
     const detail =
       view.view === "stop"
         ? toDriverStopDetail(response, view.stopId, locale, (photo) => photoCacheUrl(photo.id))
@@ -110,7 +112,7 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
         </div>
       );
     } else {
-      body = <TodayTour today={today} tiles={tiles} offline />;
+      body = <TodayTour today={today} others={others} tiles={tiles} offline />;
     }
   }
 

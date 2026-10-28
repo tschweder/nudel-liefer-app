@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 
+import { type DriverTourResponse, responseTours } from "@/lib/driver-tour-model";
+
 import { createBrowserPhotoCache, type PhotoCache } from "./photos";
 import { createIndexedDbStore, loadCurrentRecord, type OfflineStore } from "./store";
 import { syncDriverTour } from "./sync";
@@ -20,17 +22,29 @@ export type OfflineStatus = {
   /** When the stored copy was loaded from the server (ISO), `null` without a copy. */
   savedAt: string | null;
   timezone: string | null;
-  /** Id of the tour in the stored copy (NUD-118: tells a switch to the follow-up tour), `null` without a copy. */
-  tourId: string | null;
+  /**
+   * Ids of the tours in the stored copy, oldest first (NUD-163: a day can have several open tours;
+   * the last one is the active tour), `[]` without a copy. `toursChanged` compares two of these.
+   */
+  tourIds: string[];
   photos: { total: number; cached: number };
 };
 
 /**
- * True when a sync replaced the stored tour by another one (NUD-118: the follow-up tour of the day
- * was released). `before` is `null` when no copy was known yet: that is the first load, not a switch.
+ * True when a sync replaced the stored tours by others (NUD-118: the released follow-up tour;
+ * NUD-163: another open tour was released or withdrawn). `before` is empty when no copy was known
+ * yet: that is the first load, not a switch.
  */
-export function tourSwitched(before: string | null, after: string | null): boolean {
-  return before !== null && after !== null && before !== after;
+export function toursChanged(before: readonly string[], after: readonly string[]): boolean {
+  return before.length > 0 && after.length > 0 && before.join(",") !== after.join(",");
+}
+
+/**
+ * The tours of a payload, oldest first, as the identity the status above compares: a new tour of the
+ * day (or a gone one) changes the list, a mere content update of the same tours does not.
+ */
+function tourIdsOf(data: DriverTourResponse): string[] {
+  return responseTours(data).map((tour) => tour.id);
 }
 
 const INITIAL: OfflineStatus = {
@@ -38,7 +52,7 @@ const INITIAL: OfflineStatus = {
   syncing: false,
   savedAt: null,
   timezone: null,
-  tourId: null,
+  tourIds: [],
   photos: { total: 0, cached: 0 },
 };
 
@@ -84,7 +98,7 @@ async function runSync(userId: string): Promise<boolean> {
       setStatus({
         savedAt: record.savedAt,
         timezone: record.data.timezone,
-        tourId: record.data.tour?.id ?? null,
+        tourIds: tourIdsOf(record.data),
         phase: "partial",
       }),
   });
@@ -95,7 +109,7 @@ async function runSync(userId: string): Promise<boolean> {
         phase: complete ? "ready" : "partial",
         savedAt: outcome.record.savedAt,
         timezone: outcome.record.data.timezone,
-        tourId: outcome.record.data.tour?.id ?? null,
+        tourIds: tourIdsOf(outcome.record.data),
         photos: { total: outcome.photos.total, cached: outcome.photos.cached },
       });
       break;
@@ -105,7 +119,7 @@ async function runSync(userId: string): Promise<boolean> {
         phase: "no-tour",
         savedAt: null,
         timezone: null,
-        tourId: null,
+        tourIds: [],
         photos: { total: 0, cached: 0 },
       });
       break;
@@ -158,7 +172,7 @@ export async function loadOfflineStatus(userId?: string): Promise<void> {
       setStatus({
         savedAt: record.savedAt,
         timezone: record.data.timezone,
-        tourId: record.data.tour?.id ?? null,
+        tourIds: tourIdsOf(record.data),
         phase: "partial",
       });
     }

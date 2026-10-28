@@ -254,6 +254,47 @@ describe.each(Object.keys(LOCALES))("TodayTour in %s", (locale) => {
     expect(screen.queryByTestId("all-done")).toBeNull();
   });
 
+  it("lists the other open tour of the day with its pending stops (NUD-163)", () => {
+    const other = today([stop(1), stop(2, { status: "DELIVERED" })], {
+      tourId: "t0",
+      tourNumber: 1,
+      tourCount: 2,
+    });
+    renderIn(
+      locale,
+      <TodayTour
+        today={today([stop(3, { status: "PENDING" })], {
+          tourId: "t1",
+          tourNumber: 2,
+          tourCount: 2,
+        })}
+        others={[other]}
+        tiles={TILES}
+      />,
+    );
+    const section = screen.getByTestId("other-tour");
+    expect(section).toHaveAttribute("data-tour-id", "t0");
+    expect(within(section).getByTestId("other-tour-title").textContent).toMatch(/1/);
+    // The pending stop of tour 1 is reachable, the delivered one hides in its done group.
+    const rows = within(section).getAllByTestId("stop-row");
+    expect(rows).toHaveLength(2);
+    expect(within(section).getByTestId("other-tour-stops").textContent).not.toBe("");
+    expect(within(rows[0] as HTMLElement).getByRole("link")).toHaveAttribute(
+      "href",
+      "/driver/stops/s1",
+    );
+    expect(section.textContent).toContain("Trattoria 1");
+    // The active tour keeps the hero card and its own list.
+    expect(screen.getByTestId("next-stop")).toBeInTheDocument();
+    expect(screen.getByTestId("stop-list")).toBeInTheDocument();
+  });
+
+  it("shows nothing extra without a second open tour", () => {
+    renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
+    expect(screen.queryByTestId("other-tour")).toBeNull();
+    expect(screen.queryByTestId("other-tours")).toBeNull();
+  });
+
   it("toggles between list and map", () => {
     renderIn(locale, <TodayTour today={today([stop(1)])} tiles={TILES} />);
     expect(screen.getByTestId("stop-list")).toBeInTheDocument();

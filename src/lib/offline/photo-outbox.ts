@@ -144,18 +144,21 @@ export function shownPhoto(
   return base ? { ...base, pending: false, sent: false } : null;
 }
 
-type PatchableTour = {
-  tour: null | {
-    stops: Array<{
-      customerId: string;
-      photos: Record<DriverPhotoKind, PhotoLike | null>;
-    }>;
-  };
+/** One stop of the stored tour JSON whose photo this patch writes (structural, no zod). */
+type PatchablePhotoStop = {
+  customerId: string;
+  photos: Record<DriverPhotoKind, PhotoLike | null>;
 };
+
+/** One tour of the stored tour JSON (NUD-163: `tour` is the active tour, `tours` all open ones). */
+type PatchablePhotoTour = { stops: PatchablePhotoStop[] };
+
+type PatchableTour = { tour: null | PatchablePhotoTour; tours?: PatchablePhotoTour[] };
 
 /**
  * The stored tour copy with a registered photo as the current one of every stop of its customer
- * (so a reload while offline shows it). The tour JSON is refreshed from the server right after
+ * (so a reload while offline shows it) — in the active tour and in every other open tour of the day
+ * (NUD-163: the photo can belong to either). The tour JSON is refreshed from the server right after
  * anyway.
  */
 export function patchTourPhoto<T extends PatchableTour>(
@@ -164,25 +167,35 @@ export function patchTourPhoto<T extends PatchableTour>(
   kind: DriverPhotoKind,
   photo: RegisteredPhoto,
 ): T {
-  const tour = data.tour;
-  if (!tour || !tour.stops.some((s) => s.customerId === customerId)) return data;
-  return {
-    ...data,
-    tour: {
-      ...tour,
-      stops: tour.stops.map((stop) =>
-        stop.customerId === customerId
-          ? {
-              ...stop,
-              photos: {
-                ...stop.photos,
-                [kind]: { id: photo.id, url: photo.url, width: photo.width, height: photo.height },
-              },
-            }
-          : stop,
-      ),
-    },
-  };
+  const patch = <U extends PatchablePhotoTour>(tour: U): U =>
+    tour.stops.some((s) => s.customerId === customerId)
+      ? {
+          ...tour,
+          stops: tour.stops.map((stop) =>
+            stop.customerId === customerId
+              ? {
+                  ...stop,
+                  photos: {
+                    ...stop.photos,
+                    [kind]: {
+                      id: photo.id,
+                      url: photo.url,
+                      width: photo.width,
+                      height: photo.height,
+                    },
+                  },
+                }
+              : stop,
+          ),
+        }
+      : tour;
+  const touched =
+    (data.tour !== null && data.tour.stops.some((s) => s.customerId === customerId)) ||
+    (data.tours ?? []).some((tour) => tour.stops.some((s) => s.customerId === customerId));
+  if (!touched) return data;
+  const next = { ...data, tour: data.tour ? patch(data.tour) : data.tour } as T;
+  if (!data.tours) return next;
+  return { ...next, tours: data.tours.map(patch) };
 }
 
 /** How long a just-confirmed photo is shown on top of the page data. */

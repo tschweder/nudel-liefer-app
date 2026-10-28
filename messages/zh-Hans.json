@@ -1652,6 +1652,7 @@
       "pageTitle": "今日行程",
       "tourBadge": "第 {number} 趟，共 {count} 趟",
       "followUpHint": "当天的后续行程",
+      "otherTourHint": "这趟行程也未完成。点按站点查看详情。",
       "emptyTitle": "今天没有配送线路",
       "emptyDescription": "办公室发布线路后，会显示在这里。",
       "progressLabel": "进度",

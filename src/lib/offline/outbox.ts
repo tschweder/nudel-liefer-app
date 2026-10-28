@@ -279,45 +279,51 @@ export function withServerSpots(state: Pick<SyncStopState, "parkingSpots">): {
   return { parkingSpots: spots, ...(first ? { lat: first.lat, lng: first.lng } : {}) };
 }
 
-/** The part of the stored tour JSON that a sync answer updates (structural, no zod). */
+/** One stop of the stored tour JSON that a sync answer updates (structural, no zod). */
+type PatchableStop = {
+  id: string;
+  status: StopStatus;
+  problemReason: string | null;
+  completedAt: string | null;
+  hasKey?: boolean | null;
+  keyNumber?: string | null;
+  abbreviation?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  parkingSpots?: SyncParkingSpot[];
+};
+
+/** One tour of the stored tour JSON that a sync answer updates (structural, no zod). */
 type PatchableTour = {
-  tour: null | {
-    id: string;
-    status: string;
-    loadingStartedAt?: string | null;
-    departedAt?: string | null;
-    stops: Array<{
-      id: string;
-      status: StopStatus;
-      problemReason: string | null;
-      completedAt: string | null;
-      hasKey?: boolean | null;
-      keyNumber?: string | null;
-      abbreviation?: string | null;
-      lat?: number | null;
-      lng?: number | null;
-      parkingSpots?: SyncParkingSpot[];
-    }>;
-  };
+  id: string;
+  status: string;
+  loadingStartedAt?: string | null;
+  departedAt?: string | null;
+  stops: PatchableStop[];
 };
 
 /**
+ * The part of the stored tour JSON that a sync answer updates: `tours` carries every open tour of the
+ * day and `tour` the active one (NUD-163); a copy cached before that has `tour` only.
+ */
+type PatchableTours = { tour: PatchableTour | null; tours?: PatchableTour[] };
+
+/**
  * The stored tour with the authoritative stop states of a sync answer applied (status, reason,
- * time, tour status). Stops the answer does not know are left as they are; the tour JSON is
+ * time, tour status) — for the active tour *and* every other open tour of the day (NUD-163: a queued
+ * tap can belong to either). Stops the answer does not know are left as they are; the tour JSON is
  * refreshed from the server right afterwards anyway.
  */
-export function patchTourStates<T extends PatchableTour>(
+export function patchTourStates<T extends PatchableTours>(
   data: T,
   tours: readonly SyncTourState[],
 ): T {
-  const tour = data.tour;
-  if (!tour) return data;
-  const state = tours.find((t) => t.tourId === tour.id);
-  if (!state) return data;
-  const byId = new Map<string, SyncStopState>(state.stops.map((s) => [s.id, s]));
-  return {
-    ...data,
-    tour: {
+  const states = new Map(tours.map((state) => [state.tourId, state]));
+  const patch = (tour: PatchableTour): PatchableTour => {
+    const state = states.get(tour.id);
+    if (!state) return tour;
+    const byId = new Map<string, SyncStopState>(state.stops.map((s) => [s.id, s]));
+    return {
       ...tour,
       status: state.status,
       ...(state.loadingStartedAt !== undefined ? { loadingStartedAt: state.loadingStartedAt } : {}),
@@ -337,8 +343,15 @@ export function patchTourStates<T extends PatchableTour>(
             }
           : stop;
       }),
-    },
+    };
   };
+  const touched =
+    (data.tour !== null && states.has(data.tour.id)) ||
+    (data.tours ?? []).some((tour) => states.has(tour.id));
+  if (!touched) return data;
+  const next = { ...data, tour: data.tour ? patch(data.tour) : data.tour } as T;
+  if (!data.tours) return next;
+  return { ...next, tours: data.tours.map(patch) };
 }
 
 /** Authoritative states of the stops named in `entries`, keyed by stop id. */

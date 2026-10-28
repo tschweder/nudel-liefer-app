@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canCreateFollowUp,
   deliveredStopConflicts,
+  driverDayTours,
   findLateOrderIds,
   isOpenTour,
   pickDefaultTour,
@@ -79,6 +80,46 @@ describe("pickDriverTour", () => {
   it("takes the newest completed tour when none is active", () => {
     const tours = [tour("t1", "COMPLETED", 1), tour("t2", "COMPLETED", 2)];
     expect(pickDriverTour(tours)?.id).toBe("t2");
+  });
+});
+
+describe("driverDayTours", () => {
+  it("is empty for a day without released tours", () => {
+    expect(driverDayTours([])).toEqual([]);
+  });
+
+  it("lists every open tour of the day, oldest first, whatever the order of the input", () => {
+    const tours = [
+      tour("t3", "RELEASED", 3),
+      tour("t1", "IN_PROGRESS", 1),
+      tour("t2", "RELEASED", 2),
+    ];
+    expect(driverDayTours(tours).map((t) => t.id)).toEqual(["t1", "t2", "t3"]);
+    expect(driverDayTours([tours[2], tours[1]]).map((t) => t.id)).toEqual(["t1", "t2"]);
+  });
+
+  it("keeps the newest open tour as the last (active) one, like pickDriverTour", () => {
+    const tours = [tour("t1", "RELEASED", 1), tour("t2", "RELEASED", 2), tour("t3", "RELEASED", 3)];
+    const visible = driverDayTours(tours);
+    expect(visible.at(-1)?.id).toBe("t3");
+    expect(visible.at(-1)?.id).toBe(pickDriverTour(tours)?.id);
+  });
+
+  it("shows only the newest completed tour once everything is finished (finished screen)", () => {
+    const tours = [tour("t1", "COMPLETED", 1), tour("t2", "COMPLETED", 2)];
+    expect(driverDayTours(tours).map((t) => t.id)).toEqual(["t2"]);
+    expect(driverDayTours([tour("t1", "COMPLETED", 1)]).map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("drops the completed tour of an ordinary follow-up day (only open ones are listed)", () => {
+    const tours = [tour("t1", "COMPLETED", 1), tour("t2", "RELEASED", 2)];
+    expect(driverDayTours(tours).map((t) => t.id)).toEqual(["t2"]);
+  });
+
+  it("is a pure function that leaves the input alone", () => {
+    const tours = [tour("t2", "RELEASED", 2), tour("t1", "RELEASED", 1)];
+    driverDayTours(tours);
+    expect(tours.map((t) => t.id)).toEqual(["t2", "t1"]);
   });
 });
 

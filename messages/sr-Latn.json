@@ -183,6 +183,7 @@
       "pageTitle": "Današnja tura",
       "tourBadge": "Tura {number} od {count}",
       "followUpHint": "Naknadna tura istog dana",
+      "otherTourHint": "I ova tura je otvorena. Dodirni stop za detalje.",
       "emptyTitle": "Danas nema ture",
       "emptyDescription": "Čim kancelarija objavi turu, pojaviće se ovde.",
       "progressLabel": "Napredak",

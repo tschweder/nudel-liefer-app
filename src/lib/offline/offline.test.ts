@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { DRIVER_TOUR_SCHEMA_VERSION, type DriverTourResponse } from "@/lib/driver-tour-model";
 
-import { tourSwitched } from "./browser";
+import { toursChanged } from "./browser";
 import { photoCacheUrl } from "./constants";
 import { type PhotoCache, syncPhotos } from "./photos";
 import {
@@ -72,6 +72,7 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
         items: [],
       })),
     },
+    tours: [],
   };
 }
 
@@ -287,6 +288,30 @@ describe("syncDriverTour", () => {
     expect([...photos.map.keys()].map((k) => k.split("/").pop()).sort()).toEqual(["b", "c"]);
   });
 
+  it("stores every open tour of the day with its photos (NUD-163)", async () => {
+    const first = response("2099-07-02", ["a"]);
+    const second = response("2099-07-02", ["b"]);
+    const both = {
+      ...first,
+      // Two open tours: tour 1 is still open, tour 2 is the active one (the last of `tours`).
+      tour: { ...second.tour!, id: "t2", tourNumber: 2, tourCount: 2 },
+      tours: [
+        { ...first.tour!, id: "t1", tourNumber: 1, tourCount: 2 },
+        { ...second.tour!, id: "t2", tourNumber: 2, tourCount: 2 },
+      ],
+    };
+    const d = deps(routed(both));
+    const out = await syncDriverTour("u1", d);
+    expect(out).toMatchObject({ kind: "saved", photos: { total: 2, cached: 2 } });
+    const stored = (await loadCurrentRecord(d.store, now(), "u1"))!;
+    expect(stored.data.tours.map((t) => t.id)).toEqual(["t1", "t2"]);
+    expect(stored.data.tour?.id).toBe("t2");
+    // Both tours' photos are cached: the driver reaches the stops of either tour offline.
+    expect(
+      [...(d.photoCache as MemoryPhotos).map.keys()].map((k) => k.split("/").pop()).sort(),
+    ).toEqual(["a", "b"]);
+  });
+
   it("a different user on the phone replaces the previous driver's data", async () => {
     const d = deps(routed(response("2099-07-02")));
     await d.store.put(record("old", "2099-07-02"));
@@ -295,11 +320,17 @@ describe("syncDriverTour", () => {
   });
 });
 
-describe("tourSwitched", () => {
-  it("is true only when a known tour was replaced by another one", () => {
-    expect(tourSwitched("t1", "t2")).toBe(true);
-    expect(tourSwitched("t1", "t1")).toBe(false);
-    expect(tourSwitched(null, "t1")).toBe(false);
-    expect(tourSwitched("t1", null)).toBe(false);
+describe("toursChanged", () => {
+  it("is true only when a known set of tours was replaced by another one", () => {
+    expect(toursChanged(["t1"], ["t2"])).toBe(true);
+    expect(toursChanged(["t1"], ["t1"])).toBe(false);
+    expect(toursChanged([], ["t1"])).toBe(false);
+    expect(toursChanged(["t1"], [])).toBe(false);
+  });
+
+  it("notices a second open tour of the day and its disappearance (NUD-163)", () => {
+    expect(toursChanged(["t1"], ["t1", "t2"])).toBe(true);
+    expect(toursChanged(["t1", "t2"], ["t1", "t2"])).toBe(false);
+    expect(toursChanged(["t1", "t2"], ["t1"])).toBe(true);
   });
 });

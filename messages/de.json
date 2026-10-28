@@ -1652,6 +1652,7 @@
       "pageTitle": "Heutige Tour",
       "tourBadge": "Tour {number} von {count}",
       "followUpHint": "Folgetour am selben Tag",
+      "otherTourHint": "Diese Tour ist ebenfalls offen. Stopp antippen für Details.",
       "emptyTitle": "Heute keine Tour",
       "emptyDescription": "Sobald das Büro eine Tour freigibt, erscheint sie hier.",
       "progressLabel": "Fortschritt",

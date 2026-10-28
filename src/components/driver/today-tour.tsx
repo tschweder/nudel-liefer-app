@@ -549,6 +549,79 @@ function DoneGroup({
   );
 }
 
+/**
+ * A second (or third) *open* tour of the day (NUD-163): with two open tours for the driver the home
+ * screen showed only the newest one and the pending stops of the other were unreachable. The active
+ * tour keeps the whole screen (progress, next stop, map); every other open tour gets this block with
+ * its own open/done stops, oldest tour first. Rows are the normal 76 px `StopRow` links to the stop
+ * detail, which resolves stops of any tour of the day — online and from the offline copy alike.
+ */
+function OtherTourSection({ tour }: { tour: DriverToday }) {
+  const t = useTranslations("driver.today");
+  const stops = useOverlaidStops(tour.stops);
+  const { entries } = useOutbox();
+  const waitingIds = new Set(
+    entries.filter((entry) => isStopStatusEntry(entry.type)).map((entry) => entry.stopId),
+  );
+  const open = stops.filter((s) => s.status === "PENDING");
+  const closed = stops.filter((s) => s.status !== "PENDING");
+  const [doneOpen, setDoneOpen] = useState(false);
+  const headingId = `other-tour-${tour.tourId}`;
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-2 shadow-sm"
+      data-testid="other-tour"
+      data-tour-id={tour.tourId}
+      data-tour-number={tour.tourNumber ?? 1}
+    >
+      <h2
+        id={headingId}
+        className="flex min-h-12 items-center gap-2 px-1 text-lg font-semibold"
+        data-testid="other-tour-title"
+      >
+        <RouteIcon className="size-5 shrink-0" aria-hidden />
+        {t("tourBadge", { number: tour.tourNumber ?? 1, count: tour.tourCount ?? 1 })}
+      </h2>
+      <p className="px-1 text-base text-muted-foreground" data-testid="other-tour-hint">
+        {t("otherTourHint")}
+      </p>
+      <p className="px-1 text-base font-semibold">{t("openGroup", { count: open.length })}</p>
+      <ol className="list-none" data-testid="other-tour-stops">
+        {open.length === 0 ? (
+          <li className="border-b border-border px-1 py-4 text-base text-muted-foreground">
+            {t("allDoneTitle")}
+          </li>
+        ) : null}
+        {open.map((stop) => (
+          <StopRow
+            key={stop.id}
+            stop={stop}
+            timezone={tour.timezone}
+            isNext={false}
+            unseen={false}
+            waiting={waitingIds.has(stop.id)}
+          />
+        ))}
+        {closed.length > 0 ? (
+          <DoneGroup stops={closed} open={doneOpen} onToggle={setDoneOpen}>
+            {closed.map((stop) => (
+              <StopRow
+                key={stop.id}
+                stop={stop}
+                timezone={tour.timezone}
+                isNext={false}
+                unseen={false}
+                waiting={waitingIds.has(stop.id)}
+              />
+            ))}
+          </DoneGroup>
+        ) : null}
+      </ol>
+    </section>
+  );
+}
+
 function formatDuration(
   t: ReturnType<typeof useTranslations<"driver.today">>,
   minutes: number,
@@ -608,11 +681,17 @@ export function TodayTour({
   today,
   tiles,
   offline = false,
+  others = [],
 }: {
   today: DriverToday;
   tiles: MapTileConfig;
   /** Rendered from the offline copy (NUD-081): nothing here asks the server. */
   offline?: boolean;
+  /**
+   * The other open tours of the day, oldest first (NUD-163): listed as extra blocks so the driver
+   * reaches the pending stops of every open tour, not just of the active one.
+   */
+  others?: DriverToday[];
 }) {
   const t = useTranslations("driver.today");
   const tHome = useTranslations("driver.home");
@@ -962,6 +1041,14 @@ export function TodayTour({
           ]}
         />
       </div>
+
+      {view === "list" && others.length > 0 ? (
+        <div className="flex flex-col gap-2" data-testid="other-tours">
+          {others.map((tour) => (
+            <OtherTourSection key={tour.tourId} tour={tour} />
+          ))}
+        </div>
+      ) : null}
 
       {view === "list" ? (
         stopList()

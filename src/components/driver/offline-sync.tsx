@@ -8,7 +8,7 @@ import {
   loadOfflineStatus,
   requestOfflineSync,
   syncOfflineNow,
-  tourSwitched,
+  toursChanged,
 } from "@/lib/offline/browser";
 import { OUTBOX_FLUSHED_MESSAGE } from "@/lib/offline/constants";
 import { getOutbox } from "@/lib/offline/outbox-browser";
@@ -41,11 +41,13 @@ export function OfflineSync({ userId }: { userId: string }) {
       // No `navigator.onLine` gate: it can be wrong (it is false on some Linux setups without a
       // network manager) and an offline fetch fails immediately anyway.
       if (cancelled) return false;
-      const tourBefore = getOfflineStatus().tourId;
+      const toursBefore = getOfflineStatus().tourIds;
       const ok = await syncOfflineNow(userId);
-      // NUD-118: the office released a follow-up tour while the app stayed open: the server pages
-      // (still showing the finished tour) must follow the offline copy, without waiting for a focus.
-      if (ok && !cancelled && tourSwitched(tourBefore, getOfflineStatus().tourId)) router.refresh();
+      // NUD-118 / NUD-163: the office released a follow-up tour (or another open tour of the day)
+      // while the app stayed open: the server pages (still showing the older set of tours) must
+      // follow the offline copy, without waiting for a focus.
+      if (ok && !cancelled && toursChanged(toursBefore, getOfflineStatus().tourIds))
+        router.refresh();
       if (!ok && !cancelled && attempt < RETRY_DELAYS_MS.length) {
         // Right after "online" the network is often not usable yet: try again shortly.
         const timer = setTimeout(() => {

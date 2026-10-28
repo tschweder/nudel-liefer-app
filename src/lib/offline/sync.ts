@@ -1,6 +1,7 @@
 import {
   type DriverTourResponse,
   driverTourResponseSchema,
+  responseTours,
   tourPhotos,
 } from "@/lib/driver-tour-model";
 
@@ -57,7 +58,8 @@ export async function syncDriverTour(userId: string, deps: SyncDeps): Promise<Sy
   }
 
   try {
-    if (!data.tour) {
+    // NUD-163: `tours` holds every open tour of the day, `tour` only the active one.
+    if (responseTours(data).length === 0) {
       // Nothing released today: nothing to keep (an older copy of a withdrawn tour would mislead).
       await removeRecord(deps.store, userId);
       await deps.photoCache.clear();
