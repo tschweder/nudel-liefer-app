@@ -403,6 +403,7 @@
       "errorShort": "Chyba",
       "pendingShort": "{count}",
       "mutationKey": "klíč",
+      "mutationAbbreviation": "zkratka",
       "mutationParking": "parkovací místo",
       "mutationLoading": "seznam otevřen",
       "mutationDepart": "odjezd"
@@ -412,6 +413,24 @@
       "PACK": "Sáčků",
       "CRATE": "Kartonů",
       "PIECE": "Kusů"
+    },
+    "abbreviation": {
+      "chip": {
+        "value": "Zkratka {value}",
+        "add": "Zkratka",
+        "empty": "Žádná zkratka, klepnutím zadáte"
+      },
+      "title": "Zkratka",
+      "description": "{name} · Uloží se okamžitě.",
+      "label": "Zkratka",
+      "hint": "Starý interní kód, volný text. Nechte prázdné pro smazání.",
+      "save": "Uložit",
+      "clear": "Smazat",
+      "cancel": "Zrušit",
+      "saved": "Zkratka uložena: {name}",
+      "errors": {
+        "storage": "Nepodařilo se. Zkuste to znovu."
+      }
     },
     "key": {
       "chip": {

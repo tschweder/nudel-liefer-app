@@ -90,6 +90,7 @@ export async function getDriverTourResponse(
         deliveryHoursInfo: true,
         hasKey: true,
         keyNumber: true,
+        abbreviation: true,
       },
     }),
     db.tour.findUnique({
@@ -163,6 +164,7 @@ export async function getDriverTourResponse(
       deliveryHoursInfo: customer?.deliveryHoursInfo?.trim() || null,
       hasKey: customer?.hasKey ?? null,
       keyNumber: customer?.keyNumber ?? null,
+      abbreviation: customer?.abbreviation ?? null,
       photos: { STORE: photos?.STORE ?? null, PARKING: photos?.PARKING ?? null },
       items: stop.items.map((item) => {
         const name = localizedTextSchema.safeParse(item.name);

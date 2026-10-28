@@ -30,12 +30,13 @@ export function effectiveMutationTime(createdAt: Date, now: Date): Date {
 }
 
 /**
- * `key`: the driver set or corrected the customer's key (NUD-142); `parking`: a new Parkplatz
+ * `key`: the driver set or corrected the customer's key (NUD-142); `abbreviation`: set, corrected
+ * or cleared the customer's Abkürzung (NUD-164); `parking`: a new Parkplatz
  * (NUD-144); `loading` / `depart`: the departure checklist was opened / the driver left (NUD-151,
  * they name any stop of the tour and write the tour's timestamps); the others change the stop status.
  */
 export type SyncMutationType =
-  "delivered" | "problem" | "undo" | "key" | "parking" | "loading" | "depart";
+  "delivered" | "problem" | "undo" | "key" | "abbreviation" | "parking" | "loading" | "depart";
 
 /** One queued mutation as sent to the server. */
 export type SyncEntry = {
@@ -48,6 +49,8 @@ export type SyncEntry = {
   /** Type "key" only: a key exists (`true`) or not (`false`); the number only goes with `true`. */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "abbreviation" only (NUD-164): the new text; absent clears it. */
+  abbreviation?: string;
   /** Type "parking" only (NUD-144): the Parkplatz the driver set, 6 decimals. */
   lat?: number;
   lng?: number;
@@ -84,6 +87,8 @@ export type SyncStopState = {
    */
   hasKey?: boolean | null;
   keyNumber?: string | null;
+  /** The customer's Abkürzung after the batch (NUD-164); absent in older answers. */
+  abbreviation?: string | null;
   /** The customer's active Parkplätze in display order (NUD-144); absent in older answers. */
   parkingSpots?: SyncParkingSpot[];
 };
@@ -162,6 +167,7 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         !isNullableString(s.completedAt) ||
         (s.hasKey !== undefined && s.hasKey !== null && typeof s.hasKey !== "boolean") ||
         (s.keyNumber !== undefined && !isNullableString(s.keyNumber)) ||
+        (s.abbreviation !== undefined && !isNullableString(s.abbreviation)) ||
         (s.parkingSpots !== undefined && parseParkingSpots(s.parkingSpots) === null)
       ) {
         return null;
@@ -173,6 +179,7 @@ export function parseSyncResponse(raw: unknown): SyncResponse | null {
         completedAt: s.completedAt,
         ...(s.hasKey !== undefined ? { hasKey: s.hasKey as boolean | null } : {}),
         ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber as string | null } : {}),
+        ...(s.abbreviation !== undefined ? { abbreviation: s.abbreviation as string | null } : {}),
         ...(s.parkingSpots !== undefined
           ? { parkingSpots: parseParkingSpots(s.parkingSpots)! }
           : {}),

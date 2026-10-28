@@ -319,6 +319,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | todo |
 | NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
 | NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | todo |
+| NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2961,6 +2962,35 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 
 **Acceptance criteria**
 - [ ] A driver with two open tours on one day reaches the pending stops of both (e2e, 375 px, also offline).
+
+---
+
+#### NUD-164 · Customer Abkürzung (legacy code, optional, driver-editable)
+**Status:** done · **depends_on:** 142 · D27 · temporary: remove once the new system is adopted.
+
+**Goal:** the old system has an internal customer code, the **Abkürzung**, that drivers still use. It has no logic: free text with special characters, **not unique** (several customers can share one), optional. It is only shown so drivers can orient themselves until the new system is adopted, then it will be removed. Copy NUD-142 (customer key number) **1 to 1** for this one field; do not add validation, uniqueness, lookups or sorting by it.
+
+**Scope** (mirror NUD-142, same files and patterns)
+- Prisma: `Customer.abbreviation String?` (max 20, any characters, no unique index), `abbreviationUpdatedById`, `abbreviationUpdatedAt`; migration; audit action `customer.abbreviation` with before/after, `via office|driver`. New `StopMutationKind.ABBREVIATION` for the idempotent sync path.
+- Server: `src/server/customer-abbreviation.ts` analogous to `customer-key.ts` (`setCustomerAbbreviation` office path, `applyDriverAbbreviation` sync path; row lock + audit in one transaction). Empty input clears the value (no `hasAbbreviation` flag: null = none).
+- Office: optional field "Abkürzung" on the customer form/detail with "geändert von <Fahrer>, <Datum>" and history; sent only if edited (stale pages must not overwrite a driver entry).
+- Driver: abbreviation shown on the **next-stop card**, the **stop list rows** (display-only) and the **stop detail header**. Empty → small "+ Abkürzung" chip; tap opens a sheet with one text field (same component pattern as KeyChip/KeySheet); existing value → tap opens it to correct or clear. Saved immediately; offline queued via the outbox (NUD-082). Include it in the cached tour payload (NUD-081, defaults keep old caches valid).
+- i18n: `driver.abbreviation.*` in all five locales, admin keys in `de`/`en`/`zh-Hans`. Docs: `offline`, `customers-and-imports`, `privacy`, `data-model`; mark the field as temporary.
+
+**Acceptance criteria**
+- [x] Driver sets, corrects and clears an Abkürzung (including special characters such as `Ä/ß-#1`) → office sees it with driver name/date; audit entry has the diff; two customers may hold the same value.
+- [x] Chip readable at 375 px, touch target ≥ 48 px, works offline (queued, applied on reconnect).
+- [x] No uniqueness check, no effect on sorting, search or tour building.
+- [x] `pnpm lint && pnpm typecheck && pnpm test && pnpm i18n:check` green; authorization row for any new action in `authz-matrix.test.ts`. (No new server action or route: the office form uses `updateCustomerAction`, drivers use the existing sync route. Typecheck shows only errors outside this ticket, see notes.)
+
+**Implementation notes**
+- Schema: `Customer.abbreviation` / `abbreviationUpdatedById` / `abbreviationUpdatedAt`, `StopMutationKind.ABBREVIATION`; migration 20261030090000_customer_abbreviation. `prisma format` also realigned columns in `schema.prisma` (whitespace only).
+- Server: `src/server/customer-abbreviation.ts` (`setCustomerAbbreviation`, `applyDriverAbbreviation`, history), audit action `customer.abbreviation`, sync type `abbreviation` (blank/absent clears), `abbreviation` in the tour payload and the sync answer. Domain: `src/domain/customer-abbreviation.ts` (max 20, trim, blank = null).
+- Driver: `AbbreviationChip` / sheet (`src/components/driver/customer-abbreviation.tsx`) on the next-stop card and stop detail (interactive, "+ Abkürzung" while empty), display-only and hidden-when-empty on list rows; outbox/overlay/controller handle the new type.
+- Office: field in the customer form (sent only if edited), detail card with who/when and history. The customer import does not carry the key either, so it does not carry this.
+- i18n: `driver.abbreviation.*` in all five locales, admin keys in de/en/zh-Hans (zh-Hans agent-written, unreviewed). Docs: customers-and-imports, data-model, offline, privacy.
+- Tests: domain, outbox/overlay, sync parse, component (5 locales), integration (customer-abbreviation.integration.test.ts, embedded Postgres). No e2e spec added; 375 px layout not checked in a browser.
+- Remove when the new system is adopted: drop the three columns and enum value, the module, chip and messages.
 
 ---
 

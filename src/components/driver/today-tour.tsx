@@ -52,6 +52,7 @@ import { useOverlaidStops } from "@/lib/offline/use-overlay";
 import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
+import { AbbreviationChip } from "./customer-abbreviation";
 import { KeyChip } from "./customer-key";
 import { DepartureCard, DepartureSheet, queueDeparture } from "./departure-checklist";
 import { driverTime } from "./driver-time";
@@ -344,6 +345,11 @@ function NextStopCard({
         </p>
         <KeyChip stop={stop} interactive className="relative z-10 shrink-0 bg-background" />
       </div>
+      {stop.abbreviation !== undefined ? (
+        <div>
+          <AbbreviationChip stop={stop} interactive className="relative z-10 bg-background" />
+        </div>
+      ) : null}
       <ItemSummary items={stop.items} />
       {stop.noteText ? <NoteStrip text={stop.noteText} /> : null}
       {unseen ? <ChangeHighlight stop={stop} /> : null}
@@ -463,6 +469,7 @@ function StopRow({
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusLabel status={stop.status} />
           <KeyChip stop={stop} />
+          <AbbreviationChip stop={stop} />
         </span>
       </span>
       {/* Reserved right column (80 px): the summary stacks inside it, so it can never spill onto

@@ -47,6 +47,7 @@ export const AUDIT_ACTIONS = [
   "parking.reorder",
   "parking.deactivate",
   "customer.key",
+  "customer.abbreviation",
   "customer.deactivate",
   "customer.activate",
   "recurring.create",

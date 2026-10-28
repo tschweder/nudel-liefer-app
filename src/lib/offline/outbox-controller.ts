@@ -61,6 +61,8 @@ export type NewMutation = {
   /** Type "key" only (NUD-142). */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "abbreviation" only (NUD-164); absent clears it. */
+  abbreviation?: string;
   /** Type "parking" only (NUD-144). */
   lat?: number;
   lng?: number;
@@ -72,7 +74,13 @@ export type NewMutation = {
  * own (a second "loading" tap is a double tap, a "depart" after it is something else).
  */
 const entryKind = (type: SyncMutationType): SyncMutationType | "stop" =>
-  type === "key" || type === "parking" || type === "loading" || type === "depart" ? type : "stop";
+  type === "key" ||
+  type === "abbreviation" ||
+  type === "parking" ||
+  type === "loading" ||
+  type === "depart"
+    ? type
+    : "stop";
 
 export const CONFIRMED_TTL_MS = 20_000;
 
@@ -180,6 +188,8 @@ export function createOutboxController(deps: OutboxControllerDeps) {
         (mutation.type !== "key" ||
           (last.hasKey === mutation.hasKey &&
             (last.keyNumber ?? "") === (mutation.keyNumber ?? ""))) &&
+        (mutation.type !== "abbreviation" ||
+          (last.abbreviation ?? "") === (mutation.abbreviation ?? "")) &&
         (mutation.type !== "parking" || (last.lat === mutation.lat && last.lng === mutation.lng))
       ) {
         return last;
@@ -195,6 +205,9 @@ export function createOutboxController(deps: OutboxControllerDeps) {
           ? { hasKey: mutation.hasKey }
           : {}),
         ...(mutation.type === "key" && mutation.keyNumber ? { keyNumber: mutation.keyNumber } : {}),
+        ...(mutation.type === "abbreviation" && mutation.abbreviation
+          ? { abbreviation: mutation.abbreviation }
+          : {}),
         ...(mutation.type === "parking" && mutation.lat !== undefined && mutation.lng !== undefined
           ? { lat: mutation.lat, lng: mutation.lng }
           : {}),

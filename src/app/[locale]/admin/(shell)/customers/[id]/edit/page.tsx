@@ -86,6 +86,7 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
             hasKey: customer.hasKey === null ? "unknown" : customer.hasKey ? "yes" : "no",
             keyNumber: customer.keyNumber ?? "",
           },
+          abbreviation: customer.abbreviation ?? "",
         }}
       />
     </div>

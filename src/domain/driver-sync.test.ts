@@ -103,6 +103,18 @@ describe("parseSyncResponse", () => {
     expect(parseSyncResponse(bad({ keyNumber: 17 }))).toBeNull();
   });
 
+  it("carries the customer's Abkürzung per stop when the server sends it (NUD-164)", () => {
+    const stopWith = (extra: object) => ({
+      ...good,
+      tours: [{ ...good.tours[0]!, stops: [{ ...good.tours[0]!.stops[0]!, ...extra }] }],
+    });
+    const withText = stopWith({ abbreviation: "Ä/ß-#1" });
+    expect(parseSyncResponse(withText)).toEqual(withText);
+    const none = stopWith({ abbreviation: null });
+    expect(parseSyncResponse(none)).toEqual(none);
+    expect(parseSyncResponse(stopWith({ abbreviation: 17 }))).toBeNull();
+  });
+
   it.each([
     ["not an object", "x"],
     ["no results", { tours: [] }],

@@ -29,6 +29,7 @@ function withOverlay<T extends StopLike>(
               completedAt: c.completedAt,
               ...(c.hasKey !== undefined ? { hasKey: c.hasKey } : {}),
               ...(c.keyNumber !== undefined ? { keyNumber: c.keyNumber } : {}),
+              ...(c.abbreviation !== undefined ? { abbreviation: c.abbreviation } : {}),
               ...withServerSpots(c),
             }
           : s;

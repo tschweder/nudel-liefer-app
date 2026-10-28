@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { addressChanged, samePin, suggestNextCustomerNumber } from "@/domain/customer";
+import { ABBREVIATION_MAX } from "@/domain/customer-abbreviation";
 import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import { calendarDayIn } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -8,6 +9,7 @@ import { roundCoord } from "@/lib/coords";
 import { localizedTextSchema } from "@/lib/localized-text";
 
 import { recordAudit } from "./audit";
+import { setCustomerAbbreviation } from "./customer-abbreviation";
 import { geocodeAddress } from "./customer-geocode";
 import { setCustomerKey } from "./customer-key";
 import { notesJson, prepareNotes } from "./customer-notes";
@@ -78,6 +80,11 @@ export const customerInputSchema = z
      */
     hasKey: z.boolean().nullable().optional(),
     keyNumber: z.string().trim().max(KEY_NUMBER_MAX).optional(),
+    /**
+     * Legacy Abkürzung (NUD-164): `undefined` leaves the stored value alone (the form only sends it
+     * when the office changed it); blank clears it. Written through `setCustomerAbbreviation`.
+     */
+    abbreviation: z.string().trim().max(ABBREVIATION_MAX).optional(),
   })
   .refine((v) => (v.lat === null) === (v.lng === null), { message: "pin" })
   .refine((v) => `${v.street}, ${v.postalCode} ${v.city}`.length <= MAX_ADDRESS_LENGTH, {
@@ -143,6 +150,22 @@ async function saveKey(
   });
 }
 
+/** Writes the Abkürzung of the form (audited), when the form carried it and the actor is known. */
+async function saveAbbreviation(
+  db: CustomerDb,
+  customerId: string,
+  v: z.output<typeof customerInputSchema>,
+  options: NotesOptions,
+): Promise<void> {
+  if (!options.actorId || v.abbreviation === undefined) return;
+  await setCustomerAbbreviation(db, {
+    actorId: options.actorId,
+    customerId,
+    abbreviation: v.abbreviation,
+    via: "office",
+  });
+}
+
 async function lookUpAddressPoint(
   geocoder: Geocoder | undefined,
   address: { street: string; postalCode: string; city: string; country: string },
@@ -192,6 +215,7 @@ export async function createCustomer(
       select: { id: true },
     });
     await saveKey(db, row.id, v, options);
+    await saveAbbreviation(db, row.id, v, options);
     return { ok: true, id: row.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
@@ -243,6 +267,7 @@ export async function updateCustomer(
       },
     });
     await saveKey(db, stored.id, v, options);
+    await saveAbbreviation(db, stored.id, v, options);
     return { ok: true, id: stored.id };
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, error: "number_taken" };
@@ -349,6 +374,10 @@ export type CustomerDetail = {
   /** Who last changed the key and when (office or driver); `null` while it was never set. */
   keyUpdatedBy: { name: string; role: "ADMIN" | "DRIVER" } | null;
   keyUpdatedAt: Date | null;
+  /** Legacy Abkürzung (NUD-164), `null` = none; with who last changed it and when. */
+  abbreviation: string | null;
+  abbreviationUpdatedBy: { name: string; role: "ADMIN" | "DRIVER" } | null;
+  abbreviationUpdatedAt: Date | null;
   active: boolean;
   hasStorePhoto: boolean;
   hasParkingPhoto: boolean;
@@ -365,6 +394,7 @@ export async function getCustomerDetail(
     include: {
       photos: { where: { isCurrent: true }, select: { kind: true } },
       keyUpdatedBy: { select: { displayName: true, role: true } },
+      abbreviationUpdatedBy: { select: { displayName: true, role: true } },
     },
   });
   if (!row) return null;
@@ -391,6 +421,11 @@ export async function getCustomerDetail(
       ? { name: row.keyUpdatedBy.displayName, role: row.keyUpdatedBy.role }
       : null,
     keyUpdatedAt: row.keyUpdatedAt,
+    abbreviation: row.abbreviation,
+    abbreviationUpdatedBy: row.abbreviationUpdatedBy
+      ? { name: row.abbreviationUpdatedBy.displayName, role: row.abbreviationUpdatedBy.role }
+      : null,
+    abbreviationUpdatedAt: row.abbreviationUpdatedAt,
     active: row.active,
     hasStorePhoto: row.photos.some((p) => p.kind === "STORE"),
     hasParkingPhoto: row.photos.some((p) => p.kind === "PARKING"),

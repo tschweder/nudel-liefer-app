@@ -419,7 +419,10 @@
           "yes": "Yes",
           "no": "No"
         },
-        "keyNumber": "Key number"
+        "keyNumber": "Key number",
+        "abbreviationHeading": "Abbreviation",
+        "abbreviationHint": "Optional. Legacy internal code from the old system: free text with special characters, may occur more than once. Drivers can also enter or correct it at the stop. Will be removed later.",
+        "abbreviation": "Abbreviation"
       },
       "detail": {
         "number": "Customer number {number}",
@@ -473,6 +476,16 @@
             "present": "Key available",
             "number": "Key no. {number}"
           }
+        },
+        "abbreviation": {
+          "heading": "Abbreviation",
+          "current": "Abbreviation",
+          "changed": "Last changed",
+          "never": "Never entered",
+          "changedBy": "Changed by {who}, {date}",
+          "none": "None",
+          "history": "History ({count})",
+          "change": "{from} → {to}"
         },
         "fromRecurring": "from standing order",
         "archivedCancelled": "{count, plural, one {Customer archived. # open order cancelled.} other {Customer archived. # open orders cancelled.}}",
@@ -1450,6 +1463,7 @@
         "parking_reorder": "Parking spots reordered",
         "parking_deactivate": "Parking spot removed",
         "customer_key": "Key changed",
+        "customer_abbreviation": "Abbreviation changed",
         "tour_move_stop": "Stop moved to another tour",
         "tour_create_empty": "Empty tour created",
         "tour_assign_vehicle": "Vehicle assigned",
@@ -1810,6 +1824,7 @@
       "errorShort": "Error",
       "pendingShort": "{count}",
       "mutationKey": "key",
+      "mutationAbbreviation": "abbreviation",
       "mutationParking": "parking spot",
       "mutationLoading": "checklist opened",
       "mutationDepart": "departure"
@@ -1819,6 +1834,24 @@
       "PACK": "Bag",
       "CRATE": "Carton",
       "PIECE": "Pieces"
+    },
+    "abbreviation": {
+      "chip": {
+        "value": "Abbreviation {value}",
+        "add": "Abbreviation",
+        "empty": "No abbreviation, tap to enter"
+      },
+      "title": "Abbreviation",
+      "description": "{name} · Saved immediately.",
+      "label": "Abbreviation",
+      "hint": "Old internal code, free text. Leave empty to delete it.",
+      "save": "Save",
+      "clear": "Delete",
+      "cancel": "Cancel",
+      "saved": "Abbreviation saved: {name}",
+      "errors": {
+        "storage": "That did not work. Please try again."
+      }
     },
     "key": {
       "chip": {

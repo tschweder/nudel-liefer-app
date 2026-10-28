@@ -419,7 +419,10 @@
           "yes": "Ja",
           "no": "Nein"
         },
-        "keyNumber": "Schlüsselnummer"
+        "keyNumber": "Schlüsselnummer",
+        "abbreviationHeading": "Abkürzung",
+        "abbreviationHint": "Optional. Alter interner Code aus dem bisherigen System, frei wählbarer Text mit Sonderzeichen, kann mehrfach vorkommen. Fahrer können ihn beim Stopp ebenfalls eintragen oder korrigieren. Wird später entfernt.",
+        "abbreviation": "Abkürzung"
       },
       "detail": {
         "number": "Kundennummer {number}",
@@ -473,6 +476,16 @@
             "present": "Schlüssel vorhanden",
             "number": "Schlüssel Nr. {number}"
           }
+        },
+        "abbreviation": {
+          "heading": "Abkürzung",
+          "current": "Abkürzung",
+          "changed": "Zuletzt geändert",
+          "never": "Noch nie eingetragen",
+          "changedBy": "Geändert von {who}, {date}",
+          "none": "Keine",
+          "history": "Verlauf ({count})",
+          "change": "{from} → {to}"
         },
         "fromRecurring": "aus Dauerbestellung",
         "archivedCancelled": "{count, plural, one {Kunde archiviert. # offene Bestellung storniert.} other {Kunde archiviert. # offene Bestellungen storniert.}}",
@@ -1450,6 +1463,7 @@
         "parking_reorder": "Parkplätze neu geordnet",
         "parking_deactivate": "Parkplatz entfernt",
         "customer_key": "Schlüssel geändert",
+        "customer_abbreviation": "Abkürzung geändert",
         "tour_move_stop": "Stopp in andere Tour verschoben",
         "tour_create_empty": "Leere Tour angelegt",
         "tour_assign_vehicle": "Fahrzeug zugewiesen",
@@ -1810,6 +1824,7 @@
       "errorShort": "Fehler",
       "pendingShort": "{count}",
       "mutationKey": "Schlüssel",
+      "mutationAbbreviation": "Abkürzung",
       "mutationParking": "Parkplatz",
       "mutationLoading": "Checkliste geöffnet",
       "mutationDepart": "Abfahrt"
@@ -1819,6 +1834,24 @@
       "PACK": "Sackerl",
       "CRATE": "Kiste",
       "PIECE": "Stück"
+    },
+    "abbreviation": {
+      "chip": {
+        "value": "Abkürzung {value}",
+        "add": "Abkürzung",
+        "empty": "Keine Abkürzung, tippen zum Eintragen"
+      },
+      "title": "Abkürzung",
+      "description": "{name} · Wird sofort gespeichert.",
+      "label": "Abkürzung",
+      "hint": "Alter interner Code, frei wählbar. Leer lassen, um ihn zu löschen.",
+      "save": "Speichern",
+      "clear": "Löschen",
+      "cancel": "Abbrechen",
+      "saved": "Abkürzung gespeichert: {name}",
+      "errors": {
+        "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
+      }
     },
     "key": {
       "chip": {

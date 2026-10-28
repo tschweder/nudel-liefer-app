@@ -96,9 +96,10 @@ model User {
   orders      Order[]
   tours       Tour[]
 
-  parkingSpots    ParkingSpot[]
-  keyUpdates      Customer[]       @relation("CustomerKeyUpdatedBy")
-  recurringOrders RecurringOrder[]
+  parkingSpots        ParkingSpot[]
+  keyUpdates          Customer[]       @relation("CustomerKeyUpdatedBy")
+  abbreviationUpdates Customer[]       @relation("CustomerAbbreviationUpdatedBy")
+  recurringOrders     RecurringOrder[]
 }
 
 /// Singleton row (id = 1).
@@ -122,47 +123,53 @@ model Settings {
 }
 
 model Customer {
-  id                String    @id @default(cuid())
-  customerNumber    String    @unique
-  name              String
-  street            String
-  postalCode        String
-  city              String
-  country           String    @default("AT")
-  lat               Float?
-  lng               Float?
+  id                      String    @id @default(cuid())
+  customerNumber          String    @unique
+  name                    String
+  street                  String
+  postalCode              String
+  city                    String
+  country                 String    @default("AT")
+  lat                     Float?
+  lng                     Float?
   /// Unused since NUD-141 (D22: no pin confirmation); kept so no destructive migration is needed.
-  pinConfirmed      Boolean   @default(false)
+  pinConfirmed            Boolean   @default(false)
   /// LocalizedText
-  notes             Json?
-  deliveryHoursInfo String?
+  notes                   Json?
+  deliveryHoursInfo       String?
   /// Legal entity behind the shop ("Firma"), office only. The driver matches `name` to the signage.
-  companyName       String?
+  companyName             String?
   /// VAT identification number ("UID", e.g. ATU12345678), office only.
-  vatId             String?
+  vatId                   String?
   /// Billing address, only when it differs from the delivery address above (office only, never routed).
-  billingStreet     String?
-  billingPostalCode String?
-  billingCity       String?
+  billingStreet           String?
+  billingPostalCode       String?
+  billingCity             String?
   /// Key to the shop (NUD-142, D27): `null` = unknown, `true` = the factory holds a key, `false` = none.
   /// Office and drivers maintain it; every change is audited (`customer.key`).
-  hasKey            Boolean?
+  hasKey                  Boolean?
   /// Number on the key tag, max 20 characters; only set while `hasKey` is true.
-  keyNumber         String?
-  keyUpdatedById    String?
-  keyUpdatedAt      DateTime?
-  active            Boolean   @default(true)
+  keyNumber               String?
+  keyUpdatedById          String?
+  keyUpdatedAt            DateTime?
+  /// Legacy internal code from the old system (NUD-164, D27). Free text with special characters, optional,
+  /// NOT unique, no logic; shown to drivers only to find their way until the new system is adopted, then removed.
+  abbreviation            String?
+  abbreviationUpdatedById String?
+  abbreviationUpdatedAt   DateTime?
+  active                  Boolean   @default(true)
   /// Accent-folded number/name/address for search. Maintained by a DB trigger (migration NUD-013); never write it.
-  searchText        String    @default("")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  searchText              String    @default("")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  photos          Photo[]
-  orders          Order[]
-  stops           Stop[]
-  parkingSpots    ParkingSpot[]
-  recurringOrders RecurringOrder[]
-  keyUpdatedBy    User?            @relation("CustomerKeyUpdatedBy", fields: [keyUpdatedById], references: [id], onDelete: Restrict)
+  photos                Photo[]
+  orders                Order[]
+  stops                 Stop[]
+  parkingSpots          ParkingSpot[]
+  recurringOrders       RecurringOrder[]
+  keyUpdatedBy          User?            @relation("CustomerKeyUpdatedBy", fields: [keyUpdatedById], references: [id], onDelete: Restrict)
+  abbreviationUpdatedBy User?            @relation("CustomerAbbreviationUpdatedBy", fields: [abbreviationUpdatedById], references: [id], onDelete: Restrict)
 
   @@index([name])
 }
@@ -454,6 +461,8 @@ enum StopMutationKind {
   UNDO
   /// Customer key number set by the driver at this stop (NUD-142); shares the idempotency table.
   KEY
+  /// Customer Abkürzung set by the driver at this stop (NUD-164); shares the idempotency table.
+  ABBREVIATION
   /// Parkplatz set by the driver at this stop (NUD-144).
   PARKING
   /// Driver opened the departure checklist of the stop's tour (NUD-151).

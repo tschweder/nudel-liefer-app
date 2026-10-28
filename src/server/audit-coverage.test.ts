@@ -28,6 +28,7 @@ const AUDITED = [
   "server/customer-photos.ts",
   "server/parking-spots.ts",
   "server/customer-key.ts",
+  "server/customer-abbreviation.ts",
   "server/tour-departure.ts",
   "server/vehicles.ts",
   "server/recurring-orders.ts",

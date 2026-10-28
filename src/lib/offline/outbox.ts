@@ -28,6 +28,8 @@ export type OutboxEntry = {
   /** Type "key" only (NUD-142): a key exists / does not; the number only goes with `true`. */
   hasKey?: boolean;
   keyNumber?: string;
+  /** Type "abbreviation" only (NUD-164): the new text; absent clears it. */
+  abbreviation?: string;
   /** Type "parking" only (NUD-144): the Parkplatz the driver set. */
   lat?: number;
   lng?: number;
@@ -84,6 +86,9 @@ export function toSyncEntry(entry: OutboxEntry): SyncEntry {
     ...(entry.type === "problem" && entry.note ? { note: entry.note } : {}),
     ...(entry.type === "key" && entry.hasKey !== undefined ? { hasKey: entry.hasKey } : {}),
     ...(entry.type === "key" && entry.keyNumber ? { keyNumber: entry.keyNumber } : {}),
+    ...(entry.type === "abbreviation" && entry.abbreviation
+      ? { abbreviation: entry.abbreviation }
+      : {}),
     ...(entry.type === "parking" && entry.lat !== undefined && entry.lng !== undefined
       ? { lat: entry.lat, lng: entry.lng }
       : {}),
@@ -114,7 +119,7 @@ export function planUndo(
   stopId: string,
   inFlight: ReadonlySet<string>,
 ): UndoPlan {
-  // A queued key, Parkplatz or departure entry is not a completion: it neither gets cancelled nor
+  // A queued key, Abkürzung, Parkplatz or departure entry is not a completion: it neither gets cancelled nor
   // hides one.
   const last = sortEntries(
     entries.filter((e) => e.stopId === stopId && isStopStatusEntry(e.type)),
@@ -170,6 +175,8 @@ export function overlayStop<T extends StopLike>(stop: T, entries: readonly Outbo
     } else if (entry.type === "key") {
       const hasKey = entry.hasKey ?? null;
       next = { ...next, hasKey, keyNumber: hasKey === true ? (entry.keyNumber ?? null) : null };
+    } else if (entry.type === "abbreviation") {
+      next = { ...next, abbreviation: entry.abbreviation ?? null };
     } else if (entry.type === "undo") {
       next = { ...next, status: "PENDING", problemReason: null, completedAt: null };
     } else if (next.status === "PENDING") {
@@ -286,6 +293,7 @@ type PatchableTour = {
       completedAt: string | null;
       hasKey?: boolean | null;
       keyNumber?: string | null;
+      abbreviation?: string | null;
       lat?: number | null;
       lng?: number | null;
       parkingSpots?: SyncParkingSpot[];
@@ -324,6 +332,7 @@ export function patchTourStates<T extends PatchableTour>(
               completedAt: s.completedAt,
               ...(s.hasKey !== undefined ? { hasKey: s.hasKey } : {}),
               ...(s.keyNumber !== undefined ? { keyNumber: s.keyNumber } : {}),
+              ...(s.abbreviation !== undefined ? { abbreviation: s.abbreviation } : {}),
               ...withServerSpots(s),
             }
           : stop;

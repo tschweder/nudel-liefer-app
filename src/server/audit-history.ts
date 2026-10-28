@@ -492,6 +492,7 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
       case "parking.deactivate":
       // Key entries (NUD-142) are shown in the customer's own key history, not here.
       case "customer.key":
+      case "customer.abbreviation":
       case "customer.deactivate":
       case "customer.activate":
       // Recurring rules (NUD-149) are listed on the customer page, not in an order or tour timeline.

@@ -10,6 +10,7 @@ import { PinPickerMapLazy } from "@/components/maps/lazy";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ABBREVIATION_MAX } from "@/domain/customer-abbreviation";
 import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import type { PhotoKind } from "@/domain/photos";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -36,6 +37,8 @@ export type CustomerFormValues = {
   office: OfficeValues;
   /** Customer key (NUD-142). */
   key: KeyValues;
+  /** Legacy Abkürzung (NUD-164). */
+  abbreviation: string;
 };
 
 export type KeyValues = { hasKey: "unknown" | "yes" | "no"; keyNumber: string };
@@ -129,6 +132,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
   const [notes, setNotes] = useState(initial.notes);
   const [office, setOffice] = useState(initial.office);
   const [keyValues, setKeyValues] = useState(initial.key);
+  const [abbreviation, setAbbreviation] = useState(initial.abbreviation);
   const [pin, setPin] = useState(initial.pin);
   const [search, setSearch] = useState<Search>({ state: "idle" });
   const [focus, setFocus] = useState<{ point: LatLng; nonce: number } | null>(null);
@@ -156,6 +160,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     notes: initial.notes,
     office: initial.office,
     key: initial.key,
+    abbreviation: initial.abbreviation,
     lat: initial.pin?.lat ?? null,
     lng: initial.pin?.lng ?? null,
   };
@@ -171,6 +176,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       notes,
       office,
       key: keyValues,
+      abbreviation,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
     }) !== JSON.stringify(initialValues);
@@ -198,6 +204,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
     setNotes(initial.notes);
     setOffice(initial.office);
     setKeyValues(initial.key);
+    setAbbreviation(initial.abbreviation);
     setPin(initial.pin);
     setSearch({ state: "idle" });
     setFocus(null);
@@ -263,6 +270,8 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
             hasKey: keyValues.hasKey === "unknown" ? null : keyValues.hasKey === "yes",
             keyNumber: keyValues.hasKey === "yes" ? keyValues.keyNumber : "",
           }),
+      // Same for the Abkürzung (NUD-164).
+      ...(abbreviation === initial.abbreviation ? {} : { abbreviation }),
     };
     startTransition(async () => {
       let result;
@@ -576,6 +585,25 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
             />
           </FieldRow>
         ) : null}
+      </section>
+
+      <section className="flex flex-col gap-6" aria-labelledby="cust-abbreviation">
+        <div className="flex flex-col gap-1">
+          <h2 id="cust-abbreviation" className="text-xl font-semibold">
+            {t("abbreviationHeading")}
+          </h2>
+          <p className="max-w-prose text-sm text-muted-foreground">{t("abbreviationHint")}</p>
+        </div>
+        <FieldRow id="cust-abbreviation-input" label={t("abbreviation")}>
+          <Input
+            id="cust-abbreviation-input"
+            className="max-w-xs"
+            value={abbreviation}
+            maxLength={ABBREVIATION_MAX}
+            onChange={(e) => setAbbreviation(e.target.value)}
+            data-testid="customer-abbreviation"
+          />
+        </FieldRow>
       </section>
 
       <section className="flex flex-col gap-6" aria-labelledby="cust-office">

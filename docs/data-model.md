@@ -46,6 +46,7 @@ The provider is `postgresql`; the generated client is emitted to
   `serviceMinutesPerStop`, `deliveryWeekdays` and `departureChecklist` (JSON list of `{ id, text: LocalizedText }`:
   the fixed items of the driver's departure checklist, NUD-151; German is the source).
 - **`Customer`** — addresses with `customerNumber` (unique), coordinates (the address point; `pinConfirmed` is unused since NUD-141), the optional key (`hasKey`, `keyNumber`, `keyUpdatedById`, `keyUpdatedAt`; NUD-142), and
+  - Temporary (NUD-164): `abbreviation`, `abbreviationUpdatedById`, `abbreviationUpdatedAt` hold the legacy Abkürzung (free text, not unique); `StopMutationKind` also has `ABBREVIATION` for a driver's entry. Drop them when the old system is retired.
   `notes`/`deliveryHoursInfo`. Office-only master data (NUD-136): `companyName` ("Firma"), `vatId`
   ("UID") and `billingStreet`/`billingPostalCode`/`billingCity`, set only when the billing address
   differs; `street`/`postalCode`/`city` are always the **delivery** address (geocoded, routed, shown

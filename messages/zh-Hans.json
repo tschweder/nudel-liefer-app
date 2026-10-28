@@ -419,7 +419,10 @@
           "yes": "是",
           "no": "否"
         },
-        "keyNumber": "钥匙编号"
+        "keyNumber": "钥匙编号",
+        "abbreviationHeading": "缩写",
+        "abbreviationHint": "可选。旧系统的内部代码，可自由填写文字和特殊字符，允许重复。司机也可以在停靠点填写或更正。之后会被移除。",
+        "abbreviation": "缩写"
       },
       "detail": {
         "number": "客户编号 {number}",
@@ -473,6 +476,16 @@
             "present": "有钥匙",
             "number": "钥匙编号 {number}"
           }
+        },
+        "abbreviation": {
+          "heading": "缩写",
+          "current": "缩写",
+          "changed": "最近更改",
+          "never": "尚未填写",
+          "changedBy": "由 {who} 更改，{date}",
+          "none": "无",
+          "history": "历史记录（{count}）",
+          "change": "{from} → {to}"
         },
         "fromRecurring": "来自长期订单",
         "archivedCancelled": "{count, plural, other {客户已归档，已取消 # 个未完成订单。}}",
@@ -1450,6 +1463,7 @@
         "parking_reorder": "已调整停车位顺序",
         "parking_deactivate": "已移除停车位",
         "customer_key": "钥匙已更改",
+        "customer_abbreviation": "缩写已更改",
         "tour_move_stop": "站点已移至其他线路",
         "tour_create_empty": "已创建空线路",
         "tour_assign_vehicle": "已分配车辆",
@@ -1810,6 +1824,7 @@
       "errorShort": "错误",
       "pendingShort": "{count}",
       "mutationKey": "钥匙",
+      "mutationAbbreviation": "缩写",
       "mutationParking": "停车位",
       "mutationLoading": "已打开清单",
       "mutationDepart": "出发"
@@ -1819,6 +1834,24 @@
       "PACK": "袋",
       "CRATE": "纸箱",
       "PIECE": "件"
+    },
+    "abbreviation": {
+      "chip": {
+        "value": "缩写 {value}",
+        "add": "缩写",
+        "empty": "没有缩写，点击填写"
+      },
+      "title": "缩写",
+      "description": "{name} · 立即保存。",
+      "label": "缩写",
+      "hint": "旧的内部代码，可自由填写。留空即删除。",
+      "save": "保存",
+      "clear": "删除",
+      "cancel": "取消",
+      "saved": "缩写已保存：{name}",
+      "errors": {
+        "storage": "操作失败，请重试。"
+      }
     },
     "key": {
       "chip": {

@@ -9,6 +9,7 @@ import { type AppLocale, pick } from "@/lib/localized-text";
 import { getMapTileConfig } from "@/lib/map-config";
 import { requirePageActor } from "@/server/auth/page-guards";
 import {
+  customerAbbreviationHistoryQuery,
   customerKeyHistoryQuery,
   customerPhotosQuery,
   getCustomerQuery,
@@ -49,17 +50,27 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
   await requirePageActor("admin", locale);
   const customer = await getCustomerQuery(id);
   if (!customer) notFound();
-  const [orders, photos, noteTranslations, parkingSpots, keyHistory, rules, products, timezone] =
-    await Promise.all([
-      upcomingOrdersQuery(id),
-      customerPhotosQuery(id),
-      noteTranslationsQuery(id),
-      parkingSpotsQuery(id),
-      customerKeyHistoryQuery(id),
-      recurringOrdersQuery(id),
-      activeProductsQuery(),
-      getFactoryTimezone(),
-    ]);
+  const [
+    orders,
+    photos,
+    noteTranslations,
+    parkingSpots,
+    keyHistory,
+    abbreviationHistory,
+    rules,
+    products,
+    timezone,
+  ] = await Promise.all([
+    upcomingOrdersQuery(id),
+    customerPhotosQuery(id),
+    noteTranslationsQuery(id),
+    parkingSpotsQuery(id),
+    customerKeyHistoryQuery(id),
+    customerAbbreviationHistoryQuery(id),
+    recurringOrdersQuery(id),
+    activeProductsQuery(),
+    getFactoryTimezone(),
+  ]);
   return (
     <CustomerDetailView
       customer={customer}
@@ -67,6 +78,7 @@ async function Guarded({ locale, id }: { locale: string; id: string }) {
       noteTranslations={noteTranslations}
       parkingSpots={parkingSpots}
       keyHistory={keyHistory}
+      abbreviationHistory={abbreviationHistory}
       tiles={getMapTileConfig()}
       recurringRules={rules}
       recurringProducts={products.map((p) => ({

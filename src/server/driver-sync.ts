@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { ABBREVIATION_MAX } from "@/domain/customer-abbreviation";
 import { KEY_NUMBER_MAX } from "@/domain/customer-key";
 import {
   effectiveMutationTime,
@@ -15,6 +16,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 import { type Actor, authErrorStatus, requireRole } from "./auth/guards";
 import { rejectCrossOrigin } from "./csrf";
+import { applyDriverAbbreviation } from "./customer-abbreviation";
 import { applyDriverKey } from "./customer-key";
 import { getDb } from "./db";
 import { readTextLimited } from "./http-body";
@@ -57,6 +59,11 @@ export const syncRequestSchema = z.strictObject({
           ...entryFields,
           hasKey: z.boolean(),
           keyNumber: z.string().max(KEY_NUMBER_MAX).optional(),
+        }),
+        z.strictObject({
+          type: z.literal("abbreviation"),
+          ...entryFields,
+          abbreviation: z.string().max(ABBREVIATION_MAX).optional(),
         }),
       ]),
     )
@@ -129,6 +136,26 @@ export async function applySyncBatch(
                 clientMutationId: entry.clientMutationId,
                 outcome: "rejected",
                 error: keyResult.error,
+              },
+        );
+        continue;
+      }
+      if (entry.type === "abbreviation") {
+        // The customer's Abkürzung (NUD-164) is not part of the stop status either.
+        const abbreviationResult = await applyDriverAbbreviation(db, actor, mutation, at, {
+          clientCreatedAt: at,
+        });
+        results.set(
+          entry.clientMutationId,
+          abbreviationResult.ok
+            ? {
+                clientMutationId: entry.clientMutationId,
+                outcome: abbreviationResult.replayed ? "replayed" : "applied",
+              }
+            : {
+                clientMutationId: entry.clientMutationId,
+                outcome: "rejected",
+                error: abbreviationResult.error,
               },
         );
         continue;
@@ -230,6 +257,7 @@ async function touchedTours(
             select: {
               hasKey: true,
               keyNumber: true,
+              abbreviation: true,
               parkingSpots: { where: { active: true }, orderBy: { sortOrder: "asc" } },
             },
           },
@@ -249,6 +277,7 @@ async function touchedTours(
       completedAt: s.completedAt?.toISOString() ?? null,
       hasKey: s.customer.hasKey,
       keyNumber: s.customer.keyNumber,
+      abbreviation: s.customer.abbreviation,
       parkingSpots: s.customer.parkingSpots.map((spot) => ({
         label: spot.label,
         note: spot.note,

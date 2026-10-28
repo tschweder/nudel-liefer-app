@@ -35,6 +35,7 @@ import { useOverlaidPhotos } from "@/lib/offline/use-photo-overlay";
 import { isPieceUnit } from "@/lib/units";
 import { cn } from "@/lib/utils";
 
+import { AbbreviationChip } from "./customer-abbreviation";
 import { KeyChip } from "./customer-key";
 import { localizeDeliveryHours } from "./delivery-hours";
 import { driverTime } from "./driver-time";
@@ -152,9 +153,10 @@ export function StopDetail({
 
         <CopyAddress address={address} />
 
-        {stop.hasKey !== undefined ? (
-          <div>
+        {stop.hasKey !== undefined || stop.abbreviation !== undefined ? (
+          <div className="flex flex-wrap items-center gap-2">
             <KeyChip stop={stop} interactive />
+            <AbbreviationChip stop={stop} interactive />
           </div>
         ) : null}
 

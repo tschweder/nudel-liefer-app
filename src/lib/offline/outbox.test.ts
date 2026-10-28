@@ -254,6 +254,43 @@ describe("backoff", () => {
   });
 });
 
+describe("customer Abkürzung entries (NUD-164)", () => {
+  const abbr = (stopId: string, abbreviation?: string) =>
+    entry({ type: "abbreviation", stopId, ...(abbreviation ? { abbreviation } : {}) });
+
+  it("sends the text only for abbreviation entries; clearing sends none", () => {
+    expect(toSyncEntry(abbr("s1", "Ä/ß-#1"))).toEqual({
+      clientMutationId: expect.any(String),
+      type: "abbreviation",
+      stopId: "s1",
+      abbreviation: "Ä/ß-#1",
+      createdAt: expect.any(String),
+    });
+    expect(toSyncEntry(abbr("s1"))).not.toHaveProperty("abbreviation");
+    expect(
+      toSyncEntry(entry({ type: "delivered", stopId: "s1", abbreviation: "X" })),
+    ).not.toHaveProperty("abbreviation");
+  });
+
+  it("overlays the newest text at once, independent of the stop status; clearing shows none", () => {
+    const stop = { ...pending, abbreviation: null as string | null };
+    expect(overlayStop(stop, [abbr("s1", "A1")])).toMatchObject({
+      status: "PENDING",
+      abbreviation: "A1",
+    });
+    expect(overlayStop(stop, [abbr("s1", "A1"), abbr("s1", "B2")])).toMatchObject({
+      abbreviation: "B2",
+    });
+    expect(overlayStop(stop, [abbr("s1", "A1"), abbr("s1")])).toMatchObject({
+      abbreviation: null,
+    });
+  });
+
+  it("does not let an undo cancel a queued Abkürzung entry", () => {
+    expect(planUndo([abbr("s1", "A1")], "s1", new Set())).toEqual({ action: "enqueue" });
+  });
+});
+
 describe("customer key entries (NUD-142)", () => {
   const key = (stopId: string, hasKey: boolean, keyNumber?: string) =>
     entry({ type: "key", stopId, hasKey, ...(keyNumber ? { keyNumber } : {}) });

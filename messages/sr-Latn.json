@@ -403,6 +403,7 @@
       "errorShort": "Greška",
       "pendingShort": "{count}",
       "mutationKey": "ključ",
+      "mutationAbbreviation": "skraćenica",
       "mutationParking": "parking mesto",
       "mutationLoading": "lista otvorena",
       "mutationDepart": "polazak"
@@ -412,6 +413,24 @@
       "PACK": "Kesa",
       "CRATE": "Karton",
       "PIECE": "Komada"
+    },
+    "abbreviation": {
+      "chip": {
+        "value": "Skraćenica {value}",
+        "add": "Skraćenica",
+        "empty": "Nema skraćenice, dodirnite za unos"
+      },
+      "title": "Skraćenica",
+      "description": "{name} · Čuva se odmah.",
+      "label": "Skraćenica",
+      "hint": "Stari interni kod, slobodan tekst. Ostavite prazno da ga obrišete.",
+      "save": "Sačuvaj",
+      "clear": "Obriši",
+      "cancel": "Otkaži",
+      "saved": "Skraćenica sačuvana: {name}",
+      "errors": {
+        "storage": "Nije uspelo. Pokušajte ponovo."
+      }
     },
     "key": {
       "chip": {

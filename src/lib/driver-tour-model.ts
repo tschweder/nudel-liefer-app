@@ -115,6 +115,8 @@ export const payloadStopSchema = z.object({
    */
   hasKey: z.boolean().nullable().default(null),
   keyNumber: z.string().nullable().default(null),
+  /** The customer's legacy Abkürzung (NUD-164); caches written before it read as none. */
+  abbreviation: z.string().nullable().default(null),
   photos: z.object({
     STORE: payloadPhotoSchema.nullable(),
     PARKING: payloadPhotoSchema.nullable(),
@@ -226,6 +228,11 @@ export type TodayStop = {
    */
   hasKey?: boolean | null;
   keyNumber?: string | null;
+  /**
+   * The customer's Abkürzung (NUD-164). Optional like `hasKey`: `undefined` (hand-built values)
+   * shows no Abkürzung chip at all; `null` = none yet.
+   */
+  abbreviation?: string | null;
   items: TodayItem[];
 };
 
@@ -318,6 +325,7 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     noteText: stop.notes ? pick(stop.notes, locale).trim() || null : null,
     hasKey: stop.hasKey,
     keyNumber: stop.keyNumber,
+    abbreviation: stop.abbreviation,
     items: stop.items.map((item) => ({
       productId: item.productId,
       name: pickName(item.name, item.sku, locale),

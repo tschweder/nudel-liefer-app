@@ -1,4 +1,5 @@
 import { requireRole } from "./auth/guards";
+import { getCustomerAbbreviationHistory } from "./customer-abbreviation";
 import { getCustomerDetail, listUpcomingOrders, nextCustomerNumber } from "./customer-admin";
 import { getCustomerKeyHistory } from "./customer-key";
 import { getNoteTranslations } from "./customer-notes";
@@ -79,4 +80,10 @@ export async function customerKeyHistoryQuery(id: unknown) {
 export async function recurringOrdersQuery(id: unknown) {
   await requireRole("ADMIN");
   return listRecurringOrders(getDb(), id, todayIn(await getFactoryTimezone()));
+}
+
+/** Abkürzung changes of one customer, newest first (admin only). */
+export async function customerAbbreviationHistoryQuery(id: unknown) {
+  await requireRole("ADMIN");
+  return getCustomerAbbreviationHistory(getDb(), id);
 }

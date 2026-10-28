@@ -5,6 +5,7 @@ import {
   MapPinOffIcon,
   PencilIcon,
   RepeatIcon,
+  TagIcon,
 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 
@@ -18,6 +19,7 @@ import { Link } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
 import type { MapTileConfig } from "@/lib/map-config";
+import type { AbbreviationHistoryEntry } from "@/server/customer-abbreviation";
 import type { CustomerDetail, UpcomingOrder } from "@/server/customer-admin";
 import type { KeyHistoryEntry } from "@/server/customer-key";
 import type { NoteTranslationsView } from "@/server/customer-notes";
@@ -67,6 +69,7 @@ export function CustomerDetailView({
   noteTranslations,
   parkingSpots,
   keyHistory,
+  abbreviationHistory,
   tiles,
   recurringRules,
   recurringProducts,
@@ -81,6 +84,8 @@ export function CustomerDetailView({
   parkingSpots: ParkingSpotView[];
   /** Key changes, newest first (NUD-142). */
   keyHistory: KeyHistoryEntry[];
+  /** Abkürzung changes, newest first (NUD-164). */
+  abbreviationHistory: AbbreviationHistoryEntry[];
   tiles: MapTileConfig;
   /** Recurring orders of the customer (NUD-149). */
   recurringRules: RecurringRuleView[];
@@ -104,6 +109,8 @@ export function CustomerDetailView({
       ? tk("states.number", { number: display.number })
       : tk(`states.${display.kind}`);
   };
+  const ta = useTranslations("admin.customers.detail.abbreviation");
+  const abbreviationText = (value: string | null) => value ?? ta("none");
   const actorText = (actor: { name: string; role: "ADMIN" | "DRIVER" } | null) =>
     actor ? tk(`by.${actor.role}`, { name: actor.name }) : tk("by.unknown");
   const photosMissing = photosMissingFor(
@@ -254,6 +261,54 @@ export function CustomerDetailView({
                           {fmt.dateTime(new Date(entry.at))} · {actorText(entry.actor)}
                         </span>
                         {tk("change", { from: keyText(entry.from), to: keyText(entry.to) })}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <h2 id="d-abbreviation" className="flex items-center gap-2 text-lg font-semibold">
+                <TagIcon className="size-5" aria-hidden />
+                {ta("heading")}
+              </h2>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <dl className="grid gap-4 sm:grid-cols-2" aria-labelledby="d-abbreviation">
+                <Field label={ta("current")} testId="detail-abbreviation">
+                  {abbreviationText(customer.abbreviation)}
+                </Field>
+                <Field label={ta("changed")} testId="detail-abbreviation-meta">
+                  {customer.abbreviationUpdatedAt
+                    ? ta("changedBy", {
+                        who: actorText(customer.abbreviationUpdatedBy),
+                        date: fmt.dateTime(customer.abbreviationUpdatedAt),
+                      })
+                    : ta("never")}
+                </Field>
+              </dl>
+              {abbreviationHistory.length > 0 ? (
+                <details data-testid="abbreviation-history">
+                  <summary className="cursor-pointer text-base font-medium">
+                    {ta("history", { count: abbreviationHistory.length })}
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {abbreviationHistory.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="text-base"
+                        data-testid="abbreviation-history-row"
+                      >
+                        <span className="block text-sm text-muted-foreground">
+                          {fmt.dateTime(new Date(entry.at))} · {actorText(entry.actor)}
+                        </span>
+                        {ta("change", {
+                          from: abbreviationText(entry.from),
+                          to: abbreviationText(entry.to),
+                        })}
                       </li>
                     ))}
                   </ul>
