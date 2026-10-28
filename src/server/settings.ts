@@ -11,6 +11,7 @@ import {
   type PlanningSettings,
   requireDepot,
 } from "@/domain/settings";
+import { MAX_DEFAULT_LOADING_MINUTES } from "@/domain/work-time";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { roundCoord } from "@/lib/coords";
 import { DEFAULT_TIMEZONE } from "@/lib/format";
@@ -33,6 +34,8 @@ export type AppSettings = DepotSettings &
     serviceMinutesPerStop: number;
     recurringLeadDays: number;
     departureChecklist: ChecklistItem[];
+    /** Loading time assumed when the driver skipped the departure checklist (NUD-152). */
+    defaultLoadingMinutes: number;
   };
 
 const SETTINGS_ID = 1;
@@ -56,6 +59,11 @@ export const settingsInputSchema = z.object({
   timezone: z.string().trim().min(1).max(64).refine(isValidTimezone),
   departureTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   serviceMinutesPerStop: z.number().int().min(0).max(180),
+  /**
+   * Loading time assumed when the driver skipped the departure checklist (NUD-152, D28);
+   * omitted = unchanged.
+   */
+  defaultLoadingMinutes: z.number().int().min(0).max(MAX_DEFAULT_LOADING_MINUTES).optional(),
   /** Days ahead the daily job generates recurring orders (NUD-149); omitted = unchanged. */
   recurringLeadDays: z.number().int().min(1).max(60).optional(),
   deliveryWeekdays: z
@@ -136,6 +144,7 @@ export async function readSettings(db: SettingsDb): Promise<AppSettings | null> 
     recurringLeadDays: row.recurringLeadDays,
     deliveryWeekdays: row.deliveryWeekdays,
     departureChecklist: parseDepartureChecklist(row.departureChecklist),
+    defaultLoadingMinutes: row.defaultLoadingMinutes,
   };
 }
 

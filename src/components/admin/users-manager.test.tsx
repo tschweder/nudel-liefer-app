@@ -102,6 +102,8 @@ function renderManager() {
         admins={admins}
         currentUserId="a1"
         timezone="Europe/Vienna"
+        schedules={{}}
+        utilization={{}}
       />
     </NextIntlClientProvider>,
   );

@@ -78,6 +78,7 @@ import type { PlanStop, TourPlan } from "@/server/tour-planning";
 import { LateOrdersBanner, TourTabs } from "./late-orders-banner";
 import { PlanDayDialog } from "./plan-day-dialog";
 import { ProblemNote } from "./problem-note";
+import { ShiftWarning } from "./shift-warning";
 import { TourDiffList } from "./tour-diff-list";
 import { TourEditDialog, type TourEditPayload } from "./tour-edit-dialog";
 import { TourLoad } from "./tour-load";
@@ -479,6 +480,11 @@ export function TourPlanner({
         <LateOrdersBanner plan={plan} />
         <Warnings plan={plan} />
         <Unplanned plan={plan} />
+        <ShiftWarning
+          warning={tour.shiftWarning}
+          driverName={plan.drivers.find((d) => d.id === tour.driverId)?.displayName ?? null}
+          timezone={plan.timezone}
+        />
         <ErrorAlert error={error} errorText={errorText} />
         {tour.isOutdated && editable ? (
           <Alert variant="destructive" data-testid="tour-outdated">

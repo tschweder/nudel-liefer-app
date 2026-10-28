@@ -21,6 +21,7 @@ import {
 } from "@/domain/tour-plan";
 import { canTransition, isReReleasable } from "@/domain/tour-status";
 import { worstTripLoad } from "@/domain/vehicle";
+import { shiftIssue } from "@/domain/work-time";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/localized-text";
 
@@ -29,11 +30,12 @@ import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
 import { MAX_STOPS, RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
-import type { AppSettings } from "./settings";
+import { type AppSettings, readSettings } from "./settings";
 import type { TourWarning } from "./tour-builder";
 import { tourLoadsOf } from "./tour-load";
 import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
 import { routeTrips, scheduleTrips } from "./tour-routing";
+import { listWorkSchedules } from "./work-schedule";
 
 /**
  * Tour planning (NUD-042): the read model of `/admin/tours` and the mutations behind its buttons.
@@ -134,6 +136,21 @@ export type PlanVehicle = {
   active: boolean;
 };
 
+/**
+ * Planning warning of the tour page (NUD-152, D28): the assigned driver does not work that weekday,
+ * or the planned return is after his shift end. Instants are ISO strings so the client can format
+ * them in the factory time zone.
+ */
+export type PlanShiftWarning =
+  | { kind: "non_working_day"; weekday: number }
+  | {
+      kind: "shift_end";
+      weekday: number;
+      plannedReturnAt: string;
+      shiftEnd: string;
+      overrunMinutes: number;
+    };
+
 export type PlanTour = {
   id: string;
   status: "DRAFT" | "OPTIMIZED" | "RELEASED" | "IN_PROGRESS" | "COMPLETED";
@@ -141,6 +158,12 @@ export type PlanTour = {
   isOutdated: boolean;
   approximate: boolean;
   driverId: string | null;
+  /**
+   * NUD-152, D28: the planning warning for the assigned driver — the tour is planned on a weekday the
+   * driver does not work, or its planned end is after the shift end. `null` without a warning (or
+   * without a maintained work schedule).
+   */
+  shiftWarning: PlanShiftWarning | null;
   /** NUD-146: the vehicle of this tour (`null` = none yet). */
   vehicleId: string | null;
   /** NUD-146: weight of everything on the tour's stops in kg (stop snapshots x weight per unit). */
@@ -246,6 +269,39 @@ export function readDepot(value: unknown): PlanTour["depot"] {
   return parsed.success ? parsed.data : null;
 }
 // unbounded-ok-end
+
+/**
+ * The planning warning for the assigned driver (NUD-152, D28): planned on a weekday he does not work,
+ * or planned to end after his shift end. Read from the driver's `WorkSchedule` and the settings; a
+ * driver without a schedule produces no warning.
+ */
+async function shiftWarningOf(
+  db: PrismaClient,
+  tour: { date: Date; totalDurationS: number | null; driverId: string | null } | null,
+  timezone: string,
+): Promise<PlanShiftWarning | null> {
+  if (!tour?.driverId) return null;
+  const settings = await readSettings(db);
+  if (!settings) return null;
+  const schedules = await listWorkSchedules(db, [tour.driverId]);
+  const issue = shiftIssue({
+    tour: { date: tour.date, totalDurationS: tour.totalDurationS },
+    schedule: schedules.get(tour.driverId) ?? null,
+    settings: { departureTime: settings.departureTime },
+    timeZone: timezone,
+  });
+  if (!issue) return null;
+  if (issue.kind === "non_working_day") {
+    return { kind: "non_working_day", weekday: issue.weekday };
+  }
+  return {
+    kind: "shift_end",
+    weekday: issue.weekday,
+    plannedReturnAt: issue.plannedReturnAt.toISOString(),
+    shiftEnd: issue.shiftEnd.toISOString(),
+    overrunMinutes: issue.overrunMinutes,
+  };
+}
 
 /**
  * The planning screen of a day: its tours (v1 has one; after a completed tour a follow-up tour
@@ -385,6 +441,7 @@ export async function getTourPlan(
     select: { id: true, name: true, plate: true, capacityKg: true, active: true },
   });
   const loads = tour ? await tourLoadsOf(db, tour.stops) : null;
+  const shiftWarning = await shiftWarningOf(db, tour, timezone);
 
   return {
     date: formatCalendarDate(date),
@@ -416,6 +473,7 @@ export async function getTourPlan(
           isOutdated: tour.isOutdated,
           approximate: tour.approximate,
           driverId: tour.driverId,
+          shiftWarning,
           vehicleId: tour.vehicleId,
           loadKg: loads?.totalKg ?? 0,
           tripLoadsKg: loads?.tripLoadsKg ?? [],

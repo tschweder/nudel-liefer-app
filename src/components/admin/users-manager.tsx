@@ -3,6 +3,7 @@
 import {
   BanIcon,
   CheckCircle2Icon,
+  ClockIcon,
   CopyIcon,
   KeyRoundIcon,
   LanguagesIcon,
@@ -16,6 +17,7 @@ import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/admin/page-header";
+import { ScheduleSummary, WorkScheduleDialog } from "@/components/admin/work-schedule-editor";
 import { EmptyState } from "@/components/shared/states";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { ScheduleDay } from "@/domain/work-time";
 import { createAppFormatters } from "@/lib/format";
 import { isAppLocale, LOCALE_LABELS } from "@/lib/locale-resolution";
 import { LOCALES } from "@/lib/localized-text";
@@ -71,6 +74,13 @@ export type UserListRow = {
   active: boolean;
   /** ISO timestamp of the last successful sign-in; `null` when the person never signed in. */
   lastLoginAt: string | null;
+};
+
+/** Utilization of one driver in the current week (NUD-152): measured vs contracted minutes. */
+export type UserUtilization = {
+  percent: number | null;
+  actualMinutes: number;
+  contractMinutes: number;
 };
 
 const ERROR_KEYS: Record<UserError, string> = {
@@ -131,6 +141,37 @@ function LastLogin({ row, timezone }: { row: UserListRow; timezone: string }) {
 }
 
 /**
+ * Utilization of the current week as a column of the driver list (NUD-152): the measured tour time
+ * as a percentage of the contracted hours. Without a schedule there is nothing to compare against.
+ */
+function UtilizationCell({ utilization }: { utilization?: UserUtilization }) {
+  const t = useTranslations("admin.drivers");
+  if (!utilization) return <span className="text-muted-foreground">—</span>;
+  if (utilization.percent === null) {
+    return (
+      <span className="text-muted-foreground" title={t("utilization.noSchedule")}>
+        —
+      </span>
+    );
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-default" data-testid="driver-utilization">
+          {t("utilization.percent", { percent: utilization.percent })}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {t("utilization.hint", {
+          actual: utilization.actualMinutes,
+          contract: utilization.contractMinutes,
+        })}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
  * Drivers + admins management (re-design.md §8.7): 48 px rows, initials `Avatar` with a deterministic
  * colour, the language as a read-only badge (editing moved into the row's edit dialog — the inline
  * native `<select>` is gone), `StatusBadge`, relative "last sign-in" with the absolute time in a
@@ -153,6 +194,8 @@ export function UsersManager({
   admins,
   currentUserId,
   timezone,
+  schedules,
+  utilization,
 }: {
   /** `h1` of the page (it stays the page's only `title`, `data-testid="section-title"`). */
   title: string;
@@ -162,6 +205,10 @@ export function UsersManager({
   currentUserId: string;
   /** Factory time zone for the absolute "last sign-in" tooltip. */
   timezone: string;
+  /** Working days and hours per driver id (NUD-152); a driver without rows has no schedule. */
+  schedules: Record<string, ScheduleDay[]>;
+  /** Utilization of the current week per driver id; a missing entry means "not computed". */
+  utilization: Record<string, UserUtilization>;
 }) {
   const t = useTranslations("admin.drivers");
   const tc = useTranslations("common");
@@ -174,6 +221,7 @@ export function UsersManager({
   const [pinSheet, setPinSheet] = useState<PinSheet | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [editLogin, setEditLogin] = useState<UserListRow | null>(null);
+  const [scheduleFor, setScheduleFor] = useState<UserListRow | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const errorText = (error: UserError) => t(`errors.${ERROR_KEYS[error]}`);
@@ -308,6 +356,16 @@ export function UsersManager({
             </Badge>
           </TableCell>
         ) : null}
+        {kind === "driver" ? (
+          <TableCell className="py-1.5">
+            <ScheduleSummary schedule={schedules[user.id] ?? []} />
+          </TableCell>
+        ) : null}
+        {kind === "driver" ? (
+          <TableCell className="py-1.5 tabular-nums">
+            <UtilizationCell utilization={utilization[user.id]} />
+          </TableCell>
+        ) : null}
         <TableCell className="py-1.5">
           <StatusBadge
             tone={user.active ? "success" : "neutral"}
@@ -343,6 +401,15 @@ export function UsersManager({
                 >
                   <PencilIcon aria-hidden />
                   {t("actions.editLogin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  data-testid="edit-schedule"
+                  onSelect={() => {
+                    setScheduleFor(user);
+                  }}
+                >
+                  <ClockIcon aria-hidden />
+                  {t("actions.editSchedule")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
@@ -406,6 +473,8 @@ export function UsersManager({
                     <TableHead>{t("columns.name")}</TableHead>
                     <TableHead>{t("columns.username")}</TableHead>
                     <TableHead>{t("columns.language")}</TableHead>
+                    <TableHead>{t("columns.schedule")}</TableHead>
+                    <TableHead>{t("columns.utilization")}</TableHead>
                     <TableHead>{t("columns.status")}</TableHead>
                     <TableHead>{t("columns.lastLogin")}</TableHead>
                     <TableHead className="text-end">{t("columns.actions")}</TableHead>
@@ -658,6 +727,17 @@ export function UsersManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <WorkScheduleDialog
+        key={scheduleFor?.id ?? "none"}
+        driverId={scheduleFor?.id ?? ""}
+        driverName={scheduleFor?.displayName ?? ""}
+        days={schedules[scheduleFor?.id ?? ""] ?? []}
+        open={scheduleFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setScheduleFor(null);
+        }}
+      />
 
       <Dialog open={pinSheet !== null} onOpenChange={(open) => !open && setPinSheet(null)}>
         <DialogContent className="pin-sheet" data-testid="pin-dialog">

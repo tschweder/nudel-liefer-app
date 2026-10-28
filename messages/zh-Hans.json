@@ -235,7 +235,8 @@
         "masterData": "基础数据",
         "system": "系统"
       },
-      "vehicles": "车辆"
+      "vehicles": "车辆",
+      "utilization": "工时利用率"
     },
     "drivers": {
       "title": "司机",
@@ -248,7 +249,9 @@
         "language": "语言",
         "status": "状态",
         "lastLogin": "上次登录",
-        "actions": "操作"
+        "actions": "操作",
+        "schedule": "工作时间",
+        "utilization": "利用率"
       },
       "status": {
         "active": "启用",
@@ -279,7 +282,8 @@
         "deactivate": "停用",
         "reactivate": "重新启用",
         "changeLanguage": "更改{name}的语言",
-        "editLogin": "修改语言"
+        "editLogin": "修改语言",
+        "editSchedule": "编辑工作时间"
       },
       "confirm": {
         "resetTitle": "重置{name}的PIN码？",
@@ -319,6 +323,24 @@
       },
       "rowMenu": {
         "label": "{name} 的操作"
+      },
+      "utilization": {
+        "percent": "{percent} %",
+        "hint": "本周 {actual} 分钟，共 {contract} 分钟",
+        "noSchedule": "未设置工作时间"
+      },
+      "schedule": {
+        "none": "未设置工作时间",
+        "title": "{name} 的工作时间",
+        "description": "{name} 每周哪几天上班、上多久。工时利用率和行程页面的提醒都以此为依据。",
+        "startLabel": "{weekday}开始",
+        "endLabel": "{weekday}结束",
+        "saved": "{name} 的工作时间已保存。",
+        "errors": {
+          "hours": "请检查开始和结束时间：结束必须晚于开始。",
+          "notFound": "未找到该司机。",
+          "generic": "保存失败，请重试。"
+        }
       }
     },
     "customers": {
@@ -911,7 +933,9 @@
         "weekdays": "配送日",
         "weekdaysHint": "仅在这些星期几配送。新订单默认使用下一个配送日。",
         "recurringLeadDays": "长期订单提前天数",
-        "recurringLeadDaysHint": "系统提前这么多天根据长期订单生成订单（1 至 60）。"
+        "recurringLeadDaysHint": "系统提前这么多天根据长期订单生成订单（1 至 60）。",
+        "defaultLoadingMinutes": "无检查表的装车时间（分钟）",
+        "defaultLoadingMinutesHint": "司机跳过出车检查表时，工时利用率按这个装车时间计算（0 到 180）。"
       },
       "save": "保存",
       "saving": "正在保存…",
@@ -1482,6 +1506,12 @@
         "title": "今天未排入：{count, plural, other {# 位客户}}",
         "body": "这一天的站点数超过一次规划可处理的上限（最多 {max} 个）。已规划从仓库出发行驶距离最短的站点。这些客户的订单不在任何配送线路上：请改到其他日期。",
         "orders": "{count, plural, other {# 个订单}}"
+      },
+      "shift": {
+        "nonWorkingTitle": "行程安排在休息日",
+        "nonWorkingBody": "{name} 在{weekday}没有工作时间。请改派其他司机，或将行程改到工作日。",
+        "shiftEndTitle": "行程超出工作时间",
+        "shiftEndBody": "{name} 在{weekday}工作到{end}。行程预计 {planned} 回到工厂，超出 {minutes} 分钟。请缩短行程或改派其他司机。"
       }
     },
     "history": {
@@ -1636,6 +1666,58 @@
       "errors": {
         "generic": "出错了，请重试。"
       }
+    },
+    "utilization": {
+      "title": "工时利用率",
+      "description": "行程的实测工作时间，与计划时间以及司机的约定工作时间对比。",
+      "periods": {
+        "day": "日",
+        "week": "周",
+        "month": "月"
+      },
+      "periodsLabel": "时间段",
+      "previous": "上一时间段",
+      "next": "下一时间段",
+      "actual": "实际时间",
+      "contract": "约定时间",
+      "percent": "工时利用率",
+      "minutes": "{minutes} 分钟",
+      "driversTitle": "各司机工时利用率（{period}）",
+      "driversHint": "行程实际时间与按工作日约定的工作时间对比：日、自然周（周一至周日）和月。",
+      "columns": {
+        "driver": "司机",
+        "schedule": "工作时间",
+        "day": "日",
+        "week": "周",
+        "month": "月",
+        "date": "日期",
+        "planned": "计划",
+        "actual": "实际",
+        "deviation": "差异",
+        "percent": "工时利用率",
+        "start": "计时起点"
+      },
+      "start": {
+        "checklist": "检查表",
+        "assumed": "估算"
+      },
+      "toursTitle": "行程（{period}）",
+      "toursHint": "每个行程的工作时间：装车开始（或发车时间减去估算的装车时间）到最后完成的站点，再加上计划返回工厂的路程。没有时间记录、没有完成站点或跨午夜的行程不计入。",
+      "toursEmptyTitle": "该时间段没有行程",
+      "toursEmpty": "该时间段没有已指派司机的行程。",
+      "emptyTitle": "没有司机",
+      "empty": "尚未创建司机。",
+      "noSchedule": "未设置工作时间",
+      "inactive": "已停用",
+      "missingSchedule": "有 {count} 位司机未设置工作时间：他们无法计算利用率。",
+      "reasons": {
+        "noStart": "无时间记录",
+        "noStops": "无站点",
+        "notCompleted": "无完成站点",
+        "invalidWindow": "时间不合理",
+        "crossesMidnight": "跨午夜"
+      },
+      "percentValue": "{percent} %"
     }
   },
   "driver": {

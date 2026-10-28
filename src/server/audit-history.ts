@@ -505,6 +505,8 @@ async function toViews(db: DbForHistory, rows: Row[]): Promise<AuditEntryView[]>
       case "vehicle.update":
       case "vehicle.activate":
       case "vehicle.deactivate":
+      // Driver working time (NUD-152) is edited on the driver page, not in an order / tour timeline.
+      case "driver.schedule_update":
         return [];
     }
   };

@@ -307,7 +307,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | done |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | done |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
-| NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
+| NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | in-progress |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
@@ -2724,7 +2724,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-152 · Driver working time and utilization
-**Status:** todo · **depends_on:** 146, 151 · F1 · D28
+**Status:** in-progress (2026-10-28: implemented, one e2e run outstanding) · **depends_on:** 146, 151 · F1 · D28
 
 **Scope**
 - `WorkSchedule` per driver: working days and hours per weekday (e.g. Mon–Fri 06:00–14:00); edited on the driver page (Fahrer).
@@ -2733,8 +2733,16 @@ General rules for every ticket in this block:
 - Planning warning when a tour's planned end exceeds the assigned driver's shift end, or a tour is assigned on a non-working day.
 
 **Acceptance criteria**
-- [ ] Pure, unit-tested utilization functions (incl. skipped checklist, tours across midnight are rejected).
-- [ ] Shift-end warning shown on the tour page (e2e).
+- [x] Pure, unit-tested utilization functions (incl. skipped checklist, tours across midnight are rejected). (`src/domain/work-time.test.ts`, 26 tests: assumed start from `departedAt − defaultLoadingMinutes`, `crosses_midnight`/`invalid_window`/`no_start`/`no_stops`/`not_completed`, planned drive back, contracted hours, period ranges, shift warnings; plus 8 embedded-Postgres tests in `src/server/utilization.integration.test.ts`.)
+- [ ] Shift-end warning shown on the tour page (e2e). (Implemented — `PlanTour.shiftWarning` → `ShiftWarning` alert with `data-testid="tour-shift-warning"`, server-side integration-tested, and `tests/e2e/tour-shift-warning.spec.ts` exists — but the spec has not been run: the shared dev database is behind migration `20261101090000_work_schedule`.)
+
+**Implementation notes (NUD-152)**
+- **Data:** migration `20261101090000_work_schedule` — `WorkSchedule` (`driverId`, ISO `weekday` 1–7, `startMinutes`/`endMinutes`, `active`, unique `(driverId, weekday)`, CHECK `0 ≤ start < end ≤ 23:59`, FK RESTRICT) and `Settings.defaultLoadingMinutes` (default 20, CHECK 0–180). Additive only; soft delete: a switched-off weekday stays as `active = false`, a weekday without a row is not worked. Minutes-of-day instead of `TIME` columns because every calculation is a subtraction and the DB can then enforce a shift that never crosses midnight.
+- **Measured time (`src/domain/work-time.ts`, pure):** loading start = `Tour.loadingStartedAt`, else `Tour.departedAt − Settings.defaultLoadingMinutes` (start source "checklist" / "assumed"); end = last `Stop.completedAt` + planned drive back = `(departureInstant(date, departureTime, tz) + Tour.totalDurationS − lastStop.etaAt) − serviceMinutesPerStop` (also the final leg for multi-trip tours, because every reload/vehicle switch happens before the last stop). Planned per tour = `defaultLoadingMinutes + totalDurationS/60`, so both sides compare like with like. Tours without timestamps, without a completed stop, with an end before the start, or ending on the next local calendar day are **excluded with a reason** instead of being booked to a day. No GPS (D19).
+- **Reports:** `src/server/utilization.ts` — measured vs planned per tour and tour time vs contracted hours (active weekday hours summed; ISO week Mon–Sun, calendar month) per driver, `?period=day|week|month&date=…`. The driver list shows the current ISO week; the new page `/admin/utilization` ("Auslastung", sidebar under System) shows day/week/month with prev/next and the per-tour table.
+- **UI:** driver page → row action "Arbeitszeit bearbeiten" (7 weekday on/off rows + time inputs) → `saveWorkScheduleAction` (ADMIN, zod with `.max()` on every string, transactional soft delete, audit `driver.schedule_update` on entity `Driver`); columns "Arbeitszeit" (compressed runs, e.g. "Montag–Freitag 06:00–14:00") and "Auslastung"; Settings field "Ladezeit ohne Checkliste (Minuten)"; tour page shows the shift warning above the other banners. A driver without any schedule produces no warning, and nothing is ever blocked.
+- **Verified:** `prisma validate`/`generate`, `next typegen`, `tsc --noEmit`, `eslint . --max-warnings=0`, `i18n:check ok`, `vitest run` (218 files / 2621 tests green, including the 26 domain, 8 integration and 5 component tests), prettier on all changed files.
+- **NOT verified:** the Playwright spec, the new pages in a real browser at 1280 px, and a live `prisma migrate deploy`. ⚠️ Until the **shared dev database** runs `pnpm db:migrate`, `/admin/drivers`, `/admin/tours`, `/admin/settings` and `/admin/utilization` error on the missing column/table. `docs/data-model.md` and `docs/tour-planning.md` are not updated yet.
 
 ---
 
@@ -3621,6 +3629,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | – | Vehicle profile stays `driving-car`; no `driving-hgv` graph is built (owner decision, E3) | The fleet has no trucks today; switching later is one env var plus a graph rebuild |
 | 2026-10-28 | NUD-120 | The strict script CSP stays enforcing (no report-only phase on this deployment) and the violation `report-uri` is now base-path aware (owner decision, E5) | It has been live since NUD-110 and the app works; the report path was the actual bug — reports from iOS/WeChat went to the nginx root and were lost as 404s |
 | 2026-10-28 | NUD-168 | Production map tiles: Stadia Maps free tier (keyed, CORS-capable for the tile cache), with MapTiler as the equal alternative; the OSM default stays until a key exists (owner delegation) | The OSM tile server is explicitly development-only, and a key can only be created by a person |
+| 2026-10-28 | NUD-152 | Working time = one `WorkSchedule` row per driver and ISO weekday (minutes since midnight, `active=false` = soft-deleted, no row = not worked); measured from the loading start (checklist timestamp, else `departedAt − Settings.defaultLoadingMinutes`, default 20) to the last completed stop plus the planned drive back; planned = loading time plus `Tour.totalDurationS`; tours across midnight are excluded with a reason instead of being split | Minutes-of-day lets the DB enforce `0 ≤ start < end ≤ 23:59`, and the drive back comes from stored planned data, so actual and planned compare like with like without new timestamps on the tour |
+| 2026-10-28 | NUD-152 | The shift warning never blocks a release, and a driver without a schedule produces no warning | The office must stay able to plan for someone without a contract in the system; a blocking warning would be a hard rule nobody asked for |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

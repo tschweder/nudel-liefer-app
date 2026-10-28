@@ -229,6 +229,7 @@
       "customers": "Kunden",
       "products": "Produkte",
       "drivers": "Fahrer",
+      "utilization": "Auslastung",
       "settings": "Einstellungen",
       "groups": {
         "operations": "Betrieb",
@@ -246,9 +247,29 @@
         "name": "Name",
         "username": "Benutzername",
         "language": "Sprache",
+        "schedule": "Arbeitszeit",
+        "utilization": "Auslastung",
         "status": "Status",
         "lastLogin": "Letzte Anmeldung",
         "actions": "Aktionen"
+      },
+      "utilization": {
+        "percent": "{percent} %",
+        "hint": "{actual} von {contract} Minuten in dieser Woche",
+        "noSchedule": "Keine Arbeitszeit hinterlegt"
+      },
+      "schedule": {
+        "none": "Keine Arbeitszeit hinterlegt",
+        "title": "Arbeitszeit von {name}",
+        "description": "An welchen Wochentagen und wie lange {name} arbeitet. Die Auslastung und die Warnung auf der Tour-Seite beziehen sich darauf.",
+        "startLabel": "Beginn {weekday}",
+        "endLabel": "Ende {weekday}",
+        "saved": "Arbeitszeit von {name} gespeichert.",
+        "errors": {
+          "hours": "Bitte Beginn und Ende prüfen: das Ende muss nach dem Beginn liegen.",
+          "notFound": "Fahrer nicht gefunden.",
+          "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+        }
       },
       "status": {
         "active": "Aktiv",
@@ -279,7 +300,8 @@
         "deactivate": "Deaktivieren",
         "reactivate": "Reaktivieren",
         "changeLanguage": "Sprache von {name} ändern",
-        "editLogin": "Sprache bearbeiten"
+        "editLogin": "Sprache bearbeiten",
+        "editSchedule": "Arbeitszeit bearbeiten"
       },
       "confirm": {
         "resetTitle": "PIN von {name} zurücksetzen?",
@@ -911,7 +933,9 @@
         "weekdays": "Liefertage",
         "weekdaysHint": "An diesen Wochentagen wird geliefert. Neue Bestellungen schlagen den nächsten Liefertag vor.",
         "recurringLeadDays": "Dauerbestellungen im Voraus (Tage)",
-        "recurringLeadDaysHint": "So viele Tage im Voraus legt das System Bestellungen aus Dauerbestellungen an (1 bis 60)."
+        "recurringLeadDaysHint": "So viele Tage im Voraus legt das System Bestellungen aus Dauerbestellungen an (1 bis 60).",
+        "defaultLoadingMinutes": "Ladezeit ohne Checkliste (Minuten)",
+        "defaultLoadingMinutesHint": "So viel Ladezeit rechnet die Auslastung, wenn der Fahrer die Abfahrts-Checkliste übersprungen hat (0 bis 180)."
       },
       "save": "Speichern",
       "saving": "Speichern …",
@@ -1200,6 +1224,12 @@
     "tours": {
       "title": "Touren",
       "description": "Tour eines Liefertags erstellen, prüfen, umsortieren und für den Fahrer freigeben.",
+      "shift": {
+        "nonWorkingTitle": "Tour an einem Ruhetag",
+        "nonWorkingBody": "{name} hat am {weekday} keine Arbeitszeit. Bitte einen anderen Fahrer zuweisen oder die Tour auf einen Arbeitstag verschieben.",
+        "shiftEndTitle": "Tour endet nach der Arbeitszeit",
+        "shiftEndBody": "{name} arbeitet am {weekday} bis {end}. Die Tour ist um {planned} zurück im Depot, also {minutes} Minuten länger. Bitte die Tour kürzen oder einen anderen Fahrer zuweisen."
+      },
       "date": "Lieferdatum",
       "datePrev": "Vorheriger Tag",
       "dateNext": "Nächster Tag",
@@ -1584,6 +1614,58 @@
         }
       },
       "unknownActor": "Unbekannter Benutzer"
+    },
+    "utilization": {
+      "title": "Auslastung",
+      "description": "Gemessene Arbeitszeit der Touren gegen die geplante Zeit und gegen die vereinbarte Arbeitszeit der Fahrer.",
+      "periods": {
+        "day": "Tag",
+        "week": "Woche",
+        "month": "Monat"
+      },
+      "periodsLabel": "Zeitraum",
+      "previous": "Vorheriger Zeitraum",
+      "next": "Nächster Zeitraum",
+      "actual": "Ist-Zeit",
+      "contract": "Soll-Zeit",
+      "percent": "Auslastung",
+      "minutes": "{minutes} Min.",
+      "driversTitle": "Auslastung je Fahrer ({period})",
+      "driversHint": "Ist-Zeit der Touren gegen die vereinbarte Arbeitszeit je Wochentag: Tag, Kalenderwoche (Montag bis Sonntag) und Monat.",
+      "columns": {
+        "driver": "Fahrer",
+        "schedule": "Arbeitszeit",
+        "day": "Tag",
+        "week": "Woche",
+        "month": "Monat",
+        "date": "Datum",
+        "planned": "Geplant",
+        "actual": "Ist",
+        "deviation": "Abweichung",
+        "percent": "Auslastung",
+        "start": "Zeitmessung ab"
+      },
+      "start": {
+        "checklist": "Checkliste",
+        "assumed": "Annahme"
+      },
+      "toursTitle": "Touren ({period})",
+      "toursHint": "Arbeitszeit je Tour: Ladebeginn (oder Abfahrt minus angenommene Ladezeit) bis zum letzten erledigten Stopp plus geplante Rückfahrt zum Depot. Touren ohne Zeitstempel, ohne erledigten Stopp oder über Mitternacht zählen nicht.",
+      "toursEmptyTitle": "Keine Touren im Zeitraum",
+      "toursEmpty": "In diesem Zeitraum gibt es keine Touren mit zugewiesenem Fahrer.",
+      "emptyTitle": "Keine Fahrer",
+      "empty": "Es sind keine Fahrer angelegt.",
+      "noSchedule": "Keine Arbeitszeit hinterlegt",
+      "inactive": "Deaktiviert",
+      "missingSchedule": "{count} Fahrer ohne hinterlegte Arbeitszeit: für sie gibt es keine Auslastung in Prozent.",
+      "reasons": {
+        "noStart": "Keine Zeitstempel",
+        "noStops": "Keine Stopps",
+        "notCompleted": "Kein Stopp erledigt",
+        "invalidWindow": "Zeiten unplausibel",
+        "crossesMidnight": "Über Mitternacht"
+      },
+      "percentValue": "{percent} %"
     },
     "vehicles": {
       "title": "Fahrzeuge",

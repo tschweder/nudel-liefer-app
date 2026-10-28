@@ -31,6 +31,8 @@ export type SettingsFormValues = {
   timezone: string;
   departureTime: string;
   serviceMinutesPerStop: number;
+  /** Loading time assumed when the driver skipped the departure checklist (NUD-152). */
+  defaultLoadingMinutes: number;
   recurringLeadDays: number;
   deliveryWeekdays: number[];
   /** Fixed items of the driver's departure checklist (NUD-151), German source text. */
@@ -71,6 +73,7 @@ export function SettingsForm({
   const [timezone, setTimezone] = useState(initial.timezone);
   const [departure, setDeparture] = useState(initial.departureTime);
   const [minutes, setMinutes] = useState(String(initial.serviceMinutesPerStop));
+  const [loadingMinutes, setLoadingMinutes] = useState(String(initial.defaultLoadingMinutes));
   const [leadDays, setLeadDays] = useState(String(initial.recurringLeadDays));
   const [weekdays, setWeekdays] = useState(initial.deliveryWeekdays);
   const toRows = (items: SettingsFormValues["departureChecklist"]): ChecklistRow[] =>
@@ -100,6 +103,7 @@ export function SettingsForm({
       timezone !== initial.timezone ||
       departure !== initial.departureTime ||
       minutes !== String(initial.serviceMinutesPerStop) ||
+      loadingMinutes !== String(initial.defaultLoadingMinutes) ||
       leadDays !== String(initial.recurringLeadDays) ||
       !sameDays ||
       JSON.stringify(checklist.map(({ id, text }) => [id, text])) !==
@@ -113,6 +117,7 @@ export function SettingsForm({
     timezone,
     departure,
     minutes,
+    loadingMinutes,
     leadDays,
     weekdays,
     checklist,
@@ -139,6 +144,7 @@ export function SettingsForm({
     setTimezone(initial.timezone);
     setDeparture(initial.departureTime);
     setMinutes(String(initial.serviceMinutesPerStop));
+    setLoadingMinutes(String(initial.defaultLoadingMinutes));
     setLeadDays(String(initial.recurringLeadDays));
     setWeekdays(initial.deliveryWeekdays);
     setChecklist(toRows(initial.departureChecklist));
@@ -169,6 +175,7 @@ export function SettingsForm({
       timezone,
       departureTime: departure,
       serviceMinutesPerStop: minutes.trim() === "" ? Number.NaN : Number(minutes),
+      defaultLoadingMinutes: loadingMinutes.trim() === "" ? Number.NaN : Number(loadingMinutes),
       recurringLeadDays: leadDays.trim() === "" ? Number.NaN : Number(leadDays),
       deliveryWeekdays: weekdays,
       departureChecklist: checklist
@@ -402,6 +409,26 @@ export function SettingsForm({
                     value={leadDays}
                     onChange={(e) => setLeadDays(e.target.value)}
                     data-testid="recurring-lead-days"
+                    required
+                  />
+                </FormField>
+                <FormField
+                  label={t("planning.defaultLoadingMinutes")}
+                  htmlFor="default-loading-minutes"
+                  required
+                  className="w-44"
+                  description={t("planning.defaultLoadingMinutesHint")}
+                >
+                  <Input
+                    id="default-loading-minutes"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={180}
+                    step={1}
+                    value={loadingMinutes}
+                    onChange={(e) => setLoadingMinutes(e.target.value)}
+                    data-testid="default-loading-minutes"
                     required
                   />
                 </FormField>

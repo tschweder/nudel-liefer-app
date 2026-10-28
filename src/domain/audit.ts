@@ -14,6 +14,7 @@ export const AUDIT_ENTITIES = [
   "Customer",
   "Vehicle",
   "RecurringOrder",
+  "Driver",
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
@@ -58,6 +59,7 @@ export const AUDIT_ACTIONS = [
   "vehicle.update",
   "vehicle.activate",
   "vehicle.deactivate",
+  "driver.schedule_update",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

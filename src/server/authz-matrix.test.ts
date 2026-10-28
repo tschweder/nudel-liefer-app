@@ -347,6 +347,11 @@ const MATRIX: Record<string, Row> = {
     (await import("./vehicle-actions")).setVehicleActiveAction("x", false),
   ),
 
+  "src/server/work-schedule-actions.ts#saveWorkScheduleAction": adminAction(
+    "driver working time",
+    async () => (await import("./work-schedule-actions")).saveWorkScheduleAction({}),
+  ),
+
   // ---- driver-only server actions
   "src/server/stop-status-actions.ts#stopStatusAction": driverAction(
     "driver stop status",

@@ -235,7 +235,8 @@
         "masterData": "Master data",
         "system": "System"
       },
-      "vehicles": "Vehicles"
+      "vehicles": "Vehicles",
+      "utilization": "Utilization"
     },
     "drivers": {
       "title": "Drivers",
@@ -248,7 +249,9 @@
         "language": "Language",
         "status": "Status",
         "lastLogin": "Last login",
-        "actions": "Actions"
+        "actions": "Actions",
+        "schedule": "Working time",
+        "utilization": "Utilization"
       },
       "status": {
         "active": "Active",
@@ -279,7 +282,8 @@
         "deactivate": "Deactivate",
         "reactivate": "Reactivate",
         "changeLanguage": "Change language of {name}",
-        "editLogin": "Edit language"
+        "editLogin": "Edit language",
+        "editSchedule": "Edit working time"
       },
       "confirm": {
         "resetTitle": "Reset PIN of {name}?",
@@ -319,6 +323,24 @@
       },
       "rowMenu": {
         "label": "Actions for {name}"
+      },
+      "utilization": {
+        "percent": "{percent} %",
+        "hint": "{actual} of {contract} minutes this week",
+        "noSchedule": "No working time maintained"
+      },
+      "schedule": {
+        "none": "No working time maintained",
+        "title": "Working time of {name}",
+        "description": "Which weekdays {name} works and how long. The utilization and the warning on the tour page are based on it.",
+        "startLabel": "Start {weekday}",
+        "endLabel": "End {weekday}",
+        "saved": "Working time of {name} saved.",
+        "errors": {
+          "hours": "Check start and end: the end must be after the start.",
+          "notFound": "Driver not found.",
+          "generic": "Saving failed. Please try again."
+        }
       }
     },
     "customers": {
@@ -911,7 +933,9 @@
         "weekdays": "Delivery days",
         "weekdaysHint": "Deliveries are made on these weekdays. New orders suggest the next delivery day.",
         "recurringLeadDays": "Standing orders ahead (days)",
-        "recurringLeadDaysHint": "The system creates orders from standing orders this many days ahead (1 to 60)."
+        "recurringLeadDaysHint": "The system creates orders from standing orders this many days ahead (1 to 60).",
+        "defaultLoadingMinutes": "Loading time without checklist (minutes)",
+        "defaultLoadingMinutesHint": "Loading time the utilization assumes when the driver skipped the departure checklist (0 to 180)."
       },
       "save": "Save",
       "saving": "Saving …",
@@ -1482,6 +1506,12 @@
         "title": "Not planned today: {count, plural, one {# customer} other {# customers}}",
         "body": "This day has more stops than one planning run can handle (at most {max}). The stops with the shortest drive from the depot were planned. The orders of these customers are on no tour: please move them to another day.",
         "orders": "{count, plural, one {# order} other {# orders}}"
+      },
+      "shift": {
+        "nonWorkingTitle": "Tour on a non-working day",
+        "nonWorkingBody": "{name} does not work on {weekday}. Please assign another driver or move the tour to a working day.",
+        "shiftEndTitle": "Tour ends after the shift",
+        "shiftEndBody": "{name} works until {end} on {weekday}. The tour is back at the depot at {planned}, which is {minutes} minutes longer. Please shorten the tour or assign another driver."
       }
     },
     "history": {
@@ -1636,6 +1666,58 @@
       "errors": {
         "generic": "Something went wrong. Please try again."
       }
+    },
+    "utilization": {
+      "title": "Utilization",
+      "description": "Measured working time of the tours against the planned time and against the contracted working time of the drivers.",
+      "periods": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month"
+      },
+      "periodsLabel": "Period",
+      "previous": "Previous period",
+      "next": "Next period",
+      "actual": "Actual time",
+      "contract": "Contracted time",
+      "percent": "Utilization",
+      "minutes": "{minutes} min",
+      "driversTitle": "Utilization per driver ({period})",
+      "driversHint": "Actual tour time against the contracted working time per weekday: day, calendar week (Monday to Sunday) and month.",
+      "columns": {
+        "driver": "Driver",
+        "schedule": "Working time",
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "date": "Date",
+        "planned": "Planned",
+        "actual": "Actual",
+        "deviation": "Difference",
+        "percent": "Utilization",
+        "start": "Measured from"
+      },
+      "start": {
+        "checklist": "Checklist",
+        "assumed": "Assumed"
+      },
+      "toursTitle": "Tours ({period})",
+      "toursHint": "Working time per tour: loading start (or departure minus the assumed loading time) to the last completed stop plus the planned drive back to the depot. Tours without timestamps, without a completed stop or across midnight are not counted.",
+      "toursEmptyTitle": "No tours in the period",
+      "toursEmpty": "There are no tours with an assigned driver in this period.",
+      "emptyTitle": "No drivers",
+      "empty": "No drivers have been created yet.",
+      "noSchedule": "No working time maintained",
+      "inactive": "Deactivated",
+      "missingSchedule": "{count} drivers without a working time: their utilization cannot be calculated.",
+      "reasons": {
+        "noStart": "No timestamps",
+        "noStops": "No stops",
+        "notCompleted": "No completed stop",
+        "invalidWindow": "Implausible times",
+        "crossesMidnight": "Across midnight"
+      },
+      "percentValue": "{percent} %"
     }
   },
   "driver": {

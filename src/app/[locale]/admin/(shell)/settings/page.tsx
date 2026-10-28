@@ -16,6 +16,7 @@ const DEFAULTS: SettingsFormValues = {
   timezone: DEFAULT_TIMEZONE,
   departureTime: "07:00",
   serviceMinutesPerStop: 10,
+  defaultLoadingMinutes: 20,
   recurringLeadDays: 14,
   deliveryWeekdays: [1, 2, 3, 4, 5],
   departureChecklist: [],
@@ -34,6 +35,7 @@ async function Guarded({ locale }: { locale: string }) {
         timezone: settings.timezone,
         departureTime: settings.departureTime,
         serviceMinutesPerStop: settings.serviceMinutesPerStop,
+        defaultLoadingMinutes: settings.defaultLoadingMinutes,
         recurringLeadDays: settings.recurringLeadDays,
         deliveryWeekdays: [...settings.deliveryWeekdays],
         departureChecklist: settings.departureChecklist.map((item) => ({

@@ -1,6 +1,7 @@
 import {
   CarFrontIcon,
   ClipboardListIcon,
+  GaugeIcon,
   LayoutDashboardIcon,
   type LucideIcon,
   PackageIcon,
@@ -18,6 +19,7 @@ export const ADMIN_SECTIONS = [
   "products",
   "vehicles",
   "drivers",
+  "utilization",
   "settings",
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
@@ -26,7 +28,7 @@ export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 export const ADMIN_NAV_GROUPS = [
   { id: "operations", sections: ["dashboard", "orders", "tours"] },
   { id: "masterData", sections: ["customers", "products", "vehicles", "drivers"] },
-  { id: "system", sections: ["settings"] },
+  { id: "system", sections: ["utilization", "settings"] },
 ] as const satisfies ReadonlyArray<{
   id: "operations" | "masterData" | "system";
   sections: ReadonlyArray<AdminSection>;
@@ -43,6 +45,7 @@ export const ADMIN_NAV: ReadonlyArray<{ section: AdminSection; href: string; ico
   { section: "products", href: "/admin/products", icon: PackageIcon },
   { section: "vehicles", href: "/admin/vehicles", icon: CarFrontIcon },
   { section: "drivers", href: "/admin/drivers", icon: TruckIcon },
+  { section: "utilization", href: "/admin/utilization", icon: GaugeIcon },
   { section: "settings", href: "/admin/settings", icon: SettingsIcon },
 ];
 
