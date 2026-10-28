@@ -2,11 +2,17 @@ import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
 import { createDriverFixture, loginDriver } from "./helpers/driver-fixture";
+import { requireDatabaseUrl, requireFreeDay, requireUsableDatabase } from "./helpers/preconditions";
 import { ensureVehicle } from "./helpers/vehicle";
 
 // NUD-147. Needs a seeded database (product NUDELN-KARTON, an admin), DATABASE_URL and
 // SEED_ADMIN_PASSWORD. The planning scenario is a desktop scenario (admin screens); the driver
 // scenario runs in both projects. Routing is the local heuristic (no ORS key in CI).
+//
+// NUD-162: on a database that is not migrated/seeded, or that already has a tour on the planning
+// day, the spec used to fail on "0 tour tabs" without saying why. The precondition checks below
+// name the database, what is missing and the command that fixes it (`pnpm e2e:db:reset` on
+// E2E_DATABASE_URL, docs/e2e-database.md).
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 
 const PNG = Buffer.from(
@@ -51,8 +57,17 @@ test.describe("Touren planen", () => {
     test.setTimeout(240_000);
     const tag = `e2es${Date.now() % 1e8}`;
     const day = `${2100 + Math.floor(Math.random() * 7000)}-06-03`;
-    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    const client = new Client({ connectionString: requireDatabaseUrl() });
     await client.connect();
+    try {
+      // NUD-162: a database that is behind prisma/migrations, not seeded, or that already has a
+      // tour on the planning day makes the planning step produce no tabs — say so instead.
+      await requireUsableDatabase(client, { admin: true, skus: ["NUDELN-KARTON"] });
+      await requireFreeDay(client, day);
+    } catch (error) {
+      await client.end();
+      throw error;
+    }
     const admin = (await client.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
       .rows[0] as { id: string };
     const karton = (
@@ -108,7 +123,11 @@ test.describe("Touren planen", () => {
       await selectVehicles(page, [vanA, vanB]);
       await page.screenshot({ path: testInfo.outputPath("nud-147-plan-dialog-1280.png") });
       await tid(page, "plan-day-confirm").click();
-      await expect(page.locator('[data-testid="tour-tab"]:visible')).toHaveCount(2);
+      await expect(
+        page.locator('[data-testid="tour-tab"]:visible'),
+        // NUD-162: this used to be the bare "0 tour tabs" failure on a dirty database.
+        "planning produced no tour tabs; the preconditions at the start of this spec name the database and the fix (docs/e2e-database.md)",
+      ).toHaveCount(2);
       await expect(tid(page, "tour-load")).toHaveAttribute("data-state", "ok");
       await expect(tid(page, "reload-stop")).toHaveCount(0);
       const tours = (
@@ -132,7 +151,10 @@ test.describe("Touren planen", () => {
       await tid(page, "tour-plan-day").click();
       await selectVehicles(page, [vanA]);
       await tid(page, "plan-day-confirm").click();
-      await expect(tid(page, "reload-stop")).toHaveCount(1);
+      await expect(
+        tid(page, "reload-stop"),
+        "the second planning run produced no reload stop; the preconditions at the start of this spec name the database and the fix (docs/e2e-database.md)",
+      ).toHaveCount(1);
       await expect(tid(page, "reload-stop")).toContainText("Nachladen im Depot");
       await expect(tid(page, "reload-stop")).toContainText(
         `Fahrt 2: ${2 * 2 * kgPerCarton} kg laden`,

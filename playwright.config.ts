@@ -9,6 +9,36 @@ import { join } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { E2E_DATABASE_VAR, resolveE2eDatabase } from "./scripts/lib/e2e-database";
+
+/**
+ * NUD-162: several specs own "today" of the database they read (`late-orders`, `mvp-happy-path`)
+ * or a whole day (`tour-split`), so they cannot run against a database that already has tours for
+ * it. `E2E_DATABASE_URL` points the whole run at a database of its own: it REPLACES `DATABASE_URL`
+ * for this process (the specs open their own connections) and is passed to the webServer command,
+ * so app and assertions read the same rows. The database is prepared by `pnpm e2e:db:reset`
+ * (docs/e2e-database.md). Without the variable nothing changes: the run uses `DATABASE_URL`.
+ *
+ * A run that reuses a server already listening on the port (`reuseExistingServer`, unchanged)
+ * tests that server's own database — stop a `pnpm dev` on the port, or set `CI=1`.
+ */
+const e2eDatabaseUrl = process.env[E2E_DATABASE_VAR]?.trim();
+if (e2eDatabaseUrl) {
+  const resolution = resolveE2eDatabase(process.env);
+  if (!resolution.ok) {
+    throw new Error(`E2E_DATABASE_URL is set but unusable:\n- ${resolution.errors.join("\n- ")}`);
+  }
+  process.env.DATABASE_URL = resolution.url;
+  // `prisma.config.ts` and the tooling prefer the unpooled URL; an empty value keeps a leftover
+  // Neon/production URL in .env out of this run.
+  process.env.DATABASE_URL_UNPOOLED = "";
+} else {
+  console.warn(
+    `[e2e] ${E2E_DATABASE_VAR} is not set: this run uses DATABASE_URL, and the specs that own ` +
+      `"today" (late-orders, mvp-happy-path) need it to be free of tours. See docs/e2e-database.md.`,
+  );
+}
+
 const port = Number(process.env.PORT ?? 3000);
 
 /**
@@ -69,6 +99,9 @@ export default defineConfig({
       // and every later login in the run is rejected as rate limited. The per-identifier limit the
       // rate-limit tests actually assert is unchanged. Ignored when a server is reused.
       LOGIN_MAX_FAILURES_PER_IP: "1000000",
+      // NUD-162: the server of this run reads the same database the specs assert on (ignored when
+      // a server is reused: that one keeps the environment it was started with).
+      ...(e2eDatabaseUrl ? { DATABASE_URL: e2eDatabaseUrl } : {}),
     },
   },
 });

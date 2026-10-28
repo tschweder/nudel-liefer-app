@@ -317,7 +317,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
 | NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | done |
 | NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | done |
-| NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
+| NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | done |
 | NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | done |
 | NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
 | NUD-165 | 👤 One-off parking-spot import from the 2026-10 captures (archived, not a product feature) | M2.6 | – | done |
@@ -3015,13 +3015,20 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 ---
 
 #### NUD-162 · e2e specs that need an empty "today" and demo data cannot run on the dev database
-**Status:** todo · **depends_on:** – · found 2026-10-27 by the orchestrator.
+**Status:** done (2026-10-28; specs not executed — no Playwright on this machine) · **depends_on:** – · found 2026-10-27 by the orchestrator.
 
 **Goal:** `late-orders.spec.ts` and `mvp-happy-path.spec.ts` abort with "Precondition failed" when the database already has a tour for today (here: an owner tour from 2026-10-26) or when the depot pin is not confirmed (no `db:seed --demo`); `tour-split.spec.ts` failed on the same dirty database without saying why. They pass on a fresh database (migrate, seed, `seed --demo --no-photos`). Document a dedicated e2e database (env + `docs/` note) or have the specs create their own isolated day, so the suite never needs the dev data emptied.
 
 **Acceptance criteria**
-- [ ] A documented one-command way to run the state-flipping specs against a throwaway database.
-- [ ] `tour-split.spec.ts` fails with a clear precondition message instead of "0 tour tabs" on a dirty database.
+- [x] A documented one-command way to run the state-flipping specs against a throwaway database. (`E2E_DATABASE_URL` + `pnpm e2e:db:reset`; documented in `.env.example`, `docs/env.md`, `docs/e2e-database.md` and `RUN-AND-TEST.md`. The lifecycle was executed end to end on a throwaway database that was dropped again.)
+- [x] `tour-split.spec.ts` fails with a clear precondition message instead of "0 tour tabs" on a dirty database. (Checks run before the browser and name the database, the cause and the command; the message producers were verified at runtime, the spec itself was not run.)
+
+**Implementation notes (NUD-162)**
+- Decision: isolation belongs to the **database**, not to clever per-spec days. `E2E_DATABASE_URL` names a database of its own; `playwright.config.ts` copies it into `DATABASE_URL` for the Playwright process *and* for `webServer.env`, so the app and the assertions read the same rows, and refuses any URL that resolves to the same `host:port/database` as `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `BACKUP_DATABASE_URL`, `RESTORE_DATABASE_URL` or `PARKING_IMPORT_DATABASE_URL`. Unset = exactly the previous behaviour (CI keeps its per-job database); `reuseExistingServer: !CI` and `E2E_PREBUILT` are untouched.
+- Lifecycle: `pnpm e2e:db:reset` (`scripts/e2e-database.ts`) drops only that database (`prisma migrate reset --force` on the e2e URL, with `DATABASE_URL_UNPOOLED` blanked so `prisma.config.ts`/dotenv cannot drag a production URL in), runs the base seed and then the demo seed without photos (no S3 needed; the demo orders land on the next delivery day, so "today" stays empty).
+- Aborts now explain themselves: `tests/e2e/helpers/preconditions.ts` checks migration drift against `prisma/migrations`, a missing base seed, a missing demo seed (depot pin, demo drivers) and a foreign tour on the spec's day; every message prints `host:port/name` (never a password), the cause and the fixing command. `tour-split.spec.ts` also carries custom assertion texts, so its old "0 tour tabs" is gone.
+- Pure guards and message texts live in `scripts/lib/e2e-database.ts` with 12 unit tests (including "no password leaks"); the CLI and the helper do the I/O only.
+- NOT run: Playwright/browser (the dev database here is behind a migration and the tree was shared with another agent), full `pnpm lint`/`pnpm test`, CI.
 
 ---
 

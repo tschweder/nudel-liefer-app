@@ -2,6 +2,7 @@ import { devices, expect, type Locator, type Page, test } from "@playwright/test
 import bcrypt from "bcryptjs";
 import { Client } from "pg";
 
+import { requireDatabaseUrl, requireFreeDay, requireUsableDatabase } from "./helpers/preconditions";
 import { ensureVehicle } from "./helpers/vehicle";
 
 // NUD-099: an order confirmed after the tour of its day is COMPLETED.
@@ -16,6 +17,9 @@ import { ensureVehicle } from "./helpers/vehicle";
 // it confirms the depot pin for its duration (do not run it together with settings.spec.ts or
 // tours.spec.ts) and, because the settings are cached by the app, it is best run before other
 // specs on the same server or alone. Desktop project only (the driver gets its own phone context).
+//
+// NUD-162: give it a database of its own (`E2E_DATABASE_URL` + `pnpm e2e:db:reset`,
+// docs/e2e-database.md); the precondition messages below name the database and the fix.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 const PIN = "482916";
 const PREFIX = "LATE-";
@@ -70,8 +74,11 @@ async function removeSpecData() {
 }
 
 test.beforeAll(async () => {
-  db = new Client({ connectionString: process.env.DATABASE_URL });
+  db = new Client({ connectionString: requireDatabaseUrl() });
   await db.connect();
+  // NUD-162: a database that is behind prisma/migrations or not seeded otherwise fails deep in the
+  // flow with an unhelpful error (the catalog products would be undefined).
+  await requireUsableDatabase(db, { admin: true, skus: ["NUDELN-BEUTEL", "NUDELN-KARTON"] });
   const settings = (await db.query(`SELECT "timezone","depotPinConfirmed" FROM "Settings"`))
     .rows[0] as { timezone: string; depotPinConfirmed: boolean };
   depotWasConfirmed = settings.depotPinConfirmed;
@@ -79,14 +86,7 @@ test.beforeAll(async () => {
     await db.query(`SELECT to_char(now() AT TIME ZONE $1,'YYYY-MM-DD') AS s`, [settings.timezone])
   ).rows[0].s as string;
   await removeSpecData(); // leftovers of a crashed run
-  const foreign = Number(
-    (await db.query(`SELECT count(*) FROM "Tour" WHERE "date"=$1`, [today])).rows[0].count,
-  );
-  if (foreign > 0) {
-    throw new Error(
-      `Precondition failed: ${foreign} other tour(s) already exist for today (${today}); this spec needs a database without a tour for today.`,
-    );
-  }
+  await requireFreeDay(db, today, { today: true });
   await db.query(`UPDATE "Settings" SET "depotPinConfirmed"=true`);
 });
 

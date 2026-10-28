@@ -1,6 +1,8 @@
 import { devices, expect, type Locator, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
+import { demoSeedMissingMessage } from "../../scripts/lib/e2e-database";
+import { requireDatabaseUrl, requireFreeDay, requireUsableDatabase } from "./helpers/preconditions";
 import { ensureVehicle } from "./helpers/vehicle";
 
 // NUD-060, the M1 end-to-end happy path:
@@ -15,6 +17,8 @@ import { ensureVehicle } from "./helpers/vehicle";
 //
 // It owns "today's tour" of the database: run it on its own, not together with the specs that
 // also create a tour for today (admin-progress, driver-*). It removes everything it created.
+// NUD-162: give it a database of its own (`E2E_DATABASE_URL` + `pnpm e2e:db:reset`,
+// docs/e2e-database.md); it needs one without a tour for today.
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "change-me-local-only";
 const driverPin = process.env.SEED_DRIVER_PIN ?? "123456";
 
@@ -77,28 +81,40 @@ async function removeSpecData() {
 }
 
 test.beforeAll(async () => {
-  db = new Client({ connectionString: process.env.DATABASE_URL });
+  db = new Client({ connectionString: requireDatabaseUrl() });
   await db.connect();
+  // NUD-162: name the database and the command when the seed is missing or the schema is behind.
+  const database = await requireUsableDatabase(db, {
+    admin: true,
+    skus: ["NUDELN-BEUTEL", "NUDELN-KARTON"],
+  });
   const settings = (
     await db.query(`SELECT "timezone","depotPinConfirmed" FROM "Settings" WHERE "id"=1`)
   ).rows[0] as { timezone: string; depotPinConfirmed: boolean } | undefined;
   if (!settings?.depotPinConfirmed) {
+    throw new Error(demoSeedMissingMessage({ database, reason: "the depot pin is not confirmed" }));
+  }
+  const demoDrivers = await db.query<{ username: string }>(
+    `SELECT "username" FROM "User" WHERE "username" = ANY($1) AND "active"`,
+    [DRIVER_LOCALES.map((entry) => entry.username)],
+  );
+  const present = new Set(demoDrivers.rows.map((row) => row.username));
+  const missingDrivers = DRIVER_LOCALES.map((entry) => entry.username).filter(
+    (u) => !present.has(u),
+  );
+  if (missingDrivers.length > 0) {
     throw new Error(
-      "Precondition failed: the depot pin is not confirmed. Run `pnpm db:seed --demo` (or `pnpm db:seed --demo --no-photos`) on this database first.",
+      demoSeedMissingMessage({
+        database,
+        reason: `the demo drivers are missing (${missingDrivers.join(", ")})`,
+      }),
     );
   }
   today = (
     await db.query(`SELECT to_char(now() AT TIME ZONE $1,'YYYY-MM-DD') AS s`, [settings.timezone])
   ).rows[0].s as string;
   await removeSpecData(); // leftovers of a crashed run
-  const foreign = Number(
-    (await db.query(`SELECT count(*) FROM "Tour" WHERE "date"=$1`, [today])).rows[0].count,
-  );
-  if (foreign > 0) {
-    throw new Error(
-      `Precondition failed: ${foreign} other tour(s) already exist for today (${today}); this spec needs a database without a tour for today.`,
-    );
-  }
+  await requireFreeDay(db, today, { today: true });
 });
 
 test.afterAll(async () => {

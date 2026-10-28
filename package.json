@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit && tsc -p src/sw/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "e2e:db:reset": "tsx scripts/e2e-database.ts reset",
     "format": "prettier --write .",
     "lighthouse:prepare": "tsx scripts/lighthouse/prepare.ts",
     "lighthouse": "pnpm dlx @lhci/cli@0.15.1 autorun",
