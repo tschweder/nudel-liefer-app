@@ -24,14 +24,20 @@ import { E2E_DATABASE_VAR, resolveE2eDatabase } from "./scripts/lib/e2e-database
  */
 const e2eDatabaseUrl = process.env[E2E_DATABASE_VAR]?.trim();
 if (e2eDatabaseUrl) {
-  const resolution = resolveE2eDatabase(process.env);
-  if (!resolution.ok) {
-    throw new Error(`E2E_DATABASE_URL is set but unusable:\n- ${resolution.errors.join("\n- ")}`);
+  // Idempotent: setting DATABASE_URL below makes the guard trip on the second evaluation of this
+  // file in the same process (Playwright re-reads the config per retry / worker), which failed every
+  // retry of a run against a dedicated database. The marker short-circuits that re-check.
+  if (process.env.NUDEL_E2E_DATABASE_RESOLVED !== "1") {
+    const resolution = resolveE2eDatabase(process.env);
+    if (!resolution.ok) {
+      throw new Error(`E2E_DATABASE_URL is set but unusable:\n- ${resolution.errors.join("\n- ")}`);
+    }
+    process.env.DATABASE_URL = resolution.url;
+    // `prisma.config.ts` and the tooling prefer the unpooled URL; an empty value keeps a leftover
+    // Neon/production URL in .env out of this run.
+    process.env.DATABASE_URL_UNPOOLED = "";
+    process.env.NUDEL_E2E_DATABASE_RESOLVED = "1";
   }
-  process.env.DATABASE_URL = resolution.url;
-  // `prisma.config.ts` and the tooling prefer the unpooled URL; an empty value keeps a leftover
-  // Neon/production URL in .env out of this run.
-  process.env.DATABASE_URL_UNPOOLED = "";
 } else {
   console.warn(
     `[e2e] ${E2E_DATABASE_VAR} is not set: this run uses DATABASE_URL, and the specs that own ` +

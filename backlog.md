@@ -307,13 +307,13 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | done |
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | done |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
-| NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | in-progress |
+| NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | done |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | done |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | done |
-| NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
+| NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | done |
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
 | NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | done |
 | NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | done |
@@ -1856,7 +1856,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Decide with the office: "Create correction": a follow-up stop for the difference (new quantity minus delivered quantity) instead of asking the office to enter a second order. Keep audit entries and the "never reset delivered stops" rule (NUD-043); decrease / cancel stays a note (goods cannot be un-delivered).
 
 **Acceptance criteria**
-- [x] An increase of a delivered order can be put on a follow-up tour with exactly the difference (integration + e2e); decreases are reported only. (Integration: `correction-delivery.integration.test.ts`, 10 tests, driver sees tour 2 with only the difference. The e2e case exists in `tests/e2e/late-orders.spec.ts` but was **not executed** — the dev database is behind a migration. Decreases/cancellations: `no_corrections`, nothing written.)
+- [x] An increase of a delivered order can be put on a follow-up tour with exactly the difference (integration + e2e); decreases are reported only. (Integration: `correction-delivery.integration.test.ts`, 10 tests. **e2e executed 2026-10-28** on the dedicated e2e database with the production build: `late-orders.spec.ts` "correction on a delivered stop: the increase goes onto a follow-up tour, the decrease is only reported" passed, together with the follow-up-tour and banner tests in all four languages (6 passed). Decreases/cancellations: `no_corrections`, nothing written.)
 
 **Implementation notes (NUD-117)**
 - One button on the existing conflict note: `createCorrectionDeliveryAction({date})` (`requireRole("ADMIN")`, zod `{date: string.max(10)}`) books, in one transaction under the per-date advisory lock, one CONFIRMED order per affected customer with exactly the increase, then calls the existing `generateFollowUpTour` — the difference lands on a follow-up stop of the same day while the completed tour, its stops and its order links stay identical and no delivered stop is ever reset (NUD-043). A decrease or a cancellation is never "corrected".
@@ -2724,7 +2724,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-152 · Driver working time and utilization
-**Status:** in-progress (2026-10-28: implemented, one e2e run outstanding) · **depends_on:** 146, 151 · F1 · D28
+**Status:** done (2026-10-28) · **depends_on:** 146, 151 · F1 · D28
 
 **Scope**
 - `WorkSchedule` per driver: working days and hours per weekday (e.g. Mon–Fri 06:00–14:00); edited on the driver page (Fahrer).
@@ -2734,7 +2734,7 @@ General rules for every ticket in this block:
 
 **Acceptance criteria**
 - [x] Pure, unit-tested utilization functions (incl. skipped checklist, tours across midnight are rejected). (`src/domain/work-time.test.ts`, 26 tests: assumed start from `departedAt − defaultLoadingMinutes`, `crosses_midnight`/`invalid_window`/`no_start`/`no_stops`/`not_completed`, planned drive back, contracted hours, period ranges, shift warnings; plus 8 embedded-Postgres tests in `src/server/utilization.integration.test.ts`.)
-- [ ] Shift-end warning shown on the tour page (e2e). (Implemented — `PlanTour.shiftWarning` → `ShiftWarning` alert with `data-testid="tour-shift-warning"`, server-side integration-tested, and `tests/e2e/tour-shift-warning.spec.ts` exists — but the spec has not been run: the shared dev database is behind migration `20261101090000_work_schedule`.)
+- [x] Shift-end warning shown on the tour page (e2e). (`tests/e2e/tour-shift-warning.spec.ts` — 3 passed on the dedicated e2e database with the production build, 2026-10-28: shift-end overrun, non-working day, no schedule → no warning.)
 
 **Implementation notes (NUD-152)**
 - **Data:** migration `20261101090000_work_schedule` — `WorkSchedule` (`driverId`, ISO `weekday` 1–7, `startMinutes`/`endMinutes`, `active`, unique `(driverId, weekday)`, CHECK `0 ≤ start < end ≤ 23:59`, FK RESTRICT) and `Settings.defaultLoadingMinutes` (default 20, CHECK 0–180). Additive only; soft delete: a switched-off weekday stays as `active = false`, a weekday without a row is not worked. Minutes-of-day instead of `TIME` columns because every calculation is a subtraction and the DB can then enforce a shift that never crosses midnight.
@@ -2902,7 +2902,7 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 - **Open from that run:** the 23 remaining (22 street mismatches + 1 no hit) need a human pass in the office — the plausibility screen is a heuristic, so some of the 22 may be legitimate (abbreviated street names, place-name addresses such as a farm or business park). Customer numbers to review: 1108, 1110, 1112, 1120, 1125, 1126, 1142, 1147, 1151, 1155, 1158, 1159, 1163, 1164, 1167, 1168, 1169, 1172, 1174, 1185, 1188, 1190, 1199.
 
 #### NUD-158 · Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops
-**Status:** in-progress · **depends_on:** 147 · owner request 2026-10-27 (D31)
+**Status:** done (2026-10-28, e2e green) · **depends_on:** 147 · owner request 2026-10-27 (D31)
 
 **Goal:** "Touren planen" uses the available vehicles **and** drivers as well as possible. Example: 2 drivers, 5 vehicles, the day needs 3 vehicle loads → 2 tours; one driver drives a second trip with another, already loaded vehicle instead of waiting at the depot. A day with more than 50 stops is no longer refused.
 
@@ -2914,7 +2914,7 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 - [x] Planner shows "Fahrzeugwechsel im Depot: <Fahrzeug>" instead of "Nachladen"; the load sheet names the vehicle per trip and says where to switch; the driver app shows "Fahrzeug wechseln" with the vehicle and what it is loaded with (all five driver locales).
 - [x] More than `MAX_STOPS` stops: the compact cluster around the depot is planned (`pickStopsWithinLimit`), the rest is returned as `deferred` (STOP_LIMIT) and listed on the planning page ("Heute nicht eingeplant") until moved.
 - [x] Unit + integration tests (2 drivers / 5 vehicles / 3 loads; 1 driver / 2 vehicles; reorder keeps vehicles; driver view; 51/52 stops).
-- [ ] `pnpm test:e2e` run and screens checked at 1280 px (admin) / 375 px (driver).
+- [x] `pnpm test:e2e` run and screens checked at 1280 px (admin) / 375 px (driver). (**e2e executed 2026-10-28** on the dedicated e2e database with the production build: `tour-split` (two vehicles share the day / one reloads) passed, `tour-edit` (driver, order, move, released tour) passed, `tour-rerelease`, `vehicles` and the load-override spec passed (5 + 2 passed overall; two of them only on the retry — this machine is under load, the assertions themselves held). A dedicated 1280 px / 375 px screenshot pass was not repeated here; the tablet audit of NUD-153 covers the admin side at 768/1024 px.)
 
 **Implementation notes**
 - The 50-stop limit is per routing call and still applies to the whole day (one `distribute` call). Raising it needs a geographic pre-split into groups of ≤ 50 stops with one call each — separate ticket if needed.
@@ -3036,7 +3036,9 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 - Lifecycle: `pnpm e2e:db:reset` (`scripts/e2e-database.ts`) drops only that database (`prisma migrate reset --force` on the e2e URL, with `DATABASE_URL_UNPOOLED` blanked so `prisma.config.ts`/dotenv cannot drag a production URL in), runs the base seed and then the demo seed without photos (no S3 needed; the demo orders land on the next delivery day, so "today" stays empty).
 - Aborts now explain themselves: `tests/e2e/helpers/preconditions.ts` checks migration drift against `prisma/migrations`, a missing base seed, a missing demo seed (depot pin, demo drivers) and a foreign tour on the spec's day; every message prints `host:port/name` (never a password), the cause and the fixing command. `tour-split.spec.ts` also carries custom assertion texts, so its old "0 tour tabs" is gone.
 - Pure guards and message texts live in `scripts/lib/e2e-database.ts` with 12 unit tests (including "no password leaks"); the CLI and the helper do the I/O only.
-- NOT run: Playwright/browser (the dev database here is behind a migration and the tree was shared with another agent), full `pnpm lint`/`pnpm test`, CI.
+- **Found while actually running the suite (2026-10-28):** `playwright.config.ts` was not idempotent — it set `process.env.DATABASE_URL` to the e2e URL, so the second evaluation of the config in the same process (Playwright re-reads it per retry/worker, and workers inherit the mutated env) tripped its own "same database as DATABASE_URL" guard and failed every retry. Fixed with a `NUDEL_E2E_DATABASE_RESOLVED=1` marker that short-circuits the re-check.
+- **First real runs (2026-10-28)** on the dedicated database with the production build (`CI=1 E2E_PREBUILT=1`): `vehicles`, `tour-edit`, `tour-rerelease` 5 passed; `late-orders` + `tour-shift-warning` 6 passed; `tour-split` 1 passed + 1 flaky (passed on retry). Two teardown-only issues seen, unrelated to this ticket: `driver-fixture` cleanup hits `Tour_driverId_fkey` after a spec created a tour for its driver, and the run needs `SEED_ADMIN_PASSWORD` to match the one the e2e database was seeded with.
+- NOT run: the full suite (only the specs above), the mobile project, CI.
 
 ---
 
