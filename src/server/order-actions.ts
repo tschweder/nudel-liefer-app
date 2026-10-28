@@ -1,7 +1,15 @@
 "use server";
 
+import { z } from "zod";
+
+import { formatCalendarDate } from "@/domain/order";
+import { MAX_SOURCE_TEXT } from "@/domain/order-extraction-answer";
+import { isScreenshotKey } from "@/lib/uploads";
+
 import { requireRole } from "./auth/guards";
 import { getDb } from "./db";
+import { extractOrderDraft, type OrderDraftOutcome } from "./order-extraction";
+import { getOrderExtractor } from "./order-extractor";
 import {
   cancelOrder,
   countConfirmedOrders,
@@ -92,4 +100,28 @@ export async function dayTourCompletedAction(deliveryDate: unknown): Promise<boo
 export async function screenshotPreviewUrlAction(storageKey: unknown): Promise<string | null> {
   await requireRole("ADMIN");
   return getScreenshotPreviewUrl(getStorage(), storageKey);
+}
+
+/** Input of the AI draft (NUD-150): a pasted customer message and/or an uploaded screenshot. */
+const extractDraftInputSchema = z.object({
+  text: z.string().max(MAX_SOURCE_TEXT).nullish(),
+  screenshotKey: z.string().max(200).refine(isScreenshotKey).nullish(),
+});
+
+/**
+ * Reads a pasted customer message and/or the attached screenshot into a DRAFT order (NUD-150, D26).
+ * Read-only: the model's answer is returned to the form, and only saving the order stores anything
+ * (the text as `Order.sourceText`, the raw answer as `Order.aiExtraction`).
+ */
+export async function extractOrderDraftAction(input: unknown): Promise<OrderDraftOutcome> {
+  await requireRole("ADMIN");
+  const parsed = extractDraftInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const timezone = await getFactoryTimezone();
+  return extractOrderDraft(getDb(), parsed.data, {
+    storage: getStorage(),
+    extractor: getOrderExtractor(),
+    today: formatCalendarDate(todayIn(timezone)),
+    timezone,
+  });
 }

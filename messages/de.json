@@ -971,6 +971,29 @@
         "SCREENSHOT": "Screenshot"
       },
       "form": {
+        "ai": {
+          "button": "Mit KI auslesen",
+          "buttonBusy": "Wird ausgelesen …",
+          "candidates": "Mögliche Produkte: {names}",
+          "disabledHint": "KI-Auslesen ist nicht konfiguriert (kein API-Schlüssel). Die manuelle Eingabe funktioniert unverändert.",
+          "errors": {
+            "extractionFailed": "Die Nachricht konnte nicht ausgelesen werden. Bitte erneut versuchen oder manuell erfassen.",
+            "invalid": "Bitte eine Nachricht einfügen oder einen Screenshot anhängen.",
+            "notConfigured": "KI-Auslesen ist nicht konfiguriert (kein API-Schlüssel). Bitte manuell erfassen.",
+            "screenshotUnavailable": "Der Screenshot konnte nicht gelesen werden. Bitte erneut hochladen."
+          },
+          "heading": "Bestellnachricht auslesen",
+          "hint": "Nachricht des Kunden einfügen (WhatsApp/WeChat) und/oder Screenshot hochladen. Die KI füllt einen Entwurf, den das Büro immer prüft.",
+          "label": "Kundennachricht",
+          "lineLabelHint": "Erkannt als: {label}",
+          "lineLowConfidence": "Unsicher erkannt – bitte Menge prüfen.",
+          "lowConfidence": "Die KI ist unsicher (Gesamtvertrauen {percent} %). Bitte alle Produkte und Mengen prüfen.",
+          "note": "Notiz aus der Nachricht: {note}",
+          "placeholder": "z. B. „2 Kiste Nudeln und 1 Sackerl Wantan-Teig für morgen“",
+          "quantityUnknown": "Menge unklar",
+          "unmatchedHeading": "Nicht zugeordnet – bitte manuell ergänzen:",
+          "unmatchedLine": "{label} (Menge: {quantity})"
+        },
         "customer": "Kunde",
         "customerPlaceholder": "Kunde wählen",
         "customerSearch": "Nach Name oder Nummer suchen",

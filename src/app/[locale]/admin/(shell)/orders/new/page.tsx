@@ -8,6 +8,7 @@ import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
 import { type AppLocale, LOCALES, pick } from "@/lib/localized-text";
 import { requirePageActor } from "@/server/auth/page-guards";
+import { isOrderExtractorAvailable } from "@/server/order-extractor";
 import { orderableCustomersQuery } from "@/server/order-queries";
 import { activeProductsQuery } from "@/server/product-queries";
 import { getDefaultDeliveryDate } from "@/server/settings";
@@ -34,6 +35,7 @@ async function Guarded({ locale }: { locale: string }) {
         }
       />
       <OrderForm
+        aiAvailable={isOrderExtractorAvailable()}
         defaultDate={formatCalendarDate(defaultDate)}
         customers={customers.map((c) => ({
           value: c.id,

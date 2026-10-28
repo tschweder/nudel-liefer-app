@@ -19,15 +19,18 @@ import {
   parseCalendarDate,
   parseQuantity,
 } from "@/domain/order";
+import type { ExtractionAnswer, OrderDraft, UnmatchedLine } from "@/domain/order-extraction";
 import { useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import {
   confirmedOrderCountAction,
   createOrderAction,
   dayTourCompletedAction,
+  extractOrderDraftAction,
   screenshotPreviewUrlAction,
   updateOrderAction,
 } from "@/server/order-actions";
+import type { OrderDraftFailure } from "@/server/order-extraction";
 
 export type CustomerOption = ComboboxOption;
 export type ProductOption = ComboboxOption & { unit: "KG" | "PACK" | "CRATE" | "PIECE" };
@@ -57,6 +60,8 @@ type Props = {
   defaultDate: string;
   /** Edit mode: the form is filled from this order; customer and screenshot cannot be changed. */
   order?: EditableOrder;
+  /** The AI order draft (NUD-150) is configured: an `OrderExtractor` API key is present. */
+  aiAvailable?: boolean;
 };
 
 type Line = { key: number; productId: string | undefined; quantity: string };
@@ -78,6 +83,14 @@ const SERVER_ERRORS: Record<string, string> = {
   screenshot_in_use: "screenshotInUse",
 };
 
+/** Message keys of the AI draft failures (NUD-150), mapped from the server's snake_case codes. */
+const AI_ERRORS: Record<OrderDraftFailure, string> = {
+  invalid: "invalid",
+  not_configured: "notConfigured",
+  screenshot_unavailable: "screenshotUnavailable",
+  extraction_failed: "extractionFailed",
+};
+
 /** An uploaded screenshot: its storage key (sent on save) and a signed URL for the viewer. */
 type Screenshot = { storageKey: string; url: string };
 
@@ -93,7 +106,7 @@ type Screenshot = { storageKey: string; url: string };
  * Edit mode (NUD-032, `order` given): same fields and the same server validation; the customer is
  * fixed, the attached screenshot (if any) is shown read-only in the split view.
  */
-export function OrderForm({ customers, products, defaultDate, order }: Props) {
+export function OrderForm({ customers, products, defaultDate, order, aiAvailable = false }: Props) {
   const t = useTranslations("admin.orders.form");
   const tc = useTranslations("common");
   const router = useRouter();
@@ -124,6 +137,20 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
   const [screenshotError, setScreenshotError] = useState(false);
   const [counted, setCounted] = useState<{ key: string; count: number } | null>(null);
   const [dayDone, setDayDone] = useState<{ key: string; done: boolean } | null>(null);
+  // AI order draft (NUD-150): the pasted customer message, the last outcome and what the office
+  // should check. The raw answer is kept so a save can send it back; nothing here is written to the
+  // order by itself - the office confirms every line.
+  const [sourceText, setSourceText] = useState("");
+  const [aiPending, setAiPending] = useState(false);
+  const [aiError, setAiError] = useState<OrderDraftFailure | null>(null);
+  const [aiExtraction, setAiExtraction] = useState<ExtractionAnswer | null>(null);
+  const [aiConfidences, setAiConfidences] = useState<Record<number, number>>({});
+  const [aiLabels, setAiLabels] = useState<Record<number, string>>({});
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [aiNotice, setAiNotice] = useState<{
+    unmatched: UnmatchedLine[];
+    note: string | null;
+  } | null>(null);
 
   const customer = customers.find((c) => c.value === customerId);
   const productById = new Map(products.map((p) => [p.value, p]));
@@ -219,7 +246,83 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
     setScreenshotError(false);
     setCounted(null);
     setDayDone(null);
+    setSourceText("");
+    setAiPending(false);
+    setAiError(null);
+    setAiExtraction(null);
+    setAiConfidences({});
+    setAiLabels({});
+    setAiConfidence(null);
+    setAiNotice(null);
   }
+
+  /**
+   * Fills the draft the model read into the form (NUD-150). The product lines are the model's
+   * mapping, but every line keeps a low-confidence marker so the office checks the quantity; the
+   * planned day stays empty (= automatic). The notice is only shown, never written into the note.
+   */
+  function applyDraft(draft: OrderDraft, extraction: ExtractionAnswer) {
+    const imported: Line[] = draft.lines.map((line, index) => ({
+      // Reuse the keys already on screen so React does not remount the pickers.
+      key: lines[index]?.key ?? nextKey.current++,
+      productId: line.productId,
+      quantity: line.quantity,
+    }));
+    const confidences: Record<number, number> = {};
+    const labels: Record<number, string> = {};
+    imported.forEach((line, index) => {
+      confidences[line.key] = draft.lines[index]!.confidence;
+      labels[line.key] = draft.lines[index]!.label;
+    });
+    setLines(
+      imported.length > 0
+        ? imported
+        : [{ key: nextKey.current++, productId: undefined, quantity: "" }],
+    );
+    setAiConfidences(confidences);
+    setAiLabels(labels);
+    if (draft.window) {
+      setWindowFrom(draft.window.from);
+      setWindowTo(draft.window.to);
+      setWindowFromTime(draft.window.fromTime);
+      setWindowToTime(draft.window.toTime);
+      windowTouched.current = true;
+    }
+    setPlannedDay("");
+    plannedTouched.current = false;
+    setAiConfidence(draft.confidence);
+    setAiNotice({ unmatched: draft.unmatched, note: draft.note });
+    setAiExtraction(extraction);
+    setServerError(null);
+  }
+
+  /** Read the pasted message and/or the screenshot into a draft; on failure keep every typed value. */
+  async function runExtraction() {
+    setAiPending(true);
+    setAiError(null);
+    try {
+      const outcome = await extractOrderDraftAction({
+        text: sourceText,
+        screenshotKey: screenshot?.storageKey || null,
+      });
+      if (outcome.ok) applyDraft(outcome.draft, outcome.extraction);
+      else setAiError(outcome.error);
+    } catch {
+      setAiError("extraction_failed");
+    } finally {
+      setAiPending(false);
+    }
+  }
+
+  /** Catalogue names of the products the model found plausible for an unmatched line. */
+  function candidateNames(candidates: string[]): string[] {
+    return candidates
+      .map((id) => productById.get(id)?.label)
+      .filter((name): name is string => Boolean(name));
+  }
+
+  const aiHasInput = sourceText.trim() !== "" || Boolean(screenshot?.storageKey);
+  const aiDisabled = !aiAvailable || aiPending || !aiHasInput;
 
   async function onScreenshotUploaded(image: { storageKey: string }) {
     setScreenshotError(false);
@@ -300,6 +403,9 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
       status,
       internalNote: note,
       screenshotKey: editing ? null : (screenshot?.storageKey ?? null),
+      // The AI draft is only a proposal: the message and the raw answer ride along with the saved
+      // order so the office can see what the model read (NUD-150). Never sent when editing.
+      ...(editing ? {} : { sourceText: sourceText || null, aiExtraction }),
       lines: filled.map((l) => ({ productId: l.productId, quantity: l.quantity })),
     };
     startTransition(async () => {
@@ -552,6 +658,88 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
           </div>
         ) : null}
 
+        {editing ? null : (
+          <section
+            className="flex flex-col gap-3 rounded-md border border-input p-4"
+            aria-labelledby="order-ai"
+            data-testid="order-ai"
+          >
+            <h2 id="order-ai" className="text-xl font-semibold">
+              {t("ai.heading")}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t("ai.hint")}</p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="order-ai-source">{t("ai.label")}</Label>
+              <textarea
+                id="order-ai-source"
+                value={sourceText}
+                maxLength={4000}
+                rows={4}
+                onChange={(e) => {
+                  setSourceText(e.target.value);
+                  setAiError(null);
+                }}
+                placeholder={t("ai.placeholder")}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                data-testid="ai-source-text"
+              />
+            </div>
+            {aiAvailable ? null : (
+              <p className="text-sm text-muted-foreground" data-testid="ai-disabled-hint">
+                {t("ai.disabledHint")}
+              </p>
+            )}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={aiDisabled}
+                onClick={() => void runExtraction()}
+                data-testid="ai-extract"
+              >
+                {aiPending ? t("ai.buttonBusy") : t("ai.button")}
+              </Button>
+            </div>
+            {aiError ? (
+              <p className="text-sm text-destructive" role="alert" data-testid="ai-error">
+                {t(`ai.errors.${AI_ERRORS[aiError]}`)}
+              </p>
+            ) : null}
+            {aiConfidence !== null && aiConfidence < 0.6 ? (
+              <p className="text-sm text-warning" role="status" data-testid="ai-low-confidence">
+                {t("ai.lowConfidence", { percent: Math.round(aiConfidence * 100) })}
+              </p>
+            ) : null}
+            {aiNotice && (aiNotice.unmatched.length > 0 || aiNotice.note) ? (
+              <Alert variant="info" role="status" data-testid="ai-notice">
+                <div className="flex flex-col gap-1">
+                  {aiNotice.unmatched.length > 0 ? (
+                    <>
+                      <p className="font-medium">{t("ai.unmatchedHeading")}</p>
+                      <ul className="list-disc pl-5">
+                        {aiNotice.unmatched.map((line, index) => (
+                          <li key={`${line.label}-${index}`} data-testid="ai-unmatched-line">
+                            {t("ai.unmatchedLine", {
+                              label: line.label,
+                              quantity: line.quantity ?? t("ai.quantityUnknown"),
+                            })}
+                            {candidateNames(line.candidates).length > 0
+                              ? ` ${t("ai.candidates", {
+                                  names: candidateNames(line.candidates).join(", "),
+                                })}`
+                              : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                  {aiNotice.note ? <p>{t("ai.note", { note: aiNotice.note })}</p> : null}
+                </div>
+              </Alert>
+            ) : null}
+          </section>
+        )}
+
         <section className="flex flex-col gap-3" aria-labelledby="order-lines">
           <h2 id="order-lines" className="text-xl font-semibold">
             {t("linesHeading")}
@@ -561,6 +749,8 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
             {lines.map((line, index) => {
               const product = line.productId ? productById.get(line.productId) : undefined;
               const error = submitted ? lineErrors(line) : null;
+              const aiLabel = aiLabels[line.key];
+              const aiLineConfidence = aiConfidences[line.key];
               return (
                 <li key={line.key} className="flex flex-col gap-1" data-testid="order-line">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center">
@@ -608,6 +798,20 @@ export function OrderForm({ customers, products, defaultDate, order }: Props) {
                       <Trash2Icon aria-hidden />
                     </Button>
                   </div>
+                  {aiLabel !== undefined ? (
+                    <p className="text-sm text-muted-foreground" data-testid="line-ai-label">
+                      {t("ai.lineLabelHint", { label: aiLabel })}
+                    </p>
+                  ) : null}
+                  {aiLineConfidence !== undefined && aiLineConfidence < 0.6 ? (
+                    <p
+                      className="text-sm text-warning"
+                      role="status"
+                      data-testid="line-low-confidence"
+                    >
+                      {t("ai.lineLowConfidence")}
+                    </p>
+                  ) : null}
                   {error ? (
                     <p className="text-sm text-destructive" role="alert" data-testid="error-line">
                       {t(`errors.${error}`)}

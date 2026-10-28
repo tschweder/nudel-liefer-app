@@ -318,6 +318,9 @@ const MATRIX: Record<string, Row> = {
   "src/server/order-actions.ts#screenshotPreviewUrlAction": adminAction("orders", async () =>
     (await import("./order-actions")).screenshotPreviewUrlAction("screenshots/x.jpg"),
   ),
+  "src/server/order-actions.ts#extractOrderDraftAction": adminAction("orders", async () =>
+    (await import("./order-actions")).extractOrderDraftAction({ text: "2 Kiste Nudeln" }),
+  ),
   "src/server/product-actions.ts#createProductAction": adminAction("catalog", async () =>
     (await import("./product-actions")).createProductAction({}),
   ),

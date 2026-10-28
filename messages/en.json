@@ -971,6 +971,29 @@
         "SCREENSHOT": "Screenshot"
       },
       "form": {
+        "ai": {
+          "button": "Read with AI",
+          "buttonBusy": "Reading …",
+          "candidates": "Possible products: {names}",
+          "disabledHint": "AI reading is not configured (no API key). Manual entry is unaffected.",
+          "errors": {
+            "extractionFailed": "The message could not be read. Please try again or enter the order manually.",
+            "invalid": "Please paste a message or attach a screenshot.",
+            "notConfigured": "AI reading is not configured (no API key). Please enter the order manually.",
+            "screenshotUnavailable": "The screenshot could not be read. Please upload it again."
+          },
+          "heading": "Read the order message",
+          "hint": "Paste the customer's message (WhatsApp/WeChat) and/or attach a screenshot. The AI fills a draft that the office always reviews.",
+          "label": "Customer message",
+          "lineLabelHint": "Read as: {label}",
+          "lineLowConfidence": "Recognised with low confidence – please check the quantity.",
+          "lowConfidence": "The AI is unsure (overall confidence {percent} %). Please check every product and quantity.",
+          "note": "Note from the message: {note}",
+          "placeholder": "e.g. \"2 Kiste Nudeln and 1 Sackerl Wantan-Teig for tomorrow\"",
+          "quantityUnknown": "Quantity unclear",
+          "unmatchedHeading": "Not matched – please add manually:",
+          "unmatchedLine": "{label} (quantity: {quantity})"
+        },
         "customer": "Customer",
         "customerPlaceholder": "Choose a customer",
         "customerSearch": "Search by name or number",

@@ -11,6 +11,16 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    /**
+     * The developer's `.env` is loaded above for the database and storage URLs, but the paid
+     * providers must never be called from a test: with a real `OPENROUTER_API_KEY` the translator
+     * would answer a live request and the assertions about the `FakeTranslator` would fail. Provider
+     * selection is tested by passing an explicit env object (`getTranslator({ ... })`).
+     */
+    env: {
+      DEEPL_API_KEY: "",
+      OPENROUTER_API_KEY: "",
+    },
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts", "content/**/*.test.ts"],
     exclude: ["tests/e2e/**", "node_modules/**"],
     // next-auth imports "next/server" without the extension, which Node's ESM loader rejects; let

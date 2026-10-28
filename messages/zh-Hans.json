@@ -971,6 +971,29 @@
         "SCREENSHOT": "截图"
       },
       "form": {
+        "ai": {
+          "button": "用 AI 识别",
+          "buttonBusy": "正在识别……",
+          "candidates": "可能的产品：{names}",
+          "disabledHint": "AI 识别未配置（没有 API 密钥）。手动录入不受影响。",
+          "errors": {
+            "extractionFailed": "无法识别该消息。请重试或手动录入。",
+            "invalid": "请粘贴消息或上传截图。",
+            "notConfigured": "AI 识别未配置（没有 API 密钥）。请手动录入。",
+            "screenshotUnavailable": "无法读取该截图。请重新上传。"
+          },
+          "heading": "识别订单消息",
+          "hint": "粘贴客户消息（WhatsApp/微信）并/或上传截图。AI 会填写草稿，办公室必须核对。",
+          "label": "客户消息",
+          "lineLabelHint": "识别为：{label}",
+          "lineLowConfidence": "识别把握较低——请核对数量。",
+          "lowConfidence": "AI 没有把握（总体置信度 {percent} %）。请核对所有产品和数量。",
+          "note": "消息中的备注：{note}",
+          "placeholder": "例如“明天 2 箱面条和 1 袋云吞皮”",
+          "quantityUnknown": "数量不明",
+          "unmatchedHeading": "未匹配——请手动补充：",
+          "unmatchedLine": "{label}（数量：{quantity}）"
+        },
         "customer": "客户",
         "customerPlaceholder": "选择客户",
         "customerSearch": "按名称或编号搜索",

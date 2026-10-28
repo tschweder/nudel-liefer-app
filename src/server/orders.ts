@@ -11,7 +11,7 @@ import {
 import { aggregateTotalsByDate, isOrderEditable, type OrderFilters } from "@/domain/order-overview";
 import { calendarDayIn } from "@/domain/settings";
 import { type OrderState, outdatedTourTargets } from "@/domain/tour-diff";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { isScreenshotKey, MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 import { recordAudit } from "./audit";
@@ -184,6 +184,9 @@ export async function createOrder(
           ? { create: { storageKey: v.screenshotKey, uploadedById: actorId } }
           : undefined,
         internalNote: v.internalNote,
+        // AI order draft (NUD-150): the pasted message and what the model read, both optional.
+        sourceText: v.sourceText,
+        aiExtraction: v.aiExtraction ? (v.aiExtraction as unknown as Prisma.InputJsonValue) : undefined,
         createdBy: { connect: { id: actorId } },
         items: {
           create: v.lines.map((l) => ({

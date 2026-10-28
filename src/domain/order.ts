@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isScreenshotKey } from "@/lib/uploads";
 
 import { isValidWindow, type OrderWindow, parseTimeOfDay } from "./delivery-window";
+import { extractionAnswerSchema, MAX_SOURCE_TEXT } from "./order-extraction-answer";
 
 /**
  * Pure order-entry rules (NUD-030): quantity parsing, line merging, input validation and the
@@ -151,6 +152,23 @@ export const orderInputSchema = z
       .string()
       .max(200)
       .refine(isScreenshotKey)
+      .nullish()
+      .transform((v) => v ?? null),
+    /**
+     * Pasted customer message the order was typed from (NUD-150). Stored for review and for the
+     * dispute about quantities; never parsed again, so it cannot influence an order.
+     */
+    sourceText: z
+      .string()
+      .trim()
+      .max(MAX_SOURCE_TEXT)
+      .nullish()
+      .transform((v) => (v ? v : null)),
+    /**
+     * Raw answer of the AI extraction (NUD-150), kept next to the order so the office can see what
+     * the model read. Validated against the extraction contract - arbitrary client JSON is refused.
+     */
+    aiExtraction: extractionAnswerSchema
       .nullish()
       .transform((v) => v ?? null),
     lines: z

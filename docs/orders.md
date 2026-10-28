@@ -108,6 +108,31 @@ which calls `requireRole("ADMIN")` first and passes the live DB, factory timezon
 service. `orderOverviewQuery` additionally parses filters (default = next delivery date) and
 marks each returned row `late: true` using `lateOrderIdsForRows`.
 
+## AI order draft (NUD-150, D26)
+
+The office may paste the customer's WhatsApp/WeChat message into the order form and/or attach a
+screenshot; "Mit KI auslesen" turns it into a **draft** that the office reviews and confirms -
+nothing is saved by the extraction itself.
+
+- `src/domain/order-extraction.ts` (pure): the answer contract
+  (`extractionAnswerSchema`, leaf module `order-extraction-answer.ts` so `order.ts` can store it),
+  the label → catalog matcher (`matchProduct`, unit words decide between the two "Nudeln" products),
+  `assembleDraft` (catalog ids only, ambiguous/unknown products are reported in `unmatched`, never
+  guessed) and the prompt (`buildExtractionPrompt`).
+- `src/server/order-extractor/`: the `OrderExtractor` interface, `OpenRouterOrderExtractor` (vision
+  capable, `OPENROUTER_API_KEY`/`OPENROUTER_MODEL`) and `FakeOrderExtractor` (offline stand-in used by
+  the tests and the evaluation script). A missing key disables the button; the fake never reaches an
+  office user.
+- `src/server/order-extraction.ts`: loads the active catalog and the screenshot (signed URL → bytes),
+  calls the extractor and returns `{ draft, extraction, model }`. Read-only.
+- `extractOrderDraftAction` (ADMIN) is the only entry point; a draft's raw answer travels back with
+  the saved order and is validated again by `orderInputSchema` (`Order.sourceText`,
+  `Order.aiExtraction`; migration `20261030120000_order_ai_extraction`).
+- Evaluation: `pnpm eval:order-extraction` (`--fake`, `--min 0.8`, `--today YYYY-MM-DD`) runs the 16
+  anonymised messages in `tests/fixtures/order-extraction/samples.json` and reports the line accuracy;
+  `src/server/order-extractor-eval.test.ts` keeps fixture and matcher in sync.
+- The same OpenRouter client is the Serbian slot of the translation chain (DeepL has no Serbian).
+
 ## Late orders
 
 `src/server/late-orders.ts` (NUD-099) implements a read model: a `CONFIRMED` order for a day

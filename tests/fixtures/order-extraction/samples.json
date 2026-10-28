@@ -1,0 +1,150 @@
+{
+  "_comment": "Anonymised customer messages for the AI order draft (NUD-150). No customer names, no addresses, no phone numbers - the wording only. `lines` is the ground truth the office would type; `windowFromOffsetDays` counts from 'today' in the factory time zone (null = the message asks for no window).",
+  "samples": [
+    {
+      "id": "de-01",
+      "locale": "de",
+      "text": "2 Karton Nudeln, 5 Beutel, morgen vormittag",
+      "lines": [
+        { "productId": "crate", "quantity": 2 },
+        { "productId": "pack", "quantity": 5 }
+      ],
+      "windowFromOffsetDays": 1,
+      "windowFromTime": "08:00",
+      "windowToTime": "12:00"
+    },
+    {
+      "id": "de-02",
+      "locale": "de",
+      "text": "Bitte 3 Kiste Nudeln und 1 Stück Wantan-Teig",
+      "lines": [
+        { "productId": "crate", "quantity": 3 },
+        { "productId": "wantan", "quantity": 1 }
+      ],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "de-03",
+      "locale": "de",
+      "text": "Wir brauchen 6 Sackerl Nudeln, 2 Kiste Nudeln und 3 Wantan-Teig",
+      "lines": [
+        { "productId": "pack", "quantity": 6 },
+        { "productId": "crate", "quantity": 2 },
+        { "productId": "wantan", "quantity": 3 }
+      ],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "de-04",
+      "locale": "de",
+      "text": "Nudeln 10 Kiste, danke",
+      "lines": [{ "productId": "crate", "quantity": 10 }],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "de-05",
+      "locale": "de",
+      "text": "1 Kiste Nudeln, bitte morgen",
+      "lines": [{ "productId": "crate", "quantity": 1 }],
+      "windowFromOffsetDays": 1
+    },
+    {
+      "id": "de-06",
+      "locale": "de",
+      "text": "2 Packungen Nudeln fuer heute",
+      "lines": [{ "productId": "pack", "quantity": 2 }],
+      "windowFromOffsetDays": 0
+    },
+    {
+      "id": "de-07",
+      "locale": "de",
+      "text": "Bitte 2 Wantan-Teig",
+      "lines": [{ "productId": "wantan", "quantity": 2 }],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "de-08",
+      "locale": "de",
+      "text": "4 Kiste Nudeln und 1 Sackerl Nudeln, uebermorgen nachmittag",
+      "lines": [
+        { "productId": "crate", "quantity": 4 },
+        { "productId": "pack", "quantity": 1 }
+      ],
+      "windowFromOffsetDays": 2,
+      "windowFromTime": "13:00",
+      "windowToTime": "17:00"
+    },
+    {
+      "id": "zh-01",
+      "locale": "zh-Hans",
+      "text": "明天上午要 2 箱 面条，5 袋 面条",
+      "lines": [
+        { "productId": "crate", "quantity": 2 },
+        { "productId": "pack", "quantity": 5 }
+      ],
+      "windowFromOffsetDays": 1,
+      "windowFromTime": "08:00",
+      "windowToTime": "12:00"
+    },
+    {
+      "id": "zh-02",
+      "locale": "zh-Hans",
+      "text": "3 箱面条，1 件 馄饨皮",
+      "lines": [
+        { "productId": "crate", "quantity": 3 },
+        { "productId": "wantan", "quantity": 1 }
+      ],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "zh-03",
+      "locale": "zh-Hans",
+      "text": "要 5 袋 面条",
+      "lines": [{ "productId": "pack", "quantity": 5 }],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "zh-04",
+      "locale": "zh-Hans",
+      "text": "今天下午 4 箱 面条",
+      "lines": [{ "productId": "crate", "quantity": 4 }],
+      "windowFromOffsetDays": 0,
+      "windowFromTime": "13:00",
+      "windowToTime": "17:00"
+    },
+    {
+      "id": "zh-05",
+      "locale": "zh-Hans",
+      "text": "馄饨皮 2 件",
+      "lines": [{ "productId": "wantan", "quantity": 2 }],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "zh-06",
+      "locale": "zh-Hans",
+      "text": "面条 6 袋，面条 1 箱",
+      "lines": [
+        { "productId": "pack", "quantity": 6 },
+        { "productId": "crate", "quantity": 1 }
+      ],
+      "windowFromOffsetDays": null
+    },
+    {
+      "id": "zh-07",
+      "locale": "zh-Hans",
+      "text": "后天要 8 袋 面条，3 箱 面条",
+      "lines": [
+        { "productId": "pack", "quantity": 8 },
+        { "productId": "crate", "quantity": 3 }
+      ],
+      "windowFromOffsetDays": 2
+    },
+    {
+      "id": "zh-08",
+      "locale": "zh-Hans",
+      "text": "面条 12 箱",
+      "lines": [{ "productId": "crate", "quantity": 12 }],
+      "windowFromOffsetDays": null
+    }
+  ]
+}

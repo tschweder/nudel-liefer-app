@@ -20,6 +20,7 @@ const ALLOWED: Record<string, string> = {
   "src/server/geocoder/ors.ts": "response of OpenRouteService",
   "src/server/geocoder/photon.ts": "response of Photon (a self-hosted geocoder)",
   "src/server/translator/deepl.ts": "response of DeepL",
+  "src/server/openrouter/client.ts": "response of OpenRouter (the language model)",
   "src/server/driver-tour-payload.ts": "reads stored tour JSON (depot snapshot, geometry)",
 };
 

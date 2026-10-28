@@ -305,7 +305,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | done |
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | done |
 | NUD-149 | Recurring orders (Dauerbestellungen) | M2.6 | 148 | done |
-| NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | todo |
+| NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | done |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | todo |
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
@@ -320,6 +320,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
 | NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | todo |
 | NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
+| NUD-165 | 👤 One-off parking-spot import from the 2026-10 captures (archived, not a product feature) | M2.6 | – | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2641,7 +2642,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-150 · AI order draft from pasted message text or screenshot (OpenRouter)
-**Status:** todo · **depends_on:** 138 · F10 · D26 · **supersedes NUD-100**
+**Status:** done · **depends_on:** 138 · F10 · D26 · **supersedes NUD-100**
 
 **Scope**
 - `OrderExtractor` interface with an **OpenRouter** implementation (model configurable via `OPENROUTER_MODEL`, key `OPENROUTER_API_KEY`; vision-capable model for screenshots) and a Fake for tests / missing key.
@@ -2651,9 +2652,19 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 - Env vars in `.env.example` + `docs/env.md`; privacy note in `docs/privacy.md` (message text goes to OpenRouter).
 
 **Acceptance criteria**
-- [ ] With the Fake: pasted "2 Karton Nudeln, 5 Beutel, morgen vormittag" → 2 × Nudeln Karton, 5 × Nudeln Beutel, window tomorrow morning, as a draft.
-- [ ] Missing key → button disabled with a hint; manual entry unaffected.
-- [ ] Evaluation script with ≥ 15 anonymised sample messages (de + zh) reports line accuracy.
+- [x] With the Fake: pasted "2 Karton Nudeln, 5 Beutel, morgen vormittag" → 2 × Nudeln Kiste, 5 × Nudeln Sackerl, window tomorrow morning, as a draft. (Unit `order-extractor.test.ts`: the fake answer goes through `assembleDraft` and lands on the CRATE and PACK product ids; `docs/orders.md` "AI order draft".)
+- [x] Missing key → button disabled with a hint; manual entry unaffected. (`isOrderExtractorAvailable()` → `aiAvailable` on the form; `extractOrderDraftAction` answers `not_configured`; component test asserts the disabled button and the hint.)
+- [x] Evaluation script with ≥ 15 anonymised sample messages (de + zh) reports line accuracy. (`pnpm eval:order-extraction`, 16 samples in `tests/fixtures/order-extraction/samples.json`; `--fake` reads all 16 correctly, guarded by `order-extractor-eval.test.ts`.)
+
+**Implementation notes**
+- **Provider:** `src/server/openrouter/` (chat completion that must answer JSON, key in the `Authorization` header only, error codes TIMEOUT/NETWORK/HTTP/QUOTA/BAD_RESPONSE/NOT_CONFIGURED, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL`). `src/server/order-extractor/`: `OrderExtractor` interface, `OpenRouterOrderExtractor` (sends the catalog, the message and the screenshot as an inline image part), `FakeOrderExtractor` (offline stand-in for tests and `--fake`).
+- **Pure logic:** `src/domain/order-extraction.ts` — unit words decide between products that share a name ("2 Karton Nudeln" cannot become Sackerl), plurals ("2 Kisten") and Chinese without spaces ("3 箱面条") are handled, an ambiguous or unknown product is **reported, never guessed** (`unmatched` with candidate ids), duplicate lines are merged, an unusable date drops the window. The answer contract lives in the leaf module `order-extraction-answer.ts`, so `order.ts` can validate it without an import cycle.
+- **Flow:** `extractOrderDraftAction` (ADMIN, row in `authz-matrix.test.ts`) loads the active catalog and the screenshot (signed URL → bytes, <= 15 MB) and returns `{ draft, extraction, model }`. Nothing is written. The form fills lines/window, marks lines with confidence < 0.6, lists unmatched lines with candidate names, and sends the pasted text plus the raw answer on save; `orderInputSchema` validates both again (`Order.sourceText`, `Order.aiExtraction`; migration `20261030120000_order_ai_extraction`).
+- **Deviation from the ticket text (decision log):** the raw answer is stored on the **order** (`Order.aiExtraction`), not on `Screenshot.extraction` — a text-only draft has no screenshot row, and the screenshot row only comes into existence with the order. `Screenshot.extraction` stays empty.
+- **Serbian (decision log NUD-140):** the same OpenRouter client fills the Serbian slot of `RoutedTranslator` (`OpenRouterTranslator`, wired in `translator/index.ts`; without a DeepL key it becomes the primary provider). Existing texts without `sr-Latn` are filled by `pnpm backfill:serbian -- --apply` (`src/server/serbian-backfill.ts`, dry run by default, refuses to run with the `FakeTranslator`).
+- **i18n:** `admin.orders.form.ai.*` in `de`, `en`, `zh-Hans` (wording checked by `forbidden-words.test.ts`; "Beutel"/"Karton"/"Packung" appear only as *input aliases* of the matcher, never in UI text).
+- **Docs/env:** `docs/orders.md` (new section), `docs/env.md`, `docs/privacy.md` (new processor OpenRouter: raw message + screenshot; `Order.sourceText`/`aiExtraction` in the free-text table), `.env.example`.
+- Not verified: no request against the real OpenRouter API was made from this environment (no key here) — the request shape, the JSON parsing and the error mapping are covered by tests with a stubbed `fetch`, and the first real draft should be checked on the deployed instance. Screen reader/layout at 375 px was not re-checked (the section is admin-only, 1280 px).
 
 ---
 
@@ -2991,6 +3002,29 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 - i18n: `driver.abbreviation.*` in all five locales, admin keys in de/en/zh-Hans (zh-Hans agent-written, unreviewed). Docs: customers-and-imports, data-model, offline, privacy.
 - Tests: domain, outbox/overlay, sync parse, component (5 locales), integration (customer-abbreviation.integration.test.ts, embedded Postgres). No e2e spec added; 375 px layout not checked in a browser.
 - Remove when the new system is adopted: drop the three columns and enum value, the module, chip and messages.
+
+---
+
+#### NUD-165 · 👤 One-off parking-spot import from the 2026-10 captures (archived)
+**Status:** done · **depends_on:** – · owner request 2026-10-28 · **not a product feature**: a one-off data load, kept in the tree as the record of what was written to production.
+
+**Goal:** the client had already started collecting parking coordinates by hand before the app could take them (49 Google-Maps screenshots + 47 parking photos in `2026-10/`). Load them into the production database and object storage as `ParkingSpot` + `PARKING` photo, without a UI path.
+
+**Result of the run (2026-10-28, production vServer)**
+- 49 pins reviewed → **32 Parkplätze created, 30 parking photos added**, 7 already present, 1 duplicate, 0 failures.
+- Customers with a Parkplatz 6 → 37, with a parking photo 5 → 35; a second `--apply` created nothing (idempotent). 10 pins stayed open (4 ambiguous, 5 no match, 1 low confidence).
+
+**Scope closed on 2026-10-28**
+- The 10 open pins are no longer an import task: the driver resolves them in the field through the existing driver Parkplatz path (NUD-144/D27); the import ignores them (`--skip-pending`) and their evidence stays in the report.
+- The plan's shop-entrance (`STORE`) photos from Street View were dropped: only 9 of 32 addresses have coverage, several are interior or night panoramas, and storing/scraping Street View imagery is not permitted by Google's ToS. The 32 customers without a shop photo remain open and are covered by the two supported paths — office upload (`kind: STORE`) or the driver's camera (D27).
+- `2026-10/` (raw client captures, ~400 MB) and `.parking-import/` (crops, results, report, ledger) are **git-ignored**; scripts, engine, docs and the report template are tracked.
+
+**Files:** `scripts/parking-import/` (manifest, customer snapshot, cross-check, report, photo prep, import), `src/server/parking-import.ts` + `parking-import.integration.test.ts`, [`docs/parking-import/README.md`](docs/parking-import/README.md) + `PLAN-AND-ORCHESTRATOR-PROMPT.md`, npm scripts `parking:*`.
+
+**Acceptance criteria**
+- [x] Production holds the imported spots and photos; the result table is in the README.
+- [x] No product behaviour changed for it: only the shared upload helper was extracted out of the demo seed (`src/server/storage/upload.ts`); no new app dependency.
+- [x] Raw captures and derived work products are not committed.
 
 ---
 
@@ -3433,6 +3467,11 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-27 | NUD-154 | `markOutdatedForDate` customer filter and the `listConfirmedOrdersForDate` ownership rule count only stops on non-COMPLETED tours; an order whose customer has no stop on an open tour keeps today's behaviour (all open tours flagged/in scope); a customer with stops on two open tours is offered to both until released onto one | Smallest rule that satisfies the criteria; NUD-099 unchanged |
 | 2026-10-27 | NUD-119 | Marker tap/Enter/Space navigates straight to `/driver/stops/<id>`, no intermediate popup | Simplest option; keeps 48 px targets; a first-tap tooltip would hide the name on touch |
 | 2026-10-27 | NUD-118 | Label "Tour n von m · Folgetour" only when the driver has 2+ released tours that day (n = creation order among that driver's tours); the page follows the offline copy via `router.refresh()` only when the stored tour id changes; `tourNumber`/`tourCount` default to 1 in the cache schema | No schema-version bump, no refresh on a mere revision change |
+| 2026-10-28 | NUD-165 | The one-off parking-spot import is archived, not extended: the 10 undecided pins are resolved by the driver in the field via the existing Parkplatz path, the Street-View route for `STORE` photos is dropped (coverage + ToS), and the client's raw captures plus the derived work directory stay git-ignored while the pipeline, docs and report template are tracked | It was a workaround for data the client collected before the app could take it; production now matches the field data and the app owns the path from here |
+| 2026-10-28 | NUD-150 | The raw extraction answer is stored on the order (`Order.sourceText`, `Order.aiExtraction`), not on `Screenshot.extraction` as the ticket text said: a draft from pasted text has no screenshot at all, and the screenshot row is only created together with the order | One place for both input kinds; the answer is validated by `orderInputSchema` so no arbitrary client JSON reaches the column |
+| 2026-10-28 | NUD-150 | The model never returns catalogue ids: it returns the product words it read, the unit word decides between products that share a name, and an ambiguous/unknown product is listed as `unmatched` for the office instead of being guessed | A wrong delivery quantity is the client's top concern (backlog §1); reporting costs the office seconds |
+| 2026-10-28 | NUD-150 | Default model `google/gemini-2.5-flash` (`OPENROUTER_MODEL`), `response_format: json_object` plus strict zod validation of the answer, no streaming, max 1500 answer tokens | Needs vision for screenshots, strong in German and Chinese, cheap per draft; a rambling answer must fail loudly rather than fill half an order |
+| 2026-10-28 | NUD-150 | The OpenRouter client also fills the Serbian slot of the translation chain: existing `sr-Latn` gaps are closed by the one-off `pnpm backfill:serbian -- --apply` (dry run by default, refuses the FakeTranslator), new texts get Serbian immediately | NUD-140 promised this in NUD-150; without the backfill old notes would stay German for a Serbian driver |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
