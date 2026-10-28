@@ -3235,9 +3235,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 
 **Goal:** the inline `Switch` (product and vehicle status) renders 44×24 px, the one control in the admin content area that is below the 48 px touch target the rest of the tablet audit now satisfies. The audit tried a transparent `::before` hit area and reverted it: it measured 44 px instead of 48 (the pseudo element is clipped by the track), so it was not shipped as an unverified claim.
 
+**Why this is still open (2026-10-28, decision of the closing session):** the obvious fix (grow the Radix `Switch.Root` to 48×48 and keep the 44×24 track as an inner span) needs the thumb's movement to survive the restructure, and **the kit does not style that movement anywhere** — `src/components/ui/switch.tsx` has `transition-transform` on the thumb but no `translate-x` class, and no rule in `src/app/globals.css` targets `[data-slot=switch-thumb]`. Something outside the two files drives it (Radix internals or a generated utility), so the restructure can only be judged in a real browser with a screenshot before/after. That is a half-hour job with a build and a visual check — worth doing, not worth guessing at the end of a session.
+
 **Acceptance criteria**
 - [ ] The switch has a real ≥ 48 px hit area (wrapped label, padding on a parent, or a `hitArea` prop in `src/components/ui/switch.tsx`), measured in the tablet audit — not just documented.
 - [ ] No visual change to the 44×24 track; keyboard focus and the existing `aria-checked` behaviour unchanged; the product/vehicle specs stay green.
+- [ ] First find out what moves the thumb (`grep` the rendered DOM for the transform), then restructure; take before/after screenshots from the tablet audit.
 
 ---
 ---
