@@ -227,3 +227,50 @@ The code is verified locally with substitutes; these need your accounts:
 4. **Neon point-in-time:** open _Backup & Restore_ once and note the real history window of your plan here in section 4.
 5. **Orphan cleanup:** read the first dry-run reports, then decide on `ORPHAN_CLEANUP_MODE=delete`.
 6. Check that `postgresql-client-16` installs on the GitHub runner (first CI run after merge) and that `PG_MAJOR` matches the Neon version.
+
+## 14. Self-hosted ORS and Photon (dev PC + tunnel)
+
+Routing and geocoding run on the **development PC** (`deploy/local-services/README.md`), not on the
+vServer. Everything below is on that PC unless it says otherwise.
+
+**Health**
+
+```powershell
+# routing: {"status":"ready"}   geocoding: a FeatureCollection with one hit
+curl.exe -s http://127.0.0.1:8082/ors/v2/health
+curl.exe -s "http://127.0.0.1:2322/api?q=Wien&limit=1"
+# the tunnel holds both forwards on the server, and the app reports what it uses
+ssh root@<server> "ss -ltnp | grep -E ':8082|:2322'"
+ssh root@<server> "curl -s http://127.0.0.1:3100/delivery-app/api/health"
+```
+
+**Start / stop**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\local-services\start-ors.ps1      # ~10 s when the graph exists
+powershell -ExecutionPolicy Bypass -File deploy\local-services\start-photon.ps1
+powershell -ExecutionPolicy Bypass -File deploy\local-services\tunnel.ps1         # keeps itself alive
+docker stop nudel-ors photon-austria ; docker start nudel-ors photon-austria       # pause / resume
+```
+
+The tunnel is registered for autostart (`HKCU\…\Run` → `NudelLieferApp-Tunnel`); the containers
+have `--restart unless-stopped`, so they come back with Docker after a reboot.
+
+**Rebuild the ORS graph** (after a new OSM extract, or when the graph is corrupt — takes ~15 min):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\local-services\start-ors.ps1 -Rebuild
+```
+
+**Rebuild the Photon index**: delete `C:\ors-local\photon\photon_data` and restart the container
+(it unpacks `photon-db-austria-1.0.tar.bz2` again).
+
+**Symptoms**
+
+| Symptom | Cause / fix |
+| --- | --- |
+| Tour shows "Näherungswerte" | Tunnel down, ORS container down, or `ORS_BASE_URL` missing in `/etc/delivery-app.env`. The app keeps working — check `routing.mode` in `/api/health`. |
+| New customers get no Adresspunkt | `PHOTON_URL` unset or Photon down (`geocoding.mode` = `fake`). `tsx scripts/geocode-customers.ts` fills them (dry run first). |
+| `ssh: connect … ExitOnForwardFailure` | The ports are already forwarded on the server (an old tunnel is still alive): `pkill -f 'ssh.*8082:127.0.0.1:8082'` on the server, then start the tunnel again. |
+| ORS answers 503 for a long time | The graph is still building (`docker logs -f nudel-ors`); after a `-Rebuild` this is normal for ~15 min. |
+| `bind: address already in use` on the dev PC | Another program uses 8082/2322 (Photon already ran on 2322); stop it or change the port in the scripts **and** the tunnel together. |

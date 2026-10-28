@@ -116,9 +116,20 @@ export function buildCsp(env: Env, options: CspOptions = {}): string {
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'"]],
     // Violations end up in the server log (one line each); essential for a report-only rollout.
-    ["report-uri", ["/api/csp-report"]],
+    // The URI is base-path aware: on the vServer the app is served under /delivery-app, and a
+    // relative "/api/csp-report" would be posted to the nginx root and answered with 404 — which
+    // is exactly what happened until 2026-10-28 (NUD-120).
+    ["report-uri", [`${basePathOf(env)}/api/csp-report`]],
   ];
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");
+}
+
+/** `NEXT_PUBLIC_BASE_PATH` as `/delivery-app`, or `""` when the app is served at the root. */
+export function basePathOf(env: Env): string {
+  const raw = env.NEXT_PUBLIC_BASE_PATH?.trim();
+  if (!raw) return "";
+  const withSlash = raw.startsWith("/") ? raw : `/${raw}`;
+  return withSlash.replace(/\/+$/, "");
 }
 
 /** `CSP_REPORT_ONLY=true` sends the policy as report-only: nothing is blocked, violations are logged. */

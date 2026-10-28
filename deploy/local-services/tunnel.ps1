@@ -41,10 +41,20 @@ if ($Status) {
 
 if ($Install) {
   # powershell.exe, not pwsh: Windows PowerShell 5.1 is what this machine has.
-  $action = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'tunnel.ps1')`""
-  $name = 'NudelLieferApp-Tunnel'
-  schtasks /Create /F /SC ONLOGON /TN $name /TR $action | Out-Null
-  Write-Host "Registered logon task '$name'. Start it now with: schtasks /Run /TN $name"
+  $command = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'tunnel.ps1')`""
+  # A per-user Run key needs no elevation; the scheduled task does on some machines. Try the task
+  # first because it is easier to see, and fall back to the Run key when Windows refuses it.
+  schtasks /Create /F /SC ONLOGON /TN 'NudelLieferApp-Tunnel' /TR $command 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Host "Registered logon task 'NudelLieferApp-Tunnel'. Start it now with: schtasks /Run /TN NudelLieferApp-Tunnel"
+    exit 0
+  }
+  $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+  New-Item -Path $runKey -Force | Out-Null
+  New-ItemProperty -Path $runKey -Name 'NudelLieferApp-Tunnel' -Value $command -PropertyType String -Force | Out-Null
+  Write-Host "Registered the autostart entry 'NudelLieferApp-Tunnel' under $runKey (the scheduled task was refused)."
+  Write-Host "It starts at your next logon; start it now with:"
+  Write-Host "  powershell -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $PSScriptRoot 'tunnel.ps1')`""
   exit 0
 }
 

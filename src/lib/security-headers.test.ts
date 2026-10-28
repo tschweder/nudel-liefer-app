@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  basePathOf,
   buildCsp,
   commonSecurityHeaders,
   cspHeader,
@@ -78,6 +79,17 @@ describe("buildCsp", () => {
     expect(directive(csp, "base-uri")).toEqual(["'self'"]);
     expect(directive(csp, "form-action")).toEqual(["'self'"]);
     expect(directive(csp, "default-src")).toEqual(["'self'"]);
+  });
+
+  it("posts violations to the report endpoint under the configured base path (NUD-120)", () => {
+    expect(directive(buildCsp(prod), "report-uri")).toEqual(["/api/csp-report"]);
+    const sub = { ...prod, NEXT_PUBLIC_BASE_PATH: "/delivery-app" };
+    expect(directive(buildCsp(sub), "report-uri")).toEqual(["/delivery-app/api/csp-report"]);
+    // Tolerated shapes of the same value: no leading slash, trailing slashes, surrounding blanks.
+    for (const value of ["delivery-app", "/delivery-app/", "  /delivery-app//  "]) {
+      expect(basePathOf({ NEXT_PUBLIC_BASE_PATH: value })).toBe("/delivery-app");
+    }
+    expect(basePathOf({})).toBe("");
   });
 
   it("allows the tile and storage origins from the environment, nothing else external", () => {

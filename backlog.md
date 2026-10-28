@@ -312,7 +312,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
-| NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
+| NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | done |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
 | NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | done |
@@ -2812,6 +2812,13 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 - **Host**, and only if routing is self-hosted at all: the existing vServer (2 GB RAM, 6 GB swap since 2026-10-27) or a separate VM. A home PC is fine as a local experiment but cannot be a production dependency for drivers in the field.
 - **Worth it?** Compared with NUD-157 this is low urgency — see the Scope note above.
 
+**2026-10-28 — infra done, second premise correction**
+- Owner decision: self-host it, on the development PC, reached by the vServer through a reverse SSH tunnel (E4 in the same session: the same tunnel serves Photon). ORS v9.1.1 runs in Docker with the Austria car graph (`deploy/local-services/`, docs §13.4, runbook §14); it listens on `127.0.0.1:8082` only, survives a reboot (`--restart unless-stopped`) and the graph rebuilds with `start-ors.ps1 -Rebuild`. Measured: graph build ~14 min on 8 cores, ~4 GB RAM resident, ~2 GB of graph on disk.
+- **Premise correction 2:** the image serves **no `/optimization`** at all. Checked against v9.1.1, v8.0.0 and v7.2.1 (`/ors/v2/api-docs`): routing, matrix, isochrones, snapping, matching, export, health and status only. The VROOM proxy that the app's `/optimization` calls was dropped from ORS; VROOM itself is a separate service that needs an OSRM graph. Verified the working half live through the tunnel: `/ors/v2/health` = `{"status":"ready"}`, `/ors/v2/directions/driving-car` Vienna → Klosterneuburg = 15.1 km / 30.6 min with real street names (the heuristic would have guessed ~10 km).
+- Consequence: the app orders stops with its own heuristic and gets **legs, driving times and the route line from the self-hosted ORS** (a composing provider in `src/server/routing/`), instead of falling back to the heuristic for everything. `ORS_BASE_URL` alone now activates ORS (a self-hosted instance needs no key), and the ORS client omits the `Authorization` header when no key is set.
+- Acceptance criterion "a local ORS answers `/v2/directions` **and** `/optimization`" is **void for `/optimization`** (no ORS image has it); replaced by "the app plans a tour whose legs and geometry come from the local instance with `approximate: false`".
+- Migration of the acceptance criteria to reality: `GET /api/health` now reports `routing.mode` / `geocoding.mode` so the operator can see which provider is in use without reading logs (NUD-145).
+
 **Risks**
 - RAM: 2 vCPU / 2 GB today, and the build already needs swap (`deploy/server-setup.sh`, NUD-155 era). ORS wants more than the app does — do not start the deployment before the host decision, or the box will swap itself to death while drivers are working.
 - Disk: a DE extract plus its graph can exceed 20 GB; check `df -h /` before downloading.
@@ -2820,7 +2827,7 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 ---
 
 #### NUD-157 · Geocoding quota: 94 active customers still without an Adresspunkt
-**Status:** in-progress · **depends_on:** – · found 2026-10-27 while geocoding the customer master data (NUD-156 analysis). Owner chose **self-hosted Photon** as the route; the provider is implemented, the instance and the remaining 94 customers are open.
+**Status:** done (2026-10-28) · **depends_on:** – · found 2026-10-27 while geocoding the customer master data (NUD-156 analysis). Owner chose **self-hosted Photon** as the route; the instance is running, the production customer master data is complete.
 
 **Problem**
 Bulk geocoding needs far more lookups than one free ORS key provides per day: on 2026-10-27 the key answered `429` after ~80 lookups and `403 "Quota exceeded"` for the rest of the day. Result: 103 of 197 active customers have a real Adresspunkt and **94 do not**; a customer without coordinates and without a Parkplatz gets no "Navigation starten" button in the driver app (the office can set a Parkplatz by hand per stop, which restores it for that stop).
@@ -2832,10 +2839,15 @@ Bulk geocoding needs far more lookups than one free ORS key provides per day: on
 - **Paid ORS plan** — no code change, recurring cost.
 
 **Acceptance criteria**
-- [ ] Every active customer has an Adresspunkt, or a recorded reason the address cannot be geocoded (check: active customers with `lat is null` and no active Parkplatz). **174 of 197 done**; the 23 open ones are listed in the notes below.
+- [x] Every active customer has an Adresspunkt, or a recorded reason the address cannot be geocoded. (**0** active customers with `lat is null` on production, checked 2026-10-28 with `scripts/geocode-customers.ts`; the last two runs found 1 and then 0.)
 - [x] `PhotonGeocoder` implemented behind the existing `Geocoder` interface, selected by `PHOTON_URL`, with unit tests for the response mapping (label assembly, `[lon,lat]` order, confidence from hit type), the URL/params, the empty/invalid input rules, the error mapping, and the precedence over `ORS_API_KEY`; documented in `.env.example` and `docs/env.md`. No schema change.
-- [ ] A local Photon answers a Vienna address, and `PHOTON_URL` pointed at it geocodes the 94 remaining customers (verify the hit rate; the office button stays the operator path).
-- [ ] The chosen route is documented in `docs/env.md` / `docs/deploy.md`.
+- [x] A local Photon answers a Vienna address, and `PHOTON_URL` pointed at it geocodes the remaining customers. (Live: `PHOTON_URL=http://127.0.0.1:2322` on the server through the tunnel; `1201 King 21 Pius` → Pius-Parsch-Platz 5, 1210 Wien, `conf 1.00`; one `--apply` run, then 0 remaining.)
+- [x] The chosen route is documented in `docs/env.md` / `docs/deploy.md` (section 13.4) / `docs/runbook.md` (section 14).
+
+**Implementation notes (NUD-157, final)**
+- Operating recipe: Photon 1.3.0 runs on the **development PC** in the JRE-21 container with the Austria index from `C:\ors-local` (`deploy/local-services/start-photon.ps1`); the vServer reaches it as `127.0.0.1:2322` through the reverse SSH tunnel (`deploy/local-services/tunnel.ps1`, autostart registered). `PHOTON_URL` + `PHOTON_LANG=de` are set in `/etc/delivery-app.env`, which survives `deploy.bat` since 2026-10-28.
+- New operator tool `scripts/geocode-customers.ts` (one self-contained file, `scp`-able, dry run by default, `--apply`, `--limit`, `--batch`): prints provider, hit, coordinates, confidence and the address for every customer, refuses to write with the FakeGeocoder, and reuses `listCustomerIdsWithoutPin` + `geocodeCustomers` (the code behind the office button) so the audit/rounding behaviour is identical. `docs/env.md` points at it.
+- Result on production: 0 active customers without an Adresspunkt. The earlier count of "94 open" was stale by the time of the run — the 2026-10-27 batches plus the import review had already filled them.
 
 **Implementation notes**
 - 2026-10-27 operator run: a temporary script called `listCustomerIdsWithoutPin` + `geocodeCustomers` (the exact code behind the office button) in batches of 5 with the documented pacing. First pass stopped at `429`; the immediate resume got `403 Quota exceeded`. The script was deleted afterwards, the app was never touched, 103 customers were geocoded (all Austria, lat 48.03–48.39, lng 14.21–16.49).

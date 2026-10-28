@@ -491,3 +491,36 @@ pnpm tsx scripts/import-day-orders.ts tag.csv --apply    # creates the orders
 ```
 
 Format, options, safety rules and the office steps afterwards: [`docs/day-import.md`](./day-import.md).
+
+### 13.4 Self-hosted ORS and Photon (routing and geocoding without a quota)
+
+The hosted OpenRouteService key of 2026-10-27 answered `429` after ~80 lookups and `403` for the
+rest of the day, so neither planning nor a customer import could rely on it. Both services now
+run **on the development PC** and the vServer reaches them through a reverse SSH tunnel — the
+2 GB box has no room for a JVM plus an Austria graph.
+
+| Service | Where | The server sees |
+| --- | --- | --- |
+| openrouteservice v9.1.1 (Docker) | dev PC, `127.0.0.1:8082` | `ORS_BASE_URL=http://127.0.0.1:8082/ors` |
+| Photon 1.3.0 Austria index (Docker) | dev PC, `127.0.0.1:2322` | `PHOTON_URL=http://127.0.0.1:2322` |
+
+`deploy/local-services/` holds the start scripts, the ORS config and the tunnel; the README there
+is the operator guide. The data lives **outside the repository** (default
+`C:\Users\niko\Desktop\nudel-infra`, override `NUDEL_INFRA_DIR`).
+
+**Requirements on the development PC.** ORS: ~4 GB RAM for the Austria car graph, ~2 GB of disk
+for the graph plus 800 MB for the OSM extract (`austria-latest.osm.pbf` from Geofabrik). Photon:
+the jar (94 MB) plus an Austria index (~1 GB) under `C:\ors-local`, ~1.5 GB RAM while serving. The
+first ORS start builds the graph (here: ~14 min on 8 cores) and the first Photon start unpacks the
+index; both are cached afterwards, so later starts take seconds.
+
+**What the self-hosted ORS cannot do.** It serves `routing, matrix, isochrones, snapping, matching,
+export, health, status` — and **no `/optimization`**: the VROOM proxy was dropped from the image
+(checked against v9.1.1, v8.0.0 and v7.2.1), and VROOM itself is a separate service that needs an
+OSRM graph. Self-hosted ORS therefore replaces the *hosted* directions and matrix, not the VROOM
+optimizer; the tour order keeps coming from the app's own heuristic, while distances, driving
+times and the route line now come from real roads.
+
+**If the PC or the tunnel is down**, routing silently falls back to the heuristic (the tour shows
+"Näherungswerte") and geocoding to the Fake. `GET /delivery-app/api/health` reports
+`routing.mode` / `geocoding.mode` (`self-hosted`, `hosted`, `heuristic`, `fake`).
