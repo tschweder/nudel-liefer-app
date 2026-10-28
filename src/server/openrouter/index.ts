@@ -9,5 +9,7 @@ export {
   type OpenRouterClientOptions,
   OpenRouterError,
   type OpenRouterErrorCode,
+  type OpenRouterReasoning,
   parseJsonAnswer,
+  parseReasoning,
 } from "./client";

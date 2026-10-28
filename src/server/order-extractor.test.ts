@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { assembleDraft, type CatalogProduct } from "@/domain/order-extraction";
 import { createLocalizedText } from "@/lib/localized-text";
 
-import { OpenRouterClient } from "./openrouter";
+import { OpenRouterClient, parseReasoning } from "./openrouter";
 import { FakeOrderExtractor } from "./order-extractor";
 import { OpenRouterOrderExtractor } from "./order-extractor/openrouter";
 import { OpenRouterTranslator } from "./translator/openrouter";
@@ -105,6 +105,47 @@ describe("OpenRouterOrderExtractor", () => {
     expect(body.messages[1].content).toContain("4 Kiste Nudeln");
   });
 
+  it("uses the DeepSeek V4.1 Flash default and switches thinking off", async () => {
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      void init;
+      return completion({ lines: [], confidence: 0.5 });
+    });
+    const extractor = new OpenRouterOrderExtractor(
+      new OpenRouterClient({ apiKey: "test-key", fetch: fetchFn as never }),
+    );
+    await extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT);
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.model).toBe("deepseek/deepseek-v4.1-flash-1017");
+    expect(body.reasoning).toEqual({ enabled: false });
+    expect(body.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("sends the configured thinking budget instead of switching it off", async () => {
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      void init;
+      return completion({ lines: [], confidence: 0.5 });
+    });
+    const extractor = new OpenRouterOrderExtractor(
+      new OpenRouterClient({ apiKey: "test-key", reasoning: "high", fetch: fetchFn as never }),
+    );
+    await extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT);
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.reasoning).toEqual({ effort: "high" });
+  });
+
+  it("sends no thinking field at all for the model's own default", async () => {
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      void init;
+      return completion({ lines: [], confidence: 0.5 });
+    });
+    const extractor = new OpenRouterOrderExtractor(
+      new OpenRouterClient({ apiKey: "test-key", reasoning: "default", fetch: fetchFn as never }),
+    );
+    await extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT);
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.reasoning).toBeUndefined();
+  });
+
   it("sends the screenshot as an image part", async () => {
     const fetchFn = vi.fn(async () => completion({ lines: [], confidence: 0.2 }));
     const extractor = new OpenRouterOrderExtractor(
@@ -158,6 +199,21 @@ describe("OpenRouterOrderExtractor", () => {
     await expect(extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT)).rejects.toMatchObject({
       code: "QUOTA",
     });
+  });
+});
+
+describe("parseReasoning (thinking budget of the client)", () => {
+  it.each([
+    [undefined, "off"],
+    ["", "off"],
+    ["  OFF ", "off"],
+    ["nonsense", "off"],
+    ["low", "low"],
+    ["Medium", "medium"],
+    ["high", "high"],
+    ["default", "default"],
+  ])("maps %j to %s", (input, expected) => {
+    expect(parseReasoning(input)).toBe(expected);
   });
 });
 

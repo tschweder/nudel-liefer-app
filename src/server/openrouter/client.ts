@@ -11,10 +11,31 @@ import { z } from "zod";
 export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
 /**
- * Default model: multimodal (a pasted screenshot is sent as an image part) and strong in German and
- * Chinese. Overridable with `OPENROUTER_MODEL`; a text-only model simply fails on screenshots.
+ * Default model: DeepSeek V4.1 Flash (snapshot 2026-10-17), multimodal (`text+image`) so a pasted
+ * screenshot can be read, strong in German and Chinese, and its output price is a fraction of the
+ * previous Gemini 2.5 Flash default. Overridable with `OPENROUTER_MODEL`; a text-only model simply
+ * fails on screenshots.
  */
-export const OPENROUTER_DEFAULT_MODEL = "google/gemini-2.5-flash";
+export const OPENROUTER_DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash-1017";
+
+/**
+ * Thinking budget. Both jobs on this client are deterministic transformations (read an order out of
+ * a message, translate a sentence), so reasoning tokens only cost money and time - `off` is the
+ * default. `default` sends nothing and lets the model decide; a model with mandatory reasoning
+ * needs one of the other values.
+ */
+export type OpenRouterReasoning = "off" | "low" | "medium" | "high" | "default";
+
+/** Anything unset or unexpected means `off` (the cheap, fast path). */
+export function parseReasoning(value: string | undefined): OpenRouterReasoning {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "low" ||
+    normalized === "medium" ||
+    normalized === "high" ||
+    normalized === "default"
+    ? normalized
+    : "off";
+}
 
 export type OpenRouterErrorCode =
   "TIMEOUT" | "NETWORK" | "HTTP" | "QUOTA" | "BAD_RESPONSE" | "INVALID_INPUT" | "NOT_CONFIGURED";
@@ -66,6 +87,8 @@ export function parseJsonAnswer(content: string): unknown {
 export type OpenRouterClientOptions = {
   apiKey: string;
   model?: string;
+  /** Thinking budget; default `off` (see `OpenRouterReasoning`). */
+  reasoning?: OpenRouterReasoning;
   /** Overrides the OpenRouter base URL (tests, proxies). */
   baseUrl?: string;
   timeoutMs?: number;
@@ -81,6 +104,7 @@ export class OpenRouterClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly retries: number;
+  private readonly reasoning: OpenRouterReasoning;
   private readonly fetchFn: typeof fetch;
 
   constructor(private readonly options: OpenRouterClientOptions) {
@@ -88,6 +112,7 @@ export class OpenRouterClient {
     this.baseUrl = (options.baseUrl ?? OPENROUTER_DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs ?? 60_000;
     this.retries = options.retries ?? 1;
+    this.reasoning = options.reasoning ?? "off";
     this.fetchFn = options.fetch ?? fetch;
   }
 
@@ -111,6 +136,7 @@ export class OpenRouterClient {
       max_tokens: options.maxTokens ?? 1200,
       temperature: options.temperature ?? 0,
       response_format: { type: "json_object" },
+      ...reasoningBody(this.reasoning),
     });
     const answer = await this.post(body);
     const parsed = responseSchema.safeParse(answer);
@@ -163,6 +189,13 @@ export class OpenRouterClient {
   }
 }
 
+/** The OpenRouter `reasoning` field for a thinking budget; `default` sends nothing at all. */
+function reasoningBody(reasoning: OpenRouterReasoning): Record<string, unknown> {
+  if (reasoning === "default") return {};
+  if (reasoning === "off") return { reasoning: { enabled: false } };
+  return { reasoning: { effort: reasoning } };
+}
+
 /** True when an OpenRouter key is configured; the AI paths stay off without one (D26, NUD-150). */
 export function isOpenRouterConfigured(env: Record<string, string | undefined> = process.env): boolean {
   return (env.OPENROUTER_API_KEY?.trim() ?? "") !== "";
@@ -177,6 +210,7 @@ export function createOpenRouterClient(
   return new OpenRouterClient({
     apiKey,
     model: env.OPENROUTER_MODEL,
+    reasoning: parseReasoning(env.OPENROUTER_REASONING),
     baseUrl: env.OPENROUTER_BASE_URL,
     referer: env.OPENROUTER_REFERER,
   });
