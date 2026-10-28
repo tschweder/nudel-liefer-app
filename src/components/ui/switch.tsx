@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
  * "Pin geprüft". Radix provides `role="switch"`, the keyboard toggle, `aria-checked` and the thumb
  * transform; the label or `aria-label` always carries the meaning, never the colour alone.
  *
- * `size="lg"` is the 48 px driver target; `md` is the admin table size.
+ * `size="lg"` is the 48 px driver target; `md` is the admin table size. NUD-153 measured the `md`
+ * switch at 44x24 px on a tablet: it stays as designed (a 48 px row, the label right next to it) and
+ * is recorded as a desktop-density exception in the ticket.
  */
 function Switch({
   className,

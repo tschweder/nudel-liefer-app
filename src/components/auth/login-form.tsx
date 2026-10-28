@@ -276,7 +276,7 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
       aria-label={showPassword ? t("adminLogin.hidePassword") : t("adminLogin.showPassword")}
       aria-pressed={showPassword}
       onClick={() => setShowPassword((value) => !value)}
-      className="absolute top-1/2 right-0.5 size-11 -translate-y-1/2 text-muted-foreground"
+      className="absolute top-1/2 right-0.5 size-12 -translate-y-1/2 text-muted-foreground"
     >
       {showPassword ? <EyeOffIcon aria-hidden /> : <EyeIcon aria-hidden />}
     </Button>
@@ -321,7 +321,7 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
                   name="email"
                   type="email"
                   autoComplete="username"
-                  className="h-11"
+                  className="h-12"
                 />
               </FormField>
             </div>
@@ -336,7 +336,7 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    className="h-11 pr-12"
+                    className="h-12 pr-12"
                     aria-invalid={fieldErrors.password ? true : undefined}
                     aria-describedby={fieldErrors.password ? "admin-password-error" : undefined}
                   />
@@ -363,7 +363,7 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
             <Button
               type="submit"
               loading={pending}
-              className="h-11 w-full"
+              className="h-12 w-full"
               data-testid="login-submit"
             >
               {pending ? null : <LogInIcon aria-hidden />}

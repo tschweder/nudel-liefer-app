@@ -16,10 +16,17 @@ import { ADMIN_NAV_GROUPS, isNavActive, navItem } from "./nav-items";
 export function AdminNav({
   onNavigate,
   collapsed = false,
+  touch = false,
 }: {
   onNavigate?: () => void;
   /** Icon rail mode (desktop sidebar collapsed); labels are shown in tooltips instead. */
   collapsed?: boolean;
+  /**
+   * NUD-153: the off-canvas drawer is the *only* navigation below 1025 px and is used with a
+   * finger, so its rows are 48 px touch targets (backlog 4.3). The desktop rail keeps the 40 px
+   * density the redesign specified.
+   */
+  touch?: boolean;
 }) {
   const t = useTranslations("admin");
   const pathname = usePathname();
@@ -54,7 +61,9 @@ export function AdminNav({
                   title={collapsed ? label : undefined}
                   data-testid={`nav-${section}`}
                   className={cn(
-                    "flex h-10 items-center gap-3 rounded-lg px-3 text-base outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+                    // 48 px in the drawer (`touch`), the redesign's 40 px density in the desktop rail.
+                    "flex items-center gap-3 rounded-lg px-3 text-base outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+                    touch ? "min-h-12" : "h-10",
                     collapsed && "justify-center px-0",
                     active
                       ? "bg-primary-soft font-semibold text-primary-soft-foreground"

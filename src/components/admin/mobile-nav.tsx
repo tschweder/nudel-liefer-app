@@ -15,6 +15,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
  *
  * `min-[1025px]:hidden` pairs with the `min-[1025px]:flex` of the rail in `admin-shell.tsx` — `lg`
  * starts at exactly 1024 px and would hide the hamburger while the rail was still a drawer.
+ *
+ * NUD-153: the trigger and the drawer rows are 48 px touch targets — this is the whole navigation of
+ * a tablet and a phone, and there is no mouse at hand.
  */
 export function MobileNav() {
   const t = useTranslations();
@@ -25,7 +28,7 @@ export function MobileNav() {
         <Button
           variant="ghost"
           size="icon"
-          className="min-[1025px]:hidden"
+          className="size-12 min-[1025px]:hidden"
           data-testid="open-menu"
           aria-label={t("admin.shell.openMenu")}
         >
@@ -37,7 +40,7 @@ export function MobileNav() {
           <SheetTitle>{t("common.appName")}</SheetTitle>
         </SheetHeader>
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-          <AdminNav onNavigate={() => setOpen(false)} />
+          <AdminNav onNavigate={() => setOpen(false)} touch />
         </div>
       </SheetContent>
     </Sheet>

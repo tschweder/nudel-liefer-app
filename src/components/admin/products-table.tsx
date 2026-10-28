@@ -109,10 +109,12 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
               <span className="sr-only">{t("columns.order")}</span>
             </TableHead>
             <TableHead>{t("columns.sku")}</TableHead>
-            {/* Both names share one column (re-design.md §8.6): German bold, Simplified muted below. */}
-            <TableHead>{t("columns.name")}</TableHead>
+            {/* Both names share one column (re-design.md §8.6): German bold, Simplified muted below.
+                NUD-153: the two long headers wrap instead of forcing the table wider — the table
+                then fits 768 px portrait instead of scrolling sideways for the status column. */}
+            <TableHead className="whitespace-normal">{t("columns.name")}</TableHead>
             <TableHead>{t("columns.unit")}</TableHead>
-            <TableHead className="text-end">{t("columns.weight")}</TableHead>
+            <TableHead className="text-end whitespace-normal">{t("columns.weight")}</TableHead>
             <TableHead>{t("columns.status")}</TableHead>
             <TableHead className="text-end">
               <span className="sr-only">{t("columns.actions")}</span>
@@ -168,7 +170,9 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
                   </span>
                 </TableCell>
 
-                <TableCell className="min-w-48 py-1.5">
+                {/* NUD-153: no `min-w-48` — at 768 px portrait that floor pushed the status column
+                    out of the visible area; the name column now takes what is left and wraps. */}
+                <TableCell className="min-w-0 py-1.5">
                   <span
                     className="block text-sm leading-tight font-semibold text-foreground"
                     lang="de"

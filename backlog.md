@@ -308,7 +308,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-150 | AI order draft from pasted message text or screenshot (OpenRouter) | M2.6 | 138 | done |
 | NUD-151 | Optional departure checklist for the driver | M2.6 | 138, 142 | done |
 | NUD-152 | Driver working time and utilization | M2.6 | 146, 151 | done |
-| NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
+| NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | done |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
 | NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | done |
@@ -324,6 +324,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-166 | Dauerbestellung directly from the order form | M2.6 | 149 | done |
 | NUD-167 | Scheduled jobs on the vServer never ran (env file unreadable for `deliveryapp`) | M2.6 | – | done |
 | NUD-168 | 👤 Production map tiles: replace the dev-only OSM default with a provider key | M2.6 | – | blocked |
+| NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | todo |
+| NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -2747,7 +2749,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-153 · Tablet layout audit (portrait + landscape), every page
-**Status:** todo · **depends_on:** 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 135, 125, 126 · F25 · **run last**
+**Status:** done (2026-10-28; 14 tablet e2e tests green) · **depends_on:** 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 135, 125, 126 · F25 · **run last**
 
 **Scope**
 - Playwright projects `tablet-portrait` / `tablet-landscape` with 768×1024 / 1024×768 (iPad), 820×1180 / 1180×820 (iPad Air), 800×1280 / 1280×800 (Android tablet).
@@ -2759,15 +2761,15 @@ General rules for every ticket in this block:
 - [ ] No-horizontal-scroll + touch-target assertions pass for all pages in both tablet projects.
 - [ ] Issue list in the ticket, each one fixed or turned into a new ticket.
 
-**Interim audit 2026-10-28 (admin area only, not the ticket's full scope)**
-- Method: a throwaway Playwright script (not committed) on a **fresh, fully migrated and demo-seeded audit database** (`nudel_audit`, `prisma migrate deploy` + `seed --demo --no-photos`) against `next dev`, logged in as admin, visiting all 16 admin routes at **768×1024** and **1024×768**: per page `document.documentElement.scrollWidth > innerWidth`, elements whose rect crosses the viewport, and console errors. Screenshots: `.redesign/nud-153/` (untracked).
-- Result: **no horizontal page overflow anywhere** (all 16 routes, both orientations). No cut-off headings or overlapping controls; the order form's four window fields, the customer map and the settings page reflow correctly.
-- Findings:
-  1. **Products table** (`/admin/products`): wider than the viewport at 768 portrait — the Status column is only reachable by scrolling the table's own horizontal container. Same class as NUD-129 (order list), but inside a scroll container, so it works: minor, **not fixed here**.
-  2. Map pages (`customers/new`, `customers/[id]/edit`, `customers/parking`, `settings`): `img.leaflet-tile` elements legitimately extend beyond the map box and are clipped by it — false positive of the naive rect check; keep the map container in mind when writing the real assertions.
-  3. `next dev` logs `Error: Route "…": Next.js encountered URL data during prerendering or a navigation. params or searchParams accessed outside of <Suspense>` on client-side navigation to the dynamic admin routes. Pages render fine (HTTP 200) and it appears at every viewport, so it is not a tablet defect — worth checking against a production build separately.
-- Not covered yet: the committed `tablet-portrait` / `tablet-landscape` Playwright projects with the other device sizes (iPad Air, Android), the locale matrix, the dialogs/drawers/checklist/map views, the driver area, and the touch-target assertions. The ticket stays open for that.
+**Implementation notes (NUD-153)**
+- Committed audit instead of a throwaway script: `playwright.config.ts` gained the projects `tablet-portrait` (768×1024) and `tablet-landscape` (1024×768) — Chromium, `deviceScaleFactor: 2`, `hasTouch`, `isMobile` off (mobile emulation changes the visual viewport, the audit measures CSS px) and `testMatch` = `tests/e2e/tablet-layout.spec.ts`, so `pnpm test:e2e` grows by exactly 14 tests instead of running every other spec twice. iPad Air (820×1180 / 1180×820) and Android tablet (800×1280 / 1280×800) come from `page.setViewportSize` in the same projects.
+- Spec `tests/e2e/tablet-layout.spec.ts` (7 tests per project): a detector self-check (a deliberate 200vw probe proves it can fail), four admin sweeps (`de` at 768/820/800 portrait, `zh-Hans` at 768) and two driver sweeps (`de`/`zh-Hans`). 24 screens per sweep: both login screens, dashboard, orders list/new/detail/edit, tours list/detail (tour generated through the planning page from the spec's own fixture), customers list/new/detail/edit/import/parking, products list/new/edit, vehicles, drivers, utilization, settings, print view and the opened nav drawer; driver: today, map view, stop detail. Measurement in `tests/e2e/helpers/tablet-audit.ts` (the admin counterpart of `helpers/driver-audit.ts`).
+- Asserted per page: `documentElement.scrollWidth <= innerWidth + 1`, no visible element leaving the viewport except inside a horizontal scroll/clip container or a Leaflet pane (the map false positive of the interim script), and ≥ 48 px for the surfaces a tablet user touches without a mouse (off-canvas drawer, both login screens, driver app). The admin content area keeps the kit's desktop density (40 px buttons/fields, 36 px row actions, 32 px reorder arrows, 44×24 inline switch); that inventory is **recorded** in `test-results/tablet/audit/*.json` instead of redesigning the office UI. One screenshot per page/viewport/locale → `test-results/tablet/<project>/<size>-<locale>/<page>.png` (202 PNGs, git-ignored).
+- Result: **no horizontal page overflow and no element outside the viewport** in any of the 8 admin viewport/locale combinations, the drawer, or the driver screens. Fixed: the interim products finding (the table was 831 px because of two long headers and a 248 px name floor; both headers wrap now and the floor is gone → it fits 768 portrait, no column hidden), drawer rows 40 → 48 px (`touch` prop on `admin-nav`; the desktop rail stays 40), the hamburger 40 → 48, and the office login fields/submit/eye toggle 44 → 48 (the login is the tablet at the counter).
+- Follow-ups (new tickets): the Fahrer table still scrolls inside its own container (879 px in 678 px at 768 portrait, 683 in 678 in `zh-Hans`) — dropping or moving a column is a design decision, so it is **NUD-169**; the 44×24 inline "Aktiv" switch is the one small content-area target and a UI-kit change is **NUD-170**.
+- Verified: `tsc --noEmit`, `eslint . --max-warnings=0`, prettier on all touched files, `pnpm build` (csp-script-hashes OK); `tablet-layout` **14 passed (1.1 min)** on both projects against a production build and the dedicated e2e database; regression `auth` + `products` + `vehicles` specs 8 passed, component tests 33 passed. NOT verified: real WebKit/iOS, live rotation on a device (each orientation is its own project), dialogs/sheets other than the nav drawer, the first-start language picker and the offline screens (covered at 375 px by NUD-095), the full `pnpm test:e2e` suite.
 
+---
 ---
 
 #### NUD-154 · A new order is offered to every open tour of its day
@@ -3217,6 +3219,27 @@ Structured opening hours per customer → ORS time windows; vehicle capacity in 
 **Status:** todo · **depends_on:** 053
 Optional photo of delivered goods and/or signature on screen per stop; viewable in admin; retention policy.
 
+#### NUD-169 · Fahrer table needs a column decision (scrolls inside its card at tablet sizes)
+**Status:** todo · **depends_on:** 153 · found by the tablet audit (NUD-153, 2026-10-28).
+
+**Goal:** `/admin/drivers` has 8 columns and is 879 px wide in a 678 px card at 768 px portrait (730 at 820, 710 at 800, 814 at 1180 landscape, 683 in `zh-Hans`). It scrolls inside its own container, so nothing is hidden and the page itself does not overflow — but a tablet user has to scroll sideways to see the status of a driver, which the audit flagged as the last real annoyance. Making it fit means **dropping or moving a column** (the natural candidate is "Letzte Anmeldung" into the row action menu, or the new "Arbeitszeit"/"Auslastung" columns into the edit dialog), which is a design decision, not a bug fix.
+
+**Acceptance criteria**
+- [ ] The Fahrer table fits 768 px portrait without horizontal scrolling, or the decision to keep it scrolling is recorded here with a reason.
+- [ ] Whatever moves is still reachable in two taps (row menu or dialog) and the tablet audit of NUD-153 stays green.
+
+---
+
+#### NUD-170 · Inline Aktiv switch: 48 px hit area in the UI kit
+**Status:** todo · **depends_on:** 153 · found by the tablet audit (NUD-153, 2026-10-28).
+
+**Goal:** the inline `Switch` (product and vehicle status) renders 44×24 px, the one control in the admin content area that is below the 48 px touch target the rest of the tablet audit now satisfies. The audit tried a transparent `::before` hit area and reverted it: it measured 44 px instead of 48 (the pseudo element is clipped by the track), so it was not shipped as an unverified claim.
+
+**Acceptance criteria**
+- [ ] The switch has a real ≥ 48 px hit area (wrapped label, padding on a parent, or a `hitArea` prop in `src/components/ui/switch.tsx`), measured in the tablet audit — not just documented.
+- [ ] No visual change to the 44×24 track; keyboard focus and the existing `aria-checked` behaviour unchanged; the product/vehicle specs stay green.
+
+---
 ---
 
 ## 9. Decision log (append-only, one line per decision taken during implementation)

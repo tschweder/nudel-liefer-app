@@ -93,6 +93,37 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
+    /**
+     * NUD-153: the tablet layout audit. Two orientations as committed projects, so the audit is part
+     * of the suite instead of a throwaway script. `tests/e2e/tablet-layout.spec.ts` walks the other
+     * device sizes (iPad Air 820x1180, Android 800x1280) with `page.setViewportSize` inside the same
+     * projects — adding four more projects would multiply the run without covering a new layout.
+     *
+     * `testMatch` keeps the tablet projects to the audit: without it every other spec would run a
+     * third and fourth time in `pnpm test:e2e`. Chromium with `hasTouch` (not the `iPad …` device
+     * presets, which are WebKit) so one browser is enough; `isMobile` stays off because Chromium's
+     * mobile emulation changes the visual viewport, and the audit measures CSS pixels.
+     */
+    {
+      name: "tablet-portrait",
+      testMatch: /tablet-layout\.spec\.ts/,
+      use: {
+        browserName: "chromium",
+        viewport: { width: 768, height: 1024 },
+        deviceScaleFactor: 2,
+        hasTouch: true,
+      },
+    },
+    {
+      name: "tablet-landscape",
+      testMatch: /tablet-layout\.spec\.ts/,
+      use: {
+        browserName: "chromium",
+        viewport: { width: 1024, height: 768 },
+        deviceScaleFactor: 2,
+        hasTouch: true,
+      },
+    },
   ],
   webServer: {
     command: webServerCommand,
