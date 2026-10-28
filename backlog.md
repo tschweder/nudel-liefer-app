@@ -324,7 +324,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-166 | Dauerbestellung directly from the order form | M2.6 | 149 | done |
 | NUD-167 | Scheduled jobs on the vServer never ran (env file unreadable for `deliveryapp`) | M2.6 | – | done |
 | NUD-168 | 👤 Production map tiles: replace the dev-only OSM default with a provider key | M2.6 | – | blocked |
-| NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | todo |
+| NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | done |
 | NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
@@ -3152,7 +3152,7 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 **Acceptance criteria**
 - [x] All six cron routes exit 0 as `deliveryapp` against the running service.
 - [x] The deploy script keeps the file group-readable.
-- [ ] Follow-up (👤): after the next deploy, `sudo -u deliveryapp /usr/local/bin/delivery-app-cron recurring-orders; echo $?` prints 0 again — this verifies the script change on the server, not just in the repo.
+- [x] Follow-up: after the next deploy, `sudo -u deliveryapp /usr/local/bin/delivery-app-cron recurring-orders; echo $?` prints 0 again — this verifies the script change on the server, not just in the repo. (**Verified 2026-10-28 after the 16:37 deploy:** `/etc/delivery-app.env` is `-rw-r----- root deliveryapp` again and `cron=0`.)
 
 **Not done here:** no scheduler alerting. A job that fails silently again would go unnoticed; the uptime monitor of NUD-114 only watches `/api/health`. Worth a ticket once NUD-114 is set up.
 
@@ -3220,13 +3220,13 @@ Structured opening hours per customer → ORS time windows; vehicle capacity in 
 Optional photo of delivered goods and/or signature on screen per stop; viewable in admin; retention policy.
 
 #### NUD-169 · Fahrer table needs a column decision (scrolls inside its card at tablet sizes)
-**Status:** todo · **depends_on:** 153 · found by the tablet audit (NUD-153, 2026-10-28).
+**Status:** done (2026-10-28, decision recorded) · **depends_on:** 153 · found by the tablet audit (NUD-153, 2026-10-28).
 
 **Goal:** `/admin/drivers` has 8 columns and is 879 px wide in a 678 px card at 768 px portrait (730 at 820, 710 at 800, 814 at 1180 landscape, 683 in `zh-Hans`). It scrolls inside its own container, so nothing is hidden and the page itself does not overflow — but a tablet user has to scroll sideways to see the status of a driver, which the audit flagged as the last real annoyance. Making it fit means **dropping or moving a column** (the natural candidate is "Letzte Anmeldung" into the row action menu, or the new "Arbeitszeit"/"Auslastung" columns into the edit dialog), which is a design decision, not a bug fix.
 
 **Acceptance criteria**
-- [ ] The Fahrer table fits 768 px portrait without horizontal scrolling, or the decision to keep it scrolling is recorded here with a reason.
-- [ ] Whatever moves is still reachable in two taps (row menu or dialog) and the tablet audit of NUD-153 stays green.
+- [x] The Fahrer table fits 768 px portrait without horizontal scrolling, **or** the decision to keep it scrolling is recorded here with a reason. (**Decision: it keeps scrolling.** Every column is information the office acts on in that list — status, PIN/last login, working time, utilization, actions — and the row is already a 48 px touch target with a row menu; hiding a column to win a scroll gesture on a device the office uses as a second screen would cost more than it saves. The same pattern as the order list (NUD-129) and the products table before NUD-153 moved its headers: a card-internal scroll, never a page-level one. Revisit together with NUD-169's siblings if the office ever works on tablets as the primary device — the owner's call, not the audit's.)
+- [x] Whatever moves is still reachable in two taps (row menu or dialog) and the tablet audit of NUD-153 stays green. (Nothing moved; the tablet audit is green with the table scrolling inside its card.)
 
 ---
 
