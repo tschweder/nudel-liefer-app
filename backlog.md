@@ -268,14 +268,14 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-110 | Nonce-based script CSP | M2 | 093 | done |
 | NUD-111 | Audit log retention job | M2 | 093 | done |
 | NUD-112 | Retention for orders, tours, stops and driver texts | M2 | 093 | done |
-| NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | todo |
+| NUD-113 | 👤 Verify security configuration on the real deployment | M2 | 007, 093 | blocked |
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
 | NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | done |
 | NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | blocked |
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | done |
-| NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | todo |
+| NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | in-progress |
 | NUD-121 | Driver problem text is also copied into the audit log | M2 | 112 | done |
 | NUD-122 | Photo upload works on the office and driver path | M2 | – | done |
 | NUD-123 | Add driver / customer / order through the GUI | M2 | – | done |
@@ -323,6 +323,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-165 | 👤 One-off parking-spot import from the 2026-10 captures (archived, not a product feature) | M2.6 | – | done |
 | NUD-166 | Dauerbestellung directly from the order form | M2.6 | 149 | done |
 | NUD-167 | Scheduled jobs on the vServer never ran (env file unreadable for `deliveryapp`) | M2.6 | – | done |
+| NUD-168 | 👤 Production map tiles: replace the dev-only OSM default with a provider key | M2.6 | – | blocked |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -1786,13 +1787,17 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Not verified: the cron on Vercel / Neon (no production), `prisma migrate deploy` (no migration in this ticket), behaviour with a very large backlog. No UI change, so no e2e run.
 
 #### NUD-113 · 👤 Verify security configuration on the real deployment
-**Status:** todo · **depends_on:** 007, 093
+**Status:** blocked (items 1-4 verified 2026-10-28; item 5 waits for the operator's DPA confirmation) · **depends_on:** 007, 093
 
 **Goal:** things NUD-093 could not check without production: (1) `curl -sI https://<prod>/de/login` shows the headers of `docs/deploy.md` section 11.1 and the page works in a real Android Chrome and iOS Safari (map tiles, photos, upload, PWA install) with no `csp-violation` lines in the Vercel logs; (2) `scripts/check-storage-private.ts` against the production R2 bucket exits 0; (3) lifecycle rule for `screenshots/` (190 days) created; (4) `CRON_SECRET` set and `GET /api/cron/retention` run once by hand (counts in the answer); (5) data processing agreements and the "to confirm" items in `docs/privacy.md` section 1 and 4 (Vercel, Neon, Cloudflare, DeepL Pro, ORS, tile provider) settled.
 
 **Acceptance criteria**
-- [ ] Items 1-4 verified and the result noted under the ticket.
-- [ ] Item 5 confirmed by the operator.
+- [x] Items 1-4 verified and the result noted under the ticket.
+  - (1) 2026-10-28 against `https://<server>/delivery-app/de/login`: HSTS (2 years), `x-content-type-options: nosniff`, `x-frame-options: DENY`, `referrer-policy`, `permissions-policy`, `cross-origin-opener-policy: same-origin`, `x-dns-prefetch-control: off` and the enforcing CSP with a per-request nonce. The device part (Android Chrome / iOS Safari, tiles, photos, upload, PWA install) was covered by the human device pass on the same day; the CSP violations found in the log are NUD-120.
+  - (2) `scripts/check-storage-private.ts` on the production MinIO: "ok bucket listing: anonymous GET -> HTTP 403 / ok object read: anonymous GET -> HTTP 403 — the bucket is private".
+  - (3) Applied with the new `scripts/set-bucket-lifecycle.ts --apply`: rule `expire-order-screenshots`, prefix `screenshots/`, 190 days, `Enabled`, read back from the bucket.
+  - (4) `CRON_SECRET` is set; all six cron routes ran by hand and answered `exit 0` — **only after the permission fix of NUD-167**, before that every job died unread on the env file. `GET /api/cron/retention` answered 200 with its counts.
+- [ ] Item 5 confirmed by the operator. (DPAs for the vServer host, MinIO, OpenRouter, DeepL, OpenStreetMap tiles and now the self-hosted Photon/ORS on the developer PC — that last one is a new data-processing question worth a line in `docs/privacy.md`.)
 
 ---
 
@@ -1903,13 +1908,18 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 
 #### NUD-120 · 👤 Roll out the strict script CSP on the real deployment (report-only first)
-**Status:** todo · **depends_on:** 110, 113
+**Status:** in-progress (2026-10-28: policy verified live, report path was broken) · **depends_on:** 110, 113
 
 **Goal:** NUD-110 was verified with Chromium against a local production build only. On the real deployment: (1) deploy first with `CSP_REPORT_ONLY=true`, use the app in real Android Chrome and iOS Safari (login, admin pages, maps, photo upload, driver tour, install the PWA, go offline) and search the Vercel logs for `csp-violation` (expected: none); (2) `curl -sI https://<prod>/de/login` shows `script-src 'self' 'nonce-...' 'sha256-...'` without `'unsafe-inline'`, and a second request shows a different nonce; same for the static `/de`; (3) check the build log of `pnpm build:vercel` for `csp-script-hashes: OK`; (4) remove `CSP_REPORT_ONLY`, redeploy, repeat the smoke test.
 
 **Acceptance criteria**
 - [ ] No `csp-violation` lines in report-only on the real devices; the installed PWA works offline (offline shell, generic offline page).
-- [ ] Enforcing policy deployed, results noted under the ticket.
+- [x] Enforcing policy deployed, results noted under the ticket. (Verified 2026-10-28 on `https://<server>/delivery-app/de/login`: `content-security-policy` is the enforcing header, `script-src 'self' 'nonce-…'` plus 40 prebuilt-shell hashes and no `'unsafe-inline'`, and the nonce differs between two requests. The vServer deployment has never set `CSP_REPORT_ONLY`, i.e. the strict policy is live since NUD-110.)
+
+**Findings 2026-10-28 (server access, no browser needed)**
+- **The violation reports were lost.** The policy's `report-uri` was the root-relative `/api/csp-report`, but the app is served under `/delivery-app/`, so every report was posted to the nginx root and answered with **404** (4 such posts are in `/var/log/nginx/access.log`, all from an **iPhone / WeChat in-app browser** on the driver login page). Fixed: `report-uri` is now base-path aware (`basePathOf()`, unit-tested). The reports themselves are still unknown — after the next deploy the same POSTs will land in the app and can be read.
+- That the reports exist at all means the strict policy **does** block something on iOS WeChat, most likely the in-app browser's injected script. After the deploy: reproduce on that device, read `/api/csp-report` in the journal, and decide between a targeted hash/allowance and accepting the breakage (the office does not support the WeChat browser officially — to be confirmed with the client).
+- Open: the offline smoke test on a real device (offline shell, generic offline page) — the human device pass of 2026-10-28 covered the app, not this ticket's protocol.
 
 ---
 
@@ -2797,9 +2807,9 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 
 **Acceptance criteria**
 - [x] `ORS_BASE_URL` (routing) and `ORS_GEOCODE_BASE_URL` (geocoding) are the only new knobs; unset keeps today's hosted behaviour exactly. Unit tests assert the request URL for the routing provider (optimization and directions) and for the geocoder, the blank/whitespace/trailing-slash rules, **and that the geocoder ignores `ORS_BASE_URL`**.
-- [ ] A local ORS answers `/v2/directions` and `/optimization`; the app plans one real tour against it with `approximate: false`.
-- [ ] The instance listens on `127.0.0.1` only, survives a restart of the box, and its graph can be rebuilt from a documented command.
-- [ ] `docs/runbook.md` gains the start/stop/health/rebuild steps; `docs/deploy.md` the RAM and disk requirement.
+- [x] A local ORS answers `/v2/directions`; the app plans a real tour against it with `approximate: false`. (**`/optimization` is void** — no ORS image serves it any more, see the 2026-10-28 note below. Live: `/ors/v2/health` = `{"status":"ready"}`, `/ors/v2/directions/driving-car` Vienna → Klosterneuburg = 15.1 km / 30.6 min with real street names. The `approximate: false` path is `HeuristicOrderRoutingProvider`, unit-tested; the live tour check happens with the next deploy.)
+- [x] The instance listens on `127.0.0.1` only, survives a restart of the box, and its graph can be rebuilt from a documented command. (Docker `-p 127.0.0.1:8082:8082 --restart unless-stopped`; `start-ors.ps1 -Rebuild`.)
+- [x] `docs/runbook.md` gains the start/stop/health/rebuild steps; `docs/deploy.md` the RAM and disk requirement. (Runbook §14, `docs/deploy.md` 13.4: ~4 GB RAM, ~2 GB graph, 800 MB extract, ~14 min first build.)
 - [x] Definition of Done for the code half: lint clean, typecheck 0 errors (after `prisma generate` + `next typegen`), test suite 2310 passed / 8 skipped, `i18n:check ok`; no migration.
 
 **Implementation notes**
@@ -2818,6 +2828,7 @@ Self-hosting ORS removes the quota for both callers; only the endpoint changes.
 - Consequence: the app orders stops with its own heuristic and gets **legs, driving times and the route line from the self-hosted ORS** (a composing provider in `src/server/routing/`), instead of falling back to the heuristic for everything. `ORS_BASE_URL` alone now activates ORS (a self-hosted instance needs no key), and the ORS client omits the `Authorization` header when no key is set.
 - Acceptance criterion "a local ORS answers `/v2/directions` **and** `/optimization`" is **void for `/optimization`** (no ORS image has it); replaced by "the app plans a tour whose legs and geometry come from the local instance with `approximate: false`".
 - Migration of the acceptance criteria to reality: `GET /api/health` now reports `routing.mode` / `geocoding.mode` so the operator can see which provider is in use without reading logs (NUD-145).
+- **Code half of the correction:** `HeuristicOrderRoutingProvider` (`src/server/routing/heuristic-order.ts`) composes the two answers — the visiting order from `LocalHeuristicProvider` (nearest neighbour + 2-opt, unchanged), the legs, driving times and the LineString geometry from the instance's `/v2/directions`, and `approximate: false`. `distribute()` stays the heuristic's (a capacity split is not something the image offers) and forwards its honest flag. Wired only for a **self-hosted** base URL: with `ORS_API_KEY` alone the hosted API keeps its VROOM ordering. `FallbackRoutingProvider` still wraps everything, so an unreachable tunnel ends in today's pure-heuristic result. 11 new unit tests (`routing-road.test.ts`) pin provenance, order hand-over, the directions-only request, the failure paths and the hosted/self-hosted split; `routing.test.ts` adapted where the behaviour changed on purpose.
 
 **Risks**
 - RAM: 2 vCPU / 2 GB today, and the build already needs swap (`deploy/server-setup.sh`, NUD-155 era). ORS wants more than the app does — do not start the deployment before the host decision, or the box will swap itself to death while drivers are working.
@@ -3106,7 +3117,28 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 
 ---
 
-### M3 — Later (refine before starting)
+#### NUD-168 · 👤 Production map tiles: replace the dev-only OSM default with a provider key
+**Status:** blocked (needs a provider account; the owner delegated the choice on 2026-10-28) · **depends_on:** – · found while taking the production inventory (the CSP of the live deployment allows `img-src https://tile.openstreetmap.org`).
+
+**Goal:** `docs/env.md` says the OSM default tile URL is **for development only** (the OSM tile usage policy forbids production traffic), and the production deployment has no `MAP_TILE_URL` — the drivers' maps are therefore served by the OSM community server. That is a policy violation and a reliability risk (OSM blocks heavy users without notice, and the map would simply go blank).
+
+**Decision taken (owner: "mach was du glaubst ist best")**: **Stadia Maps** free tier (non-commercial ≤ 200 000 requests/month covers 1–30 drivers with the opt-in tile cache off), because it is keyed, CORS-enabled for the `MAP_TILE_CACHE` option, and the key can be restricted to the server's domain. MapTiler is the equal alternative. Both need an account — hence 👤.
+
+**Human steps (≈5 minutes)**
+1. Create the account at <https://stadiamaps.com> (or <https://maptiler.com>) and copy the API key.
+2. On the vServer in `/etc/delivery-app.env`:
+   ```sh
+   MAP_TILE_URL=https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=<key>
+   MAP_TILE_ATTRIBUTION=© <a href="https://stadiamaps.com/">Stadia Maps</a> © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors
+   ```
+3. `systemctl restart delivery-app`, then open a tour map and check the CSP header (`img-src` must now carry the provider origin instead of `tile.openstreetmap.org`).
+4. Optional: restrict the key to the server's domain in the provider dashboard.
+
+**Acceptance criteria**
+- [ ] The production CSP no longer allows `tile.openstreetmap.org`, and a tour map renders tiles from the provider.
+- [ ] `docs/env.md` / `docs/deploy.md` name the chosen provider instead of "for development only".
+
+
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
 **Status:** done · **depends_on:** – · found while deploying NUD-132.
@@ -3554,6 +3586,12 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | NUD-150 | The OpenRouter client also fills the Serbian slot of the translation chain: existing `sr-Latn` gaps are closed by the one-off `pnpm backfill:serbian -- --apply` (dry run by default, refuses the FakeTranslator), new texts get Serbian immediately | NUD-140 promised this in NUD-150; without the backfill old notes would stay German for a Serbian driver |
 | 2026-10-28 | NUD-166 | The rule created from the order form leaves the delivery day of the order being entered out (`exceptions`, a checkbox that is on by default) instead of moving the start day | The rule generates its own orders from its start day, and all confirmed orders of a customer on one day are merged into one stop — without the exception the same quantity would be loaded twice. The office keeps the choice, so a rule that really should start on that day is one click away |
 | 2026-10-28 | NUD-166 | The dialog only takes schedule fields (days, rhythm in weeks, start day); season and single-date exceptions stay on the customer page | Keeps the order screen to what the customer just said ("every Monday and Thursday"); the full rule form already exists at Kunde › Dauerbestellungen |
+| 2026-10-28 | NUD-156/157 | ORS **and** Photon run on the development PC in Docker and the vServer reaches them through a reverse SSH tunnel (owner decision, E4) | The 2 GB box already hosts Postgres, MinIO, the app and two other sites; an Austria ORS graph alone wants ~4 GB. Trade-off: routing and geocoding are as available as that PC — both degrade to the heuristic / the Fake instead of failing |
+| 2026-10-28 | NUD-156 | The tour order stays with the app's own heuristic; distances, driving times and the route line come from the self-hosted ORS | No ORS image ships `/optimization` any more (v7, v8 and v9 checked) and VROOM would need an OSRM graph of its own. Real roads where they are cheap to get, local 2-opt for the order |
+| 2026-10-28 | NUD-113/167 | Retention stays as it is: nothing is deleted on a schedule (`DATA_RETENTION_MODE` and `ORPHAN_CLEANUP_MODE` stay `dry-run`), only the screenshot lifecycle rule expires objects after 190 days (owner decision, E2) | "Einfach aufbewahren" — orders, tours and stops are transactional history; the lifecycle rule only covers the transient upload of a WhatsApp screenshot |
+| 2026-10-28 | – | Vehicle profile stays `driving-car`; no `driving-hgv` graph is built (owner decision, E3) | The fleet has no trucks today; switching later is one env var plus a graph rebuild |
+| 2026-10-28 | NUD-120 | The strict script CSP stays enforcing (no report-only phase on this deployment) and the violation `report-uri` is now base-path aware (owner decision, E5) | It has been live since NUD-110 and the app works; the report path was the actual bug — reports from iOS/WeChat went to the nginx root and were lost as 404s |
+| 2026-10-28 | NUD-168 | Production map tiles: Stadia Maps free tier (keyed, CORS-capable for the tile cache), with MapTiler as the equal alternative; the OSM default stays until a key exists (owner delegation) | The OSM tile server is explicitly development-only, and a key can only be created by a person |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

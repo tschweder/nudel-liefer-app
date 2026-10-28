@@ -57,8 +57,9 @@ export type DistributeResult = {
 
 /**
  * Computes visiting orders and road routes. Implementations: OpenRouteService
- * (`OrsRoutingProvider`), the local `LocalHeuristicProvider`, and `FallbackRoutingProvider`
- * which tries the first and falls back to the second.
+ * (`OrsRoutingProvider`), the local `LocalHeuristicProvider`, `HeuristicOrderRoutingProvider`
+ * (heuristic order + ORS road legs, NUD-156), and `FallbackRoutingProvider` which tries the first
+ * and falls back to the second.
  */
 export interface RoutingProvider {
   /** Best visiting order for one vehicle that starts and ends at the depot. */

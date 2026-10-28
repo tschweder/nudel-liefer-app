@@ -399,7 +399,7 @@ describe("getRoutingProvider", () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it("sends both requests to a self-hosted ORS when ORS_BASE_URL is set (NUD-156)", async () => {
+  it("plans a self-hosted ORS through directions only when ORS_BASE_URL is set (NUD-156)", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchMock = orsFetch();
     vi.stubGlobal("fetch", fetchMock);
@@ -410,9 +410,13 @@ describe("getRoutingProvider", () => {
       });
       const result = await provider.optimize(input);
       expect(result.approximate).toBe(false);
+      // The self-hosted image serves no /optimization (VROOM), so the order is the heuristic's and
+      // only /v2/directions is called.
+      expect(result.orderedStopIds).toEqual(
+        (await new LocalHeuristicProvider().optimize(input)).orderedStopIds,
+      );
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
-      expect(urls[0]).toBe("http://127.0.0.1:8082/optimization");
-      expect(urls[1]).toBe("http://127.0.0.1:8082/v2/directions/driving-car/geojson");
+      expect(urls).toEqual(["http://127.0.0.1:8082/v2/directions/driving-car/geojson"]);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -423,5 +427,22 @@ describe("getRoutingProvider", () => {
     expect(parseBaseUrl("   ")).toBeUndefined();
     expect(parseBaseUrl("http://127.0.0.1:8082/")).toBe("http://127.0.0.1:8082");
     expect(parseBaseUrl(" https://geo.example.test/ors// ")).toBe("https://geo.example.test/ors");
+  });
+
+  it("keeps the hosted API's VROOM ordering when only ORS_API_KEY is set (NUD-156)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = orsFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const provider = getRoutingProvider({ ORS_API_KEY: "K" });
+      const result = await provider.optimize(input);
+      expect(result.approximate).toBe(false);
+      // Hosted ORS still answers /optimization, so the order comes from there and the composed
+      // provider is not used.
+      const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+      expect(urls[0]).toBe("https://api.openrouteservice.org/optimization");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
