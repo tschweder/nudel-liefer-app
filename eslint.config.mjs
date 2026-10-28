@@ -37,6 +37,11 @@ const eslintConfig = defineConfig([
     "web-test/**",
     ".redesign/**",
     ".qa-shots/**",
+    // the local pnpm content store is a full package tree, not application code
+    ".pnpm-store/**",
+    // agent/plugin bundles of the tooling around this repo (not shipped, not part of the app)
+    ".claude/**",
+    ".agent-sync/**",
   ]),
 ]);
 

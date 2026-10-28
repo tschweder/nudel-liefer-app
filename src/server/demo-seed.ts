@@ -14,6 +14,7 @@ import {
   demoOrderLines,
 } from "./demo-data";
 import { readS3Config, type Storage } from "./storage";
+import { type UploadObject, uploadWithPresignedUrl } from "./storage/upload";
 import { renderPlaceholderPng, type Rgb } from "./testing/placeholder-image";
 
 export type DemoSeedSummary = {
@@ -24,25 +25,9 @@ export type DemoSeedSummary = {
   ordersCreated: number;
 };
 
-/** Writes one object through the presigned URL the Storage interface hands out. */
-export type UploadObject = (
-  storage: Pick<Storage, "createUploadUrl">,
-  key: string,
-  body: Buffer,
-  contentType: string,
-) => Promise<void>;
-
-export const uploadWithPresignedUrl: UploadObject = async (storage, key, body, contentType) => {
-  const target = await storage.createUploadUrl({ key, contentType, contentLength: body.length });
-  const response = await fetch(target.url, {
-    method: target.method,
-    headers: target.headers,
-    body: new Uint8Array(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Uploading ${key} failed: HTTP ${response.status} ${await response.text()}`);
-  }
-};
+/** Re-exported so callers (and the demo seed test) keep importing them from here. */
+export type { UploadObject };
+export { uploadWithPresignedUrl };
 
 /**
  * The demo photos live in the object storage, so the Fake in-memory store (which forgets
