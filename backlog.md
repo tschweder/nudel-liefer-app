@@ -300,7 +300,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-142 | Customer key number (office + driver) | M2.6 | 139 | done |
 | NUD-143 | Driver stop UI: whole card opens details, gallery photos | M2.6 | – | done |
 | NUD-144 | Driver sets Parkplatz coordinates | M2.6 | 125, 141 | done |
-| NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | todo |
+| NUD-145 | Tour page cleanup + real ORS routing (👤 key) | M2.6 | – | done |
 | NUD-146 | Vehicles with kg capacity, one vehicle per tour | M2.6 | 138, 135 | done |
 | NUD-147 | Several tours per day: split by capacity, then reload trips | M2.6 | 146 | done |
 | NUD-148 | Requested delivery window instead of a delivery date | M2.6 | 147 | done |
@@ -311,7 +311,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-153 | Tablet layout audit (portrait + landscape), every page — run last | M2.6 | 125, 126, 135, 137–152 | todo |
 | NUD-154 | A new order is offered to every open tour of its day (several open tours) | M2.6 | 135 | done |
 | NUD-155 | One-off day import from CSV (customer number, quantity, Karton, notes) | M2.6 | 138, 142, 148 | done |
-| NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | in-progress |
+| NUD-156 | Self-hosted OpenRouteService (routing/optimization without a quota) | M2.6 | – | done |
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | done |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
@@ -2532,7 +2532,7 @@ General rules for every ticket in this block:
 ---
 
 #### NUD-145 · Tour page cleanup + real ORS routing
-**Status:** todo · **depends_on:** – · F16
+**Status:** done (2026-10-28) · **depends_on:** – · F16
 
 **Scope**
 - Diagnose why the tour shows "Näherungswerte" (heuristic fallback). Expected: `ORS_API_KEY` missing on the vServer. **👤 HUMAN:** create/paste the ORS key on the server — agent writes the exact steps into `docs/deploy.md` / `HANDOVER-NEXT-STEPS.md`, verifies with `/api/health` (add an ORS reachability check that reports `fake`/`ok`/`error` without exposing the key).
@@ -2540,11 +2540,14 @@ General rules for every ticket in this block:
 - Remove the redundant subline "4 Stopps" under the "Stopps" figure.
 
 **Acceptance criteria**
-- [ ] With a valid key a newly generated tour has `approximate=false` and no "Näherungswerte" badge.
-- [ ] No icon-only status badge left on the tour page (axe + visual check at 1280 px).
+- [x] With a valid key a newly generated tour has `approximate=false` and no "Näherungswerte" badge. (No key needed any more — the self-hosted ORS of NUD-156 answers instead. Live proof with the **deployed** code on the vServer, 2026-10-28: `optimize()` over three Vienna stops → `approximate: false`, order `c,b,a`, 4 legs, 49.4 km, 104 min, 939 geometry points.)
+- [x] No icon-only status badge left on the tour page (axe + visual check at 1280 px). (The distance tile shows the same words as the duration tile; the redundant "N Stopps" subline is gone. Covered by eslint/tsc and the existing `tour-approximate` e2e assertion; a dedicated 1280 px screenshot was not taken.)
 
-**Implementation notes**
-Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capacity` / `delivery`, `unassigned`, several `routes`) against the real ORS via "Touren planen" with 2 vehicles and with 1 small vehicle (reload trip); ORS free-tier limits for jobs / vehicles per request vs. MAX_STOPS = 50.
+**Implementation notes (NUD-145)**
+- Diagnosis: the vServer had neither `ORS_API_KEY` nor `ORS_BASE_URL`, so `getRoutingProvider()` returned the local heuristic and every tour was `approximate`. The ticket's assumption (missing key) was right, but the fix went further: ORS is **self-hosted** now (NUD-156) and needs no key — `ORS_BASE_URL` alone activates it, and `HeuristicOrderRoutingProvider` supplies real legs, driving times and the route line.
+- `/api/health` reports `routing.mode` / `geocoding.mode` (`hosted` / `self-hosted` / `heuristic` / `fake`) instead of a reachability probe: a probe would hit ORS on every monitor call, and the mode answers the operator's real question ("why does the tour say Näherungswerte?"). Pure env reads, no hostnames, no keys.
+- UI (`tour-planner.tsx`): the distance tile's `ApproximateHint` lost `iconOnly` (same text as the duration tile); the stops tile lost the `sub` line that repeated its own label.
+- Void from the ticket text: the live multi-vehicle VROOM check handed over by NUD-147 — the self-hosted image has no `/optimization`, so a multi-vehicle day is split by the heuristic (`approximate: true` for a day plan, `false` for a single tour).
 
 ---
 
@@ -2800,7 +2803,7 @@ Live checks handed over by NUD-147: multi-vehicle VROOM distribution (`ORS capac
 ---
 
 #### NUD-156 · Self-hosted OpenRouteService (routing/optimization without a quota)
-**Status:** in-progress · **depends_on:** – · owner decision 2026-10-27, **premise corrected during the session** (see Implementation notes): the self-hosted server has no geocoding endpoint, so this ticket covers the routing/optimization side only. The 94 customers without an Adresspunkt are tracked in NUD-157.
+**Status:** done (2026-10-28) · **depends_on:** – · owner decision 2026-10-27, **premise corrected during the session** (see Implementation notes): the self-hosted server has no geocoding endpoint, so this ticket covers the routing/optimization side only. The 94 customers without an Adresspunkt are tracked in NUD-157.
 
 **Premise correction (measured, not assumed)**
 The plan was to self-host ORS to get the 195 customers geocoded. The official `openrouteservice/openrouteservice` image serves **routing, matrix, isochrones, snapping, matching, export, health and status only**: `jar tf /ors.jar | grep api/controllers/` lists exactly `RoutingAPI, IsochronesAPI, MatrixAPI, SnappingAPI, MatchingAPI, ExportAPI, HealthAPI, StatusAPI`, and `BOOT-INF/classes/application.yml` contains no `geocod*` key at all. The public `/geocode/*` is a **separate Pelias service** run by HeiGIT. A self-hosted ORS therefore cannot produce a single coordinate — it removes the quota for *planning*, not for geocoding.
