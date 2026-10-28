@@ -16,10 +16,10 @@
  */
 import { addressQuery } from "../src/domain/customer";
 import { GEOCODE_BATCH_SIZE } from "../src/domain/customer-import";
+import { geocodeCustomers, listCustomerIdsWithoutPin } from "../src/server/customer-pins";
 import { createPrismaClient } from "../src/server/db";
 import { getGeocoder, MAX_ADDRESS_LENGTH } from "../src/server/geocoder";
 import { type Geocoder, GeocoderError } from "../src/server/geocoder/types";
-import { geocodeCustomers, listCustomerIdsWithoutPin } from "../src/server/customer-pins";
 import { createThrottle } from "../src/server/throttle";
 
 const LOW_CONFIDENCE = 0.5;
@@ -27,7 +27,11 @@ const LOW_CONFIDENCE = 0.5;
 type Options = { apply: boolean; limit: number; batch: number };
 
 function parseArgs(argv: readonly string[]): Options {
-  const options: Options = { apply: false, limit: Number.MAX_SAFE_INTEGER, batch: GEOCODE_BATCH_SIZE };
+  const options: Options = {
+    apply: false,
+    limit: Number.MAX_SAFE_INTEGER,
+    batch: GEOCODE_BATCH_SIZE,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--apply") options.apply = true;
@@ -35,7 +39,8 @@ function parseArgs(argv: readonly string[]): Options {
     else if (arg === "--batch") options.batch = Number(argv[++i]);
     else throw new Error(`unknown argument: ${arg}`);
   }
-  if (!Number.isInteger(options.limit) || options.limit < 1) throw new Error("--limit must be a positive number");
+  if (!Number.isInteger(options.limit) || options.limit < 1)
+    throw new Error("--limit must be a positive number");
   if (!Number.isInteger(options.batch) || options.batch < 1 || options.batch > GEOCODE_BATCH_SIZE) {
     throw new Error(`--batch must be between 1 and ${GEOCODE_BATCH_SIZE}`);
   }
@@ -54,7 +59,9 @@ async function main(): Promise<number> {
   try {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
-    console.error(`usage: tsx scripts/geocode-customers.ts [--apply] [--limit N] [--batch N]\n${(error as Error).message}`);
+    console.error(
+      `usage: tsx scripts/geocode-customers.ts [--apply] [--limit N] [--batch N]\n${(error as Error).message}`,
+    );
     return 1;
   }
 
@@ -117,7 +124,15 @@ async function dryRun(
   const rows = await db.customer.findMany({
     where: { id: { in: [...ids] } },
     orderBy: { customerNumber: "asc" },
-    select: { id: true, customerNumber: true, name: true, street: true, postalCode: true, city: true, country: true },
+    select: {
+      id: true,
+      customerNumber: true,
+      name: true,
+      street: true,
+      postalCode: true,
+      city: true,
+      country: true,
+    },
   });
   let found = 0;
   let missed = 0;
@@ -131,7 +146,9 @@ async function dryRun(
       const best = hits[0];
       if (!best) {
         missed += 1;
-        console.info(`[geocode] ${customer.customerNumber} ${customer.name}: NO HIT (${customer.street}, ${customer.postalCode} ${customer.city})`);
+        console.info(
+          `[geocode] ${customer.customerNumber} ${customer.name}: NO HIT (${customer.street}, ${customer.postalCode} ${customer.city})`,
+        );
       } else {
         found += 1;
         const unsure = best.confidence < LOW_CONFIDENCE;
@@ -144,11 +161,15 @@ async function dryRun(
     } catch (error) {
       if (!(error instanceof GeocoderError)) throw error;
       failed += 1;
-      console.info(`[geocode] ${customer.customerNumber} ${customer.name}: FAILED ${error.code} ${error.status ?? ""}`);
+      console.info(
+        `[geocode] ${customer.customerNumber} ${customer.name}: FAILED ${error.code} ${error.status ?? ""}`,
+      );
     }
     if (i % batch === 0) console.info(`[geocode] ${i}/${rows.length} checked`);
   }
-  console.info(`[geocode] dry run: ${found} hit(s), ${missed} without a hit, ${failed} failed, ${low} low confidence (nothing written)`);
+  console.info(
+    `[geocode] dry run: ${found} hit(s), ${missed} without a hit, ${failed} failed, ${low} low confidence (nothing written)`,
+  );
   return failed > 0 ? 3 : 0;
 }
 

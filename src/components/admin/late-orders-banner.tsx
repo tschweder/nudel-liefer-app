@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, RouteIcon, TriangleAlertIcon } from "lucide-react";
+import { PackagePlusIcon, PlusIcon, RouteIcon, TriangleAlertIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
+import { createCorrectionDeliveryAction } from "@/server/order-actions";
 import { createEmptyTourAction, createFollowUpTourAction } from "@/server/tour-actions";
 import type { TourPlan } from "@/server/tour-planning";
 
@@ -16,8 +17,10 @@ import { TourDiffList } from "./tour-diff-list";
 /**
  * Late orders on the planning page (NUD-099). Orders confirmed after every tour of the day was
  * COMPLETED are on no stop; the office sees them here and creates a follow-up tour (a second tour
- * for the same date) for them. Edits to orders of already delivered stops are listed as well; they
- * are not delivered by the follow-up tour.
+ * for the same date) for them. Edits to orders of already delivered stops are listed as well: an
+ * increase of such an order is offered as a "correction" (NUD-117), which books the difference as
+ * a new order and puts it on a follow-up tour in one step; a decrease or a cancellation is only
+ * reported (goods cannot be un-delivered).
  */
 export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
   const t = useTranslations("admin.tours.late");
@@ -25,9 +28,12 @@ export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [correctionPending, startCorrection] = useTransition();
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
   const { late } = plan;
   if (late.lateOrders.length === 0 && late.conflicts.length === 0) return null;
   const unroutable = late.lateOrders.filter((o) => !o.routable);
+  const errorText = (code: string) => (te.has(code) ? te(code) : te("generic"));
 
   function create() {
     setError(null);
@@ -47,6 +53,35 @@ export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
       }
       toast.success(t("created", { count: result.stopCount }));
       router.replace({ pathname: "/admin/tours", query: { date: plan.date, tour: result.tourId } });
+    });
+  }
+
+  function correct() {
+    setCorrectionError(null);
+    startCorrection(async () => {
+      let result;
+      try {
+        result = await createCorrectionDeliveryAction({ date: plan.date });
+      } catch {
+        return setCorrectionError("generic");
+      }
+      if (!result.ok) {
+        setCorrectionError(result.error);
+        if (["no_corrections", "follow_up_not_allowed"].includes(result.error)) router.refresh();
+        return;
+      }
+      if (result.followUp.ok) {
+        toast.success(t("correction.created", { count: result.followUp.stopCount }));
+        router.replace({
+          pathname: "/admin/tours",
+          query: { date: plan.date, tour: result.followUp.tourId },
+        });
+        return;
+      }
+      // The difference is booked, the tour could not be planned (e.g. no Parkplatz): say both.
+      setCorrectionError(result.followUp.error);
+      toast.warning(t("correction.createdNoTour"));
+      router.refresh();
     });
   }
 
@@ -81,7 +116,7 @@ export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
             ) : null}
             {error ? (
               <p className="font-medium" role="alert" data-testid="late-orders-error">
-                {te.has(error) ? te(error) : te("generic")}
+                {errorText(error)}
               </p>
             ) : null}
             <div>
@@ -108,6 +143,33 @@ export function LateOrdersBanner({ plan }: { plan: TourPlan }) {
             <TourDiffList
               diff={{ added: [], removed: [], changed: [], completedChanged: late.conflicts }}
             />
+            {late.corrections.length > 0 ? (
+              <div className="flex flex-col gap-2" data-testid="correction-offer">
+                <p>{t("correction.body")}</p>
+                <TourDiffList
+                  diff={{ added: late.corrections, removed: [], changed: [], completedChanged: [] }}
+                  addedHeading={t("correction.heading", { count: late.corrections.length })}
+                />
+                {correctionError ? (
+                  <p className="font-medium" role="alert" data-testid="correction-error">
+                    {errorText(correctionError)}
+                  </p>
+                ) : null}
+                <div>
+                  <Button
+                    type="button"
+                    onClick={correct}
+                    disabled={correctionPending || !late.canCreateCorrection}
+                    data-testid="create-correction"
+                  >
+                    <PackagePlusIcon aria-hidden />
+                    {correctionPending ? t("correction.creating") : t("correction.create")}
+                  </Button>
+                </div>
+              </div>
+            ) : late.correctionBlocked ? (
+              <p data-testid="correction-blocked">{t("correction.blocked")}</p>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}

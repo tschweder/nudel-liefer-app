@@ -315,6 +315,9 @@ const MATRIX: Record<string, Row> = {
   "src/server/order-actions.ts#dayTourCompletedAction": adminAction("orders", async () =>
     (await import("./order-actions")).dayTourCompletedAction("2030-01-01"),
   ),
+  "src/server/order-actions.ts#createCorrectionDeliveryAction": adminAction("orders", async () =>
+    (await import("./order-actions")).createCorrectionDeliveryAction({ date: "2030-01-01" }),
+  ),
   "src/server/order-actions.ts#screenshotPreviewUrlAction": adminAction("orders", async () =>
     (await import("./order-actions")).screenshotPreviewUrlAction("screenshots/x.jpg"),
   ),

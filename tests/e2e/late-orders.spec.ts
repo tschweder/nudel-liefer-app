@@ -368,12 +368,232 @@ test("late order after a completed tour: banner, follow-up tour, release, driver
   await removeSpecData();
 });
 
+test("correction on a delivered stop: the increase goes onto a follow-up tour, the decrease is only reported", async ({
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "admin planning is a desktop flow");
+  test.setTimeout(300_000);
+  await removeSpecData(); // leftovers of the test before
+  const tag = `${Date.now() % 1e8}`;
+  const username = `late-drv-c-${tag}`;
+  const errors: string[] = [];
+  const watch = (page: Page) => {
+    page.on("console", (m) => {
+      if (m.type() === "error") errors.push(`${page.url()} ${m.text()}`);
+    });
+    page.on("pageerror", (e) => errors.push(e.message));
+  };
+
+  // ------------------------------------------------------------------ fixture
+  const depot = (await db.query(`SELECT "depotLat","depotLng" FROM "Settings"`)).rows[0] as {
+    depotLat: number;
+    depotLng: number;
+  };
+  const admin = (await db.query(`SELECT "id" FROM "User" WHERE "role"='ADMIN' LIMIT 1`))
+    .rows[0] as { id: string };
+  const bag = (await db.query(`SELECT "id" FROM "Product" WHERE "sku"='NUDELN-BEUTEL'`)).rows[0]
+    .id as string;
+  const driverId = `late-user-c-${tag}`;
+  await db.query(
+    `INSERT INTO "User" ("id","role","username","passwordHash","locale","localeChosen","displayName","updatedAt")
+     VALUES ($1,'DRIVER',$2,$3,'de',true,'Late Correction Driver',now())`,
+    [driverId, username, await bcrypt.hash(PIN, 10)],
+  );
+  const customer = async (key: string, offset: number) => {
+    const id = `late-cust-${key}-${tag}`;
+    await db.query(
+      `INSERT INTO "Customer" ("id","customerNumber","name","street","postalCode","city","lat","lng","pinConfirmed","updatedAt")
+       VALUES ($1,$2,$3,'Hauptstraße 1','1010','Wien',$4,$5,true,now())`,
+      [
+        id,
+        `${PREFIX}${key}-${tag}`,
+        `Trattoria ${key} ${tag}`,
+        depot.depotLat,
+        depot.depotLng + offset,
+      ],
+    );
+    return { id, name: `Trattoria ${key} ${tag}` };
+  };
+  const more = await customer("M", 0.05); // ordered more after the delivery
+  const less = await customer("N", 0.06); // ordered less after the delivery
+  const order = async (customerId: string, quantity: string) => {
+    const id = `late-ord-${customerId}-c`;
+    await db.query(
+      `INSERT INTO "Order" ("id","customerId","deliveryDate","windowFrom","windowTo","status","source","createdById","updatedAt")
+       VALUES ($1,$2,$3,$3,$3,'CONFIRMED','MANUAL',$4,now())`,
+      [id, customerId, today, admin.id],
+    );
+    await db.query(
+      `INSERT INTO "OrderItem" ("id","orderId","productId","quantity") VALUES ($1,$2,$3,$4)`,
+      [`${id}-i`, id, bag, quantity],
+    );
+    return id;
+  };
+  const orderMore = await order(more.id, "2");
+  const orderLess = await order(less.id, "4");
+
+  // ------------------------------------------------------------------ tour built, released, delivered
+  const adminCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const adminPage = await adminCtx.newPage();
+  watch(adminPage);
+  await stubTiles(adminPage);
+  await adminPage.goto("/de/login");
+  await adminPage.getByLabel("E-Mail").fill("admin@example.com");
+  await adminPage.getByLabel("Passwort").fill(adminPassword);
+  await visible(adminPage, "login-submit").click();
+  await expect(adminPage).toHaveURL(/\/admin$/);
+
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  await visible(adminPage, "tour-generate").click();
+  await expect(adminPage.locator('[data-testid="stop-row"]:visible')).toHaveCount(2);
+  await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-vehicle").selectOption(await ensureVehicle(db));
+  await visible(adminPage, "tour-release").click();
+  await visible(adminPage, "release-confirm").click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");
+
+  const driverCtx = await browser.newContext({ ...devices["Pixel 7"] });
+  const driver = await driverCtx.newPage();
+  watch(driver);
+  await stubTiles(driver);
+  await driver.goto("/de/driver/login");
+  const loginForm = driver.getByTestId("driver-login-form");
+  await loginForm.locator('input[name="username"]').fill(username);
+  await loginForm.locator('input[name="pin"]').fill(PIN);
+  await driver.getByTestId("login-submit").click();
+  await expect(driver).toHaveURL(/\/de\/driver$/);
+  await visible(driver, "details").click();
+  for (let i = 0; i < 2; i++) {
+    await expect(driver).toHaveURL(/\/de\/driver\/stops\/[^/]+$/);
+    const here = driver.url();
+    await visible(driver, "btn-delivered").click();
+    if (i === 0) await expect(driver).not.toHaveURL(here);
+  }
+  await expect(visible(driver, "all-done")).toBeVisible();
+  const firstTour = (await db.query(`SELECT "id" FROM "Tour" WHERE "date"=$1`, [today]))
+    .rows[0] as { id: string };
+
+  // ------------------------------------------------------------------ the orders are changed afterwards
+  // NUD-117: 2 -> 5 (increase 3, deliverable) and 4 -> 1 (decrease, only reported).
+  await db.query(`UPDATE "OrderItem" SET "quantity"=5 WHERE "orderId"=$1`, [orderMore]);
+  await db.query(`UPDATE "OrderItem" SET "quantity"=1 WHERE "orderId"=$1`, [orderLess]);
+
+  // ------------------------------------------------------------------ planning page: conflicts + correction
+  await adminPage.goto(`/de/admin/tours?date=${today}`);
+  const conflicts = visible(adminPage, "delivered-conflicts");
+  await expect(conflicts).toBeVisible();
+  await expect(conflicts).toContainText("Bestellungen nach der Lieferung geändert");
+  await expect(conflicts).toContainText(more.name);
+  await expect(conflicts).toContainText(less.name);
+  const offer = visible(adminPage, "correction-offer");
+  await expect(offer).toBeVisible();
+  // Only the increase is offered, with exactly the difference (3, not 5 and not 2 + 5).
+  await expect(offer).toContainText(more.name);
+  await expect(offer).not.toContainText(less.name);
+  await expect(offer.locator('[data-testid="diff-item"]')).toHaveCount(1);
+  await expect(offer.locator('[data-testid="diff-item"]')).toContainText("3");
+  const button = visible(adminPage, "create-correction");
+  await expect(button).toBeEnabled();
+  expect(await noHorizontalScroll(adminPage)).toBe(true);
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-117-correction-1280.png") });
+
+  // ------------------------------------------------------------------ one click
+  await button.click();
+  await expect(adminPage).toHaveURL(/\/admin\/tours\?.*tour=/);
+  await expect(visible(adminPage, "tour-tab")).toHaveCount(2);
+  const tabs = adminPage.locator('[data-testid="tour-tab"]:visible');
+  await expect(tabs.nth(1)).toContainText("Tour 2");
+  await expect(visible(adminPage, "tour-status")).toHaveText("Optimiert");
+  const rows = adminPage.locator('[data-testid="stop-row"]:visible');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.filter({ hasText: more.name })).toHaveCount(1);
+  // The difference is booked: the conflict is still reported, but nothing is offered twice.
+  await expect(visible(adminPage, "delivered-conflicts")).toBeVisible();
+  await expect(visible(adminPage, "create-correction")).toHaveCount(0);
+  expect(await noHorizontalScroll(adminPage)).toBe(true);
+  await adminPage.screenshot({ path: testInfo.outputPath("nud-117-followup-1280.png") });
+
+  // Database truth: one new confirmed order with the difference, the completed tour untouched.
+  const tours = (
+    await db.query(
+      `SELECT "id","status"::text AS status FROM "Tour" WHERE "date"=$1 ORDER BY "createdAt"`,
+      [today],
+    )
+  ).rows as { id: string; status: string }[];
+  expect(tours.map((t) => t.status)).toEqual(["COMPLETED", "OPTIMIZED"]);
+  const followUp = tours[1]!.id;
+  expect(tours[0]!.id).toBe(firstTour.id);
+  const stops = (
+    await db.query(
+      `SELECT s."customerId", s."items"::text AS items,
+              (SELECT count(*)::int FROM "StopOrder" so WHERE so."stopId"=s."id") AS links
+       FROM "Stop" s WHERE s."tourId"=$1`,
+      [followUp],
+    )
+  ).rows as { customerId: string; items: string; links: number }[];
+  expect(stops).toHaveLength(1);
+  expect(stops[0]!.customerId).toBe(more.id);
+  expect(JSON.parse(stops[0]!.items)).toMatchObject([{ productId: bag, quantity: 3 }]);
+  expect(stops[0]!.links).toBe(1);
+  const originalStops = (
+    await db.query(`SELECT "id","items"::text AS items FROM "Stop" WHERE "tourId"=$1`, [
+      firstTour.id,
+    ])
+  ).rows as { id: string; items: string }[];
+  expect(originalStops).toHaveLength(2);
+  expect(originalStops.find((s) => JSON.parse(s.items)[0].quantity === 2)).toBeTruthy();
+  const correctionOrder = (
+    await db.query(
+      `SELECT o."id", o."status"::text AS status, i."quantity" AS quantity
+       FROM "Order" o JOIN "OrderItem" i ON i."orderId"=o."id"
+       WHERE o."customerId"=$1 AND o."id"<>$2`,
+      [more.id, orderMore],
+    )
+  ).rows as { id: string; status: string; quantity: number }[];
+  expect(correctionOrder).toHaveLength(1);
+  expect(correctionOrder[0]).toMatchObject({ status: "CONFIRMED", quantity: 3 });
+  const audit = (
+    await db.query(`SELECT "diff"::text AS diff FROM "AuditLog" WHERE "entityId"=$1`, [
+      correctionOrder[0]!.id,
+    ])
+  ).rows as { diff: string }[];
+  expect(audit).toHaveLength(1);
+  expect(JSON.parse(audit[0]!.diff)).toMatchObject({
+    correction: { reason: "delivered_stop_increase" },
+  });
+
+  // ------------------------------------------------------------------ release, the driver delivers the difference
+  await visible(adminPage, "tour-driver").selectOption(driverId);
+  await visible(adminPage, "tour-vehicle").selectOption(await ensureVehicle(db));
+  await visible(adminPage, "tour-release").click();
+  await visible(adminPage, "release-confirm").click();
+  await expect(visible(adminPage, "tour-status")).toHaveText("Freigegeben");
+
+  await driver.goto("/de/driver");
+  await expect(visible(driver, "all-done")).toHaveCount(0);
+  await visible(driver, "details").click();
+  await expect(driver).toHaveURL(/\/de\/driver\/stops\/[^/]+$/);
+  await expect(visible(driver, "stop-name")).toContainText(more.name);
+  const items = driver.locator('[data-testid="stop-item"]:visible');
+  await expect(items).toHaveCount(1);
+  expect((await items.getByTestId("item-quantity").innerText()).trim()).toMatch(/^3(?![.,]?\d)/);
+  await driver.screenshot({ path: testInfo.outputPath("nud-117-driver.png") });
+  await visible(driver, "btn-delivered").click();
+  await expect(driver).toHaveURL(/\/de\/driver$/);
+  await expect(visible(driver, "all-done")).toBeVisible();
+
+  expect(errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await driverCtx.close();
+  await adminCtx.close();
+  await removeSpecData();
+});
+
 test("all four languages render the late-order banner and the tabs without errors", async ({
   browser,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "admin planning is a desktop flow");
   test.setTimeout(240_000);
-  await removeSpecData(); // the first test's tours and orders
+  await removeSpecData(); // the previous tests' tours and orders
   const tag = `${Date.now() % 1e8}`;
   const depot = (await db.query(`SELECT "depotLat","depotLng" FROM "Settings"`)).rows[0] as {
     depotLat: number;

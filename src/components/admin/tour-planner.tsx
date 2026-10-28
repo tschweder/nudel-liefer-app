@@ -682,7 +682,6 @@ export function TourPlanner({
           <StatTile
             label={t("stopsHeading")}
             value={tour.stops.length}
-            sub={t("summary.stops", { count: tour.stops.length })}
             icon={MapPinIcon}
             className={KPI_TILE}
           />
@@ -713,11 +712,12 @@ export function TourPlanner({
             }
             sub={
               tour.approximate ? (
+                // NUD-145: the same words as under "Gesamtdauer" instead of a bare warning icon —
+                // an icon alone never explained what is approximate.
                 <ApproximateHint
                   label={t("approximate")}
                   hint={t("approximateHint")}
                   testId="tour-approximate-distance"
-                  iconOnly
                 />
               ) : undefined
             }

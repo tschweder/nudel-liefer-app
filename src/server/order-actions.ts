@@ -7,6 +7,7 @@ import { MAX_SOURCE_TEXT } from "@/domain/order-extraction-answer";
 import { isScreenshotKey } from "@/lib/uploads";
 
 import { requireRole } from "./auth/guards";
+import { type CorrectionDeliveryResult, createCorrectionDelivery } from "./correction-delivery";
 import { getDb } from "./db";
 import { extractOrderDraft, type OrderDraftOutcome } from "./order-extraction";
 import { getOrderExtractor } from "./order-extractor";
@@ -94,6 +95,23 @@ export async function confirmedOrderCountAction(
 export async function dayTourCompletedAction(deliveryDate: unknown): Promise<boolean> {
   await requireRole("ADMIN");
   return isDayTourCompleted(getDb(), deliveryDate);
+}
+
+const correctionInputSchema = z.object({ date: z.string().trim().min(1).max(10) }).strict();
+
+/**
+ * Admin-only (NUD-117): delivers the difference of orders that were increased after their stop was
+ * delivered. One call creates a CONFIRMED order per affected customer with exactly the increase and
+ * puts it on a follow-up tour of the same day (`{date: "YYYY-MM-DD"}`). Decreases and cancellations
+ * are not touched; the completed tour stays as it is.
+ */
+export async function createCorrectionDeliveryAction(
+  input: unknown,
+): Promise<CorrectionDeliveryResult> {
+  const actor = await requireRole("ADMIN");
+  const parsed = correctionInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid_date" };
+  return createCorrectionDelivery(actor.id, parsed.data.date);
 }
 
 /** Signed URL to show a freshly uploaded screenshot next to the form (`null` if it is not one). */

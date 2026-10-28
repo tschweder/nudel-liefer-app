@@ -272,7 +272,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-114 | 👤 Set up and verify monitoring and backups on the real accounts | M2 | 007, 094 | todo |
 | NUD-115 | 👤 Real-device usability check of the driver app (TalkBack, font size, one hand, dark mode, slow network) | M2 | 095 | todo |
 | NUD-116 | Warn on the order form when the delivery day's tour is already completed | M2 | 099 | done |
-| NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | todo |
+| NUD-117 | Deliver quantity changes on already delivered stops (correction stop) | M2 | 099 | done |
 | NUD-118 | Driver app with two tours on one day (offline cache, hint, real device) | M2 | 099, 081 | blocked |
 | NUD-119 | Driver map: tap on a marker opens the stop detail | M2 | 081 | done |
 | NUD-120 | 👤 Roll out the strict script CSP on the real deployment (report-only first) | M2 | 110, 113 | in-progress |
@@ -1848,7 +1848,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 
 
 #### NUD-117 · Deliver quantity changes on already delivered stops (correction stop)
-**Status:** todo · **depends_on:** 099
+**Status:** done (2026-10-28; e2e case written, not executed) · **depends_on:** 099
 
 **Goal:** an order that was already delivered and is increased afterwards (NUD-099 only reports it as a conflict note) can be delivered with one action.
 
@@ -1856,7 +1856,16 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 - Decide with the office: "Create correction": a follow-up stop for the difference (new quantity minus delivered quantity) instead of asking the office to enter a second order. Keep audit entries and the "never reset delivered stops" rule (NUD-043); decrease / cancel stays a note (goods cannot be un-delivered).
 
 **Acceptance criteria**
-- [ ] An increase of a delivered order can be put on a follow-up tour with exactly the difference (integration + e2e); decreases are reported only.
+- [x] An increase of a delivered order can be put on a follow-up tour with exactly the difference (integration + e2e); decreases are reported only. (Integration: `correction-delivery.integration.test.ts`, 10 tests, driver sees tour 2 with only the difference. The e2e case exists in `tests/e2e/late-orders.spec.ts` but was **not executed** — the dev database is behind a migration. Decreases/cancellations: `no_corrections`, nothing written.)
+
+**Implementation notes (NUD-117)**
+- One button on the existing conflict note: `createCorrectionDeliveryAction({date})` (`requireRole("ADMIN")`, zod `{date: string.max(10)}`) books, in one transaction under the per-date advisory lock, one CONFIRMED order per affected customer with exactly the increase, then calls the existing `generateFollowUpTour` — the difference lands on a follow-up stop of the same day while the completed tour, its stops and its order links stay identical and no delivered stop is ever reset (NUD-043). A decrease or a cancellation is never "corrected".
+- Why an order and not a hand-written stop: `Stop.items` is only the snapshot released to the driver and is rebuilt from its `StopOrder` links on every re-release, so a stop no order explains would be wiped by the next rebuild; an order also keeps totals, load sheet and audit consistent — and it needs no migration (`OrderSource.CORRECTION`/a new column would have).
+- Double booking is excluded by a pure `correctionCandidates` (`src/domain/day-tours.ts`, unit-tested): a conflict is only offered while the difference is demonstrably unplanned (customer has no other stop that day and no confirmed order on no stop), and the action requires every tour of the day to be COMPLETED. After one click the offer disappears; a customer with both an increase and a pending late order gets an explanatory note instead of the button, and late orders are booked first.
+- When the follow-up cannot be planned (e.g. the customer has neither a Parkplatz nor an Adresspunkt) the orders stay and the office is told to fix the location and create the tour — covered by an integration test.
+- Audit: `order.create` with `diff.correction = {reason: "delivered_stop_increase", stopId, lines}` plus the builder's `tour.followup`; no new audit action, no raw DELETE/UPDATE on `"AuditLog"`.
+- Tests: 6 unit (increase only, mixed, cancellation, other-stop guard, pending-order guard, per-customer independence), 10 integration, one unexecuted e2e. Typecheck, ESLint (repo-wide), `i18n:check` and the full suite (214 files / 2567 tests) green.
+- Follow-up ideas: offer the correction while a tour of the day is still IN_PROGRESS; mark correction orders in the order overview (today only the audit entry tells them apart).
 
 ---
 

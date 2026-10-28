@@ -38,7 +38,9 @@ async function main(): Promise<number> {
   try {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
-    console.error(`usage: tsx scripts/set-bucket-lifecycle.ts [--days 190] [--apply]\n${(error as Error).message}`);
+    console.error(
+      `usage: tsx scripts/set-bucket-lifecycle.ts [--days 190] [--apply]\n${(error as Error).message}`,
+    );
     return 1;
   }
   const config = readS3Config(process.env);
@@ -65,8 +67,12 @@ async function main(): Promise<number> {
   );
 
   try {
-    const current = await client.send(new GetBucketLifecycleConfigurationCommand({ Bucket: config.bucket }));
-    console.info(`[lifecycle] configured rules: ${(current.Rules ?? []).map((r) => r.ID ?? "(no id)").join(", ") || "none"}`);
+    const current = await client.send(
+      new GetBucketLifecycleConfigurationCommand({ Bucket: config.bucket }),
+    );
+    console.info(
+      `[lifecycle] configured rules: ${(current.Rules ?? []).map((r) => r.ID ?? "(no id)").join(", ") || "none"}`,
+    );
     // Keep every foreign rule; replace only our own.
     const others = (current.Rules ?? []).filter((r) => r.ID !== RULE_ID);
     if (!options.apply) return 0;
@@ -93,7 +99,9 @@ async function main(): Promise<number> {
     }
   }
 
-  const after = await client.send(new GetBucketLifecycleConfigurationCommand({ Bucket: config.bucket }));
+  const after = await client.send(
+    new GetBucketLifecycleConfigurationCommand({ Bucket: config.bucket }),
+  );
   for (const r of after.Rules ?? []) {
     console.info(
       `[lifecycle] rule ${r.ID ?? "(no id)"}: prefix ${r.Filter?.Prefix ?? "-"}, expire ${r.Expiration?.Days ?? "-"} day(s), ${r.Status}`,

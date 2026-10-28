@@ -1307,6 +1307,7 @@
         "not_released": "This tour has not been released yet.",
         "follow_up_not_allowed": "A follow-up tour is only possible when all tours of this day are completed.",
         "no_late_orders": "There is no late order with a parking spot or address point that can go into a follow-up tour.",
+        "no_corrections": "No delivered stop has an increase left that can be delivered. The page is reloaded.",
         "stop_locked": "A stop that is already completed cannot be moved. The page is reloading.",
         "target_invalid": "The target tour is no longer available. Please reload the page.",
         "customer_in_target": "The target tour already has a stop for this customer.",
@@ -1400,7 +1401,16 @@
         "creating": "Creating …",
         "created": "Follow-up tour with {count, plural, one {# stop} other {# stops}} created. Please assign a driver and release it.",
         "conflictTitle": "Orders changed after delivery",
-        "conflictBody": "For these stops the order was changed or cancelled after the tour was completed. The follow-up tour does not deliver the difference. Please clarify with the customer and the driver."
+        "conflictBody": "For these stops the order was changed or cancelled after the tour was completed. An increase can still be delivered; a decrease or a cancellation cannot, because goods cannot be taken back.",
+        "correction": {
+          "body": "For the difference a separate order is created per customer and delivered with a follow-up tour of this day. The completed tour stays unchanged.",
+          "heading": "{count, plural, one {Correction: # customer} other {Correction: # customers}}",
+          "create": "Create correction",
+          "creating": "Creating …",
+          "created": "Correction placed on a follow-up tour ({count, plural, one {# stop} other {# stops}}). Please assign a driver and release it.",
+          "createdNoTour": "The correction orders are created, but the follow-up tour could not be planned.",
+          "blocked": "No correction possible: the customer already has another stop that day or an order that is on no tour yet. Please plan those first."
+        }
       },
       "tabs": {
         "label": "Tours of this day",

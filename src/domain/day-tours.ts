@@ -112,3 +112,54 @@ export function deliveredStopConflicts(
     orders,
   ).diff.completedChanged;
 }
+
+/** Whole-number quantity of one product that still has to be delivered (NUD-117). */
+export type CorrectionLine = { productId: string; quantity: number };
+
+/** A delivered stop whose order was increased: the difference can be delivered again (NUD-117). */
+export type CorrectionCandidate = {
+  /** The DELIVERED stop the difference belongs to. */
+  stopId: string;
+  customerId: string;
+  /** Only the increases: delivered quantity plus this is the order now. */
+  items: CorrectionLine[];
+};
+
+/**
+ * Which delivered-stop conflicts the office can still deliver (NUD-117). The goods of a completed
+ * stop cannot be taken back and the stop is never reset (NUD-043), so only an INCREASE can be
+ * delivered afterwards — as a follow-up delivery for exactly the difference. A decrease or a
+ * cancelled order stays a note (`deliveredStopConflicts`).
+ *
+ * A conflict is only offered while the difference is demonstrably not planned yet, so one click
+ * cannot book the same goods twice:
+ * - the customer must have no other stop on that day (`dayStops` = every stop of the day, with its
+ *   id), because a second stop would already carry the difference, and
+ * - none of the customer's CONFIRMED orders of the day may be on no stop yet (`orders` with
+ *   `linkedToStop`), because such an order still waits for a tour and is planned first.
+ * Both are the same test once the office worked the day off: as soon as the difference sits on a
+ * stop, the conflict is still reported but no correction is offered any more.
+ */
+export function correctionCandidates(
+  conflicts: readonly DeliveredStopConflict[],
+  dayStops: ReadonlyArray<{ id: string; customerId: string }>,
+  orders: ReadonlyArray<{ customerId: string; linkedToStop: boolean }>,
+): CorrectionCandidate[] {
+  const candidates: CorrectionCandidate[] = [];
+  for (const conflict of conflicts) {
+    const items = conflict.items
+      .filter((item) => item.after > item.before)
+      .map((item) => ({ productId: item.productId, quantity: item.after - item.before }));
+    if (items.length === 0) continue;
+    const hasAnotherStop = dayStops.some(
+      (stop) => stop.customerId === conflict.customerId && stop.id !== conflict.stopId,
+    );
+    if (hasAnotherStop) continue;
+    const waiting = orders.some(
+      (order) => order.customerId === conflict.customerId && !order.linkedToStop,
+    );
+    if (waiting) continue;
+    candidates.push({ stopId: conflict.stopId, customerId: conflict.customerId, items });
+  }
+  return candidates;
+}

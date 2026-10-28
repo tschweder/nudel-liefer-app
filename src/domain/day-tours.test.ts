@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canCreateFollowUp,
+  correctionCandidates,
   deliveredStopConflicts,
   driverDayTours,
   findLateOrderIds,
@@ -202,5 +203,72 @@ describe("deliveredStopConflicts", () => {
   it("ignores orders that are not linked to the stop (they are late orders, not conflicts)", () => {
     const late = { id: "o9", customerId: "c1", items: [{ productId: "p1", quantity: 3 }] };
     expect(deliveredStopConflicts([stop], [order(5), late])).toEqual([]);
+  });
+});
+
+describe("correctionCandidates (NUD-117)", () => {
+  const conflict = (items: Array<{ productId: string; before: number; after: number }>) => ({
+    stopId: "s1",
+    customerId: "c1",
+    items,
+  });
+  const increase = conflict([{ productId: "p1", before: 2, after: 5 }]);
+  const onlyStop = [{ id: "s1", customerId: "c1" }];
+  const linkedOrders = [{ customerId: "c1", linkedToStop: true }];
+
+  it("offers exactly the increase of a delivered stop", () => {
+    expect(correctionCandidates([increase], onlyStop, linkedOrders)).toEqual([
+      { stopId: "s1", customerId: "c1", items: [{ productId: "p1", quantity: 3 }] },
+    ]);
+  });
+
+  it("keeps only the increased products when others shrink in the same edit", () => {
+    const mixed = conflict([
+      { productId: "p1", before: 2, after: 5 },
+      { productId: "p2", before: 4, after: 1 },
+      { productId: "p3", before: 0, after: 2 },
+    ]);
+    expect(correctionCandidates([mixed], onlyStop, linkedOrders)[0]!.items).toEqual([
+      { productId: "p1", quantity: 3 },
+      { productId: "p3", quantity: 2 },
+    ]);
+  });
+
+  it("never offers a decrease or a cancellation (goods cannot be un-delivered)", () => {
+    const decrease = conflict([{ productId: "p1", before: 5, after: 2 }]);
+    const cancelled = conflict([{ productId: "p1", before: 5, after: 0 }]);
+    expect(correctionCandidates([decrease], onlyStop, linkedOrders)).toEqual([]);
+    expect(correctionCandidates([cancelled], onlyStop, linkedOrders)).toEqual([]);
+    expect(correctionCandidates([], onlyStop, linkedOrders)).toEqual([]);
+  });
+
+  it("offers nothing once the customer has another stop on that day (difference planned)", () => {
+    const followUpStop = [...onlyStop, { id: "s2", customerId: "c1" }];
+    expect(correctionCandidates([increase], followUpStop, linkedOrders)).toEqual([]);
+    // Another customer's stop does not matter.
+    const otherCustomer = [...onlyStop, { id: "s3", customerId: "c2" }];
+    expect(correctionCandidates([increase], otherCustomer, linkedOrders)).toHaveLength(1);
+  });
+
+  it("offers nothing while an order of the customer still waits for a tour", () => {
+    const waiting = [...linkedOrders, { customerId: "c1", linkedToStop: false }];
+    expect(correctionCandidates([increase], onlyStop, waiting)).toEqual([]);
+    // A pending order of another customer does not matter.
+    const otherWaiting = [...linkedOrders, { customerId: "c2", linkedToStop: false }];
+    expect(correctionCandidates([increase], onlyStop, otherWaiting)).toHaveLength(1);
+  });
+
+  it("treats every conflict on its own customer", () => {
+    const second = {
+      stopId: "s4",
+      customerId: "c2",
+      items: [{ productId: "p1", before: 1, after: 4 }],
+    };
+    const stops = [...onlyStop, { id: "s4", customerId: "c2" }];
+    const orders = [...linkedOrders, { customerId: "c2", linkedToStop: true }];
+    expect(correctionCandidates([increase, second], stops, orders)).toEqual([
+      { stopId: "s1", customerId: "c1", items: [{ productId: "p1", quantity: 3 }] },
+      { stopId: "s4", customerId: "c2", items: [{ productId: "p1", quantity: 3 }] },
+    ]);
   });
 });

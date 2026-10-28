@@ -1307,6 +1307,7 @@
         "not_released": "Diese Tour ist noch nicht freigegeben.",
         "follow_up_not_allowed": "Eine Folgetour ist nur möglich, wenn alle Touren dieses Tages abgeschlossen sind.",
         "no_late_orders": "Es gibt keine Nachbestellung mit Parkplatz oder Adresspunkt, die in eine Folgetour kann.",
+        "no_corrections": "Auf einem schon gelieferten Stopp gibt es keine Erhöhung mehr, die nachgeliefert werden kann. Die Seite wird neu geladen.",
         "stop_locked": "Ein bereits erledigter Stopp kann nicht verschoben werden. Die Seite wird neu geladen.",
         "target_invalid": "Die Ziel-Tour ist nicht mehr verfügbar. Bitte die Seite neu laden.",
         "customer_in_target": "Die Ziel-Tour hat schon einen Stopp für diesen Kunden.",
@@ -1400,7 +1401,16 @@
         "creating": "Wird erstellt …",
         "created": "Folgetour mit {count, plural, one {# Stopp} other {# Stopps}} erstellt. Bitte Fahrer zuweisen und freigeben.",
         "conflictTitle": "Bestellungen nach der Lieferung geändert",
-        "conflictBody": "Bei diesen Stopps wurde die Bestellung geändert oder storniert, nachdem die Tour abgeschlossen war. Die Folgetour liefert die Differenz nicht nach. Bitte mit dem Kunden und dem Fahrer klären."
+        "conflictBody": "Bei diesen Stopps wurde die Bestellung geändert oder storniert, nachdem die Tour abgeschlossen war. Eine Erhöhung lässt sich nachliefern; eine Verringerung oder Stornierung nicht, denn Ware kann nicht zurückgeholt werden.",
+        "correction": {
+          "body": "Für die Differenz wird je Kunde eine eigene Bestellung angelegt und mit einer Folgetour dieses Tages geliefert. Die abgeschlossene Tour bleibt unverändert.",
+          "heading": "{count, plural, one {Korrektur: # Kunde} other {Korrektur: # Kunden}}",
+          "create": "Korrektur erstellen",
+          "creating": "Wird erstellt …",
+          "created": "Korrektur auf eine Folgetour gelegt ({count, plural, one {# Stopp} other {# Stopps}}). Bitte Fahrer zuweisen und freigeben.",
+          "createdNoTour": "Die Korrekturbestellungen sind angelegt, aber die Folgetour konnte nicht geplant werden.",
+          "blocked": "Keine Korrektur möglich: Der Kunde hat an diesem Tag schon einen weiteren Stopp oder eine Bestellung, die noch in keiner Tour ist. Bitte zuerst planen."
+        }
       },
       "tabs": {
         "label": "Touren dieses Tages",

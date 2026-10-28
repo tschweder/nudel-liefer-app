@@ -19,6 +19,7 @@ const WRITE =
 /** Files that write these tables and are expected to record audit entries. */
 const AUDITED = [
   "server/orders.ts",
+  "server/correction-delivery.ts",
   "server/tour-builder.ts",
   "server/tour-planning.ts",
   "server/tour-edit.ts",
