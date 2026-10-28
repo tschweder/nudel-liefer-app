@@ -189,6 +189,7 @@ export function mapDirectionsResponse(
 }
 
 export type OrsRoutingOptions = {
+  /** Hosted API key. Empty for a self-hosted instance (NUD-156): it ignores `Authorization`. */
   apiKey: string;
   baseUrl?: string;
   /** `driving-car` (default) or `driving-hgv`. */
@@ -346,7 +347,9 @@ export class OrsRoutingProvider implements RoutingProvider {
       response = await this.fetchFn(`${this.baseUrl}${path}`, {
         method: "POST",
         headers: {
-          Authorization: this.options.apiKey,
+          // A self-hosted instance runs without a key; an empty Authorization header would only
+          // make proxies unhappy.
+          ...(this.options.apiKey ? { Authorization: this.options.apiKey } : {}),
           Accept: "application/json, application/geo+json",
           "Content-Type": "application/json",
         },

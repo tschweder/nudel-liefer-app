@@ -65,6 +65,11 @@ themselves (every 30 seconds). Finish with "photos missing" on a newly created c
 To start over, drop and recreate the database (`pnpm db:migrate && pnpm db:seed --demo`), or just
 create a new set of demo orders by running `pnpm db:seed --demo` after the old delivery date has passed.
 
+The demo seed is idempotent and safe to re-run at any time: an existing demo photo is left alone, and a
+photo slot whose demo photo only survives as history (a driver replaced it and that new photo was removed
+again, e.g. by a cleaned-up test or a restored database) is repaired under a new storage key instead of
+failing with `key_in_use` (NUD-160).
+
 ## 3. End-to-end check
 
 `tests/e2e/mvp-happy-path.spec.ts` automates the core of this script (admin creates a customer and an

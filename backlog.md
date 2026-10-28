@@ -315,8 +315,8 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-157 | Geocoding quota: 94 active customers still without an Adresspunkt | M2.6 | – | todo |
 | NUD-158 | Plan by drivers: vehicle switch instead of reload; plan what fits when a day has too many stops | M2.6 | 147 | in-progress |
 | NUD-159 | Wording: Beutel → Sackerl, Karton → Kiste (amends D23 and glossary §3) | M2.6 | – | done |
-| NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | todo |
-| NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | todo |
+| NUD-160 | `pnpm db:seed --demo` exits 1 with `Photo D-005/STORE not saved: key_in_use` | M2.6 | – | done |
+| NUD-161 | Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout | M2.6 | – | done |
 | NUD-162 | e2e specs `late-orders`, `mvp-happy-path` need an empty "today" and a demo-seeded DB: document/guard a dedicated e2e database | M2.6 | – | todo |
 | NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | done |
 | NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
@@ -2939,23 +2939,33 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 ---
 
 #### NUD-160 · `pnpm db:seed --demo` exits 1 with `key_in_use`
-**Status:** todo · **depends_on:** – · found by the NUD-159 worker (2026-10-27); not checked whether it also fails at the previous baseline.
+**Status:** done (2026-10-28) · **depends_on:** – · found by the NUD-159 worker (2026-10-27); not checked whether it also fails at the previous baseline.
 
 **Goal:** `pnpm db:seed --demo` prints "Seed finished" and then exits 1 with `Photo D-005/STORE not saved: key_in_use` (customer-photo storage, `src/server/demo-seed.ts` around line 207). Find the cause (re-run on an already seeded DB?) and make the seed idempotent.
 
 **Acceptance criteria**
-- [ ] Root cause identified; `pnpm db:seed --demo` exits 0 on a fresh and on an already seeded DB.
+- [x] Root cause identified; `pnpm db:seed --demo` exits 0 on a fresh and on an already seeded DB. (Proven on a throwaway database built from `prisma/migrations`: fresh → 20 customers / 40 photos / 20 orders, re-run → all zeros, ticket state → `photosCreated: 1`. The drifted dev DB cannot run the seed until it is migrated.)
+
+**Implementation notes (NUD-160)**
+- Cause: the seed skipped a photo slot only when the customer already had a *current* photo of that kind, while `attachCustomerPhoto` refuses any storage key that *any* `Photo` row uses (the guard against one object behind two photos). D-005's demo STORE photo is such a history row (`isCurrent=false`, audit `photo.replace` by a driver on 2026-10-26 whose replacement row is gone again), so the slot was empty while its key was taken → `key_in_use` right after "Seed finished". D-003 has the same history row but a current driver photo, which is why it never tripped.
+- Fix: `demoPhotoKey()` in `src/server/demo-seed.ts` resolves the key (unchanged deterministic base → deterministic repair key derived from the blocking row id → random UUID) and still creates the photo through the audited `addCustomerPhoto` path; the history row and its object stay, the slot is repaired once, later runs add nothing. New integration test reproduces the state and fails with the ticket's error when the fix is bypassed; `docs/demo.md` says the seed is safe to re-run.
 
 ---
 
 #### NUD-161 · Playwright `CI=1` rebuilds on every run and exceeds the 180 s webServer timeout
-**Status:** todo · **depends_on:** – · found by the NUD-159/129 workers.
+**Status:** done (2026-10-28) · **depends_on:** – · found by the NUD-159/129 workers.
 
 **Goal:** with `CI=1` `playwright.config.ts` runs the double `next build` on every run (about 150 s here), leaving no margin under the 180 s webServer timeout; the first e2e attempt times out on this machine. Make the timeout sufficient or let a prebuilt build be reused explicitly (env switch), without weakening `reuseExistingServer: !CI` (the guard against testing a foreign app on a busy port).
 
 **Acceptance criteria**
-- [ ] `CI=1 PORT=<free> pnpm test:e2e <spec>` starts reliably on a cold checkout.
-- [ ] Running against an already running foreign server still fails loudly.
+- [x] `CI=1 PORT=<free> pnpm test:e2e <spec>` starts reliably on a cold checkout. (180 s → 600 s under `CI=1`; `tests/e2e/home.spec.ts` 12 passed in 3.5 min on the build path, 59.5 s with `E2E_PREBUILT=1`.)
+- [x] Running against an already running foreign server still fails loudly. (Dummy server on the port → exit 1 "…is already used…".)
+
+**Implementation notes (NUD-161)**
+- `playwright.config.ts`: `webServer.timeout` is 600 s under `CI=1` (180 s stay for the local `pnpm dev` path) and the new `E2E_PREBUILT=1` switch (CI only) runs `pnpm start -p <port>` against the build already in `.next` instead of building inside the start window; `E2E_PREBUILT=1` without `.next/BUILD_ID` is a loud config error. `reuseExistingServer: !CI` is untouched.
+- `.github/workflows/ci.yml` builds once and runs both e2e steps with the switch (two double builds per PR saved); `docs/env.md` documents the variable.
+- Machine note: the `pnpm` shim on `PATH` in this environment is broken, so the successful runs prepended `C:\Users\niko\AppData\Local\pnpm\bin`. Not a repo problem.
+- Seen while running builds in the shared tree: a `pnpm build` failed once with `csp-script-hashes … not reproducible between the two passes` because a parallel worker edited `src/components/driver/*` between the two `next build` passes. Harmless, but do not run builds while the tree is being edited.
 
 ---
 

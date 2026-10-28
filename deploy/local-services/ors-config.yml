@@ -1,0 +1,17 @@
+# Local openrouteservice for the Nudel delivery app (NUD-156, docs/env.md ORS_BASE_URL).
+#
+# Runs on the developer PC in Docker and is reached by the vServer through the reverse SSH
+# tunnel of `tunnel.ps1` — the 2 GB vServer cannot host ORS itself. Only `driving-car` is
+# built: there are no trucks (decision 2026-10-28, E3).
+#
+# The OSM extract is NOT in the repository. Put it next to this checkout (default
+# `C:\Users\niko\Desktop\nudel-infra\osm\austria-latest.osm.pbf`, override with
+# `$env:NUDEL_INFRA_DIR`) and mount it at the same path inside the container.
+ors:
+  engine:
+    profile_default:
+      build:
+        source_file: /home/ors/files/austria-latest.osm.pbf
+    profiles:
+      driving-car:
+        enabled: true

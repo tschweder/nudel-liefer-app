@@ -4,11 +4,20 @@ import type { Storage } from "./storage/types";
 
 export type CheckStatus = "ok" | "error" | "skipped";
 
+/**
+ * Which provider answers routing and geocoding. Reported because the tour page looks identical
+ * whether the real road network or the local heuristic produced the numbers — with `heuristic`
+ * every distance and time is an estimate ("Näherungswerte", NUD-145). No hostnames, no keys.
+ */
+export type ProviderMode = "hosted" | "self-hosted" | "heuristic" | "fake";
+
 export type HealthReport = {
   status: "ok" | "error";
   checks: {
     database: { status: CheckStatus; latencyMs?: number };
     storage: { status: CheckStatus; mode: "s3" | "fake" | "unconfigured"; latencyMs?: number };
+    routing: { mode: ProviderMode };
+    geocoding: { mode: ProviderMode };
   };
   /** Short git SHA of the deployment (Vercel), when known. */
   release?: string;
@@ -48,6 +57,27 @@ async function timed(run: () => Promise<unknown>, timeoutMs: number) {
 }
 
 /**
+ * Provider selection mirrored from `routing/index.ts` and `geocoder/index.ts` — the same variables,
+ * the same precedence, but as a pure function so the probe costs nothing.
+ */
+function providerModes(env: Record<string, string | undefined>) {
+  const has = (name: string) => Boolean(env[name]?.trim());
+  const routing: ProviderMode = has("ORS_BASE_URL")
+    ? "self-hosted"
+    : has("ORS_API_KEY")
+      ? "hosted"
+      : "heuristic";
+  const geocoding: ProviderMode = has("PHOTON_URL")
+    ? "self-hosted"
+    : has("ORS_GEOCODE_BASE_URL")
+      ? "self-hosted"
+      : has("ORS_API_KEY")
+        ? "hosted"
+        : "fake";
+  return { routing, geocoding };
+}
+
+/**
  * Reachability of the database and of the object storage. The report contains no secrets, no
  * hostnames and no error messages: it is public so that uptime monitors can call it.
  */
@@ -76,12 +106,15 @@ export async function runHealthChecks(deps: HealthDeps): Promise<HealthReport> {
       : "ok";
   const databaseStatus: CheckStatus = db.ok ? "ok" : "error";
   const healthy = databaseStatus !== "error" && storageStatus !== "error";
+  const providers = providerModes(deps.env);
 
   return {
     status: healthy ? "ok" : "error",
     checks: {
       database: { status: databaseStatus, latencyMs: db.latencyMs },
       storage: { status: storageStatus, mode: storage.mode, latencyMs: storage.latencyMs },
+      routing: { mode: providers.routing },
+      geocoding: { mode: providers.geocoding },
     },
     release: deps.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || undefined,
     region: deps.env.VERCEL_REGION || undefined,

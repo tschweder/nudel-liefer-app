@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
+import { PHOTO_KINDS, type PhotoKind } from "@/domain/photos";
 import { calendarDayIn, nextDeliveryDate } from "@/domain/settings";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { createLocalizedText } from "@/lib/localized-text";
@@ -72,12 +73,43 @@ export function demoPhotoPng(kind: "STORE" | "PARKING", customerNumber: string):
 type DemoDb = PrismaClient;
 
 /**
+ * Storage key of the demo photo of one customer slot (NUD-160). Derived from the customer number
+ * and the kind, so a rerun reuses the same object.
+ *
+ * The second key is for a slot whose demo object is already referenced by a `Photo` row that is not
+ * the customer's current photo: `attachCustomerPhoto` refuses every key that ANY row uses (the
+ * `key_in_use` guard against sharing an object between two photos), and that includes a history row
+ * of this very customer - a driver replaced the demo photo and the replacement row is gone again
+ * (a cleaned-up test, a restored database), or the customer was created again under the same
+ * number. Such a slot has no current photo, so the seed has to repair it under a free key instead
+ * of dying. That key is derived from the blocking row id and therefore stable while that row exists;
+ * the random fallback covers the case that even it is taken (a repair that was itself lost).
+ */
+async function demoPhotoKey(db: DemoDb, customerNumber: string, kind: PhotoKind): Promise<string> {
+  const base = `customers/${demoUuid(`${customerNumber}:${kind}`)}.png`;
+  const blocking = await db.photo.findFirst({
+    where: { storageKey: base },
+    select: { id: true },
+  });
+  if (!blocking) return base;
+  const repair = `customers/${demoUuid(`${customerNumber}:${kind}:${blocking.id}`)}.png`;
+  const repairTaken = await db.photo.findFirst({
+    where: { storageKey: repair },
+    select: { id: true },
+  });
+  return repairTaken ? `customers/${randomUUID()}.png` : repair;
+}
+
+/**
  * Demo data for the client presentation (NUD-060). Idempotent: every row is looked up by a
  * natural key (customer number, SKU, photo kind, demo order marker) and left untouched when it
  * exists, so a rerun adds nothing. Needs the base seed (admin user) first.
  *
  * - Depot: replaced by a real Vienna address with a confirmed pin, but only while the depot pin
  *   is still unconfirmed (a depot an admin confirmed is never overwritten).
+ * - Photos: one current STORE and one current PARKING photo per customer. A slot without a current
+ *   photo is created (again), also when an older row still references the demo key (`demoPhotoKey`,
+ *   NUD-160); photos the demo never touched are never replaced.
  * - Orders: one CONFIRMED order per customer for the next delivery date. Reruns on a later day,
  *   after those dates have passed, create a fresh set for the then-next delivery date.
  */
@@ -170,13 +202,13 @@ export async function seedDemo(
     }
 
     if (withPhotos) {
-      for (const kind of ["STORE", "PARKING"] as const) {
+      for (const kind of PHOTO_KINDS) {
         const has = await prisma.photo.findFirst({
           where: { customerId: customer.id, kind, isCurrent: true },
           select: { id: true },
         });
         if (has) continue;
-        const key = `customers/${demoUuid(`${c.number}:${kind}`)}.png`;
+        const key = await demoPhotoKey(prisma, c.number, kind);
         const png = demoPhotoPng(kind, c.number);
         const stored = await options.storage!.head(key);
         if (!stored || stored.bytes !== png.length) {

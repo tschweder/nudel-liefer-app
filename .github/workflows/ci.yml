@@ -79,11 +79,16 @@ jobs:
             chainguard/minio-client:latest mb --ignore-existing local/nudel-photos
       - run: pnpm db:migrate && pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
+      # NUD-161: build once here and let both Playwright runs below reuse that build (E2E_PREBUILT=1)
+      # instead of building the app again inside every webServer start (~2 min per `pnpm test:e2e`).
+      - run: pnpm build
       # The MVP happy path needs the demo seed (confirmed depot); the other specs expect the plain
       # seed (unconfirmed depot), so they run first and the happy path afterwards (NUD-060).
       - run: pnpm test:e2e --grep-invert "MVP happy path|demo data"
+        env: { E2E_PREBUILT: "1" }
       - run: pnpm db:seed --demo --no-photos
       - run: pnpm test:e2e tests/e2e/mvp-happy-path.spec.ts
+        env: { E2E_PREBUILT: "1" }
   # NUD-095: performance budget of the driver home (LCP < 2.5 s after the first load on Slow 4G with a
   # 4x slower CPU), measured with Lighthouse CI against a production build. See docs/performance.md.
   lighthouse:

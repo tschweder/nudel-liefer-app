@@ -177,7 +177,11 @@ if [ -f "${ENV_FILE}.prev" ]; then
   done < "${ENV_FILE}.prev"
   rm -f "${ENV_FILE}.prev"
 fi
-chmod 600 "$ENV_FILE"
+# 640, not 600: the cron entries of docs/deploy.md 13.1 run as `deliveryapp` and source this file,
+# so the service group must be able to read it. With 600 every scheduled job died on
+# "cannot open /etc/delivery-app.env: Permission denied" (recurring orders, translation retries,
+# retention, orphan cleanup) and kept exiting 2 without anybody noticing (NUD-167).
+chmod 640 "$ENV_FILE"
 chown root:deliveryapp "$ENV_FILE"
 
 log "8. Dependencies, migrations, build (this takes several minutes)"

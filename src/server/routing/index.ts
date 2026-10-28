@@ -33,23 +33,25 @@ export function parseBaseUrl(value: string | undefined): string | undefined {
 
 /**
  * Routing provider selected from the environment: ORS with automatic fallback to the local
- * heuristic when `ORS_API_KEY` is set, otherwise the heuristic alone and a single warning. Results
+ * heuristic when either `ORS_API_KEY` (hosted API) or `ORS_BASE_URL` (self-hosted instance,
+ * NUD-156 — it needs no key) is set, otherwise the heuristic alone and a single warning. Results
  * from the heuristic are always flagged `approximate: true`. `ORS_BASE_URL` points the
- * routing/optimization calls at a self-hosted openrouteservice (NUD-156); unset keeps the public API.
- * Geocoding has its own variable (`ORS_GEOCODE_BASE_URL`), because the self-hosted image does not
- * serve `/geocode/*` at all.
+ * routing/optimization calls at a self-hosted openrouteservice; unset keeps the public API.
+ * Geocoding has its own variable (`PHOTON_URL` / `ORS_GEOCODE_BASE_URL`), because the self-hosted
+ * image does not serve `/geocode/*` at all.
  */
 export function getRoutingProvider(
   env: Record<string, string | undefined> = process.env,
 ): RoutingProvider {
   if (instance) return instance;
-  const apiKey = env.ORS_API_KEY?.trim();
+  const apiKey = env.ORS_API_KEY?.trim() ?? "";
+  const baseUrl = parseBaseUrl(env.ORS_BASE_URL);
   const heuristic = new LocalHeuristicProvider();
-  if (apiKey) {
+  if (apiKey || baseUrl) {
     instance = new FallbackRoutingProvider(
       new OrsRoutingProvider({
         apiKey,
-        baseUrl: parseBaseUrl(env.ORS_BASE_URL),
+        baseUrl,
         profile: parseProfile(env.ORS_ROUTING_PROFILE),
       }),
       heuristic,
@@ -58,7 +60,7 @@ export function getRoutingProvider(
     if (!warned) {
       warned = true;
       console.warn(
-        "[routing] ORS_API_KEY not set - using the local heuristic (distances and times are estimates, approximate)",
+        "[routing] neither ORS_API_KEY nor ORS_BASE_URL is set - using the local heuristic (distances and times are estimates, approximate)",
       );
     }
     instance = heuristic;

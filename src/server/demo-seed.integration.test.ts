@@ -150,4 +150,38 @@ describe.skipIf(!process.env.DATABASE_URL)("seedDemo", { timeout: 120_000 }, () 
       "Echte Fabrik",
     );
   });
+
+  it("repairs a slot whose demo photo became history instead of failing with key_in_use", async () => {
+    // NUD-160: the demo key is still referenced by a history row (a driver replaced the demo photo
+    // and that replacement row is gone again) while the customer has no current STORE photo. The key
+    // guard in attachCustomerPhoto refuses every key a row uses, so the seed must pick a new one.
+    const customer = await t.prisma.customer.findUniqueOrThrow({
+      where: { customerNumber: "D-005" },
+    });
+    const demoKey = `customers/${demoUuid("D-005:STORE")}.png`;
+    const historyRow = await t.prisma.photo.findFirstOrThrow({
+      where: { customerId: customer.id, kind: "STORE" },
+    });
+    expect(historyRow.storageKey).toBe(demoKey);
+    await t.prisma.photo.update({ where: { id: historyRow.id }, data: { isCurrent: false } });
+
+    const storage = new FakeStorage();
+    const repaired = await seedDemo(t.prisma, { storage, now, upload: fakeUpload });
+    expect(repaired.photosCreated).toBe(1);
+
+    const current = await t.prisma.photo.findMany({
+      where: { customerId: customer.id, kind: "STORE", isCurrent: true },
+    });
+    expect(current).toHaveLength(1);
+    expect(current[0]!.storageKey).not.toBe(demoKey);
+    expect(storage.has(current[0]!.storageKey)).toBe(true);
+    // The history row keeps its object, and a further run adds nothing.
+    expect(await t.prisma.photo.findUniqueOrThrow({ where: { id: historyRow.id } })).toMatchObject({
+      storageKey: demoKey,
+      isCurrent: false,
+    });
+    expect(await seedDemo(t.prisma, { storage, now, upload: fakeUpload })).toMatchObject({
+      photosCreated: 0,
+    });
+  });
 });
