@@ -1015,6 +1015,30 @@
         "internalNoteHint": "Nur für das Büro, wird dem Fahrer nicht angezeigt.",
         "saveConfirmed": "Bestätigt speichern",
         "saveDraft": "Als Entwurf speichern",
+        "recurring": {
+          "open": "Dauerbestellung anlegen",
+          "title": "Dauerbestellung anlegen",
+          "hint": "Wiederholt diese Produkte für {customer} automatisch. Produkte und Mengen kommen aus dem Formular.",
+          "products": "Diese Produkte wiederholen sich",
+          "productsHint": "Zum Ändern die Produkte oben im Formular anpassen und die Dauerbestellung neu öffnen.",
+          "weekdays": "Liefertage",
+          "every": "Rhythmus in Wochen",
+          "everyHint": "1 = jede Woche, 2 = jede zweite Woche, …",
+          "anchor": "Beginnt am",
+          "anchorHint": "Die Woche dieses Datums ist der Start des Rhythmus.",
+          "skipDay": "{date} auslassen (diese Bestellung erfasse ich selbst)",
+          "skipDayHint": "Sonst legt die Dauerbestellung für denselben Tag eine zweite Bestellung an und die Menge käme doppelt beim Kunden an.",
+          "created": "{count, plural, =0 {Dauerbestellung angelegt.} one {Dauerbestellung angelegt. # Bestellung sofort erzeugt.} other {Dauerbestellung angelegt. # Bestellungen sofort erzeugt.}}",
+          "confirm": "Dauerbestellung anlegen",
+          "saving": "Wird angelegt …",
+          "errors": {
+            "weekdays": "Bitte mindestens einen Liefertag wählen.",
+            "every": "Der Rhythmus muss zwischen 1 und {max} Wochen liegen.",
+            "anchor": "Bitte ein gültiges Startdatum wählen.",
+            "customerInactive": "Der Kunde ist archiviert und kann keine Dauerbestellung bekommen.",
+            "generic": "Anlegen fehlgeschlagen. Bitte erneut versuchen."
+          }
+        },
         "warningCombined": "{count, plural, one {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellung} other {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellungen}}. Alle Bestellungen werden zu einem Stopp zusammengefasst.",
         "warningTourCompleted": "Die Tour für den {date} ist schon abgeschlossen. Wird diese Bestellung bestätigt, braucht sie eine Folgetour.",
         "errors": {

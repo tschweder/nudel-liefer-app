@@ -1015,6 +1015,30 @@
         "internalNoteHint": "仅供办公室使用，司机看不到。",
         "saveConfirmed": "确认并保存",
         "saveDraft": "保存为草稿",
+        "recurring": {
+          "open": "创建定期订单",
+          "title": "创建定期订单",
+          "hint": "为 {customer} 自动重复这些产品。产品和数量取自表单。",
+          "products": "重复的产品",
+          "productsHint": "如需修改，请先在上方表单中调整产品，再重新打开定期订单。",
+          "weekdays": "送货日",
+          "every": "间隔（周）",
+          "everyHint": "1 = 每周，2 = 每两周，……",
+          "anchor": "开始于",
+          "anchorHint": "该日期所在的一周是周期的开始。",
+          "skipDay": "跳过 {date}（这一天我另外录入）",
+          "skipDayHint": "否则定期订单会在同一天再生成一个订单，客户会收到双倍数量。",
+          "created": "{count, plural, =0 {定期订单已创建。} other {定期订单已创建，已立即生成 # 个订单。}}",
+          "confirm": "创建定期订单",
+          "saving": "正在创建……",
+          "errors": {
+            "weekdays": "请至少选择一个送货日。",
+            "every": "间隔必须在 1 到 {max} 周之间。",
+            "anchor": "请选择有效的开始日期。",
+            "customerInactive": "该客户已归档，无法创建定期订单。",
+            "generic": "创建失败，请重试。"
+          }
+        },
         "warningCombined": "该客户在这一天已有 {count} 个已确认订单，所有订单将合并为一个停靠点。",
         "warningTourCompleted": "{date} 的配送路线已完成。如果确认此订单，需要安排补充路线。",
         "errors": {

@@ -1015,6 +1015,30 @@
         "internalNoteHint": "For the office only, not shown to the driver.",
         "saveConfirmed": "Save as confirmed",
         "saveDraft": "Save as draft",
+        "recurring": {
+          "open": "Create recurring order",
+          "title": "Create recurring order",
+          "hint": "Repeats these products for {customer} automatically. Products and quantities come from the form.",
+          "products": "These products repeat",
+          "productsHint": "To change them, edit the products in the form above and open the recurring order again.",
+          "weekdays": "Delivery days",
+          "every": "Rhythm in weeks",
+          "everyHint": "1 = every week, 2 = every second week, …",
+          "anchor": "Starts on",
+          "anchorHint": "The week of this date starts the rhythm.",
+          "skipDay": "Skip {date} (I take this order myself)",
+          "skipDayHint": "Otherwise the recurring order adds a second order for the same day and the customer would receive the quantity twice.",
+          "created": "{count, plural, =0 {Recurring order created.} one {Recurring order created. # order generated right away.} other {Recurring order created. # orders generated right away.}}",
+          "confirm": "Create recurring order",
+          "saving": "Creating …",
+          "errors": {
+            "weekdays": "Choose at least one delivery day.",
+            "every": "The rhythm must be between 1 and {max} weeks.",
+            "anchor": "Choose a valid start date.",
+            "customerInactive": "The customer is archived and cannot get a recurring order.",
+            "generic": "Could not create it. Please try again."
+          }
+        },
         "warningCombined": "{count, plural, one {This customer already has # confirmed order on this day} other {This customer already has # confirmed orders on this day}}. All orders are combined into one stop.",
         "warningTourCompleted": "The tour for {date} is already completed. If this order is confirmed, it needs a follow-up tour.",
         "errors": {

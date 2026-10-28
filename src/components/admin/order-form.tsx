@@ -1,10 +1,14 @@
 "use client";
 
-import { AlertTriangleIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, PlusIcon, RepeatIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import {
+  OrderRecurringDialog,
+  type RecurringDialogLine,
+} from "@/components/admin/order-recurring-dialog";
 import { ZoomableImage } from "@/components/shared/image-preview";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { Alert } from "@/components/ui/alert";
@@ -153,6 +157,8 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
     /** Window words the model read but did not turn into dates ("morgen vormittag"). */
     windowNote: string | null;
   } | null>(null);
+  // Recurring order (NUD-166): the rule is created from the lines typed above, not from a copy.
+  const [recurringOpen, setRecurringOpen] = useState(false);
 
   const customer = customers.find((c) => c.value === customerId);
   const productById = new Map(products.map((p) => [p.value, p]));
@@ -256,6 +262,7 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
     setAiLabels({});
     setAiConfidence(null);
     setAiNotice(null);
+    setRecurringOpen(false);
   }
 
   /**
@@ -371,6 +378,16 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
   }
 
   const filled = lines.filter((l) => !isBlank(l));
+  // What a recurring order created from this form takes over (NUD-166): only complete lines.
+  const recurringLines: RecurringDialogLine[] = filled.flatMap((line) => {
+    const product = line.productId ? productById.get(line.productId) : undefined;
+    const quantity = parseQuantity(line.quantity);
+    return product && quantity !== null
+      ? [{ productId: product.value, quantity, label: product.label, unit: product.unit }]
+      : [];
+  });
+  // The day this order is expected on; the rule leaves it out so the quantities cannot double up.
+  const recurringSkipDate = dateValid ? date : null;
   const lineErrors = (line: Line): "productRequired" | "quantityInvalid" | null => {
     if (isBlank(line)) return null;
     if (!line.productId) return "productRequired";
@@ -716,8 +733,7 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
                 {t("ai.lowConfidence", { percent: Math.round(aiConfidence * 100) })}
               </p>
             ) : null}
-            {aiNotice &&
-            (aiNotice.unmatched.length > 0 || aiNotice.note || aiNotice.windowNote) ? (
+            {aiNotice && (aiNotice.unmatched.length > 0 || aiNotice.note || aiNotice.windowNote) ? (
               <Alert variant="info" role="status" data-testid="ai-notice">
                 <div className="flex flex-col gap-1">
                   {aiNotice.unmatched.length > 0 ? (
@@ -889,8 +905,30 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
           >
             {t("saveDraft")}
           </Button>
+          {editing ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || !customerId || recurringLines.length === 0}
+              onClick={() => setRecurringOpen(true)}
+              data-testid="order-recurring-open"
+            >
+              <RepeatIcon aria-hidden />
+              {t("recurring.open")}
+            </Button>
+          )}
         </div>
       </form>
+      {!editing && recurringOpen && customerId && recurringLines.length > 0 ? (
+        <OrderRecurringDialog
+          customerId={customerId}
+          customerLabel={customer?.label ?? ""}
+          lines={recurringLines}
+          startDate={windowFrom}
+          skipDate={recurringSkipDate}
+          onClose={() => setRecurringOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -321,6 +321,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-163 | Driver app picks only the newest open tour when a driver has two open tours on one day | M2.6 | 118 | todo |
 | NUD-164 | Customer Abkürzung (legacy internal code, optional, driver-editable; same logic as the key number) | M2.6 | 142 | done |
 | NUD-165 | 👤 One-off parking-spot import from the 2026-10 captures (archived, not a product feature) | M2.6 | – | done |
+| NUD-166 | Dauerbestellung directly from the order form | M2.6 | 149 | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3030,6 +3031,28 @@ The guard only reads `de.json` and `zh-Hans.json`, so forbidding "Karton" cannot
 
 ---
 
+#### NUD-166 · Dauerbestellung directly from the order form
+**Status:** done (2026-10-28) · **depends_on:** 149 · owner request 2026-10-28 ("bei der Bestellung aufnehmen einen Dauerauftrag erstellen"); **jumps the queue** (asked for by the owner directly), like NUD-132/159.
+
+**Goal:** while the office is taking an order it can turn exactly those products into a recurring order. Until now rules existed only on the customer page (NUD-149), so the office had to leave the half-typed order, open the customer and enter the products a second time.
+
+**Acceptance criteria**
+- [x] The order form offers "Dauerbestellung anlegen" next to the save buttons; enabled only with a customer and at least one complete product line. (Disabled while any line is incomplete, in edit mode the action is not shown at all.)
+- [x] The dialog takes customer, products and quantities from the form (read-only) and only asks for the schedule: delivery days, rhythm in weeks, start day. (Delivery days default to the weekday of the window start; season and single-date exceptions stay on the customer page, §9.)
+- [x] The delivery day of the order being entered is left out of the rule by default (checkbox), so the manual order and the rule never produce two orders on one day (quantities would double up in the merged stop).
+- [x] Creation goes through the existing `createRecurringOrderAction` (no new mutation, no new authz row), reports how many orders were created and refreshes the customer's rule list.
+- [x] de/en/zh-Hans texts (zh-Hans agent-written, unreviewed); component test; lint/typecheck/test/i18n:check green.
+
+**Implementation notes (NUD-166)**
+- `src/components/admin/order-recurring-dialog.tsx` (new, client): shows the lines it takes over, delivery days (`ISO_WEEKDAYS`), rhythm (`MAX_EVERY_N_WEEKS`), start day, and the skip checkbox; posts to `createRecurringOrderAction` and toasts `admin.orders.form.recurring.created` with the number of orders generated right away.
+- `src/components/admin/order-form.tsx`: `recurringLines` (only complete lines, quantity parsed), `recurringSkipDate = dateValid ? date : null` (the day the order is expected on) and the button `data-testid="order-recurring-open"`; the dialog is mounted outside the `<form>`.
+- No server, schema or authz change: the dialog is one more caller of the NUD-149 action, so the rule behaves exactly like one made on the customer page (audit `recurring.create`, immediate generation, tour-outdated flags).
+- Tests: `order-recurring-dialog.test.tsx` (5: prefill from the form, exact payload incl. the exception, no exception when the checkbox is cleared, missing delivery day, archived customer). Full suite: 211 files / 2501 tests green.
+- Browser check at 1280 px (dev server, seeded admin): button disabled → enabled with customer + line, dialog opens with the typed line ("2 Sackerl Nudeln (NUDELN-BEUTEL)"), weekday prefilled from the default delivery day, skip checkbox on, no horizontal overflow, cancel closes.
+- NOT run: `pnpm test:e2e` — the local dev database is behind the NUD-150 migration (`Order.sourceText` missing), so the admin pages fail there for an unrelated reason. No new e2e spec was added; `tests/e2e/recurring-orders.spec.ts` still covers the customer-page path only.
+
+---
+
 ### M3 — Later (refine before starting)
 
 #### NUD-133 · Six committed tests import locale fixtures that are not in git
@@ -3476,6 +3499,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | NUD-150 | Default model is `deepseek/deepseek-v4.1-flash-1017` instead of `google/gemini-2.5-flash`, and the request switches thinking off (`OPENROUTER_REASONING=off` → `reasoning: {enabled:false}`) | Owner request: the DeepSeek snapshot is multimodal (`text+image`), cheaper per output token, and its thinking would bill reasoning tokens for a deterministic extraction task. The old default was never measured against a live API (no key in the build environment), so nothing regresses |
 | 2026-10-28 | NUD-150 | The request is pinned to one provider (`OPENROUTER_PROVIDER`, default `together`) with `provider.order` + `allow_fallbacks:false`, instead of letting OpenRouter pick the cheapest of ~35 endpoints | Owner request: for this model several hosts serve aggressively quantised (fp4) variants, so the reading quality would otherwise change from draft to draft. Trade-off accepted: a pinned host that is down fails the draft visibly instead of quietly using a worse one |
 | 2026-10-28 | NUD-150 | The OpenRouter client also fills the Serbian slot of the translation chain: existing `sr-Latn` gaps are closed by the one-off `pnpm backfill:serbian -- --apply` (dry run by default, refuses the FakeTranslator), new texts get Serbian immediately | NUD-140 promised this in NUD-150; without the backfill old notes would stay German for a Serbian driver |
+| 2026-10-28 | NUD-166 | The rule created from the order form leaves the delivery day of the order being entered out (`exceptions`, a checkbox that is on by default) instead of moving the start day | The rule generates its own orders from its start day, and all confirmed orders of a customer on one day are merged into one stop — without the exception the same quantity would be loaded twice. The office keeps the choice, so a rule that really should start on that day is one click away |
+| 2026-10-28 | NUD-166 | The dialog only takes schedule fields (days, rhythm in weeks, start day); season and single-date exceptions stay on the customer page | Keeps the order screen to what the customer just said ("every Monday and Thursday"); the full rule form already exists at Kunde › Dauerbestellungen |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
