@@ -174,6 +174,30 @@ describe("assembleDraft", () => {
     expect(draft.lines).toHaveLength(1);
   });
 
+  it("keeps the lines when the model answers the window as words (measured live, 2026-10-28)", () => {
+    // deepseek/deepseek-v4.1-flash-1017 answered `"window":"morgen vormittag"`; refusing the whole
+    // answer over that would have thrown away a perfectly good draft.
+    const draft = assembleDraft(
+      answer({
+        lines: [
+          { label: "Nudeln Karton", quantity: 2, confidence: 0.9 },
+          { label: "Nudeln Beutel", quantity: 5, confidence: 0.9 },
+        ],
+        window: "morgen vormittag",
+        note: null,
+        confidence: 0.85,
+      }),
+      CATALOG,
+    );
+    expect(draft.lines.map((line) => [line.productId, line.quantity])).toEqual([
+      ["crate", "2"],
+      ["pack", "5"],
+    ]);
+    expect(draft.window).toBeNull();
+    expect(draft.windowNote).toBe("morgen vormittag");
+    expect(draft.confidence).toBe(0.85);
+  });
+
   it("keeps a note as it is and never turns it into a line", () => {
     const draft = assembleDraft(
       answer({ lines: [], note: "Bitte vor 10 Uhr", confidence: 0.4 }),
@@ -192,5 +216,9 @@ describe("buildExtractionPrompt", () => {
     expect(prompt).toContain("zh-Hans: 馄饨皮");
     expect(prompt).toContain("unit: CRATE");
     expect(prompt).toContain("Today is 2026-10-28");
+  });
+
+  it("forbids the window as a plain string and asks for an object or null", () => {
+    expect(prompt).toContain("never a string");
   });
 });

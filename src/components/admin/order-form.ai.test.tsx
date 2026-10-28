@@ -50,6 +50,7 @@ const DRAFT: OrderDraft = {
   ],
   window: { from: "2099-05-05", to: "2099-05-06", fromTime: "08:00", toTime: "12:00" },
   windowConfidence: 0.8,
+  windowNote: null,
   note: "Bitte am Morgen",
   confidence: 0.4,
 };
@@ -145,6 +146,27 @@ describe("OrderForm AI draft (NUD-150)", () => {
     expect(notice).toHaveTextContent("Bitte am Morgen");
     // The notice is never written into the internal note by itself.
     expect(screen.getByTestId("order-note")).toHaveValue("");
+  });
+
+  it("shows window words the model could not turn into a date instead of failing", async () => {
+    vi.mocked(extractOrderDraftAction).mockResolvedValue({
+      ok: true,
+      draft: { ...DRAFT, window: null, windowConfidence: 0, windowNote: "morgen vormittag" },
+      extraction: { ...EXTRACTION, window: "morgen vormittag" },
+      model: "test/model",
+    });
+    renderForm(true);
+    fireEvent.change(screen.getByTestId("ai-source-text"), {
+      target: { value: "2 Kiste, morgen vormittag" },
+    });
+    fireEvent.click(screen.getByTestId("ai-extract"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ai-window-note")).toHaveTextContent("morgen vormittag");
+    });
+    // The window fields stay untouched, the office sets them by hand.
+    expect(screen.getByTestId("order-window-from")).toHaveValue("2099-05-04");
+    expect(screen.getByTestId("ai-notice")).toHaveTextContent("Zeitangabe aus der Nachricht");
   });
 
   it("shows the mapped error and keeps everything the office typed", async () => {

@@ -992,7 +992,8 @@
           "placeholder": "z. B. „2 Kiste Nudeln und 1 Sackerl Wantan-Teig für morgen“",
           "quantityUnknown": "Menge unklar",
           "unmatchedHeading": "Nicht zugeordnet – bitte manuell ergänzen:",
-          "unmatchedLine": "{label} (Menge: {quantity})"
+          "unmatchedLine": "{label} (Menge: {quantity})",
+          "windowUnclear": "Zeitangabe aus der Nachricht („{text}“) bitte als Lieferzeitraum eintragen – die KI konnte sie nicht in ein Datum umrechnen."
         },
         "customer": "Kunde",
         "customerPlaceholder": "Kunde wählen",

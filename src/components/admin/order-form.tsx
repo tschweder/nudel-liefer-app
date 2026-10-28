@@ -150,6 +150,8 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
   const [aiNotice, setAiNotice] = useState<{
     unmatched: UnmatchedLine[];
     note: string | null;
+    /** Window words the model read but did not turn into dates ("morgen vormittag"). */
+    windowNote: string | null;
   } | null>(null);
 
   const customer = customers.find((c) => c.value === customerId);
@@ -291,7 +293,11 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
     setPlannedDay("");
     plannedTouched.current = false;
     setAiConfidence(draft.confidence);
-    setAiNotice({ unmatched: draft.unmatched, note: draft.note });
+    setAiNotice({
+      unmatched: draft.unmatched,
+      note: draft.note,
+      windowNote: draft.windowNote,
+    });
     setAiExtraction(extraction);
     setServerError(null);
   }
@@ -710,7 +716,8 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
                 {t("ai.lowConfidence", { percent: Math.round(aiConfidence * 100) })}
               </p>
             ) : null}
-            {aiNotice && (aiNotice.unmatched.length > 0 || aiNotice.note) ? (
+            {aiNotice &&
+            (aiNotice.unmatched.length > 0 || aiNotice.note || aiNotice.windowNote) ? (
               <Alert variant="info" role="status" data-testid="ai-notice">
                 <div className="flex flex-col gap-1">
                   {aiNotice.unmatched.length > 0 ? (
@@ -734,6 +741,11 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
                     </>
                   ) : null}
                   {aiNotice.note ? <p>{t("ai.note", { note: aiNotice.note })}</p> : null}
+                  {aiNotice.windowNote ? (
+                    <p data-testid="ai-window-note">
+                      {t("ai.windowUnclear", { text: aiNotice.windowNote })}
+                    </p>
+                  ) : null}
                 </div>
               </Alert>
             ) : null}

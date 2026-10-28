@@ -992,7 +992,8 @@
           "placeholder": "例如“明天 2 箱面条和 1 袋云吞皮”",
           "quantityUnknown": "数量不明",
           "unmatchedHeading": "未匹配——请手动补充：",
-          "unmatchedLine": "{label}（数量：{quantity}）"
+          "unmatchedLine": "{label}（数量：{quantity}）",
+          "windowUnclear": "消息中的时间说明（“{text}”）无法由 AI 转换为日期，请手动填写送货时间段。"
         },
         "customer": "客户",
         "customerPlaceholder": "选择客户",

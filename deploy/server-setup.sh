@@ -139,8 +139,14 @@ mkdir -p "$APP_DIR/.next"
 chown -R deliveryapp:deliveryapp "$APP_DIR" "$DATA_DIR"
 
 log "7. Env file $ENV_FILE"
+# Snapshot first: the block below is the complete list of keys this script manages. Operator-added
+# keys (OPENROUTER_API_KEY, ORS_API_KEY, DEEPL_API_KEY, MAP_TILE_URL, SENTRY_DSN, PHOTON_URL, ...)
+# are NOT in it, and until 2026-10-28 the plain overwrite silently dropped them on every deploy -
+# which would turn the AI order draft, real routing and the tile provider off without a word.
+if [ -f "$ENV_FILE" ]; then cp -a "$ENV_FILE" "${ENV_FILE}.prev"; fi
 cat > "$ENV_FILE" <<ENV
 # Written by deploy/server-setup.sh (NUD-127). chmod 600. Never commit these values.
+# Keys this script does not know are preserved from the previous file (see the loop below).
 NODE_ENV=production
 DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@127.0.0.1:5432/${DB_NAME}
 AUTH_SECRET=${AUTH_SECRET_VALUE}
@@ -161,6 +167,16 @@ ORPHAN_CLEANUP_GRACE_DAYS=14
 # come from this file so they cannot drift.
 NEXT_PUBLIC_BASE_PATH=${BASE_PATH}
 ENV
+if [ -f "${ENV_FILE}.prev" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in \#*|"") continue ;; esac
+    key="${line%%=*}"
+    if [ -n "$key" ] && ! grep -q "^${key}=" "$ENV_FILE"; then
+      printf '%s\n' "$line" >> "$ENV_FILE"
+    fi
+  done < "${ENV_FILE}.prev"
+  rm -f "${ENV_FILE}.prev"
+fi
 chmod 600 "$ENV_FILE"
 chown root:deliveryapp "$ENV_FILE"
 

@@ -11,6 +11,24 @@ export const MAX_EXTRACTION_LINES = 100;
 /** Pasted customer messages are short; WhatsApp/WeChat texts stay far below this. */
 export const MAX_SOURCE_TEXT = 4000;
 
+/**
+ * The requested delivery window. Models answer the object the prompt describes *or*, very often, the
+ * words they read ("morgen vormittag") as a plain string. Both are accepted: a string is not an
+ * error, it is a hint the office resolves by hand (`OrderDraft.windowNote`) - refusing the whole
+ * answer because of it would throw away lines that are perfectly fine (measured against
+ * deepseek/deepseek-v4.1-flash-1017 on 2026-10-28).
+ */
+export const extractionWindowSchema = z.union([
+  z.object({
+    from: z.string().trim().max(10).nullish(),
+    to: z.string().trim().max(10).nullish(),
+    fromTime: z.string().trim().max(5).nullish(),
+    toTime: z.string().trim().max(5).nullish(),
+    confidence: z.number().min(0).max(1).default(0.5),
+  }),
+  z.string().trim().max(200),
+]);
+
 export const extractionAnswerSchema = z.object({
   lines: z
     .array(
@@ -22,15 +40,7 @@ export const extractionAnswerSchema = z.object({
       }),
     )
     .max(MAX_EXTRACTION_LINES),
-  window: z
-    .object({
-      from: z.string().trim().max(10).nullish(),
-      to: z.string().trim().max(10).nullish(),
-      fromTime: z.string().trim().max(5).nullish(),
-      toTime: z.string().trim().max(5).nullish(),
-      confidence: z.number().min(0).max(1).default(0.5),
-    })
-    .nullish(),
+  window: extractionWindowSchema.nullish(),
   /** Free text (notes, delivery hints) the office may want; never filled into the order by itself. */
   note: z.string().trim().max(1000).nullish(),
   confidence: z.number().min(0).max(1).default(0.5),

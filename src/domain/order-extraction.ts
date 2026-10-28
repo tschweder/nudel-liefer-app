@@ -57,6 +57,11 @@ export type OrderDraft = {
   /** Requested window, or `null` when the message had none (or an unusable one). */
   window: DraftWindow | null;
   windowConfidence: number;
+  /**
+   * The words the model used for the window when it named the time in plain language ("morgen
+   * vormittag") instead of dates. `window` is then `null` and the office sets it by hand.
+   */
+  windowNote: string | null;
   /** Note the message carried, if any. */
   note: string | null;
   /** 0..1: the weakest matched line, so one uncertain line pulls the whole draft down. */
@@ -172,13 +177,26 @@ function unitBonus(product: CatalogProduct, hint: ProductUnit | null): number {
   return product.unit === hint ? 2 : -1;
 }
 
-/** Validates the window of an answer against the pure order rules; unusable dates are dropped. */
-function draftWindow(answer: ExtractionAnswer): { window: DraftWindow | null; confidence: number } {
+/**
+ * Validates the window of an answer against the pure order rules; unusable dates are dropped. A
+ * window written as words ("morgen vormittag") cannot become a date, so it is returned as a note for
+ * the office instead of silently disappearing.
+ */
+function draftWindow(answer: ExtractionAnswer): {
+  window: DraftWindow | null;
+  confidence: number;
+  note: string | null;
+} {
   const raw = answer.window;
-  if (!raw) return { window: null, confidence: 0 };
+  if (!raw) return { window: null, confidence: 0, note: null };
+  if (typeof raw === "string") {
+    return { window: null, confidence: 0, note: raw.trim() === "" ? null : raw.trim() };
+  }
   const from = raw.from ? parseCalendarDate(raw.from) : null;
   const to = raw.to ? parseCalendarDate(raw.to) : from;
-  if (!from || !to || to.getTime() < from.getTime()) return { window: null, confidence: 0 };
+  if (!from || !to || to.getTime() < from.getTime()) {
+    return { window: null, confidence: 0, note: null };
+  }
   const iso = (date: Date) => date.toISOString().slice(0, 10);
   return {
     window: {
@@ -188,6 +206,7 @@ function draftWindow(answer: ExtractionAnswer): { window: DraftWindow | null; co
       toTime: raw.toTime ?? "",
     },
     confidence: raw.confidence,
+    note: null,
   };
 }
 
@@ -241,7 +260,7 @@ export function assembleDraft(
   }
 
   const mergedLines = mergeDraftLines(matched);
-  const { window, confidence: windowConfidence } = draftWindow(answer);
+  const { window, confidence: windowConfidence, note: windowNote } = draftWindow(answer);
   const confidence = mergedLines.length
     ? Math.min(answer.confidence, ...mergedLines.map((line) => line.confidence))
     : 0;
@@ -250,6 +269,7 @@ export function assembleDraft(
     unmatched,
     window,
     windowConfidence,
+    windowNote,
     note: answer.note ?? null,
     confidence,
   };
@@ -313,6 +333,7 @@ export function buildExtractionPrompt(
     "- `quantity` = whole number only. Never a decimal, never a range; if a range is written, take the lower bound.",
     "- Mention the packaging unit in `label` whenever the message does (Sackerl/Kiste, 袋/箱, kg) - the unit tells the products apart.",
     "- `window`: calendar dates as YYYY-MM-DD plus optional HH:MM times, only if the message asks for a time span. Otherwise null.",
+    "- `window` is an object or null, never a string: convert \"morgen vormittag\" to a date plus 08:00-12:00, and if you cannot, put those words into `note` and set `window` to null.",
     "- Never guess: leave a product out of `lines` when you cannot read it, and put what you understood into `note`.",
     "- `confidence` per line and overall: 0..1, honest.",
     "",

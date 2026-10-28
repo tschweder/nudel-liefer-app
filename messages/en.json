@@ -992,7 +992,8 @@
           "placeholder": "e.g. \"2 Kiste Nudeln and 1 Sackerl Wantan-Teig for tomorrow\"",
           "quantityUnknown": "Quantity unclear",
           "unmatchedHeading": "Not matched – please add manually:",
-          "unmatchedLine": "{label} (quantity: {quantity})"
+          "unmatchedLine": "{label} (quantity: {quantity})",
+          "windowUnclear": "The message names a delivery time (\"{text}\") that the AI could not turn into a date – please set the delivery window."
         },
         "customer": "Customer",
         "customerPlaceholder": "Choose a customer",
