@@ -27,6 +27,32 @@ function SheetClose(props: React.ComponentProps<typeof SheetPrimitive.Close>) {
   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
 }
 
+/**
+ * How far the on-screen keyboard covers the bottom of the layout viewport. iOS Safari keeps fixed
+ * elements where they were when the keyboard opens, so a bottom sheet with a text field would sit
+ * behind it. `bottom` lifts the sheet above the keyboard, `height` is the room that is left.
+ */
+function useKeyboardInset(enabled: boolean): { bottom: number; height: number } | null {
+  const [inset, setInset] = React.useState<{ bottom: number; height: number } | null>(null);
+  React.useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!enabled || !viewport) return;
+    const update = () => {
+      const bottom = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      // Browser toolbars change the visual viewport by a few dozen pixels: only a keyboard counts.
+      setInset(bottom > 120 ? { bottom, height: viewport.height } : null);
+    };
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, [enabled]);
+  return inset;
+}
+
 function SheetContent({
   className,
   children,
@@ -36,6 +62,7 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left";
 }) {
   const t = useTranslations("common.actions");
+  const keyboard = useKeyboardInset(side === "bottom");
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay
@@ -58,6 +85,11 @@ function SheetContent({
           className,
         )}
         {...props}
+        style={
+          keyboard
+            ? { ...props.style, bottom: keyboard.bottom, maxHeight: keyboard.height * 0.92 }
+            : props.style
+        }
       >
         {side === "bottom" ? (
           // Drag handle: decorative, the sheet itself is still closed with Esc or the close button.

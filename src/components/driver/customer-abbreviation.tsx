@@ -178,7 +178,7 @@ function AbbreviationSheet({ stop, onClose }: { stop: AbbreviationStop; onClose:
             onClick={() => void save()}
             data-testid="abbreviation-save"
           >
-            {value ? t("save") : t("clear")}
+            {!value && !unchanged ? t("clear") : t("save")}
           </Button>
           <Button
             type="button"
