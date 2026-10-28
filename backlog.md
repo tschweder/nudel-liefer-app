@@ -2751,6 +2751,15 @@ General rules for every ticket in this block:
 - [ ] No-horizontal-scroll + touch-target assertions pass for all pages in both tablet projects.
 - [ ] Issue list in the ticket, each one fixed or turned into a new ticket.
 
+**Interim audit 2026-10-28 (admin area only, not the ticket's full scope)**
+- Method: a throwaway Playwright script (not committed) on a **fresh, fully migrated and demo-seeded audit database** (`nudel_audit`, `prisma migrate deploy` + `seed --demo --no-photos`) against `next dev`, logged in as admin, visiting all 16 admin routes at **768×1024** and **1024×768**: per page `document.documentElement.scrollWidth > innerWidth`, elements whose rect crosses the viewport, and console errors. Screenshots: `.redesign/nud-153/` (untracked).
+- Result: **no horizontal page overflow anywhere** (all 16 routes, both orientations). No cut-off headings or overlapping controls; the order form's four window fields, the customer map and the settings page reflow correctly.
+- Findings:
+  1. **Products table** (`/admin/products`): wider than the viewport at 768 portrait — the Status column is only reachable by scrolling the table's own horizontal container. Same class as NUD-129 (order list), but inside a scroll container, so it works: minor, **not fixed here**.
+  2. Map pages (`customers/new`, `customers/[id]/edit`, `customers/parking`, `settings`): `img.leaflet-tile` elements legitimately extend beyond the map box and are clipped by it — false positive of the naive rect check; keep the map container in mind when writing the real assertions.
+  3. `next dev` logs `Error: Route "…": Next.js encountered URL data during prerendering or a navigation. params or searchParams accessed outside of <Suspense>` on client-side navigation to the dynamic admin routes. Pages render fine (HTTP 200) and it appears at every viewport, so it is not a tablet defect — worth checking against a production build separately.
+- Not covered yet: the committed `tablet-portrait` / `tablet-landscape` Playwright projects with the other device sizes (iPad Air, Android), the locale matrix, the dialogs/drawers/checklist/map views, the driver area, and the touch-target assertions. The ticket stays open for that.
+
 ---
 
 #### NUD-154 · A new order is offered to every open tour of its day
