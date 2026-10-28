@@ -84,11 +84,40 @@ export function parseJsonAnswer(content: string): unknown {
   }
 }
 
+/**
+ * Providers the request may be routed to. OpenRouter picks the cheapest endpoint that is up, and for
+ * `deepseek/deepseek-v4.1-flash-1017` that is often a heavily quantised third-party host. The order
+ * reader must not change character from one draft to the next, so the request is pinned to one
+ * provider instead (`OPENROUTER_PROVIDER`, default Together for the default model).
+ */
+export const OPENROUTER_DEFAULT_PROVIDERS: readonly string[] = ["together"];
+
+/**
+ * `OPENROUTER_PROVIDER=together` or a comma-separated list. `auto` or `none` gives the routing back
+ * to OpenRouter; unset or empty keeps the default pin (so a forgotten variable cannot silently
+ * re-enable the cheapest-host lottery).
+ */
+export function parseProviders(value: string | undefined): string[] {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "auto" || normalized === "none") return [];
+  if (normalized === "") return [...OPENROUTER_DEFAULT_PROVIDERS];
+  return [
+    ...new Set(
+      normalized
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== ""),
+    ),
+  ];
+}
+
 export type OpenRouterClientOptions = {
   apiKey: string;
   model?: string;
   /** Thinking budget; default `off` (see `OpenRouterReasoning`). */
   reasoning?: OpenRouterReasoning;
+  /** Providers to route to; empty = OpenRouter decides. */
+  providers?: readonly string[];
   /** Overrides the OpenRouter base URL (tests, proxies). */
   baseUrl?: string;
   timeoutMs?: number;
@@ -105,6 +134,7 @@ export class OpenRouterClient {
   private readonly timeoutMs: number;
   private readonly retries: number;
   private readonly reasoning: OpenRouterReasoning;
+  private readonly providers: readonly string[];
   private readonly fetchFn: typeof fetch;
 
   constructor(private readonly options: OpenRouterClientOptions) {
@@ -113,6 +143,7 @@ export class OpenRouterClient {
     this.timeoutMs = options.timeoutMs ?? 60_000;
     this.retries = options.retries ?? 1;
     this.reasoning = options.reasoning ?? "off";
+    this.providers = options.providers ?? OPENROUTER_DEFAULT_PROVIDERS;
     this.fetchFn = options.fetch ?? fetch;
   }
 
@@ -137,6 +168,7 @@ export class OpenRouterClient {
       temperature: options.temperature ?? 0,
       response_format: { type: "json_object" },
       ...reasoningBody(this.reasoning),
+      ...providerBody(this.providers),
     });
     const answer = await this.post(body);
     const parsed = responseSchema.safeParse(answer);
@@ -189,6 +221,12 @@ export class OpenRouterClient {
   }
 }
 
+/** The OpenRouter `provider` field: only these hosts, no silent fallback to a cheaper one. */
+function providerBody(providers: readonly string[]): Record<string, unknown> {
+  if (providers.length === 0) return {};
+  return { provider: { order: providers, allow_fallbacks: false } };
+}
+
 /** The OpenRouter `reasoning` field for a thinking budget; `default` sends nothing at all. */
 function reasoningBody(reasoning: OpenRouterReasoning): Record<string, unknown> {
   if (reasoning === "default") return {};
@@ -211,6 +249,7 @@ export function createOpenRouterClient(
     apiKey,
     model: env.OPENROUTER_MODEL,
     reasoning: parseReasoning(env.OPENROUTER_REASONING),
+    providers: parseProviders(env.OPENROUTER_PROVIDER),
     baseUrl: env.OPENROUTER_BASE_URL,
     referer: env.OPENROUTER_REFERER,
   });

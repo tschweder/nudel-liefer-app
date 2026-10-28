@@ -125,9 +125,10 @@ run), optionally `SCREENSHOT_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`, `DRIVER_TE
   is raw message content: names, phone numbers, addresses and whatever else the customer wrote. A
   model provider processes it; OpenRouter routes the request and, depending on the chosen model and
   its settings, the provider may log or train on it - choose a model with a no-training policy,
-  conclude the data processing agreement, and cap the spend. Without the key no request is made and
-  the button stays disabled. Log lines never contain the message (`[order-extraction] extraction
-  failed (<code>)`).
+  conclude the data processing agreement, and cap the spend. The request is pinned to one provider
+  (`OPENROUTER_PROVIDER`, default Together), so the receiving processor does not change per call.
+  Without the key no request is made and the button stays disabled. Log lines never contain the
+  message (`[order-extraction] extraction failed (<code>)`).
 - **OpenRouteService** receives customer and depot addresses (geocoding) and stop coordinates
   (routing) with the API key in a header. Business addresses, no driver positions.
 - **Map tile provider**: the browser of every user who opens a map requests tiles from it and

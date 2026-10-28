@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { assembleDraft, type CatalogProduct } from "@/domain/order-extraction";
 import { createLocalizedText } from "@/lib/localized-text";
 
-import { OpenRouterClient, parseReasoning } from "./openrouter";
+import { OpenRouterClient, parseProviders, parseReasoning } from "./openrouter";
 import { FakeOrderExtractor } from "./order-extractor";
 import { OpenRouterOrderExtractor } from "./order-extractor/openrouter";
 import { OpenRouterTranslator } from "./translator/openrouter";
@@ -120,6 +120,32 @@ describe("OpenRouterOrderExtractor", () => {
     expect(body.response_format).toEqual({ type: "json_object" });
   });
 
+  it("pins the request to Together and forbids a silent fallback provider", async () => {
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      void init;
+      return completion({ lines: [], confidence: 0.5 });
+    });
+    const extractor = new OpenRouterOrderExtractor(
+      new OpenRouterClient({ apiKey: "test-key", fetch: fetchFn as never }),
+    );
+    await extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT);
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.provider).toEqual({ order: ["together"], allow_fallbacks: false });
+  });
+
+  it("sends no provider field when the pinning is switched off", async () => {
+    const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+      void init;
+      return completion({ lines: [], confidence: 0.5 });
+    });
+    const extractor = new OpenRouterOrderExtractor(
+      new OpenRouterClient({ apiKey: "test-key", providers: [], fetch: fetchFn as never }),
+    );
+    await extractor.extract({ text: "2 Kiste Nudeln" }, CONTEXT);
+    const body = JSON.parse(String((fetchFn.mock.calls[0]![1] as RequestInit).body));
+    expect(body.provider).toBeUndefined();
+  });
+
   it("sends the configured thinking budget instead of switching it off", async () => {
     const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
       void init;
@@ -214,6 +240,21 @@ describe("parseReasoning (thinking budget of the client)", () => {
     ["default", "default"],
   ])("maps %j to %s", (input, expected) => {
     expect(parseReasoning(input)).toBe(expected);
+  });
+});
+
+describe("parseProviders (routing pin)", () => {
+  it.each([
+    [undefined, ["together"]],
+    ["", ["together"]],
+    ["  ", ["together"]],
+    ["auto", []],
+    ["none", []],
+    ["Together", ["together"]],
+    [" together , deepseek ", ["together", "deepseek"]],
+    ["together,together", ["together"]],
+  ])("maps %j to %j", (input, expected) => {
+    expect(parseProviders(input)).toEqual(expected);
   });
 });
 

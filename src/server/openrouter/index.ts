@@ -5,11 +5,13 @@ export {
   isOpenRouterConfigured,
   OPENROUTER_DEFAULT_BASE_URL,
   OPENROUTER_DEFAULT_MODEL,
+  OPENROUTER_DEFAULT_PROVIDERS,
   OpenRouterClient,
   type OpenRouterClientOptions,
   OpenRouterError,
   type OpenRouterErrorCode,
   type OpenRouterReasoning,
   parseJsonAnswer,
+  parseProviders,
   parseReasoning,
 } from "./client";
