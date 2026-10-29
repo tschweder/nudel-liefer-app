@@ -327,22 +327,22 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | done |
 | NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
 | NUD-171 | Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau | M2.6 | 149, 152 | done |
-| NUD-172 | Zeitmodell: Ankunft/Ende live aus dem Tourfortschritt | M2.7 | – | todo |
-| NUD-173 | Offline-Queue sendet bei zurückkehrendem Server (Controller auf der Offline-Shell) | M2.7 | – | todo |
-| NUD-174 | Sync-Pille und Warteschlangen-Panel sagen die Wahrheit | M2.7 | – | todo |
-| NUD-175 | `/theme.js` in den Service-Worker-Precache | M2.7 | – | todo |
-| NUD-176 | „Rückgängig" erreichbar machen, Toasts nicht mehr über dem Header | M2.7 | – | todo |
-| NUD-177 | Problem-Notiz des Fahrers wieder anzeigen | M2.7 | – | todo |
+| NUD-172 | Zeitmodell: Ankunft/Ende live aus dem Tourfortschritt | M2.7 | – | done |
+| NUD-173 | Offline-Queue sendet bei zurückkehrendem Server (Controller auf der Offline-Shell) | M2.7 | – | done |
+| NUD-174 | Sync-Pille und Warteschlangen-Panel sagen die Wahrheit | M2.7 | – | done |
+| NUD-175 | `/theme.js` in den Service-Worker-Precache | M2.7 | – | done |
+| NUD-176 | „Rückgängig" erreichbar machen, Toasts nicht mehr über dem Header | M2.7 | – | done |
+| NUD-177 | Problem-Notiz des Fahrers wieder anzeigen | M2.7 | – | done |
 | NUD-178 | Bestellübersicht und Detail beschreiben die Tour mit einer Regel, der Zähler stimmt | done |
-| NUD-179 | Bestellübersicht startet auf „Heute" | M2.7 | – | todo |
-| NUD-180 | Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit | M2.7 | – | todo |
-| NUD-181 | Parkplatz: Fahrer setzt den Punkt auf der Karte | M2.7 | – | todo |
-| NUD-182 | Ein Datumsformat in beiden Shells, kein Abschneiden | M2.7 | – | todo |
-| NUD-183 | Dashboard: „0 / 0" und Loch im KPI-Raster | M2.7 | – | todo |
-| NUD-184 | Fehlgeschlagener Fahrer-Login leert Name **und** PIN | M2.7 | – | todo |
-| NUD-185 | Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden") | M2.7 | – | todo |
-| NUD-186 | Sprachumschalter auf der Büro-Anmeldung | M2.7 | – | todo |
-| NUD-187 | „Auslastung" nennt den Ort der Arbeitszeiten | M2.7 | – | todo |
+| NUD-179 | Bestellübersicht startet auf „Heute" | M2.7 | – | done |
+| NUD-180 | Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit | M2.7 | – | done |
+| NUD-181 | Parkplatz: Fahrer setzt den Punkt auf der Karte | M2.7 | – | done |
+| NUD-182 | Ein Datumsformat in beiden Shells, kein Abschneiden | M2.7 | – | done |
+| NUD-183 | Dashboard: „0 / 0" und Loch im KPI-Raster | M2.7 | – | done |
+| NUD-184 | Fehlgeschlagener Fahrer-Login leert Name **und** PIN | M2.7 | – | done |
+| NUD-185 | Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden") | M2.7 | – | done |
+| NUD-186 | Sprachumschalter auf der Büro-Anmeldung | M2.7 | – | done |
+| NUD-187 | „Auslastung" nennt den Ort der Arbeitszeiten | M2.7 | – | done |
 | NUD-188 | Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern | M2.7 | – | done |
 | NUD-189 | Teillieferung / Ist-Menge (Epic nach dem Defekt-Block) | M2.7 | 172 | todo |
 | NUD-190 | Kundenstatus-Link (nach NUD-172) | M2.7 | 172 | todo |
@@ -3307,7 +3307,7 @@ Quelle: [`QA-BLACKBOX-2026-10-29.html`](./QA-BLACKBOX-2026-10-29.html) — 22 Be
 Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 
 #### NUD-172 · Zeitmodell: Ankunft und Ende live aus dem Tourfortschritt
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F3 (§3 F3).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F3 (§3 F3).
 
 **Goal:** `Stop.etaAt` entsteht einmal beim Optimieren, verankert an `Settings.departureTime` (hier 06:30) am Tourdatum; Freigabe, Abfahrt und Neu-Freigabe rechnen nichts nach. Deshalb zeigt ein Bildschirm drei widersprüchliche Zeiten — gespeicherte ETA, „Ende ca." (letzte ETA + Restzeit) und „Noch ca." (Restzeit) — und das Büro dieselbe Vergangenheit. Danach rechnet **eine** Quelle die Zeiten aus dem tatsächlichen Fortschritt, und Fahrer und Büro lesen dieselbe Zahl.
 
@@ -3332,7 +3332,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-173 · Offline-Queue sendet, sobald der Server wieder antwortet
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F4 (§3 F4).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F4 (§3 F4).
 
 **Goal:** Nachgewiesen am 2026-10-29: offline geliefert 14:40, Server ab 14:43 zurück, 14:45 steht der Stopp in der DB weiter auf `PENDING` — erst der Seitenaufruf um 14:45:57 schreibt `stop.delivered`. Ursache: die vorgeladene Offline-Shell rendert die Fahrer-Shell ohne `syncUserId`, deshalb ist `OfflineSync` nie gemountet, genau dann nicht, wenn man offline ist; übrig bleibt ein Backoff-Timer bis 5 Minuten. Ein toter Server setzt `navigator.onLine` nicht auf `false`, also feuert weder `online` noch Background Sync. Danach sendet die App, sobald der Server wieder erreichbar ist — ohne Polling.
 
@@ -3357,7 +3357,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-174 · Sync-Pille und Warteschlangen-Panel sagen die Wahrheit
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F7 (§3 F7). Eng verwandt mit NUD-173 (gleiche Ebene).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F7 (§3 F7). Eng verwandt mit NUD-173 (gleiche Ebene).
 
 **Goal:** Die Pille ist grün „Online", während der Server nicht antwortet, und das Panel sagt „1 Eingabe wird gesendet …", obwohl nichts gesendet wird; die Zeile sagt hart „wartet". Beides hängt an `navigator.onLine`; der Controller hat den echten Zustand (`flushing`, `inFlight`, `failure`) bereits. Danach zeigt die Oberfläche den Zustand, den sie wirklich hat.
 
@@ -3381,7 +3381,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-175 · `/theme.js` in den Service-Worker-Precache
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F8 (§3 F8).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F8 (§3 F8).
 
 **Goal:** `/theme.js` ist ein blockierendes Skript jeder Seite, fehlt aber in den 102 Precache-Einträgen; ein Offline-Reload protokolliert `net::ERR_CONNECTION_REFUSED http://localhost:3100/theme.js`. Danach liegt es im Precache wie `/offline.js`.
 
@@ -3402,7 +3402,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-176 · „Rückgängig" erreichbar machen, Toasts nicht über dem Header
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F1 + F2 (§3 F1, F2).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F1 + F2 (§3 F1, F2).
 
 **Goal:** Ein Tipp auf „Geliefert" springt im selben Tick zum nächsten Stopp; der Undo lebt 10 s in **einem** globalen `<Toaster />`, der ohne Position gemountet ist (oben rechts, 32 px Rand, z-index über dem 56-px-Header; der eigene Kommentar in `ui/sonner.tsx` verspricht `bottom-center`). Im Test war „Rückgängig" im Baum, aber **nicht anklickbar**. Beide Toasts teilen diese Ebene. Danach ist der Undo erreichbar, solange das Server-Fenster (5 Min) offen ist, und keine Erfolgsmeldung verdeckt den Kopf.
 
@@ -3426,7 +3426,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-177 · Problem-Notiz des Fahrers wieder anzeigen
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F5 (§3 F5).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F5 (§3 F5).
 
 **Goal:** Der Fahrer tippt bis zu 500 Zeichen; gespeichert wird `Stop.problemNote` (LocalizedText), aber der Fahrer-Payload trägt nur `problemReason`. Danach sieht der Fahrer seine Notiz wieder (read-only) und das Büro sieht sie dort, wo es hinschaut.
 
@@ -3469,7 +3469,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-179 · Bestellübersicht startet auf „Heute"
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F12 (§3 F12).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F12 (§3 F12).
 
 **Goal:** Die Übersicht nutzt `getDefaultDeliveryDate` („nächster Liefertag", strikt nach heute). Mit Lieferwochentagen Mo–Do ist das am Donnerstag der **Montag** — 20 Bestellungen von heute bleiben unsichtbar und der erste Blick des Büros ist eine leere Liste. Danach startet die Übersicht auf heute; das Bestellformular behält den nächsten Liefertag.
 
@@ -3491,7 +3491,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-180 · Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F17 (§3 F17).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F17 (§3 F17).
 
 **Goal:** Ein Stopp mit gemeldetem Problem steht unter „Erledigt" neben einer echten Lieferung; erledigte Zeilen zeigen die **geplante** Zeit (`etaAt`), obwohl `completedAt` im Modell liegt und das Büro „Erledigt um 11:49" zeigt. Danach sind Probleme eine eigene Gruppe und die Zeile nennt die tatsächliche Zeit.
 
@@ -3513,7 +3513,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-181 · Parkplatz: Fahrer setzt den Punkt auf der Karte
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F15 (§3 F15).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F15 (§3 F15).
 
 **Goal:** Der gemeinsame `PinPickerMap` mit Tap-to-place existiert und wird im Büro benutzt; im Fahrer-Dialog erscheint die Karte erst, wenn schon ein Punkt gesetzt ist, und die Auswahl bietet nur GPS oder Latitude/Longitude. Danach kann der Fahrer den Punkt wie das Büro auf der Karte setzen; GPS und Zahlenfelder bleiben als Fallback (offline ohne Kacheln).
 
@@ -3535,7 +3535,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-182 · Ein Datumsformat in beiden Shells, kein Abschneiden
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F9 (§3 F9).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F9 (§3 F9).
 
 **Goal:** Zwei Formatter für denselben Slot — online `dateShort` (`(app)/layout.tsx`), offline `dateLong` (`offline-driver-app.tsx`) — und die Shell kürzt mit `truncate`: „Donnerstag, 29. Ok…", und die Sync-Pille rutscht nach rechts. Danach ist der Tag auf allen Fahrer-Screens gleich formatiert und wird nicht abgeschnitten.
 
@@ -3555,7 +3555,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-183 · Dashboard: „0 / 0" und Loch im KPI-Raster
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F18 (§3 F18).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F18 (§3 F18).
 
 **Goal:** `${done} / ${total}` ohne Basis-Guard zeigt „0 / 0"; das Raster (`sm:grid-cols-2 xl:grid-cols-3`) stellt drei Kacheln bei 1024 px zweispaltig dar und lässt eine leere Zelle stehen, die wie eine fehlende vierte Kachel aussieht.
 
@@ -3576,7 +3576,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-184 · Fehlgeschlagener Fahrer-Login leert Name **und** PIN
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F19 (§3 F19).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F19 (§3 F19).
 
 **Goal:** `pin` ist kontrolliert, der Benutzername nicht — nach einer fehlgeschlagenen Anmeldung leert React nur das unkontrollierte Feld, die sechs PIN-Boxen behalten ihre Ziffern, und die Fehler werden aus den Formulardaten neu gebaut. Danach ist der Zustand nach einem Fehlversuch eindeutig.
 
@@ -3596,7 +3596,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-185 · Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden")
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F20 (§3 F20).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F20 (§3 F20).
 
 **Goal:** `decideAccess` schickt jede angemeldete Rolle von `/driver/login` auf ihre Startseite — ohne Hinweis. Auf dem geteilten Büro-Tablet muss man erst abmelden, ohne zu wissen warum. Danach rendert die Login-Seite und sagt, wer angemeldet ist.
 
@@ -3618,7 +3618,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-186 · Sprachumschalter auf der Büro-Anmeldung
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F21 (§3 F21).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F21 (§3 F21).
 
 **Goal:** Die Fahrer-Anmeldung hat fünf Sprach-Chips, die Büro-Anmeldung nur den Nachtmodus, obwohl die Büro-UI in de/en/zh-Hans existiert. Danach ist die Sprache vor dem Login wählbar.
 
@@ -3639,7 +3639,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-187 · „Auslastung" nennt den Ort der Arbeitszeiten
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F22 (§3 F22).
+**Status:** done (2026-10-29) · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F22 (§3 F22).
 
 **Goal:** Alle Fahrer zeigen „Keine Arbeitszeit hinterlegt", Soll-Zeit 0, Auslastung „—"; der Ort (Fahrer → Zeile → Aktionen → „Arbeitszeit bearbeiten") steht nirgends. Danach findet das Büro den Ort von der Seite aus.
 
