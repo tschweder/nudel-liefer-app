@@ -10,6 +10,12 @@ refuses to run when `E2E_DATABASE_URL` names the same host/port/database as `DAT
 `DATABASE_URL_UNPOOLED`, `BACKUP_DATABASE_URL`, `RESTORE_DATABASE_URL`,
 `PARKING_IMPORT_DATABASE_URL`).
 
+> **Runs before NUD-162 left debris in the demo database** (QA 2026-10-29, F16): `E2E Fahrer`,
+> `Osteria … e2es…` customers and `E2E …` vehicles, plus hand-made `A3 Prüf…` rows.
+> `node_modules\.bin\tsx.cmd scripts/archive-test-data.ts` lists them, `--apply` deactivates them
+> (soft delete only — orders, stops and tours are never touched). NUD-188 archived the ones found on
+> 2026-10-29.
+
 ## 1. What the specs need
 
 | Spec             | Needs                                                                                 |

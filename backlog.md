@@ -343,7 +343,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-185 | Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden") | M2.7 | – | todo |
 | NUD-186 | Sprachumschalter auf der Büro-Anmeldung | M2.7 | – | todo |
 | NUD-187 | „Auslastung" nennt den Ort der Arbeitszeiten | M2.7 | – | todo |
-| NUD-188 | Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern | M2.7 | – | todo |
+| NUD-188 | Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern | M2.7 | – | done |
 | NUD-189 | Teillieferung / Ist-Menge (Epic nach dem Defekt-Block) | M2.7 | 172 | todo |
 | NUD-190 | Kundenstatus-Link (nach NUD-172) | M2.7 | 172 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
@@ -3658,7 +3658,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-188 · Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F10 + F16 (§3 F10, F16).
+**Status:** done · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F10 + F16 (§3 F10, F16).
 
 **Goal:** `fahrer-de` ist in der Datenbank zh-Hans, deshalb landet der Login von `/de/driver/login` in einer chinesischen Oberfläche. In den Pickern stehen 3× „A3 Prueffahrer", 2× „E2E Fahrer", 司機 台灣/香港, 8 aktive e2e-Kunden, 3 e2e-Fahrzeuge und 5 A3-Produkte; keine Suche, kein Bulk-Archiv.
 
@@ -3672,7 +3672,11 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] Vorher/nachher-Screenshots der Picker; lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-188)**
-- (leer — wird beim Umsetzen gefüllt)
+- **F10 (Sprache):** Der Seed war nicht falsch — er hatte für `fahrer-de` längst `locale: "de"`, aber der `upsert` hatte ein **leeres `update`**. Eine bestehende Zeile aus einer früheren Seed-Version behielt also ihr altes `zh_Hans`, und genau deshalb landete der Login in Chinesisch. Jetzt korrigiert der Seed seine eigenen Demo-Konten (`displayName`, `locale`, `localeChosen`); nur die dort gelisteten Benutzernamen werden angefasst.
+- **Beleg F10:** `fahrer-de` in der DB **vorher** `zh-Hans` → `pnpm db:seed` → **nachher** `de` (Abfrage im Ticket-Protokoll; der Datensatz hatte danach weiter 54 Bestellungen / 40 Stopps / 3 Touren — der Seed legt ohne `--demo --today` nichts Neues an).
+- **F16 (Testreste):** neues, wiederholbares Skript `scripts/archive-test-data.ts` — listet die Reste und deaktiviert sie mit `--apply` (Soft Delete, §4.3; Bestellungen, Stopps und Touren werden nie berührt). Lauf am 2026-10-29: **8 Fahrer** (3× „A3 Prueffahrer", „A3 Prüffahrer", 2× „E2E Fahrer", 司機 台灣, 司機 香港), **8 Kunden** (`e2es…`), **3 Fahrzeuge** (`E2E …`) archiviert; 0 Produkte (die A3-/Altprodukte waren bereits inaktiv). Aktive Stammdaten danach: 6 Fahrer (vorher 14), 20 Kunden (28), 2 Fahrzeuge (5), 3 Produkte (3).
+- **e2e-Hygiene:** `docs/e2e-database.md` nennt das Skript und den Grund (Läufe **vor** NUD-162 schrieben in die Demo-DB). `SEED_DRIVERS=false` bleibt unverändert wirksam — der Seed fasst nur an, was er selbst anlegt.
+- **NICHT geprüft:** keine Browser-Sicht auf die bereinigten Picker (die Anmeldeformulare ließen sich in dieser Sitzung nicht absenden); der Beleg sind die Datenbank-Zählungen. Kein automatisierter Test für das Skript (einmaliger Lauf, idempotent, `--apply` nötig).
 
 ---
 

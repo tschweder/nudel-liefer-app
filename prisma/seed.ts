@@ -62,7 +62,14 @@ export async function seed(prisma: PrismaClient = createPrismaClient()) {
   for (const driver of withDrivers ? DRIVERS : []) {
     await prisma.user.upsert({
       where: { username: driver.username },
-      update: {},
+      // NUD-188 (QA 2026-10-29 F10): an existing demo row is corrected too — before, the empty
+      // `update` kept an old language, which is how "Fahrer Deutsch" ended up stored as zh-Hans
+      // and logged in Chinese. Only the demo accounts listed here are touched; nothing else.
+      update: {
+        displayName: driver.displayName,
+        locale: driver.locale,
+        localeChosen: driver.localeChosen,
+      },
       create: {
         role: "DRIVER",
         username: driver.username,
