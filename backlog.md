@@ -3347,7 +3347,12 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] `docs/offline.md` §„Trigger" beschreibt den Stand; de/en/zh-Hans + Fahrer-Sprachen, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-173)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Ursache:** die vorgeladene Offline-Shell (`src/components/driver/offline-driver-app.tsx`) rendert `DriverShell` ohne `syncUserId`, deshalb war `OfflineSync` (Mount-, `online`-, `visibilitychange`- und 60-s-Trigger) genau dann nicht gemountet, wenn der Fahrer offline ist. Übrig blieb der Backoff-Timer.
+- **Fix:** `syncUserId={record?.userId}` an der Offline-Shell (die userId liegt dort aus dem Cache vor) — damit laufen alle vier Trigger auch offline. Dazu `BACKOFF_MAX_MS` von 5 Minuten auf 60 Sekunden (`src/lib/offline/outbox.ts`): ein toter Server setzt `navigator.onLine` nicht auf `false`, also gibt es weder `online` noch Background Sync; der Backoff ist dann der einzige Trigger. Kein Polling: der Timer läuft nur, solange Einträge scheitern.
+- **Background Sync ist der Hauptpfad** (war schon so, jetzt belegt): jede Queue-Mutation registriert den Tag (`registerBackgroundSync` in `outbox-browser.ts`), der Worker flusht und meldet offene Fenster (`src/sw/sw.ts`).
+- **Nachgewiesen** (Produktionsbuild, Server gestoppt): Stopp 4 offline um 15:27 geliefert → Eintrag „wartet"; Server 15:27:16 zurück → **15:28:40 steht `stop.delivered` in der Datenbank, ohne Seitenaufruf**. Vorher (QA-Lauf) kam derselbe Fall erst mit einem manuellen Reload an. Vorher: `web-test/20261029-1423-nud-172-175-verification-7fc8/shots/015-*` (Warteschlange), nachher: DB-Audit um 13:28:40Z.
+- **NICHT geprüft:** der neue e2e-Spec (Route-Abbruch auf `/api/driver/sync` statt `context.setOffline`) ist **nicht geschrieben** — `pnpm test:e2e` lief in dieser Sitzung nicht. Das ist die offene Lücke dieses Tickets; der Beleg ist der Produktionsbuild-Test oben.
+- `docs/offline.md`: die Trigger-Beschreibung bleibt korrekt („app start, online, visible, alle 60 s, nach jedem Tap") — sie galt nur nicht auf der Offline-Shell; der Kommentar in `offline-driver-app.tsx` nennt jetzt den Grund.
 
 ---
 

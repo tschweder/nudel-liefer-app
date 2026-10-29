@@ -117,7 +117,11 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
   }
 
   return (
-    <DriverShell dateLabel={dateLabel} offline>
+    // NUD-173 (QA 2026-10-29 F4): the precached shell mounts the sync triggers too. Without
+    // `syncUserId` the offline screen — the one a driver actually uses while offline — had no
+    // `online`/`visibilitychange`/interval trigger at all, so a queued tap was only sent on the next
+    // page load. The userId is known here (the cached tour belongs to exactly one driver).
+    <DriverShell dateLabel={dateLabel} offline syncUserId={record?.userId}>
       {body}
     </DriverShell>
   );

@@ -372,7 +372,13 @@ export function statesForEntries(
 // ---------------------------------------------------------------------------------------------
 
 export const BACKOFF_BASE_MS = 2_000;
-export const BACKOFF_MAX_MS = 5 * 60_000;
+/**
+ * NUD-173 (QA 2026-10-29 F4): a dead server does not flip `navigator.onLine`, so no `online` event
+ * and no Background Sync ever arrive — the backoff timer is then the only trigger. Five minutes of
+ * silence was the reason the report's queue stayed unsent; one minute is short enough to feel
+ * automatic and long enough not to be polling (it only runs while entries are failing).
+ */
+export const BACKOFF_MAX_MS = 60_000;
 
 /** Wait after the `failures`-th failed attempt in a row: 2 s, 4 s, 8 s ... capped at 5 minutes. */
 export function backoffDelayMs(failures: number): number {
