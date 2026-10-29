@@ -3624,7 +3624,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] e2e `auth.spec.ts` deckt die Wahl ab; lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-186)**
-- (leer — wird beim Umsetzen gefüllt)
+- **`area`-Prop statt Pfad-Raten:** `LanguageSwitcher` bekommt ein optionales `area` ("admin" | "driver"). Die Büro-Anmeldung liegt auf `/login`, nicht unter `/admin` — die Pfad-Heuristik hätte dort alle fünf Fahrer-Sprachen angeboten.
+- **Platzierung:** Kopf der Anmeldekarte, eigene Zeile rechts unter dem Titel (Titel bleibt einzeilig), neben dem Nachtmodus-Schalter; `variant="compact"`, `query={callbackUrl}` bleibt beim Sprachwechsel erhalten.
+- **Beleg:** `/de/login` bietet im Sprachfeld genau **Deutsch · English · 中文** (`web-test/20261029-1520-nud-179-183-187-verifica-e9ca/shots/015-*`); `/en/login`, `/zh-Hans/login`, `/de/login` antworten alle 200. Vorher gab es dort nur „Nachtmodus" (`web-test/20261029-1315-.../shots/001-*`).
+- **NICHT geprüft:** das Umstellen per Klick auf das native `<select>` ließ sich mit dem Testwerkzeug nicht auslösen (das Werkzeug lief in ein Timeout am `<select>`, obwohl es sichtbar und nicht deaktiviert ist); die Optionsliste und die drei Locale-Routen sind belegt, der gleiche Mechanismus wurde auf der Fahrer-Anmeldung praktisch durchgeschaltet. `pnpm test:e2e` lief nicht.
 
 ---
 

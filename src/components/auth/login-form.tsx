@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { FormEvent, ReactNode } from "react";
 import { useActionState, useState, useTransition } from "react";
 
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -312,12 +313,22 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
         <BrandMark className="lg:hidden" />
 
         <Card className="w-full max-w-md p-6">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <h1 className="text-2xl font-semibold" data-testid="login-title">
               {t("adminLogin.title")}
             </h1>
-            {/* Reachable before signing in (NUD-132), so the office can pick its scheme up front. */}
-            <ThemeToggle variant="labeled" />
+            {/* NUD-186 (QA 2026-10-29 F21): the office UI exists in de/en/zh-Hans, so the language is
+                pickable before signing in — with `area="admin"`, because `/login` is not `/admin`.
+                Both controls sit on their own row so the title keeps its width. */}
+            <div className="flex items-center justify-end gap-2">
+              <LanguageSwitcher
+                variant="compact"
+                area="admin"
+                query={callbackUrl ? { callbackUrl } : undefined}
+              />
+              {/* Reachable before signing in (NUD-132), so the office can pick its scheme up front. */}
+              <ThemeToggle variant="labeled" />
+            </div>
           </div>
 
           <form

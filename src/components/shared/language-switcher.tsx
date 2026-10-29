@@ -18,13 +18,17 @@ type Variant = "labeled" | "compact" | "icon" | "bar";
  * `bar`: language icon plus the visible 48 px select (driver login page, nobody logged in yet).
  * The office screens offer Deutsch · English · 中文, everything else (driver area, start page) all five languages.
  * `query`: search params kept when the locale changes (e.g. the login `callbackUrl`).
+ * `area`: which language set to offer. NUD-186 (QA 2026-10-29 F21) needs it on the office LOGIN page,
+ * whose path is `/login` and therefore not under `/admin` — the pathname guess would offer all five.
  */
 export function LanguageSwitcher({
   variant = "labeled",
   query,
+  area,
 }: {
   variant?: Variant;
   query?: Record<string, string>;
+  area?: "admin" | "driver";
 }) {
   const t = useTranslations("common");
   const locale = useLocale();
@@ -32,7 +36,7 @@ export function LanguageSwitcher({
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const locales = localesFor(
-    pathname === "/admin" || pathname.startsWith("/admin/") ? "admin" : "driver",
+    area ?? (pathname === "/admin" || pathname.startsWith("/admin/") ? "admin" : "driver"),
   );
 
   const select = (
