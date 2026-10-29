@@ -16,8 +16,23 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/offline/outbox-browser", () => ({ enqueueMutation: mocks.enqueue }));
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/components/maps/lazy", () => ({
-  PinPickerMapLazy: ({ value }: { value: { lat: number; lng: number } | null }) => (
-    <div data-testid="map-stub">{value ? `${value.lat},${value.lng}` : ""}</div>
+  PinPickerMapLazy: ({
+    value,
+    fallbackCenter,
+    onChange,
+  }: {
+    value: { lat: number; lng: number } | null;
+    fallbackCenter?: { lat: number; lng: number };
+    onChange: (next: { lat: number; lng: number }) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="map-stub"
+      data-center={fallbackCenter ? `${fallbackCenter.lat},${fallbackCenter.lng}` : ""}
+      onClick={() => onChange({ lat: 48.21, lng: 16.37 })}
+    >
+      {value ? `${value.lat},${value.lng}` : ""}
+    </button>
   ),
 }));
 
@@ -63,6 +78,36 @@ afterEach(() => {
 });
 
 describe.each(Object.keys(LOCALES))("ParkingSetButton in %s", (locale) => {
+  it("sets the point on the map, centred on the customer (NUD-181)", async () => {
+    render(
+      <NextIntlClientProvider
+        locale={locale}
+        messages={LOCALES[locale]}
+        onError={(error) => {
+          throw error;
+        }}
+        getMessageFallback={({ namespace, key }) => {
+          throw new Error(`missing message ${namespace}.${key}`);
+        }}
+      >
+        <ParkingSetButton
+          stop={{ id: "s1", customerName: "Trattoria Roma", lat: 48.2, lng: 16.3 }}
+          tiles={{ url: "x", attribution: "" }}
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByTestId("parking-set"));
+    // the third way exists next to GPS and typed coordinates
+    fireEvent.click(screen.getByTestId("parking-mode-map"));
+    const map = screen.getByTestId("map-stub");
+    // centred on the customer's routing point while no pin exists yet
+    expect(map).toHaveAttribute("data-center", "48.2,16.3");
+    expect(screen.getByTestId("parking-confirm")).toBeDisabled();
+    fireEvent.click(map);
+    expect(screen.getByTestId("map-stub")).toHaveTextContent("48.21,16.37");
+    expect(screen.getByTestId("parking-confirm")).toBeEnabled();
+  });
+
   it("saves typed coordinates with a comma as 6-decimal numbers", async () => {
     renderButton(locale);
     fireEvent.click(screen.getByTestId("parking-set"));

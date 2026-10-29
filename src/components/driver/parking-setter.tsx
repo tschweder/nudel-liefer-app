@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleParkingIcon, CrosshairIcon, KeyboardIcon, LoaderCircleIcon } from "lucide-react";
+import { CircleParkingIcon, CrosshairIcon, KeyboardIcon, LoaderCircleIcon, MapPinIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -19,9 +19,15 @@ import type { MapTileConfig } from "@/lib/map-config";
 import { enqueueMutation } from "@/lib/offline/outbox-browser";
 import { cn } from "@/lib/utils";
 
-export type ParkingStop = { id: string; customerName: string };
+/** NUD-181: the customer's routing point, used as the map centre before a pin exists. */
+export type ParkingStop = {
+  id: string;
+  customerName: string;
+  lat?: number | null;
+  lng?: number | null;
+};
 
-type Mode = "choose" | "locating" | "gps" | "manual";
+type Mode = "choose" | "locating" | "gps" | "manual" | "map";
 type GpsProblem = "denied" | "unavailable" | "timeout" | "unsupported";
 
 const NO_LABELS = {
@@ -82,6 +88,11 @@ function ParkingSheet({
   const latId = useId();
   const lngId = useId();
   const [mode, setMode] = useState<Mode>("choose");
+  // NUD-181 (QA 2026-10-29 F15): the map is a way of its own — the shared PinPickerMap with
+  // click-to-place, centred on the customer. Before, the map only appeared once a point existed
+  // (GPS or typed), so the man in the street had the worse tool than the office had.
+  const fallbackCenter =
+    stop.lat != null && stop.lng != null ? { lat: stop.lat, lng: stop.lng } : undefined;
   const [problem, setProblem] = useState<GpsProblem | null>(null);
   const [point, setPoint] = useState<LatLng | null>(null);
   const [lat, setLat] = useState("");
@@ -156,16 +167,17 @@ function ParkingSheet({
     }
   }
 
-  const map = point ? (
+  const map = point || mode === "map" ? (
     <div
       className="relative isolate w-full overflow-hidden rounded-lg border [&_.leaflet-container]:h-[260px]!"
       data-testid="parking-map"
     >
       <PinPickerMapLazy
         value={point}
+        fallbackCenter={fallbackCenter}
         onChange={(next) => {
           setPoint(next);
-          if (mode === "manual") {
+          if (mode === "manual" || mode === "map") {
             setLat(String(next.lat));
             setLng(String(next.lng));
           }
@@ -220,6 +232,12 @@ function ParkingSheet({
                 () => setMode("manual"),
                 "parking-mode-manual",
               )}
+              {modeButton(
+                <MapPinIcon className="size-6" aria-hidden />,
+                t("modeMap"),
+                () => setMode("map"),
+                "parking-mode-map",
+              )}
             </div>
           ) : null}
 
@@ -250,6 +268,23 @@ function ParkingSheet({
                   }
                 }}
                 data-testid="parking-switch-manual"
+              >
+                {t("modeManual")}
+              </button>
+            </>
+          ) : null}
+
+          {mode === "map" ? (
+            <>
+              <p className="text-base text-muted-foreground" data-testid="parking-map-hint">
+                {t("mapHint")}
+              </p>
+              {map}
+              <button
+                type="button"
+                className="min-h-12 text-base font-semibold underline underline-offset-4"
+                onClick={() => setMode("manual")}
+                data-testid="parking-switch-manual-from-map"
               >
                 {t("modeManual")}
               </button>

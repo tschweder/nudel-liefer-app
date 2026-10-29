@@ -2119,7 +2119,9 @@
       },
       "errors": {
         "storage": "That did not work. Please try again."
-      }
+      },
+      "modeMap": "Set on the map",
+      "mapHint": "Tap the place where you park. The pin can be dragged."
     },
     "departure": {
       "cardTitle": "Prepare departure",

@@ -2119,7 +2119,9 @@
       },
       "errors": {
         "storage": "Das hat nicht geklappt. Bitte erneut versuchen."
-      }
+      },
+      "modeMap": "Auf der Karte setzen",
+      "mapHint": "Tippe auf die Stelle, an der du parkst. Der Punkt lässt sich verschieben."
     },
     "departure": {
       "cardTitle": "Abfahrt vorbereiten",

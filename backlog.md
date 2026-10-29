@@ -3527,7 +3527,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-181)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Dritter Weg statt Umbau:** Der Parkplatz-Dialog bietet jetzt neben „Aktueller Standort" und „Koordinaten eingeben" den Knopf **„Auf der Karte setzen"** (`parking-mode-map`). Er zeigt den vorhandenen `PinPickerMap` (denselben, den das Büro benutzt: Tippen setzt den Punkt, Ziehen verschiebt ihn), zentriert auf den Adresspunkt des Kunden (`fallbackCenter`, das `ParkingStop` dafür um `lat`/`lng` erweitert). GPS und Zahlenfelder bleiben unverändert — offline ohne Kacheln ist der Zahlenweg weiter der Rückfall.
+- **Keine neue Abhängigkeit:** Leaflet steckt ohnehin im Fahrer-Bundle (`parking-setter` importiert `PinPickerMapLazy` schon für die Vorschau).
+- **Beleg:** neuer Komponententest (5 Sprachen) — der Knopf existiert, die Karte bekommt den Kundenpunkt als Zentrum („48.2,16.3"), „Bestätigen" ist vor dem Tippen gesperrt und nach einem Tipp auf die Karte frei, der Punkt landet in den Zahlenfeldern. `parking-setter.test.tsx`: 30 Tests grün, `i18n:check`, `eslint`, `tsc` grün.
+- **NICHT geprüft:** Sichtprüfung im Browser — das Testwerkzeug verweigert in dieser Sitzung das Absenden der Anmeldeformulare („submits a form to a third party"), ich kam also nicht in die Fahrer-Sitzung; und `pnpm test:e2e` lief nicht (`driver-parking.spec.ts` deckt den Zahlenweg weiter ab, der Kartenweg ist dort noch nicht drin).
 
 ---
 

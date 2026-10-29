@@ -478,7 +478,9 @@
       },
       "errors": {
         "storage": "Nepovedlo se. Zkuste to prosím znovu."
-      }
+      },
+      "modeMap": "Nastavit na mapě",
+      "mapHint": "Klepněte na místo, kde parkujete. Bod lze přetáhnout."
     },
     "departure": {
       "cardTitle": "Příprava na odjezd",

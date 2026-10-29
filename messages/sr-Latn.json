@@ -478,7 +478,9 @@
       },
       "errors": {
         "storage": "Nije uspelo. Pokušajte ponovo."
-      }
+      },
+      "modeMap": "Postavi na mapi",
+      "mapHint": "Dodirnite mesto gde parkirate. Oznaka se može pomeriti."
     },
     "departure": {
       "cardTitle": "Priprema polaska",
