@@ -115,7 +115,7 @@ const rows: OrderOverviewRow[] = [
     fromRecurring: false,
     customer: { id: "c1", customerNumber: "K-1", name: "Osteria A" },
     items: [],
-    tour: { tourId: "tour-1", stopId: "stop-1" },
+    tour: { tourId: "tour-1", stopId: "stop-1", date: "2099-07-02", tourStatus: "RELEASED", stopStatus: "PENDING", completedAt: null },
   },
 ];
 

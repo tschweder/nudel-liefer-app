@@ -575,6 +575,36 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       expect(garbage.filters).toEqual(filters);
     });
 
+    // NUD-178 (QA 2026-10-29 F6 + F11): one rule for "which tour is this order in", in all four
+    // states that used to disagree between the order page and the tours page.
+    it("describes the tour link in all four states with the same rule", async () => {
+      const id = await create();
+      const otherDay = "2099-06-16";
+      const otherTour = await tour(otherDay);
+      const otherStop = await t.prisma.stop.create({
+        data: { tourId: otherTour, customerId, sequence: 1, orders: { create: { orderId: id } } },
+      });
+      // (a) the order of D1 sits on a tour of D2: the link names THAT day ...
+      const crossDay = await orderDetailQuery(id);
+      expect(crossDay?.tour).toMatchObject({ tourId: otherTour, date: otherDay, stopStatus: "PENDING" });
+      // ... and it is not offered to a new tour of D1 any more. Before, it was "planned" and
+      // "waiting for a tour" at the same time.
+      const stillOffered = await listConfirmedOrdersForDate(t.prisma, date(D1), { tourId: null });
+      expect(stillOffered.map((o) => o.id)).not.toContain(id);
+      // (b) cancelling keeps the link as history - the UI says "war Teil einer Tour" ...
+      expect(await cancelOrderAction(id)).toEqual({ ok: true, id });
+      const cancelled = await orderDetailQuery(id);
+      expect(cancelled?.status).toBe("CANCELLED");
+      expect(cancelled?.tour).toMatchObject({ tourId: otherTour, stopId: otherStop.id });
+      // (c) a cancelled order is never offered to a tour ...
+      expect((await listConfirmedOrdersForDate(t.prisma, date(otherDay))).map((o) => o.id)).not.toContain(
+        id,
+      );
+      // (d) an order on no stop has no link at all.
+      const loose = await create();
+      expect((await orderDetailQuery(loose))?.tour).toBeNull();
+    });
+
     it("shows rows with line counts, quantities and the tour link", async () => {
       const id = await create({
         lines: [
@@ -590,9 +620,10 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       const { rows } = await orderOverviewQuery({ from: D1, to: D1 });
       const row = rows.find((r) => r.id === id);
       expect(row?.items.map((i) => i.quantity)).toEqual([3, 1]);
-      expect(row?.tour).toEqual({ tourId, stopId: stop.id });
+      // NUD-178: the link carries the tour day and the stop state too
+      expect(row?.tour).toMatchObject({ tourId, stopId: stop.id, stopStatus: "PENDING" });
       expect(rows.find((r) => r.id === other)?.tour).toBeNull();
-      expect((await orderDetailQuery(id))?.tour).toEqual({ tourId, stopId: stop.id });
+      expect((await orderDetailQuery(id))?.tour).toMatchObject({ tourId, stopId: stop.id });
     });
 
     it("totals per date match the sum of the confirmed orders and ignore the other filters", async () => {

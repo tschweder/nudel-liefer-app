@@ -51,6 +51,31 @@ export function windowText(w: {
 /** Non-blocking hints the order form shows after saving (NUD-148). */
 export type OrderPlanWarning = Exclude<PlannedDayWarning, "ok">;
 
+/** Maps the loaded stop link to OrderTourLink; null when the order is on no stop. */
+function tourLink(
+  stopOrders: ReadonlyArray<{
+    stop: {
+      id: string;
+      tourId: string;
+      status: string;
+      completedAt: Date | null;
+      tour: { id: string; date: Date; status: string };
+    };
+  }>,
+): OrderTourLink | null {
+  const stop = stopOrders[0]?.stop;
+  if (!stop) return null;
+  return {
+    tourId: stop.tour.id,
+    stopId: stop.id,
+    date: formatCalendarDate(stop.tour.date),
+    tourStatus: stop.tour.status as OrderTourLink["tourStatus"],
+    stopStatus: stop.status as OrderTourLink["stopStatus"],
+    completedAt: stop.completedAt?.toISOString() ?? null,
+  };
+}
+
+
 function rowWindow(row: {
   windowFrom: Date;
   windowTo: Date;
@@ -301,6 +326,23 @@ export async function isDayTourCompleted(
   return total > 0 && open === 0;
 }
 
+/**
+ * NUD-178 (QA 2026-10-29, F6 + F11): the ONE description of "which tour is this order in".
+ * Before, the order detail and the tours page each had their own rule, so a cancelled order could
+ * still claim to be part of a tour and an order planned onto a tour of another delivery day (D25
+ * windows) counted as "waiting for a tour" on its own day at the same time.
+ */
+export type OrderTourLink = {
+  tourId: string;
+  stopId: string;
+  /** The tour's delivery day (YYYY-MM-DD, the day it actually drives). */
+  date: string;
+  tourStatus: "DRAFT" | "OPTIMIZED" | "RELEASED" | "IN_PROGRESS" | "COMPLETED";
+  stopStatus: "PENDING" | "DELIVERED" | "PROBLEM";
+  /** When the stop was completed (ISO), else null. */
+  completedAt: string | null;
+};
+
 export type OrderOverviewRow = {
   id: string;
   /** PLANNED day, `DATE` value as UTC midnight. */
@@ -314,7 +356,7 @@ export type OrderOverviewRow = {
   customer: { id: string; customerNumber: string; name: string };
   items: Array<{ id: string; productName: unknown; unit: string; quantity: number }>;
   /** The tour this order is part of (through its stop), or `null` while no tour contains it. */
-  tour: { tourId: string; stopId: string } | null;
+  tour: OrderTourLink | null;
   /**
    * Confirmed after the tour of that day was completed and on no stop (NUD-099). Set by
    * `orderOverviewQuery`, not by `listOrderOverview`.
@@ -351,7 +393,21 @@ export async function listOrderOverview(
         include: { product: { select: { name: true, unit: true } } },
         orderBy: { id: "asc" },
       },
-      stopOrders: { select: { stop: { select: { id: true, tourId: true } } }, take: 1 },
+      stopOrders: {
+        select: {
+          stop: {
+            select: {
+              id: true,
+              tourId: true,
+              status: true,
+              completedAt: true,
+              tour: { select: { id: true, date: true, status: true } },
+            },
+          },
+        },
+        // The link of the planned day wins; a link on another day`s tour is the fallback (D25).
+        take: 1,
+      },
     },
   });
   return {
@@ -370,9 +426,7 @@ export async function listOrderOverview(
         unit: i.product.unit,
         quantity: i.quantity,
       })),
-      tour: o.stopOrders[0]
-        ? { tourId: o.stopOrders[0].stop.tourId, stopId: o.stopOrders[0].stop.id }
-        : null,
+      tour: tourLink(o.stopOrders),
     })),
   };
 }
@@ -492,7 +546,10 @@ export async function listConfirmedOrdersForDate(
               none: {
                 stop: {
                   tour: {
-                    date,
+                    // NUD-178 (QA 2026-10-29 F6): planned means planned — an order that already
+                    // sits on a tour of ANOTHER delivery day (D25 windows) is not "waiting for a
+                    // tour" on its own day any more, which is what made the order page and the
+                    // tours counter contradict each other.
                     ...("rebuildTourIds" in scope
                       ? scope.rebuildTourIds.length > 0
                         ? { id: { notIn: scope.rebuildTourIds } }
@@ -567,7 +624,7 @@ export type OrderDetail = {
   /** Open order of today or a later day: it can be edited and cancelled. */
   editable: boolean;
   /** The tour this order is part of, if any. */
-  tour: { tourId: string; stopId: string } | null;
+  tour: OrderTourLink | null;
   /** Attached screenshot with a signed, short-lived read URL (the bucket stays private). */
   screenshot: { id: string; url: string } | null;
 };
@@ -602,7 +659,21 @@ export async function getOrderDetail(
         include: { product: { select: { name: true, unit: true, sku: true } } },
         orderBy: { id: "asc" },
       },
-      stopOrders: { select: { stop: { select: { id: true, tourId: true } } }, take: 1 },
+      stopOrders: {
+        select: {
+          stop: {
+            select: {
+              id: true,
+              tourId: true,
+              status: true,
+              completedAt: true,
+              tour: { select: { id: true, date: true, status: true } },
+            },
+          },
+        },
+        // The link of the planned day wins; a link on another day`s tour is the fallback (D25).
+        take: 1,
+      },
     },
   });
   if (!o) return null;
@@ -627,9 +698,7 @@ export async function getOrderDetail(
       quantity: i.quantity,
     })),
     editable: isOrderEditable(o, today),
-    tour: o.stopOrders[0]
-      ? { tourId: o.stopOrders[0].stop.tourId, stopId: o.stopOrders[0].stop.id }
-      : null,
+    tour: tourLink(o.stopOrders),
     screenshot: o.screenshot
       ? { id: o.screenshot.id, url: await storage.getReadUrl(o.screenshot.storageKey) }
       : null,

@@ -1224,7 +1224,10 @@
           "product_not_found": "Ein Produkt der Bestellung wurde nicht gefunden.",
           "product_inactive": "Ein Produkt der Bestellung ist deaktiviert. Die Kopie ist nicht möglich.",
           "generic": "Aktion fehlgeschlagen. Bitte erneut versuchen."
-        }
+        },
+        "inTourLink": "In dieser Tour ansehen",
+        "wasInTour": "War Teil einer Tour (storniert)",
+        "tourMeta": "Tour vom {date} · Stopp {stop}"
       },
       "inTour": "In Tour",
       "filters": {

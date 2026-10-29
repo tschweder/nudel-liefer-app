@@ -1224,7 +1224,10 @@
           "product_not_found": "A product of the order was not found.",
           "product_inactive": "A product of the order is deactivated. Copying is not possible.",
           "generic": "Action failed. Please try again."
-        }
+        },
+        "inTourLink": "Open in this tour",
+        "wasInTour": "Was part of a tour (cancelled)",
+        "tourMeta": "Tour of {date} · stop {stop}"
       },
       "inTour": "In tour",
       "filters": {

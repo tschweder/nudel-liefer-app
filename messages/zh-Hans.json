@@ -1224,7 +1224,10 @@
           "product_not_found": "订单中的某个产品未找到。",
           "product_inactive": "订单中的某个产品已被停用，无法复制。",
           "generic": "操作失败，请重试。"
-        }
+        },
+        "inTourLink": "在本次路线中查看",
+        "wasInTour": "曾属于一条路线（已取消）",
+        "tourMeta": "{date} 的路线 · 站点 {stop}"
       },
       "inTour": "已编入路线",
       "filters": {

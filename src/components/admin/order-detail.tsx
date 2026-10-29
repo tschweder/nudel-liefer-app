@@ -119,8 +119,29 @@ export function OrderDetailView({
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className="text-sm text-muted-foreground">{td("tourHeading")}</dt>
-          <dd className="text-base" data-testid="detail-tour">
-            {order.tour ? td("inTour") : td("notInTour")}
+          <dd className="text-base" data-testid="detail-tour" data-tour-id={order.tour?.tourId}>
+            {/* NUD-178 (QA 2026-10-29 F6 + F11): one line, one truth — with the tour's own day, the
+                stop's state and a way into it, and "war Teil einer Tour" once the order is cancelled
+                (a cancelled order is history, not a plan). */}
+            {order.tour ? (
+              <>
+                <Link
+                  href={`/admin/tours?date=${order.tour.date}&tour=${order.tour.tourId}`}
+                  className="underline underline-offset-4"
+                  data-testid="detail-tour-link"
+                >
+                  {order.status === "CANCELLED" ? td("wasInTour") : td("inTourLink")}
+                </Link>
+                <span className="block text-sm text-muted-foreground" data-testid="detail-tour-meta">
+                  {td("tourMeta", {
+                    date: fmt.calendarDate(new Date(`${order.tour.date}T00:00:00Z`)),
+                    stop: td(`stopStatus.${order.tour.stopStatus}`),
+                  })}
+                </span>
+              </>
+            ) : (
+              td("notInTour")
+            )}
           </dd>
         </div>
       </dl>

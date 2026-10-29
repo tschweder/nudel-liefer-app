@@ -333,7 +333,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-175 | `/theme.js` in den Service-Worker-Precache | M2.7 | – | todo |
 | NUD-176 | „Rückgängig" erreichbar machen, Toasts nicht mehr über dem Header | M2.7 | – | todo |
 | NUD-177 | Problem-Notiz des Fahrers wieder anzeigen | M2.7 | – | todo |
-| NUD-178 | Bestellung ↔ Tour: ein Lese-Modell statt widersprüchlicher Aussagen | M2.7 | – | todo |
+| NUD-178 | Bestellübersicht und Detail beschreiben die Tour mit einer Regel, der Zähler stimmt | done |
 | NUD-179 | Bestellübersicht startet auf „Heute" | M2.7 | – | todo |
 | NUD-180 | Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit | M2.7 | – | todo |
 | NUD-181 | Parkplatz: Fahrer setzt den Punkt auf der Karte | M2.7 | – | todo |
@@ -3449,7 +3449,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 ---
 
 #### NUD-178 · Bestellung ↔ Tour: ein Lese-Modell statt widersprüchlicher Aussagen
-**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F6 + F11 (§3 F6, F11).
+**Status:** done · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F6 + F11 (§3 F6, F11).
 
 **Goal:** F6 ist **nicht reproduzierbar** — eine je Bestellung angebotene „Tour zuweisen"-Aktion existiert in diesem Stand nicht (der eigene Screenshot 172 des Testers zeigt dieselben drei Knöpfe wie der Stand); der Teil „die Aktion verschwindet" wird deshalb nicht gebaut. Der belegte Rest ist ein Lese-Modell-Problem: `orders.ts` liest `stopOrders[0]` ohne Filter auf Tourdatum, Tourstatus und Bestellstatus, während die Tourenseite nur `CONFIRMED` des eigenen Tages zählt. Für eine Bestellung, die auf einer Tour eines anderen Tages liegt (D25-Fenster), sagt die Bestellung „Diese Bestellung ist Teil einer Tour" und die Tourenseite „wartet auf eine Tour"; storniert bleibt der Satz stehen (F11). Danach gibt es eine Regel, die beide Seiten benutzen.
 
