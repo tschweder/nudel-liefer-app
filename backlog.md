@@ -3565,7 +3565,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] Bestehende Dashboard-Tests und `admin-progress.spec.ts` grün; de/en/zh-Hans.
 
 **Implementation notes (NUD-183)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Raster:** `sm:grid-cols-2 lg:grid-cols-3` statt `sm:grid-cols-2 xl:grid-cols-3` — bei 1024 px stehen die drei Kacheln in einer Reihe, keine leere Zelle mehr.
+- **Keine Division ohne Nenner:** ohne Tour (oder mit einer Tour ohne Stopps) zeigt die Kachel „—" und als Unterzeile den vorhandenen Text „keine Tour" statt „0 / 0 (0 %)".
+- **Beleg:** 1024 px, drei Kacheln in einer Reihe (`web-test/20261029-1520-nud-179-183-187-verifica-e9ca/shots/005-*`). Vorher: zwei Spalten mit leerer Zelle (`web-test/20261029-1315-.../shots/004-*`). Der 0/0-Fall ist im laufenden Datensatz nicht mehr herstellbar (es gibt eine Tour); die Änderung ist die Bedingung selbst.
+- **NICHT geprüft:** kein eigener Test für den 0/0-Fall; `pnpm test:e2e` lief nicht.
 
 ---
 

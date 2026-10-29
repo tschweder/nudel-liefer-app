@@ -100,17 +100,24 @@ function StatTiles({ today, t }: { today: TodayProgress; t: Translate }) {
   return (
     <section
       aria-label={t("admin.dashboard.tiles.title")}
-      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      // NUD-183 (QA 2026-10-29 F18): three tiles need three columns from `lg` on — at 1024 px the
+      // old `sm:grid-cols-2 xl:grid-cols-3` left an empty cell that read like a missing fourth card.
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       {/* "erledigt" (delivered + problems) is the numerator of the percentage the card below shows
           as well — "geliefert" used to leave the tile at "2 / 6 (50 %)" while the card said
-          "3 von 6 Stopps erledigt (50 %)" (round-3 review). */}
+          "3 von 6 Stopps erledigt (50 %)" (round-3 review). NUD-183: a quotient without a base
+          ("0 / 0") is not a number — without a tour (or with a tour of no stops) the tile says so. */}
       <StatTile
         data-testid="stat-delivered"
         label={t("admin.dashboard.tiles.done")}
-        value={`${progress?.done ?? 0} / ${progress?.total ?? 0}`}
+        value={
+          progress && progress.total > 0 ? `${progress.done} / ${progress.total}` : "—"
+        }
         sub={
-          progress ? t("admin.dashboard.today.percent", { percent: progress.percent }) : undefined
+          progress && progress.total > 0
+            ? t("admin.dashboard.today.percent", { percent: progress.percent })
+            : t("admin.dashboard.tiles.noTour")
         }
         icon={CircleCheckIcon}
         tone="success"
