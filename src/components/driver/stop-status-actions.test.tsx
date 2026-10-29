@@ -124,8 +124,9 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
       customerName: "Trattoria Roma",
     });
     await act(async () => finish({ clientMutationId: "m1" }));
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/driver/stops/s2"));
-    expect(mocks.push).toHaveBeenCalledTimes(1);
+    // NUD-176 (QA F1): no automatic jump to the next stop — the result card offers it, and the
+    // undo therefore stays reachable.
+    expect(mocks.push).not.toHaveBeenCalled();
     // Toast with an Undo action; pressing it undoes the stop and goes back to it.
     const [message, options] = mocks.toast.mock.calls[0];
     expect(message).toContain("Trattoria Roma");
@@ -154,13 +155,15 @@ describe.each(Object.keys(LOCALES))("StopStatusActions in %s", (locale) => {
       reason: "NO_PARKING",
       note: "Baustelle",
     });
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/driver/stops/s2"));
+    // NUD-176: reporting a problem stays on the stop as well.
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("goes to the tour screen after the last stop and offers no undo then", async () => {
+  it("stays on the last stop and offers no undo then", async () => {
     renderIn(locale, pendingStop, "RELEASED", { tourStops: tourOf("PENDING", "DELIVERED") });
     fireEvent.click(screen.getByTestId("btn-delivered"));
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/driver"));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalled());
+    expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.toast.mock.calls[0][1].action).toBeUndefined();
   });
 

@@ -564,11 +564,13 @@ describe.skipIf(!process.env.DATABASE_URL)("order overview & editing", { timeout
       expect(await ids({ from: D1, to: D1, customer: otherCustomerId })).toEqual([]);
     });
 
-    it("defaults to the next delivery date and tolerates garbage params", async () => {
+    // NUD-179 (QA 2026-10-29 F12): the overview opens on TODAY; the order form keeps the next
+    // delivery day as its default.
+    it("defaults to today and tolerates garbage params", async () => {
       const { filters } = await orderOverviewQuery({});
       expect(filters.from).toBe(filters.to);
       expect(filters).toMatchObject({ customerId: null, status: null, source: null });
-      expect(filters.from > new Date().toISOString().slice(0, 10)).toBe(true);
+      expect(filters.from <= new Date().toISOString().slice(0, 10)).toBe(true);
       const garbage = await orderOverviewQuery({ from: "x", to: "y", status: "ZZ", source: "ZZ" });
       expect(garbage.filters).toEqual(filters);
     });

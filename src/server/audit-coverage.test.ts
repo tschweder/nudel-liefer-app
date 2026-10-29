@@ -39,6 +39,8 @@ const AUDITED = [
 
 /** Writes that are deliberately not audited, with the reason. */
 const EXEMPT: Record<string, string> = {
+  "server/tour-schedule.ts":
+    "re-anchoring the arrival times (NUD-172): a derived recomputation that always runs inside the audited release / departure / stop-status transaction and writes only `Stop.etaAt` (no business state) — same reasoning as the tour progress below",
   "server/tour-service.ts":
     "outdated flag and automatic tour progress: always part of an audited order / stop change (stop entries carry the tourStatus change)",
   "server/translation-pending.ts":
