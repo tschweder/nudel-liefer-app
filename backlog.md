@@ -326,7 +326,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-168 | 👤 Production map tiles: replace the dev-only OSM default with a provider key | M2.6 | – | blocked |
 | NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | done |
 | NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
-| NUD-171 | Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau | M2.6 | 149, 152 | in-progress |
+| NUD-171 | Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau | M2.6 | 149, 152 | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3244,7 +3244,7 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - [ ] First find out what moves the thumb (`grep` the rendered DOM for the transform), then restructure; take before/after screenshots from the tablet audit.
 
 #### NUD-171 · Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau
-**Status:** in-progress (2026-10-28) · **depends_on:** 149, 152 · owner request 2026-10-28 (screenshot of the dialog: "add more options … like that it repeats multiple times a week"; the multi-weekday part already existed, the rest did not). Decisions were collected in two question rounds with the owner.
+**Status:** done (2026-10-28) · **depends_on:** 149, 152 · owner request 2026-10-28 (screenshot of the dialog: "add more options … like that it repeats multiple times a week"; the multi-weekday part already existed, the rest did not). Decisions were collected in two question rounds with the owner.
 
 **Decided UI (two question rounds, 2026-10-28)**
 1. **Mengen/Produkte je Liefertag** — *Karte je Liefertag*: für jeden gewählten Wochentag ein aufklappbarer Block mit eigenen Produktzeilen, Vorgabe = Basismenge der Regel.
@@ -3265,11 +3265,21 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - `RecurringOrder.skipFrom` / `skipTo` (`DateTime? @db.Date`) — ein zusammenhängender Ausnahmezeitraum zusätzlich zu den einzelnen `exceptions`.
 
 **Acceptance criteria**
-- [ ] Die sechs neuen Regeln (Tages-Override, Monats-Bausteine, Zeitfenster, Befristung, Ausnahmezeitraum, Saison im Dialog) erzeugen genau die erwarteten Bestellungen; Domain- und Integrationstests decken jede einzeln und in Kombination ab.
-- [ ] Der Dialog bietet die oben entschiedene Bedienung inklusive Vorlagen-Chips, Tages-Karten, Kalender-Popover und der Live-Vorschau der nächsten 5 Termine.
-- [ ] Bestehende Regeln (ohne die neuen Felder) verhalten sich unverändert; die Migration ist rein additiv.
-- [ ] de/en/zh-Hans; `pnpm lint`, `typecheck`, `test`, `i18n:check` grün.
+- [x] Die sechs neuen Regeln (Tages-Override, Monats-Bausteine, Zeitfenster, Befristung, Ausnahmezeitraum, Saison im Dialog) erzeugen genau die erwarteten Bestellungen; Domain- und Integrationstests decken jede einzeln und in Kombination ab.
+- [x] Der Dialog bietet die oben entschiedene Bedienung inklusive Vorlagen-Chips, Tages-Karten, Kalender-Popover und der Live-Vorschau der nächsten 5 Termine.
+- [x] Bestehende Regeln (ohne die neuen Felder) verhalten sich unverändert; die Migration ist rein additiv.
+- [x] de/en/zh-Hans; `pnpm lint`, `typecheck`, `test`, `i18n:check` grün.
 
+**Implementation notes (NUD-171)**
+- **Regeln und Generierung** (`src/domain/recurring-order.ts`, `src/server/recurring-orders.ts`): Liefertage sind die **Vereinigung** aus Wochenmuster (`weekdays` + `everyNWeeks` ab dem Montag von `anchorDate`) und Monatsmustern (`monthlyRules`, max. 10, `{"kind":"dayOfMonth","day":1..31}` oder `{"kind":"nthWeekday","nth":1..4|-1,"weekday":1..7}`); `weekdays` darf leer sein, solange mindestens ein Monatsmuster existiert. Alle Schranken gelten für beide Hälften: Ankertag, Saison, einzelne `exceptions`, der zusammenhängende Ausnahmezeitraum (`skipFrom`/`skipTo`, beide Enden inklusiv) und `endsOn` (letzter Liefertag, inklusiv). `dayOfMonth` wird **nicht** geklemmt (der 31. fällt in kurzen Monaten aus), `nthWeekday` nimmt den n-ten bzw. für `-1` den letzten. `maxDeliveries` ist ein Lebenszeit-Budget mit **einer** `order.count({recurringOrderId })` pro Regel und Lauf (stornierte zählen mit), `windowFromTime`/`windowToTime` werden auf jede erzeugte Bestellung kopiert, die Produkte kommen aus `itemsForWeekday` (eigene Zeilen des Wochentags, sonst Basismenge). Regeln ohne die neuen Felder verhalten sich exakt wie unter NUD-149 — durch die alten Integrationstests und einen eigenen Test belegt. Das Audit-Snapshot trägt alle neuen Felder.
+- **Datenbank:** Migration `20261102100000_recurring_order_patterns` — additiv: neue Spalten, CHECKs (Paare, `HH:MM`, `endsOn >= anchorDate`, Budget 1..1000, JSON-Array ≤ 10) plus die **gelockerte** NUD-149-Bedingung `RecurringOrder_weekdays_check`: eine leere Wochentagsliste ist erlaubt, wenn `monthlyRules` gefüllt ist (sonst hätte Postgres jede reine Monatsregel abgelehnt — vom Umsetzer gefunden, bevor es ausgeliefert wurde). Neue Tabelle `RecurringOrderDayItem` (Wochentag, Produkt, Menge, eindeutig je Regel+Wochentag+Produkt, CHECKs, Cascade beim Löschen der Regel).
+- **UI:** `src/components/admin/recurring-rule-form.tsx` (neu) ist das **eine** Formular für beide Einstiegspunkte — den Dialog im Bestellformular (mit der schreibgeschützten Produktliste und dem standardmäßig gesetzten „diesen Tag auslassen") und die Karte auf der Kundenseite (mit bearbeitbarer Basisliste). Entschiedene Bedienung: Vorlagen-Chips (Täglich · Werktags · 2×/Woche · 14-tägig · Monatlich), frei kombinierbare Monats-Chips mit Baukasten und entfernbar, eine aufklappbare Karte je **gewähltem** Wochentag mit eigenen Mengen bzw. „wie Basis", ein aufklappbares „Mehr Optionen" (Zeitfenster, Saison, drei exklusive Befristungen, Kalender-Popover für Einzeltage + einen Urlaubszeitraum) und die Live-Vorschau der nächsten 5 Liefertermine mit Produkten. Validierung und Payload liegen in `ruleInputFromDraft`, die Vorschau nutzt dieselben reinen Domänenfunktionen wie die Generierung (`nextScheduleDates`, `itemsForWeekday`) — kein Server-Endpunkt nötig.
+- **Texte:** neuer Namespace `admin.recurringRule.*` in de/en/zh-Hans plus `admin.customers.recurring.summary.*`; die Labels/Fehler, die dorthin wanderten, wurden aus den zwei alten Namespaces entfernt (eine Quelle für den deutschen Wortlaut). Hinweis: der `data-code` der Fehlermeldung „kein Muster" heißt jetzt `pattern` statt `weekdays`.
+- **Tests:** `recurring-order.test.ts` (Monatsarten inkl. „Monat kürzer als N" und letzter Wochentag, Vereinigung, Schranken, `itemsForWeekday`, 8 Schema-Tests), `recurring-order-patterns.integration.test.ts` (neu, 11 Tests: Altregel unverändert, Tages-Mengen, Vereinigung, reine Monatsregel, Zeitfenster kopiert, `endsOn`, `maxDeliveries` inkl. stornierter Lieferung, Ausnahmezeitraum, Update ersetzt `dayItems` und die Historie bleibt), `order-recurring-dialog.test.tsx` (17) und `recurring-orders-card.test.tsx` (neu, 6) für die UI. Zusammen 71 Tests in den vier Dateien, volle Suite 2674 grün.
+- **Entscheidungen (für §9):** „2×/Woche" = Mo+Do, „14-tägig" = Mo jede zweite Woche; Vorlagen setzen das ganze Muster (Tage + Rhythmus + Monats-Chips) und bleiben frei änderbar; „Monatlich" = keine Wochentage + „jeder 1. des Monats"; Befristungen sind exklusiv (Umschalten leert die andere), ein gewähltes „bis Datum"/„nach N" ohne Wert ist ein Validierungsfehler statt stillschweigend unbefristet; der Kalender rechnet UTC-Mitternacht ↔ lokalen Kalendertag, damit der angetippte Tag in jeder Zeitzone der gespeicherte ist.
+- **NICHT verifiziert:** kein Browser-/Tablet-Blick auf den neuen Dialog (1280 px/768 px), kein Fokus-Durchlauf im Popover-in-Dialog, kein `pnpm test:e2e`. Die e2e-Test-IDs der Dauerbestellungen wurden bewusst beibehalten.
+
+---
 ---
 ---
 ---
@@ -3688,6 +3698,8 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | NUD-168 | Production map tiles: Stadia Maps free tier (keyed, CORS-capable for the tile cache), with MapTiler as the equal alternative; the OSM default stays until a key exists (owner delegation) | The OSM tile server is explicitly development-only, and a key can only be created by a person |
 | 2026-10-28 | NUD-152 | Working time = one `WorkSchedule` row per driver and ISO weekday (minutes since midnight, `active=false` = soft-deleted, no row = not worked); measured from the loading start (checklist timestamp, else `departedAt − Settings.defaultLoadingMinutes`, default 20) to the last completed stop plus the planned drive back; planned = loading time plus `Tour.totalDurationS`; tours across midnight are excluded with a reason instead of being split | Minutes-of-day lets the DB enforce `0 ≤ start < end ≤ 23:59`, and the drive back comes from stored planned data, so actual and planned compare like with like without new timestamps on the tour |
 | 2026-10-28 | NUD-152 | The shift warning never blocks a release, and a driver without a schedule produces no warning | The office must stay able to plan for someone without a contract in the system; a blocking warning would be a hard rule nobody asked for |
+| 2026-10-28 | NUD-171 | Dauerbestellung: Wochen- und Monatsmuster sind eine **Vereinigung** (`weekdays` + `monthlyRules`), `dayOfMonth` wird nicht geklemmt, `nthWeekday` kennt `-1` = letzter; Produkte dürfen je Wochentag abweichen (`RecurringOrderDayItem`, ohne Zeilen gilt die Basismenge) | Kunden bestellen unregelmäßig ("jeden 1. und 15.", "jeden 1. Montag") und in unterschiedlichen Mengen je Tag; ein Vereinigung-Modell deckt beides ohne Sonderfälle in der Generierung ab |
+| 2026-10-28 | NUD-171 | Befristung ist **exklusiv** (unbefristet / bis Datum / nach N Lieferungen), ein leeres Feld bei gewählter Befristung ist ein Validierungsfehler; `maxDeliveries` zählt stornierte Lieferungen mit | Zwei gleichzeitige Endbedingungen wären nicht erklärbar; eine stornierte Lieferung ist trotzdem passiert und soll das Budget nicht wieder freigeben |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

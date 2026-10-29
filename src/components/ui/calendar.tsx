@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 function Calendar({
   className,
   classNames,
+  components,
   showOutsideDays = true,
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
@@ -51,6 +52,8 @@ function Calendar({
           ) : (
             <ChevronRightIcon className={cn("size-5 rtl:rotate-180", chevronClass)} aria-hidden />
           ),
+        // A caller may replace single parts (e.g. `DayButton` to add test ids); the chevron stays.
+        ...components,
       }}
       {...props}
     />

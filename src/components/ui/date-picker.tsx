@@ -11,7 +11,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const DAY_PICKER_LOCALES: Record<string, DayPickerLocale> = {
+/** react-day-picker locale per UI locale (shared with other calendars, e.g. the rule form). */
+export const DAY_PICKER_LOCALES: Record<string, DayPickerLocale> = {
   de,
   en: enGB,
   "sr-Latn": srLatn,

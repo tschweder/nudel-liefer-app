@@ -782,36 +782,127 @@
           "newTitle": "Neue Dauerbestellung",
           "editTitle": "Dauerbestellung bearbeiten",
           "hint": "Einmal bestätigen: Das System legt die Bestellungen danach automatisch im Voraus an (Einstellungen, Planung).",
-          "weekdays": "Liefertage",
-          "every": "Rhythmus in Wochen",
-          "everyHint": "1 = jede Woche, 2 = jede zweite Woche, …",
-          "anchor": "Beginnt am",
-          "anchorHint": "Die Woche dieses Datums ist der Start des Rhythmus.",
-          "season": "Saison",
-          "seasonOnly": "Nur in einer Saison liefern",
-          "seasonTo": "bis",
-          "seasonHint": "Außerhalb der Saison, zum Beispiel im Sommer, wird nichts angelegt. September bis Mai ist möglich.",
-          "month": "Monat",
-          "day": "Tag",
-          "exceptions": "Ausnahmen",
-          "exceptionsHint": "An diesen Tagen wird nicht geliefert.",
-          "products": "Produkte",
-          "product": "Produkt",
-          "productPlaceholder": "Produkt wählen",
-          "quantity": "Menge",
-          "addProduct": "Produkt hinzufügen",
           "editNote": "Bereits angelegte Bestellungen bleiben unverändert. Die Änderung gilt für Tage ohne Bestellung.",
           "saving": "Wird gespeichert …",
           "confirm": "Bestätigen und speichern"
         },
-        "errors": {
-          "weekdays": "Bitte mindestens einen Liefertag wählen.",
-          "every": "Der Rhythmus muss zwischen 1 und {max} Wochen liegen.",
-          "anchor": "Bitte ein gültiges Startdatum wählen.",
-          "lines": "Bitte bei jedem Produkt eine ganze Menge ab 1 angeben.",
-          "customerInactive": "Der Kunde ist archiviert.",
-          "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+        "summary": {
+          "monthly": "Monatsmuster: {rules}",
+          "window": "Lieferzeitraum {from}–{to}",
+          "endDate": "bis {date}",
+          "endCount": "nach {count} Lieferungen",
+          "skip": "Urlaub {from} bis {to}",
+          "dayItems": "Eigene Mengen am {days}"
         }
+      }
+    },
+    "recurringRule": {
+      "presets": {
+        "label": "Vorlagen",
+        "hint": "Ein Klick setzt Tage und Rhythmus. Danach ist alles frei änderbar.",
+        "daily": "Täglich",
+        "weekdays": "Werktags",
+        "twice": "2×/Woche",
+        "biweekly": "14-tägig",
+        "monthly": "Monatlich"
+      },
+      "weekdays": "Liefertage",
+      "rhythm": "Rhythmus in Wochen",
+      "rhythmHint": "1 = jede Woche, 2 = jede zweite Woche, …",
+      "anchor": "Beginnt am",
+      "anchorHint": "Die Woche dieses Datums ist der Start des Rhythmus.",
+      "monthly": {
+        "label": "Monatsmuster",
+        "hint": "Zusätzlich zum Wochenmuster. Die Liefertage sind die Vereinigung aller Muster.",
+        "dayOfMonth": "jeder {day}. des Monats",
+        "nthWeekday": "jeder {n}. {weekday}",
+        "lastWeekday": "letzter {weekday}",
+        "kind": "Muster",
+        "kindDayOfMonth": "Tag des Monats",
+        "kindNthWeekday": "Wochentag im Monat",
+        "nth": "Wiederholung",
+        "nthLast": "der letzte",
+        "weekday": "Wochentag",
+        "day": "Tag",
+        "add": "Monatsregel hinzufügen",
+        "remove": "Monatsregel entfernen",
+        "limit": "Höchstens {max} Monatsmuster."
+      },
+      "dayItems": {
+        "label": "Mengen je Liefertag",
+        "hint": "Ohne eigene Mengen gilt die Basismenge der Regel.",
+        "likeBase": "wie Basis",
+        "own": "eigene Mengen",
+        "ownCount": "{count, plural, =0 {keine eigene Zeile} one {# eigene Zeile} other {# eigene Zeilen}}",
+        "reset": "wie Basis verwenden",
+        "forDay": "Mengen für {weekday}",
+        "add": "Produkt hinzufügen"
+      },
+      "moreOptions": "Mehr Optionen",
+      "moreOptionsHint": "Lieferzeitraum, Saison, Befristung und Ausnahmen.",
+      "window": {
+        "label": "Lieferzeitraum",
+        "from": "von",
+        "to": "bis",
+        "hint": "Leer = ganztags. Der Zeitraum wird auf jede erzeugte Bestellung übernommen."
+      },
+      "season": {
+        "label": "Saison",
+        "only": "Nur in einer Saison liefern",
+        "from": "von",
+        "to": "bis",
+        "month": "Monat",
+        "day": "Tag",
+        "hint": "Außerhalb der Saison wird nichts angelegt."
+      },
+      "end": {
+        "label": "Befristung",
+        "open": "Unbefristet",
+        "date": "Bis Datum",
+        "count": "Nach N Lieferungen",
+        "endsOn": "Letzter Liefertag",
+        "maxDeliveries": "Anzahl Lieferungen",
+        "countHint": "Danach werden keine Bestellungen mehr angelegt.",
+        "max": "Höchstens {max} Lieferungen."
+      },
+      "exceptions": {
+        "label": "Ausnahmen",
+        "hint": "Einzelne Tage im Kalender antippen; für Urlaub einen zusammenhängenden Zeitraum wählen.",
+        "open": "Kalender öffnen",
+        "range": "Urlaubszeitraum",
+        "from": "von",
+        "to": "bis",
+        "clearRange": "Zeitraum entfernen",
+        "remove": "Ausnahme entfernen",
+        "none": "Keine Ausnahmen",
+        "skip": "{from} bis {to}"
+      },
+      "preview": {
+        "label": "Vorschau",
+        "hint": "Die nächsten 5 Liefertermine mit den Mengen dieses Musters.",
+        "date": "Datum",
+        "products": "Produkte",
+        "empty": "Noch kein Liefertermin. Muster oder Startdatum prüfen."
+      },
+      "products": {
+        "label": "Produkte",
+        "product": "Produkt",
+        "productPlaceholder": "Produkt wählen",
+        "quantity": "Menge",
+        "add": "Produkt hinzufügen",
+        "remove": "Zeile entfernen"
+      },
+      "errors": {
+        "pattern": "Bitte mindestens einen Liefertag oder ein Monatsmuster wählen.",
+        "every": "Der Rhythmus muss zwischen 1 und {max} Wochen liegen.",
+        "anchor": "Bitte ein gültiges Startdatum wählen.",
+        "lines": "Bitte bei jedem Produkt eine ganze Menge ab 1 angeben.",
+        "window": "Bitte von und bis angeben; „von“ muss vor „bis“ liegen.",
+        "endsOn": "Bitte ein gültiges Enddatum ab dem Startdatum wählen.",
+        "maxDeliveries": "Bitte eine Anzahl zwischen 1 und {max} angeben.",
+        "skip": "Bitte von und bis angeben; „von“ darf nicht nach „bis“ liegen.",
+        "customerInactive": "Der Kunde ist archiviert.",
+        "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen."
       }
     },
     "products": {
@@ -1045,23 +1136,11 @@
           "hint": "Wiederholt diese Produkte für {customer} automatisch. Produkte und Mengen kommen aus dem Formular.",
           "products": "Diese Produkte wiederholen sich",
           "productsHint": "Zum Ändern die Produkte oben im Formular anpassen und die Dauerbestellung neu öffnen.",
-          "weekdays": "Liefertage",
-          "every": "Rhythmus in Wochen",
-          "everyHint": "1 = jede Woche, 2 = jede zweite Woche, …",
-          "anchor": "Beginnt am",
-          "anchorHint": "Die Woche dieses Datums ist der Start des Rhythmus.",
           "skipDay": "{date} auslassen (diese Bestellung erfasse ich selbst)",
           "skipDayHint": "Sonst legt die Dauerbestellung für denselben Tag eine zweite Bestellung an und die Menge käme doppelt beim Kunden an.",
           "created": "{count, plural, =0 {Dauerbestellung angelegt.} one {Dauerbestellung angelegt. # Bestellung sofort erzeugt.} other {Dauerbestellung angelegt. # Bestellungen sofort erzeugt.}}",
           "confirm": "Dauerbestellung anlegen",
-          "saving": "Wird angelegt …",
-          "errors": {
-            "weekdays": "Bitte mindestens einen Liefertag wählen.",
-            "every": "Der Rhythmus muss zwischen 1 und {max} Wochen liegen.",
-            "anchor": "Bitte ein gültiges Startdatum wählen.",
-            "customerInactive": "Der Kunde ist archiviert und kann keine Dauerbestellung bekommen.",
-            "generic": "Anlegen fehlgeschlagen. Bitte erneut versuchen."
-          }
+          "saving": "Wird angelegt …"
         },
         "warningCombined": "{count, plural, one {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellung} other {Dieser Kunde hat an diesem Tag schon # bestätigte Bestellungen}}. Alle Bestellungen werden zu einem Stopp zusammengefasst.",
         "warningTourCompleted": "Die Tour für den {date} ist schon abgeschlossen. Wird diese Bestellung bestätigt, braucht sie eine Folgetour.",

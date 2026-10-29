@@ -1,10 +1,18 @@
 "use client";
 
 import { RepeatIcon } from "lucide-react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import {
+  newRuleDraft,
+  type RecurringRuleDraft,
+  RecurringRuleForm,
+  type RuleFormError,
+  ruleInputFromDraft,
+  useRuleErrorText,
+} from "@/components/admin/recurring-rule-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,14 +23,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
 import { parseCalendarDate } from "@/domain/order";
-import { MAX_EVERY_N_WEEKS } from "@/domain/recurring-order";
-import { ISO_WEEKDAYS, isoWeekday } from "@/domain/settings";
+import { isoWeekday } from "@/domain/settings";
 import { useRouter } from "@/i18n/navigation";
 import { createAppFormatters } from "@/lib/format";
-import type { AppLocale } from "@/lib/localized-text";
 import { createRecurringOrderAction } from "@/server/recurring-actions";
 
 /** One product line of the order as the rule takes it over (quantity already parsed). */
@@ -34,7 +38,7 @@ export type RecurringDialogLine = {
   unit: "KG" | "PACK" | "CRATE" | "PIECE";
 };
 
-type FormError = "weekdays" | "every" | "anchor" | "customerInactive" | "generic" | null;
+type FormError = RuleFormError | "customerInactive" | "generic" | null;
 
 /**
  * Turns the order the office is just taking into a recurring order (NUD-166, D25/NUD-149). The
@@ -42,6 +46,9 @@ type FormError = "weekdays" | "every" | "anchor" | "customerInactive" | "generic
  * asks for the schedule alone. The delivery day of the order that is being entered is left out by
  * default: otherwise the manual order and the rule would both produce an order for that day, and
  * the stop would carry the quantities twice (all confirmed orders of a customer are merged).
+ *
+ * The schedule fields themselves are the shared `RecurringRuleForm` (NUD-171), the same form the
+ * customer page uses, so the two entry points cannot drift apart.
  */
 export function OrderRecurringDialog({
   customerId,
@@ -64,46 +71,41 @@ export function OrderRecurringDialog({
   const t = useTranslations("admin.orders.form.recurring");
   const tc = useTranslations("common");
   const tu = useTranslations("driver.units");
-  const locale = useLocale() as AppLocale;
+  const errorText = useRuleErrorText();
   const fmt = createAppFormatters(useFormatter());
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [weekdays, setWeekdays] = useState<number[]>(() => {
+  const [draft, setDraft] = useState<RecurringRuleDraft>(() => {
     const start = parseCalendarDate(startDate);
-    return [start ? isoWeekday(start) : 1];
+    return newRuleDraft({
+      startDate,
+      weekdays: [start ? isoWeekday(start) : 1],
+      lines: lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+    });
   });
-  const [everyNWeeks, setEveryNWeeks] = useState("1");
-  const [anchorDate, setAnchorDate] = useState(startDate);
   const [skipOrderDay, setSkipOrderDay] = useState(skipDate !== null);
   const [error, setError] = useState<FormError>(null);
 
-  const weekdayName = (day: number) =>
-    new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" }).format(
-      new Date(Date.UTC(2026, 0, 4 + day)), // 2026-01-05 is a Monday
-    );
   const skipText = skipDate ? fmt.calendarDate(parseCalendarDate(skipDate) ?? new Date(0)) : "";
+  // Day-specific quantities can use the products of the order the rule is built from.
+  const products = lines.map((line) => ({
+    id: line.productId,
+    label: line.label,
+    unit: line.unit,
+  }));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const every = Number(everyNWeeks);
-    if (weekdays.length === 0) return setError("weekdays");
-    if (!Number.isInteger(every) || every < 1 || every > MAX_EVERY_N_WEEKS)
-      return setError("every");
-    if (!parseCalendarDate(anchorDate)) return setError("anchor");
+    const built = ruleInputFromDraft(draft, {
+      customerId,
+      extraExceptions: skipOrderDay && skipDate ? [skipDate] : [],
+    });
+    if (!built.ok) return setError(built.error);
     setError(null);
     startTransition(async () => {
       let result;
       try {
-        result = await createRecurringOrderAction({
-          customerId,
-          weekdays,
-          everyNWeeks: every,
-          anchorDate,
-          seasonFrom: null,
-          seasonTo: null,
-          exceptions: skipOrderDay && skipDate ? [skipDate] : [],
-          lines: lines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-        });
+        result = await createRecurringOrderAction(built.input);
       } catch {
         return setError("generic");
       }
@@ -116,17 +118,9 @@ export function OrderRecurringDialog({
     });
   }
 
-  const errorText: Record<Exclude<FormError, null>, string> = {
-    weekdays: t("errors.weekdays"),
-    every: t("errors.every", { max: MAX_EVERY_N_WEEKS }),
-    anchor: t("errors.anchor"),
-    customerInactive: t("errors.customerInactive"),
-    generic: t("errors.generic"),
-  };
-
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-xl" data-testid="order-recurring-dialog">
+      <DialogContent className="sm:max-w-2xl" data-testid="order-recurring-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RepeatIcon className="size-5" aria-hidden />
@@ -147,63 +141,6 @@ export function OrderRecurringDialog({
             <p className="text-sm text-muted-foreground">{t("productsHint")}</p>
           </div>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-base font-medium">{t("weekdays")}</legend>
-            <div className="flex flex-wrap gap-x-5 gap-y-2" data-testid="order-recurring-weekdays">
-              {ISO_WEEKDAYS.map((day) => (
-                <label key={day} className="flex items-center gap-2 text-base">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
-                    checked={weekdays.includes(day)}
-                    onChange={(e) =>
-                      setWeekdays(
-                        e.target.checked
-                          ? [...weekdays, day].sort((a, b) => a - b)
-                          : weekdays.filter((d) => d !== day),
-                      )
-                    }
-                    data-testid={`order-recurring-weekday-${day}`}
-                  />
-                  {weekdayName(day)}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              label={t("every")}
-              htmlFor="order-recurring-every"
-              description={t("everyHint")}
-            >
-              <Input
-                id="order-recurring-every"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={MAX_EVERY_N_WEEKS}
-                step={1}
-                value={everyNWeeks}
-                onChange={(e) => setEveryNWeeks(e.target.value)}
-                data-testid="order-recurring-every"
-              />
-            </FormField>
-            <FormField
-              label={t("anchor")}
-              htmlFor="order-recurring-anchor"
-              description={t("anchorHint")}
-            >
-              <Input
-                id="order-recurring-anchor"
-                type="date"
-                value={anchorDate}
-                onChange={(e) => setAnchorDate(e.target.value)}
-                data-testid="order-recurring-anchor"
-              />
-            </FormField>
-          </div>
-
           {skipDate ? (
             <div className="flex flex-col gap-1">
               <label className="flex items-start gap-2 text-base">
@@ -220,9 +157,19 @@ export function OrderRecurringDialog({
             </div>
           ) : null}
 
+          <RecurringRuleForm
+            key="order-recurring-rule"
+            draft={draft}
+            onChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+            products={products}
+            prefix="order-recurring"
+            startOn={startDate}
+            baseLines="readonly"
+          />
+
           {error ? (
             <Alert variant="destructive" data-testid="order-recurring-error" data-code={error}>
-              <AlertDescription>{errorText[error]}</AlertDescription>
+              <AlertDescription>{errorText(error)}</AlertDescription>
             </Alert>
           ) : null}
 

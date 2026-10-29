@@ -782,36 +782,127 @@
           "newTitle": "New standing order",
           "editTitle": "Edit standing order",
           "hint": "Confirm once: the system then creates the orders automatically ahead of time (Settings, Planning).",
-          "weekdays": "Delivery days",
-          "every": "Interval in weeks",
-          "everyHint": "1 = every week, 2 = every second week, …",
-          "anchor": "Starts on",
-          "anchorHint": "The week of this date is the start of the interval.",
-          "season": "Season",
-          "seasonOnly": "Deliver in a season only",
-          "seasonTo": "to",
-          "seasonHint": "Nothing is created outside the season, for example in summer. September to May is possible.",
-          "month": "Month",
-          "day": "Day",
-          "exceptions": "Exceptions",
-          "exceptionsHint": "No delivery on these days.",
-          "products": "Products",
-          "product": "Product",
-          "productPlaceholder": "Choose a product",
-          "quantity": "Quantity",
-          "addProduct": "Add product",
           "editNote": "Orders that were already created stay unchanged. The change applies to days without an order.",
           "saving": "Saving …",
           "confirm": "Confirm and save"
         },
-        "errors": {
-          "weekdays": "Please choose at least one delivery day.",
-          "every": "The interval must be between 1 and {max} weeks.",
-          "anchor": "Please choose a valid start date.",
-          "lines": "Please enter a whole quantity of 1 or more for every product.",
-          "customerInactive": "The customer is archived.",
-          "generic": "Saving failed. Please try again."
+        "summary": {
+          "monthly": "Monthly patterns: {rules}",
+          "window": "Delivery window {from}–{to}",
+          "endDate": "until {date}",
+          "endCount": "after {count} deliveries",
+          "skip": "Holiday {from} to {to}",
+          "dayItems": "Own quantities on {days}"
         }
+      }
+    },
+    "recurringRule": {
+      "presets": {
+        "label": "Presets",
+        "hint": "One click sets the days and the rhythm. Everything stays editable afterwards.",
+        "daily": "Daily",
+        "weekdays": "Weekdays",
+        "twice": "Twice a week",
+        "biweekly": "Every 2 weeks",
+        "monthly": "Monthly"
+      },
+      "weekdays": "Delivery days",
+      "rhythm": "Rhythm in weeks",
+      "rhythmHint": "1 = every week, 2 = every second week, …",
+      "anchor": "Starts on",
+      "anchorHint": "The week of this date starts the rhythm.",
+      "monthly": {
+        "label": "Monthly patterns",
+        "hint": "In addition to the weekly pattern. Delivery days are the union of all patterns.",
+        "dayOfMonth": "day {day} of every month",
+        "nthWeekday": "{n, select, 1 {first} 2 {second} 3 {third} 4 {fourth} other {last}} {weekday} of every month",
+        "lastWeekday": "last {weekday} of every month",
+        "kind": "Pattern",
+        "kindDayOfMonth": "Day of the month",
+        "kindNthWeekday": "Weekday of the month",
+        "nth": "Occurrence",
+        "nthLast": "the last one",
+        "weekday": "Weekday",
+        "day": "Day",
+        "add": "Add monthly rule",
+        "remove": "Remove monthly rule",
+        "limit": "At most {max} monthly patterns."
+      },
+      "dayItems": {
+        "label": "Quantities per delivery day",
+        "hint": "A day without its own rows uses the base list of the rule.",
+        "likeBase": "same as base",
+        "own": "own quantities",
+        "ownCount": "{count, plural, =0 {no own row} one {# own row} other {# own rows}}",
+        "reset": "use the base list",
+        "forDay": "Quantities for {weekday}",
+        "add": "Add product"
+      },
+      "moreOptions": "More options",
+      "moreOptionsHint": "Delivery window, season, end condition and exceptions.",
+      "window": {
+        "label": "Delivery window",
+        "from": "from",
+        "to": "to",
+        "hint": "Empty = all day. The window is copied onto every generated order."
+      },
+      "season": {
+        "label": "Season",
+        "only": "Deliver only during a season",
+        "from": "from",
+        "to": "to",
+        "month": "Month",
+        "day": "Day",
+        "hint": "Nothing is created outside the season."
+      },
+      "end": {
+        "label": "End condition",
+        "open": "Open-ended",
+        "date": "Until a date",
+        "count": "After N deliveries",
+        "endsOn": "Last delivery day",
+        "maxDeliveries": "Number of deliveries",
+        "countHint": "No orders are created after that.",
+        "max": "At most {max} deliveries."
+      },
+      "exceptions": {
+        "label": "Exceptions",
+        "hint": "Tap single days in the calendar; for a holiday pick one connected range.",
+        "open": "Open calendar",
+        "range": "Holiday range",
+        "from": "from",
+        "to": "to",
+        "clearRange": "Remove range",
+        "remove": "Remove exception",
+        "none": "No exceptions",
+        "skip": "{from} to {to}"
+      },
+      "preview": {
+        "label": "Preview",
+        "hint": "The next 5 delivery dates with the quantities of this pattern.",
+        "date": "Date",
+        "products": "Products",
+        "empty": "No delivery date yet. Check the pattern or the start date."
+      },
+      "products": {
+        "label": "Products",
+        "product": "Product",
+        "productPlaceholder": "Choose product",
+        "quantity": "Quantity",
+        "add": "Add product",
+        "remove": "Remove row"
+      },
+      "errors": {
+        "pattern": "Please choose at least one delivery day or a monthly pattern.",
+        "every": "The rhythm must be between 1 and {max} weeks.",
+        "anchor": "Please choose a valid start date.",
+        "lines": "Please enter a whole quantity of at least 1 for every product.",
+        "window": "Please enter both from and to; “from” must be before “to”.",
+        "endsOn": "Please choose a valid end date on or after the start date.",
+        "maxDeliveries": "Please enter a number between 1 and {max}.",
+        "skip": "Please enter both from and to; “from” must not be after “to”.",
+        "customerInactive": "The customer is archived.",
+        "generic": "Saving failed. Please try again."
       }
     },
     "products": {
@@ -1045,23 +1136,11 @@
           "hint": "Repeats these products for {customer} automatically. Products and quantities come from the form.",
           "products": "These products repeat",
           "productsHint": "To change them, edit the products in the form above and open the recurring order again.",
-          "weekdays": "Delivery days",
-          "every": "Rhythm in weeks",
-          "everyHint": "1 = every week, 2 = every second week, …",
-          "anchor": "Starts on",
-          "anchorHint": "The week of this date starts the rhythm.",
           "skipDay": "Skip {date} (I take this order myself)",
           "skipDayHint": "Otherwise the recurring order adds a second order for the same day and the customer would receive the quantity twice.",
           "created": "{count, plural, =0 {Recurring order created.} one {Recurring order created. # order generated right away.} other {Recurring order created. # orders generated right away.}}",
           "confirm": "Create recurring order",
-          "saving": "Creating …",
-          "errors": {
-            "weekdays": "Choose at least one delivery day.",
-            "every": "The rhythm must be between 1 and {max} weeks.",
-            "anchor": "Choose a valid start date.",
-            "customerInactive": "The customer is archived and cannot get a recurring order.",
-            "generic": "Could not create it. Please try again."
-          }
+          "saving": "Creating …"
         },
         "warningCombined": "{count, plural, one {This customer already has # confirmed order on this day} other {This customer already has # confirmed orders on this day}}. All orders are combined into one stop.",
         "warningTourCompleted": "The tour for {date} is already completed. If this order is confirmed, it needs a follow-up tour.",

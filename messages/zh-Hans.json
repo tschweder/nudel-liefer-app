@@ -782,36 +782,127 @@
           "newTitle": "新建长期订单",
           "editTitle": "编辑长期订单",
           "hint": "只需确认一次：之后系统会提前自动生成订单（设置，计划）。",
-          "weekdays": "送货日",
-          "every": "间隔（周）",
-          "everyHint": "1 = 每周，2 = 每两周，…",
-          "anchor": "开始日期",
-          "anchorHint": "该日期所在的一周是间隔周期的起点。",
-          "season": "季节",
-          "seasonOnly": "仅在某个季节送货",
-          "seasonTo": "至",
-          "seasonHint": "季节之外（例如夏季）不会生成订单。可以设置为九月至五月。",
-          "month": "月",
-          "day": "日",
-          "exceptions": "例外日期",
-          "exceptionsHint": "这些日期不送货。",
-          "products": "产品",
-          "product": "产品",
-          "productPlaceholder": "选择产品",
-          "quantity": "数量",
-          "addProduct": "添加产品",
           "editNote": "已生成的订单保持不变。修改只对尚无订单的日期生效。",
           "saving": "正在保存…",
           "confirm": "确认并保存"
         },
-        "errors": {
-          "weekdays": "请至少选择一个送货日。",
-          "every": "间隔必须在 1 到 {max} 周之间。",
-          "anchor": "请选择有效的开始日期。",
-          "lines": "请为每个产品填写不小于 1 的整数数量。",
-          "customerInactive": "该客户已归档。",
-          "generic": "保存失败，请重试。"
+        "summary": {
+          "monthly": "每月模式：{rules}",
+          "window": "送货时间段 {from}–{to}",
+          "endDate": "截至 {date}",
+          "endCount": "共 {count} 次送货",
+          "skip": "休假 {from} 至 {to}",
+          "dayItems": "{days} 有单独数量"
         }
+      }
+    },
+    "recurringRule": {
+      "presets": {
+        "label": "模板",
+        "hint": "一键设置星期和节奏，之后仍可随意修改。",
+        "daily": "每天",
+        "weekdays": "工作日",
+        "twice": "每周 2 次",
+        "biweekly": "每 2 周",
+        "monthly": "每月"
+      },
+      "weekdays": "送货日",
+      "rhythm": "节奏（周）",
+      "rhythmHint": "1 = 每周，2 = 每两周，…",
+      "anchor": "开始日期",
+      "anchorHint": "这一周是节奏的起点。",
+      "monthly": {
+        "label": "每月模式",
+        "hint": "在每周模式之外添加。送货日是全部模式的并集。",
+        "dayOfMonth": "每月 {day} 日",
+        "nthWeekday": "每月第 {n} 个{weekday}",
+        "lastWeekday": "每月最后一个{weekday}",
+        "kind": "模式",
+        "kindDayOfMonth": "每月日期",
+        "kindNthWeekday": "每月第几个星期几",
+        "nth": "第几个",
+        "nthLast": "最后一个",
+        "weekday": "星期",
+        "day": "日期",
+        "add": "添加每月规则",
+        "remove": "删除每月规则",
+        "limit": "最多 {max} 个每月模式。"
+      },
+      "dayItems": {
+        "label": "每个送货日的数量",
+        "hint": "没有单独设置时使用规则的基础数量。",
+        "likeBase": "同基础",
+        "own": "单独数量",
+        "ownCount": "{count, plural, =0 {没有单独行} other {# 行单独数量}}",
+        "reset": "使用基础数量",
+        "forDay": "{weekday}的数量",
+        "add": "添加产品"
+      },
+      "moreOptions": "更多选项",
+      "moreOptionsHint": "送货时间段、季节、期限和例外。",
+      "window": {
+        "label": "送货时间段",
+        "from": "从",
+        "to": "到",
+        "hint": "留空 = 全天。该时间段会写入每个生成的订单。"
+      },
+      "season": {
+        "label": "季节",
+        "only": "仅在季节内送货",
+        "from": "从",
+        "to": "到",
+        "month": "月",
+        "day": "日",
+        "hint": "季节之外不会生成订单。"
+      },
+      "end": {
+        "label": "期限",
+        "open": "无期限",
+        "date": "截至日期",
+        "count": "按送货次数",
+        "endsOn": "最后一个送货日",
+        "maxDeliveries": "送货次数",
+        "countHint": "之后不再生成订单。",
+        "max": "最多 {max} 次送货。"
+      },
+      "exceptions": {
+        "label": "例外",
+        "hint": "在日历中点选单日；休假请选择一个连续时间段。",
+        "open": "打开日历",
+        "range": "休假期",
+        "from": "从",
+        "to": "到",
+        "clearRange": "删除时间段",
+        "remove": "删除例外",
+        "none": "没有例外",
+        "skip": "{from} 至 {to}"
+      },
+      "preview": {
+        "label": "预览",
+        "hint": "该模式接下来的 5 个送货日期和数量。",
+        "date": "日期",
+        "products": "产品",
+        "empty": "还没有送货日期。请检查模式或开始日期。"
+      },
+      "products": {
+        "label": "产品",
+        "product": "产品",
+        "productPlaceholder": "选择产品",
+        "quantity": "数量",
+        "add": "添加产品",
+        "remove": "删除该行"
+      },
+      "errors": {
+        "pattern": "请至少选择一个送货日或一个月模式。",
+        "every": "节奏必须在 1 到 {max} 周之间。",
+        "anchor": "请选择有效的开始日期。",
+        "lines": "请为每个产品填写至少 1 的整数数量。",
+        "window": "请填写“从”和“到”，“从”必须早于“到”。",
+        "endsOn": "请选择不早于开始日期的有效结束日期。",
+        "maxDeliveries": "请填写 1 到 {max} 之间的次数。",
+        "skip": "请填写“从”和“到”，“从”不能晚于“到”。",
+        "customerInactive": "客户已归档。",
+        "generic": "保存失败，请重试。"
       }
     },
     "products": {
@@ -1045,23 +1136,11 @@
           "hint": "为 {customer} 自动重复这些产品。产品和数量取自表单。",
           "products": "重复的产品",
           "productsHint": "如需修改，请先在上方表单中调整产品，再重新打开定期订单。",
-          "weekdays": "送货日",
-          "every": "间隔（周）",
-          "everyHint": "1 = 每周，2 = 每两周，……",
-          "anchor": "开始于",
-          "anchorHint": "该日期所在的一周是周期的开始。",
           "skipDay": "跳过 {date}（这一天我另外录入）",
           "skipDayHint": "否则定期订单会在同一天再生成一个订单，客户会收到双倍数量。",
           "created": "{count, plural, =0 {定期订单已创建。} other {定期订单已创建，已立即生成 # 个订单。}}",
           "confirm": "创建定期订单",
-          "saving": "正在创建……",
-          "errors": {
-            "weekdays": "请至少选择一个送货日。",
-            "every": "间隔必须在 1 到 {max} 周之间。",
-            "anchor": "请选择有效的开始日期。",
-            "customerInactive": "该客户已归档，无法创建定期订单。",
-            "generic": "创建失败，请重试。"
-          }
+          "saving": "正在创建……"
         },
         "warningCombined": "该客户在这一天已有 {count} 个已确认订单，所有订单将合并为一个停靠点。",
         "warningTourCompleted": "{date} 的配送路线已完成。如果确认此订单，需要安排补充路线。",
