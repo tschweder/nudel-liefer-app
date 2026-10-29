@@ -142,7 +142,7 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     await expect(tid(page, "section-title")).toHaveText("Bestellungen");
     // Von/Bis only show under "Benutzerdefiniert" (re-design.md §8.3) but stay in the DOM, so the
     // default range is read from the hidden inputs and the "Nächster Liefertag" quick pick is on.
-    await expect(tid(page, "quick-next")).toHaveAttribute("aria-checked", "true");
+    await expect(tid(page, "quick-today")).toHaveAttribute("aria-checked", "true");
     const fromInput = page.locator('[data-testid="filter-from"]');
     const toInput = page.locator('[data-testid="filter-to"]');
     const from = await fromInput.inputValue();
@@ -218,7 +218,7 @@ test("order overview: default date, filters, totals per date, in-tour badge", as
     // Reset returns to the default day.
     await tid(page, "filter-reset").click();
     await expect(fromInput).toHaveValue(from);
-    await expect(tid(page, "quick-next")).toHaveAttribute("aria-checked", "true");
+    await expect(tid(page, "quick-today")).toHaveAttribute("aria-checked", "true");
     // Status and Quelle are segmented radio groups now (re-design.md §8.3): aria-checked.
     await expect(tid(page, "filter-status-ALL")).toHaveAttribute("aria-checked", "true");
   } finally {

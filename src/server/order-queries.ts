@@ -11,7 +11,7 @@ import {
   listOrderOverview,
   todayIn,
 } from "./orders";
-import { getDefaultDeliveryDate, getFactoryTimezone } from "./settings";
+import { getFactoryTimezone } from "./settings";
 import { getStorage } from "./storage";
 
 /** Admin-only reads for the order pages; each re-checks the role against the database first. */
@@ -36,7 +36,12 @@ export async function orderOverviewQuery(
   customers: Awaited<ReturnType<typeof listCustomersForFilter>>;
 }> {
   await requireRole("ADMIN");
-  const filters = parseOrderFilters(params, await getDefaultDeliveryDate());
+  // NUD-179 (QA 2026-10-29 F12): the overview opens on TODAY. The next delivery day is computed by
+  // getDefaultDeliveryDate and never yields the current day (with Mon-Thu delivery days a Thursday
+  // jumps to Monday), so a clerk's first look was an empty list while today's orders sat there. The
+  // order FORM keeps the next delivery day as its default.
+  const timezone = await getFactoryTimezone();
+  const filters = parseOrderFilters(params, todayIn(timezone));
   const db = getDb();
   const [overview, totals, customers] = await Promise.all([
     listOrderOverview(db, filters),

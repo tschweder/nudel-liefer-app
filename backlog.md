@@ -3483,7 +3483,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-179)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Default der Übersicht statt des Formulars:** `order-queries.ts` nimmt jetzt `todayIn(getFactoryTimezone())` als Standarddatum, nicht mehr `getDefaultDeliveryDate()` (das nie den heutigen Tag liefert: mit Lieferwochentagen Mo–Do springt ein Donnerstag auf Montag). Das Bestellformular und „Neue Bestellung" bleiben auf dem nächsten Liefertag.
+- **Chip-Logik unverändert:** die Seite gibt dem Filter weiterhin `defaultDate` (nächster Liefertag) und `today` mit, deshalb ist „Heute" jetzt der aktive Chip und „Nächster Liefertag" bleibt ein Klick.
+- **Beleg:** `/admin/orders` öffnet auf „Liefertag 29.10.2026 · 20 Bestellungen", Chip „Heute" aktiv (`web-test/20261029-1520-nud-179-183-187-verifica-e9ca/shots/008-*`). Vorher: „Nächster Liefertag" (02.11.), eine Bestellung (`web-test/20261029-1315-.../shots/006-*`).
+- **e2e angepasst:** `tests/e2e/order-overview.spec.ts` erwartet an beiden Stellen `quick-today` statt `quick-next`. `pnpm test:e2e` lief in dieser Sitzung **nicht**.
 
 ---
 
