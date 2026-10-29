@@ -125,11 +125,25 @@ function LanguagePills({ callbackUrl }: { callbackUrl?: string }) {
 function DriverLoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const t = useTranslations("auth");
   const locale = useLocale();
+  // NUD-184 (QA 2026-10-29 F19): both fields are controlled, so a failed attempt has ONE rule:
+  // everything is cleared. Uncontrolled, React reset the username only and the six PIN boxes kept
+  // their digits — the driver then repaired the wrong field first. The reset happens in the action
+  // wrapper (not in an effect), so it is part of the same transition as the server's answer.
+  const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; pin?: string }>({});
-  const [state, formAction, pending] = useActionState<LoginState, FormData>(driverLoginAction, {
-    error: null,
-  });
+  const [state, formAction, pending] = useActionState<LoginState, FormData>(
+    async (previous, formData) => {
+      const result = await driverLoginAction(previous, formData);
+      if (result.error) {
+        setUsername("");
+        setPin("");
+        setFieldErrors({});
+      }
+      return result;
+    },
+    { error: null },
+  );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     // Validate the *submitted* values (not component state): Playwright's `fill()` writes the DOM
@@ -191,6 +205,8 @@ function DriverLoginForm({ callbackUrl }: { callbackUrl?: string }) {
               autoCapitalize="none"
               autoCorrect="off"
               className="h-12"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
             />
           </FormField>
         </div>

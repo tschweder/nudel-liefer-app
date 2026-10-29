@@ -3580,7 +3580,9 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] `login-form.test.tsx` deckt den Ablauf ab; de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-184)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Ein Zustand, eine Regel:** Benutzername und PIN sind beide kontrolliert; der Reset passiert im Action-Wrapper von `useActionState` (nicht in einem `useEffect` — die Lint-Regel `react-hooks/set-state-in-effect` verbietet das, und der Reset gehört ohnehin in dieselbe Transition wie die Server-Antwort).
+- **Beleg:** Fehlversuch mit falscher PIN → Benutzername **und** alle sechs PIN-Boxen sind leer, die Meldung bleibt (`web-test/20261029-1449-nud-176-177-180-182-184--3856/shots/004-*`). Vorher: PIN-Boxen behielten „0 0 0 0 0 0" (`web-test/20261029-1310-.../shots/005-*`).
+- Tests: `login-form` (8) grün; `tsc`, `eslint`, `i18n:check` grün.
 
 ---
 
