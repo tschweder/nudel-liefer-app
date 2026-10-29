@@ -28,7 +28,6 @@ import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/local
 import { recordAudit } from "./audit";
 import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
-import { rebaseOnRelease } from "./tour-schedule";
 import { MAX_STOPS, RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import { type AppSettings, readSettings } from "./settings";
@@ -36,6 +35,7 @@ import type { TourWarning } from "./tour-builder";
 import { tourLoadsOf } from "./tour-load";
 import { getTourDiffView, loadReleaseTour, type TourDiffView } from "./tour-rerelease";
 import { routeTrips, scheduleTrips } from "./tour-routing";
+import { rebaseOnRelease } from "./tour-schedule";
 import { listWorkSchedules } from "./work-schedule";
 
 /**
