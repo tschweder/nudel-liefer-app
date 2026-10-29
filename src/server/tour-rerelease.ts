@@ -26,6 +26,7 @@ import { customerLocationSelect } from "./routing-points";
 import type { AppSettings } from "./settings";
 import type { PlanResult } from "./tour-planning";
 import { routeTrips, scheduleTrips } from "./tour-routing";
+import { rebaseOnRelease } from "./tour-schedule";
 
 /**
  * Re-release (NUD-043): a released tour whose orders changed (`isOutdated`) is updated in place
@@ -533,6 +534,9 @@ export async function reReleaseTourWith(
           }
         }
 
+        // NUD-172 (QA 2026-10-29 F3): a change mid-tour is re-anchored to the driver's real
+        // departure instead of the planned one, so the re-release does not resurrect 06:30 times.
+        await rebaseOnRelease(tx, tour.id, now);
         await tx.tour.update({
           where: { id: tour.id },
           data: {

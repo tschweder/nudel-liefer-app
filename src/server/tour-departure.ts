@@ -4,6 +4,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 import { recordAudit } from "./audit";
 import type { Actor } from "./auth/guards";
+import { rebaseTourSchedule } from "./tour-schedule";
 
 /**
  * The driver's departure checklist timestamps (NUD-151, F3, D28): `Tour.loadingStartedAt` when he
@@ -85,6 +86,12 @@ export async function applyDriverDeparture(
             via: options.clientCreatedAt ? "sync" : "driver",
           },
         });
+      }
+      // NUD-172 (QA 2026-10-29 F3): once the driver really leaves, the plan is re-anchored to his
+      // departure instead of the planned one. A replay with a different id does not move it again
+      // (the update above already returned changed.count === 0), so the first departure wins.
+      if (entry.type === "depart" && changed.count > 0) {
+        await rebaseTourSchedule(tx, stop.tourId, now);
       }
       await tx.stopMutation.create({
         data: {

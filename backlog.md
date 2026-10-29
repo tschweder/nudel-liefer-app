@@ -3322,7 +3322,12 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/zh-Hans (Fahrer zusätzlich sr-Latn, cs), `pnpm lint`, `typecheck`, `test`, `i18n:check` grün; e2e `tours.spec`/`tour-edit` angepasst.
 
 **Implementation notes (NUD-172)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Ein Schreibpfad** (`src/server/tour-schedule.ts`): `rebaseTourSchedule(tx, tourId, anchor)` liest die offenen Stopps in Reihenfolge, rechnet mit dem vorhandenen `computeSchedule` (Domain) und schreibt `Stop.etaAt` für die offenen Stopps; erledigte behalten ihre Zeit (Historie). `rebaseOnRelease` ist der zweite Einstieg: nach der Abfahrt zählt die echte `departedAt`, sonst (wenn der Planbeginn schon vorbei ist) „jetzt + Ladezeit".
+- **Aufrufer:** `releaseTourWith` (Freigabe), `applyDriverDeparture` (nur beim ersten `depart`, Replays bewegen nichts), `applyStopMutation` (nach jedem Abschluss und Undo, im selben Transaktions-/Sperrpfad) und `tour-rerelease` (Änderung während der Tour verankert an der echten Abfahrt).
+- **Eine Basis in der Fahrer-Heim:** `endAt = tourFinishAt(letzte offene ETA, Servicezeit)` (neue reine Funktion `tourFinishAt` in `src/domain/driver-today.ts`), statt „letzte ETA + Restzeit" zu addieren. „Noch ca." bleibt die reine Arbeitsrestzeit (`remainingSeconds`) und stimmt damit mit „Ende minus jetzt" überein. Die Büro-Kachel liest unverändert `Stop.etaAt` — also denselben Wert.
+- **Sichtbar:** Tour am 2026-10-29 um 11:44 freigegeben, um 15:12 ein Stopp abgeschlossen → „Nächster Stopp Ankunft ca. 15:27", „Ende ca. 20:28", „Noch ca. 5 Std. 5 Min." (vorher 07:06 / 12:23 / 5 Std. 25 Min.; die Liste begann bei 07:06). Vorher: `web-test/20261029-1423-nud-172-175-verification-7fc8/shots/006-*`, nachher: `shots/010-*`.
+- **Tests:** `src/server/tour-schedule.integration.test.ts` (6: Anker-Rechnung in Reihenfolge inkl. Servicezeit, erledigter Stopp bleibt, Zukunft bleibt unangetastet, späte Freigabe = jetzt + Ladezeit, Re-Release nutzt die echte Abfahrt, Abschluss verankert die Reststopps) und `tourFinishAt` in `src/domain/driver-today.test.ts`. `tsc --noEmit` grün, 88 Tests der berührten Dateien grün, Integrationstests `stop-status`/`tour-departure` (25) grün.
+- **NICHT geprüft:** `pnpm test:e2e` (kein e2e-Lauf in dieser Sitzung); die e2e-Specs `tours.spec`/`tour-edit` prüfen `stop-eta`-Texte, die sich durch die Re-Ankerung bei spät freigegebenen Touren ändern können — beim nächsten e2e-Lauf beobachten.
 
 ---
 

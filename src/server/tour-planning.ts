@@ -28,6 +28,7 @@ import { type AppLocale, localizedTextSchema, pickWithSource } from "@/lib/local
 import { recordAudit } from "./audit";
 import { getLateOrdersView, type LateOrdersView } from "./late-orders";
 import { listConfirmedOrdersForDate } from "./orders";
+import { rebaseOnRelease } from "./tour-schedule";
 import { MAX_STOPS, RoutingError, type RoutingProvider } from "./routing";
 import { customerLocationSelect, parkingSpotsForRouting } from "./routing-points";
 import { type AppSettings, readSettings } from "./settings";
@@ -917,6 +918,9 @@ export async function releaseTourWith(
             : {}),
         },
       });
+      // NUD-172 (QA 2026-10-29 F3): a tour released after its planned start would otherwise show
+      // arrival times from 06:30 for the rest of the day — the plan is moved to "now + loading time".
+      await rebaseOnRelease(tx, tour.id, now);
       return { ok: true, releasedAt: now.toISOString(), stopCount: tour._count.stops };
     },
     { timeout: 20_000, maxWait: 10_000 },

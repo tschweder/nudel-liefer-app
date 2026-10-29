@@ -8,6 +8,7 @@ import {
   remainingSeconds,
   roundedMinutes,
   summarizeItems,
+  tourFinishAt,
   tripLoadItems,
 } from "./driver-today";
 
@@ -139,5 +140,24 @@ describe("reload stops (NUD-147)", () => {
     // the inputs are not touched
     expect(stops[1]!.items[0]!.quantity).toBe(3);
     expect(tripLoadItems(stops, 5)).toEqual([]);
+  });
+});
+
+describe("tourFinishAt (NUD-172)", () => {
+  it("is the arrival at the last open stop plus the service time there", () => {
+    const at = tourFinishAt("2026-10-29T10:00:00.000Z", 15 * 60);
+    expect(at?.toISOString()).toBe("2026-10-29T10:15:00.000Z");
+  });
+
+  it("returns null without an ETA and never invents a time", () => {
+    expect(tourFinishAt(null, 900)).toBeNull();
+    expect(tourFinishAt("not a date", 900)).toBeNull();
+    expect(tourFinishAt(new Date("2026-10-29T10:00:00.000Z"), 0)?.toISOString()).toBe(
+      "2026-10-29T10:00:00.000Z",
+    );
+    // a negative service time is clamped instead of moving the end before the arrival
+    expect(tourFinishAt("2026-10-29T10:00:00.000Z", -60)?.toISOString()).toBe(
+      "2026-10-29T10:00:00.000Z",
+    );
   });
 });

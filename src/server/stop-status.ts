@@ -12,6 +12,7 @@ import { type AppLocale, createLocalizedText, localeSchema } from "@/lib/localiz
 
 import { recordAudit } from "./audit";
 import type { Actor } from "./auth/guards";
+import { rebaseTourSchedule } from "./tour-schedule";
 import { syncTourProgress } from "./tour-service";
 
 /**
@@ -237,6 +238,11 @@ export async function applyStopMutation(
           });
           if (completed.count !== 1) throw new Rejected("already_completed");
         }
+
+        // NUD-172 (QA 2026-10-29 F3): the remaining plan follows the driver's real progress, so the
+        // next arrival and the end of the tour are the same numbers on the phone and in the office.
+        // Completed stops keep the ETA they had when the driver worked them.
+        await rebaseTourSchedule(tx, stop.tour.id, now);
 
         const newTourStatus = (await syncTourProgress(tx, stop.tour.id, now)) ?? tourStatus;
         const stops = await tx.stop.findMany({

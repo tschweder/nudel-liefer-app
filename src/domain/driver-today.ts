@@ -64,6 +64,18 @@ export function roundedMinutes(seconds: number): number {
   return Math.max(0, Math.ceil(seconds / 60 / 5) * 5);
 }
 
+/**
+ * End of the tour (NUD-172, QA 2026-10-29 F3): arrival at the last open stop plus the service time
+ * there. The stored ETAs are the one basis for every time on the driver's screen and in the office,
+ * so "Ende ca." is derived from them instead of adding the remaining work a second time.
+ */
+export function tourFinishAt(lastEta: Date | string | null, serviceSecondsPerStop: number): Date | null {
+  if (lastEta === null) return null;
+  const at = lastEta instanceof Date ? lastEta : new Date(lastEta);
+  if (!Number.isFinite(at.getTime())) return null;
+  return new Date(at.getTime() + Math.max(serviceSecondsPerStop, 0) * 1000);
+}
+
 /** Stops whose change the driver has not seen yet (`seenRevision` = last revision acknowledged). */
 export function isUnseenChange(
   stop: { change: "ADDED" | "CHANGED" | null; changedInRevision: number | null },

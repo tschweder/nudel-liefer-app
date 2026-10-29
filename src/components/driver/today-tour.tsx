@@ -39,6 +39,7 @@ import {
   roundedMinutes,
   summarizeItems,
   switchVehicle,
+  tourFinishAt,
   tripLoadItems,
 } from "@/domain/driver-today";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -756,9 +757,11 @@ export function TodayTour({
     setDepartBusy(false);
   };
   const unseen = (stop: TodayStop) => showBanner && isUnseenChange(stop, seen);
-  // End of the tour: ETA of the last open stop plus the rest of the estimated work.
+  // NUD-172 (QA 2026-10-29 F3): one basis for every time on this screen — the stored ETAs, which
+  // the server re-anchors on departure and after every completed stop. The end of the tour is the
+  // arrival at the last open stop plus the service time there (see `tourFinishAt`).
   const lastEta = [...open].reverse().find((s) => s.etaAt)?.etaAt ?? null;
-  const endAt = lastEta ? new Date(new Date(lastEta).getTime() + remaining * 60_000) : null;
+  const endAt = tourFinishAt(lastEta, today.serviceSecondsPerStop);
   const totalSeconds = stops.reduce(
     (sum, s) =>
       sum + (s.status === "PENDING" ? (s.legDurationS ?? 0) + today.serviceSecondsPerStop : 0),
