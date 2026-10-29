@@ -327,6 +327,25 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | done |
 | NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
 | NUD-171 | Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau | M2.6 | 149, 152 | done |
+| NUD-172 | Zeitmodell: Ankunft/Ende live aus dem Tourfortschritt | M2.7 | – | todo |
+| NUD-173 | Offline-Queue sendet bei zurückkehrendem Server (Controller auf der Offline-Shell) | M2.7 | – | todo |
+| NUD-174 | Sync-Pille und Warteschlangen-Panel sagen die Wahrheit | M2.7 | – | todo |
+| NUD-175 | `/theme.js` in den Service-Worker-Precache | M2.7 | – | todo |
+| NUD-176 | „Rückgängig" erreichbar machen, Toasts nicht mehr über dem Header | M2.7 | – | todo |
+| NUD-177 | Problem-Notiz des Fahrers wieder anzeigen | M2.7 | – | todo |
+| NUD-178 | Bestellung ↔ Tour: ein Lese-Modell statt widersprüchlicher Aussagen | M2.7 | – | todo |
+| NUD-179 | Bestellübersicht startet auf „Heute" | M2.7 | – | todo |
+| NUD-180 | Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit | M2.7 | – | todo |
+| NUD-181 | Parkplatz: Fahrer setzt den Punkt auf der Karte | M2.7 | – | todo |
+| NUD-182 | Ein Datumsformat in beiden Shells, kein Abschneiden | M2.7 | – | todo |
+| NUD-183 | Dashboard: „0 / 0" und Loch im KPI-Raster | M2.7 | – | todo |
+| NUD-184 | Fehlgeschlagener Fahrer-Login leert Name **und** PIN | M2.7 | – | todo |
+| NUD-185 | Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden") | M2.7 | – | todo |
+| NUD-186 | Sprachumschalter auf der Büro-Anmeldung | M2.7 | – | todo |
+| NUD-187 | „Auslastung" nennt den Ort der Arbeitszeiten | M2.7 | – | todo |
+| NUD-188 | Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern | M2.7 | – | todo |
+| NUD-189 | Teillieferung / Ist-Menge (Epic nach dem Defekt-Block) | M2.7 | 172 | todo |
+| NUD-190 | Kundenstatus-Link (nach NUD-172) | M2.7 | 172 | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3280,9 +3299,385 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - **NICHT verifiziert:** kein Browser-/Tablet-Blick auf den neuen Dialog (1280 px/768 px), kein Fokus-Durchlauf im Popover-in-Dialog, kein `pnpm test:e2e`. Die e2e-Test-IDs der Dauerbestellungen wurden bewusst beibehalten.
 
 ---
+
+### M2.7 — Blackbox-QA 2026-10-29 (NUD-172…190)
+
+Quelle: [`QA-BLACKBOX-2026-10-29.html`](./QA-BLACKBOX-2026-10-29.html) — 22 Befunde, Fahrer 390×844, Büro 1024×768, Produktionsbuild.
+**Reproduktion am 2026-10-29 im laufenden Build:** F1–F5, F7–F12, F15–F22 bestätigt; **F6 nicht reproduzierbar** (eine je Bestellung angebotene „Tour zuweisen"-Aktion existiert in diesem Stand nicht — der eigene Screenshot des Testers zeigt dieselben drei Knöpfe wie der Stand), **F13 nicht reproduzierbar** (die Zeilen sind `<button role="checkbox" aria-checked>`, `tests/e2e/driver-departure.spec.ts:120` klickt sie so), **F14 nicht reproduzierbar** (Stammdaten tragen „Schlüssel Nr. 4711", „Abkürzung RBB 12" und den Parkplatz samt „Geändert von Fahrer Deutsch"; der Screenshot des Testers zeigt einen anderen Kunden). F13 und F14 bekommen kein Ticket; der Rest aus F13 (explizite Accessible Names) steht als Ein-Zeilen-Eintrag am Ende dieses Abschnitts.
+Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
+
+#### NUD-172 · Zeitmodell: Ankunft und Ende live aus dem Tourfortschritt
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F3 (§3 F3).
+
+**Goal:** `Stop.etaAt` entsteht einmal beim Optimieren, verankert an `Settings.departureTime` (hier 06:30) am Tourdatum; Freigabe, Abfahrt und Neu-Freigabe rechnen nichts nach. Deshalb zeigt ein Bildschirm drei widersprüchliche Zeiten — gespeicherte ETA, „Ende ca." (letzte ETA + Restzeit) und „Noch ca." (Restzeit) — und das Büro dieselbe Vergangenheit. Danach rechnet **eine** Quelle die Zeiten aus dem tatsächlichen Fortschritt, und Fahrer und Büro lesen dieselbe Zahl.
+
+**Entscheidung (2026-10-29, Option B „Live ab der Abfahrt"):**
+> Ein Helfer rechnet die ETAs aus dem echten Zustand neu — bei der Abfahrt und nach jedem Abschluss — und schreibt `Stop.etaAt`; „Ende ca." und die Büro-Kachel lesen denselben Wert statt eigener Rechnungen (drei Basen → eine). Aufwand M–L, Risiko mittel (Schreiben bei jeder Statusänderung, Nebenläufigkeit). Migration: nein.
+
+**Acceptance criteria**
+- [ ] Ein reiner Domänen-Helfer berechnet die Restzeiten ab einem Ankerzeitpunkt; unit-getestet für pünktliche/späte Abfahrt, Problem-Stopp und Undo.
+- [ ] `Stop.etaAt` wird bei der Abfahrt und nach jedem Abschluss (DELIVERED/PROBLEM/Undo) im selben Schreibpfad neu gesetzt.
+- [ ] „Ende ca." (Fahrer) und „Nächster Stopp / Ankunft ca." (Büro) benutzen dieselbe Basis; keine zweite Restzeit-Rechnung mehr in der Fahrer-Heim.
+- [ ] QA-Fall als Beleg: Tour nach 11:40 freigegeben → auf keinem Bildschirm eine Ankunft vor der Abfahrt (vorher/nachher-Screenshots im Ticket).
+- [ ] de/en/zh-Hans (Fahrer zusätzlich sr-Latn, cs), `pnpm lint`, `typecheck`, `test`, `i18n:check` grün; e2e `tours.spec`/`tour-edit` angepasst.
+
+**Implementation notes (NUD-172)**
+- (leer — wird beim Umsetzen gefüllt)
+
 ---
+
+#### NUD-173 · Offline-Queue sendet, sobald der Server wieder antwortet
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F4 (§3 F4).
+
+**Goal:** Nachgewiesen am 2026-10-29: offline geliefert 14:40, Server ab 14:43 zurück, 14:45 steht der Stopp in der DB weiter auf `PENDING` — erst der Seitenaufruf um 14:45:57 schreibt `stop.delivered`. Ursache: die vorgeladene Offline-Shell rendert die Fahrer-Shell ohne `syncUserId`, deshalb ist `OfflineSync` nie gemountet, genau dann nicht, wenn man offline ist; übrig bleibt ein Backoff-Timer bis 5 Minuten. Ein toter Server setzt `navigator.onLine` nicht auf `false`, also feuert weder `online` noch Background Sync. Danach sendet die App, sobald der Server wieder erreichbar ist — ohne Polling.
+
+**Entscheidung (2026-10-29, Option B „Background Sync als Hauptpfad"):**
+> Bei jeder Queue-Mutation `sync.register("nudel-outbox")`; der SW weckt sich bei Netzwiederkehr und flusht. Option A (Controller auf der Offline-Shell mounten, Flush bei Mount/`visibilitychange`/`online`, Backoff nach Erfolg auf 0 und Deckel 60 s) bleibt als Fallback für Umgebungen ohne Background Sync. Aufwand M–L, Risiko mittel. Migration: nein.
+
+**Acceptance criteria**
+- [ ] Jede Queue-Mutation registriert einen Background-Sync-Tag; der Service Worker flusht ihn und meldet das Ergebnis an offene Clients.
+- [ ] Zusätzlich ist der Controller auf der Offline-Shell gemountet (Fallback ohne Background Sync, z. B. iOS Safari); Flush bei Mount, `visibilitychange` und `online`, Backoff nach jedem Erfolg zurückgesetzt, Deckel 60 s statt 5 Minuten.
+- [ ] Kein Polling als Ersatz (der bestehende 60-s-Takt bleibt Fallback, nicht Trigger).
+- [ ] Neuer e2e-Spec, der **nur** `/api/driver/sync` scheitern lässt (Route-Abbruch) und danach wieder erlaubt — nicht `context.setOffline`, das feuert `online` und maskiert den Fehler.
+- [ ] `docs/offline.md` §„Trigger" beschreibt den Stand; de/en/zh-Hans + Fahrer-Sprachen, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-173)**
+- (leer — wird beim Umsetzen gefüllt)
+
 ---
+
+#### NUD-174 · Sync-Pille und Warteschlangen-Panel sagen die Wahrheit
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F7 (§3 F7). Eng verwandt mit NUD-173 (gleiche Ebene).
+
+**Goal:** Die Pille ist grün „Online", während der Server nicht antwortet, und das Panel sagt „1 Eingabe wird gesendet …", obwohl nichts gesendet wird; die Zeile sagt hart „wartet". Beides hängt an `navigator.onLine`; der Controller hat den echten Zustand (`flushing`, `inFlight`, `failure`) bereits. Danach zeigt die Oberfläche den Zustand, den sie wirklich hat.
+
+**Entscheidung (2026-10-29, Option A „Texte aus dem Queue-Zustand ableiten"):**
+> Pille und Panel lesen `{flushing, inFlight, lastFailure, lastSuccess}`; „wird gesendet" nur während `flushing`, sonst „wartet auf Verbindung" plus „zuletzt übertragen um HH:MM". Aufwand S–M, Risiko niedrig. Migration: nein. i18n: ja (1–2 Schlüssel × 5 Fahrer-Sprachen).
+
+**Acceptance criteria**
+- [ ] „wird gesendet" erscheint genau dann, wenn eine Übertragung läuft (`flushing`/`inFlight` aus dem Controller) — nie aus `navigator.onLine` abgeleitet.
+- [ ] Die Pille unterscheidet „online", „ausstehend" und „nicht erreichbar" (letzteres nach einem fehlgeschlagenen Versuch) und nennt im Panel die letzte erfolgreiche Übertragung.
+- [ ] Tests: Panel-Zustände (leer, wartend, sendend, gescheitert) und Pille je Zustand; bestehende `useOnline`-Mocks angepasst.
+- [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-174)**
+- (leer — wird beim Umsetzen gefüllt)
+
 ---
+
+#### NUD-175 · `/theme.js` in den Service-Worker-Precache
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F8 (§3 F8).
+
+**Goal:** `/theme.js` ist ein blockierendes Skript jeder Seite, fehlt aber in den 102 Precache-Einträgen; ein Offline-Reload protokolliert `net::ERR_CONNECTION_REFUSED http://localhost:3100/theme.js`. Danach liegt es im Precache wie `/offline.js`.
+
+**Entscheidung (2026-10-29, Option A):**
+> `public/theme.js` in die Precache-Globs (`scripts/build-pwa.ts`) aufnehmen, `docs/offline.md`-Tabelle ergänzen, `tests/e2e/pwa.spec.ts`-Allowlist und -Erwartung anpassen. Aufwand S, Risiko niedrig. Migration: nein.
+
+**Acceptance criteria**
+- [ ] `public/sw.js` enthält `/theme.js` mit Revision; ein Offline-Reload lädt es ohne Konsolenfehler.
+- [ ] `docs/offline.md` nennt das Theme-Skript in der Cache-Tabelle; `pwa.spec.ts` prüft es.
+- [ ] lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-175)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-176 · „Rückgängig" erreichbar machen, Toasts nicht über dem Header
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F1 + F2 (§3 F1, F2).
+
+**Goal:** Ein Tipp auf „Geliefert" springt im selben Tick zum nächsten Stopp; der Undo lebt 10 s in **einem** globalen `<Toaster />`, der ohne Position gemountet ist (oben rechts, 32 px Rand, z-index über dem 56-px-Header; der eigene Kommentar in `ui/sonner.tsx` verspricht `bottom-center`). Im Test war „Rückgängig" im Baum, aber **nicht anklickbar**. Beide Toasts teilen diese Ebene. Danach ist der Undo erreichbar, solange das Server-Fenster (5 Min) offen ist, und keine Erfolgsmeldung verdeckt den Kopf.
+
+**Entscheidung (2026-10-29, Option B „Kein Auto-Advance + Undo auf dem Stopp"):**
+> Nach dem Buchen bleibt man auf dem Stopp, „Weiter zu Stopp n" existiert bereits; „Rückgängig" bleibt bis zum Server-Fenster (5 Min) stehen. Zusätzlich Option A: die Toast-Ebene der Fahrer-App auf `bottom-center` mit Offset über der Aktionsleiste. Aufwand M, Risiko niedrig–mittel (ein Tipp mehr pro Stopp). Migration: nein.
+
+**Acceptance criteria**
+- [ ] „Geliefert"/„Problem melden" navigiert nicht mehr automatisch; der Abschluss-Screen bietet „Weiter zu Stopp n" und „Rückgängig" bis zum Ablauf des Server-Fensters.
+- [ ] Der Toast der Fahrer-App erscheint unter dem Header (über der Aktionsleiste) und verdeckt weder Datum noch Sync-Pille noch Stoppzähler; beide Toasts (Geliefert, Problem) nutzen dieselbe korrigierte Ebene.
+- [ ] Der Undo-Toast ist per Klick/Tap **und** per Tastatur erreichbar (Test, der den Toast wie ein Nutzer anklickt).
+- [ ] e2e `driver-status.spec.ts` angepasst (kein Auto-Advance mehr), vorher/nachher-Screenshots im Ticket.
+- [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-176)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-177 · Problem-Notiz des Fahrers wieder anzeigen
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F5 (§3 F5).
+
+**Goal:** Der Fahrer tippt bis zu 500 Zeichen; gespeichert wird `Stop.problemNote` (LocalizedText), aber der Fahrer-Payload trägt nur `problemReason`. Danach sieht der Fahrer seine Notiz wieder (read-only) und das Büro sieht sie dort, wo es hinschaut.
+
+**Entscheidung (2026-10-29, Option A):**
+> Notiz in Payload/Modell aufnehmen und read-only anzeigen — Stopp-Detail, Listenzeile und Büro-Dashboard. Aufwand M, Risiko niedrig. Migration: nein. i18n: ja (×5 Fahrer + Büro).
+
+**Acceptance criteria**
+- [ ] `problemNote` reist im Fahrer-Payload (`toDriverStopDetail`/`todayStop`) in der Sprache des Fahrers; der Cache-Schema-Vertrag bleibt kompatibel (Default `null`).
+- [ ] Stopp-Detail und Listenzeile zeigen die Notiz read-only, wenn sie existiert; das Büro-Dashboard zeigt sie statt nur des Grunds.
+- [ ] Die 500-Zeichen-Notiz aus dem QA-Fall erscheint nach dem Melden wieder (vorher/nachher-Screenshots im Ticket).
+- [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-177)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-178 · Bestellung ↔ Tour: ein Lese-Modell statt widersprüchlicher Aussagen
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F6 + F11 (§3 F6, F11).
+
+**Goal:** F6 ist **nicht reproduzierbar** — eine je Bestellung angebotene „Tour zuweisen"-Aktion existiert in diesem Stand nicht (der eigene Screenshot 172 des Testers zeigt dieselben drei Knöpfe wie der Stand); der Teil „die Aktion verschwindet" wird deshalb nicht gebaut. Der belegte Rest ist ein Lese-Modell-Problem: `orders.ts` liest `stopOrders[0]` ohne Filter auf Tourdatum, Tourstatus und Bestellstatus, während die Tourenseite nur `CONFIRMED` des eigenen Tages zählt. Für eine Bestellung, die auf einer Tour eines anderen Tages liegt (D25-Fenster), sagt die Bestellung „Diese Bestellung ist Teil einer Tour" und die Tourenseite „wartet auf eine Tour"; storniert bleibt der Satz stehen (F11). Danach gibt es eine Regel, die beide Seiten benutzen.
+
+**Entscheidung (2026-10-29, Option B „A + klickbare Tour-Zeile"):**
+> `order.tour` liefert `{id, date, status, stopStatus}` gefiltert auf den geplanten Tag; storniert rendert „war Teil einer Tour"; der Touren-Zähler nutzt dieselbe Regel. Zusätzlich wird die Tour-Zeile klickbar (Tour → Stopp → Status/Zeit). Aufwand M, Risiko niedrig. Migration: nein. i18n: ja (1 Schlüssel × de/en/zh-Hans).
+
+**Acceptance criteria**
+- [ ] Eine Funktion/Query liefert die Tour-Beziehung einer Bestellung inkl. Tourdatum und Stopp-Status; Bestelldetail und Touren-Zähler benutzen **diese** eine Regel.
+- [ ] Storniert: „war Teil einer Tour" (kein „ist"), verlinkt auf die Tour; cross-day (Bestellung liegt auf einer Tour eines anderen Liefertags) wird nirgends mehr widersprüchlich beschrieben.
+- [ ] Die Tour-Zeile im Bestelldetail führt auf Tour → Stopp mit Status und Zeit.
+- [ ] Test deckt die vier Fälle ab: in Tour gleicher Tag, in Tour anderer Tag, storniert-mit-Verknüpfung, ohne Tour; e2e `orders`/`tours` angepasst.
+- [ ] de/en/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-178)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-179 · Bestellübersicht startet auf „Heute"
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F12 (§3 F12).
+
+**Goal:** Die Übersicht nutzt `getDefaultDeliveryDate` („nächster Liefertag", strikt nach heute). Mit Lieferwochentagen Mo–Do ist das am Donnerstag der **Montag** — 20 Bestellungen von heute bleiben unsichtbar und der erste Blick des Büros ist eine leere Liste. Danach startet die Übersicht auf heute; das Bestellformular behält den nächsten Liefertag.
+
+**Entscheidung (2026-10-29, Option A):**
+> Übersicht startet auf „Heute", das Bestellformular behält „nächster Liefertag"; Chip-Logik (Erkennung von `from === default`) und e2e anpassen. Aufwand S–M, Risiko niedrig. Migration: nein.
+
+**Acceptance criteria**
+- [ ] `/admin/orders` ohne Parameter zeigt den heutigen Liefertag samt Beständen; „Heute" ist der aktive Chip.
+- [ ] Das Bestellformular und „Neue Bestellung" bleiben auf dem nächsten Liefertag (unverändert).
+- [ ] Kunden- und Statusfilter funktionieren unverändert; `order-overview.spec.ts` prüft „Heute" als Standard.
+- [ ] de/en/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-179)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-180 · Erledigt-Gruppe trennt Probleme, erledigte Zeilen zeigen die tatsächliche Zeit
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F17 (§3 F17).
+
+**Goal:** Ein Stopp mit gemeldetem Problem steht unter „Erledigt" neben einer echten Lieferung; erledigte Zeilen zeigen die **geplante** Zeit (`etaAt`), obwohl `completedAt` im Modell liegt und das Büro „Erledigt um 11:49" zeigt. Danach sind Probleme eine eigene Gruppe und die Zeile nennt die tatsächliche Zeit.
+
+**Entscheidung (2026-10-29, Option A):**
+> Eigene Gruppe „Probleme" plus `completedAt` auf erledigten Zeilen. Aufwand S–M, Risiko niedrig. Migration: nein. i18n: 1 Schlüssel × 5 Fahrer-Sprachen.
+
+**Acceptance criteria**
+- [ ] „Erledigt" enthält nur gelieferte Stopps; Problem-Stopps stehen in einer eigenen Gruppe mit Anzahl (auch in der Folgetour-Ansicht).
+- [ ] Erledigte Zeilen zeigen die tatsächliche Abschlusszeit, offene weiter die geplante Ankunft.
+- [ ] Der Fortschritt (Zähler, Balken) bleibt unverändert — Probleme zählen weiter als erledigt.
+- [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün; vorher/nachher-Screenshot im Ticket.
+
+**Implementation notes (NUD-180)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-181 · Parkplatz: Fahrer setzt den Punkt auf der Karte
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F15 (§3 F15).
+
+**Goal:** Der gemeinsame `PinPickerMap` mit Tap-to-place existiert und wird im Büro benutzt; im Fahrer-Dialog erscheint die Karte erst, wenn schon ein Punkt gesetzt ist, und die Auswahl bietet nur GPS oder Latitude/Longitude. Danach kann der Fahrer den Punkt wie das Büro auf der Karte setzen; GPS und Zahlenfelder bleiben als Fallback (offline ohne Kacheln).
+
+**Entscheidung (2026-10-29, Option A):**
+> Karte im Auswahlschritt zeigen, GPS und Zahlenfelder bleiben als Fallback. Aufwand S–M, Risiko niedrig. Migration: nein. i18n: 1 Schlüssel × 5 Fahrer-Sprachen.
+
+**Acceptance criteria**
+- [ ] Der Parkplatz-Dialog bietet „auf der Karte setzen" mit dem vorhandenen Picker (Fallback-Zentrum: Parkplatz, sonst Lieferadresse).
+- [ ] GPS und manuelle Koordinaten bleiben erreichbar und unverändert validiert; offline funktioniert der Weg ohne Kacheln weiterhin.
+- [ ] e2e `driver-parking.spec.ts` deckt den Kartenweg ab; 48-px-Ziele, vorher/nachher-Screenshot.
+- [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-181)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-182 · Ein Datumsformat in beiden Shells, kein Abschneiden
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F9 (§3 F9).
+
+**Goal:** Zwei Formatter für denselben Slot — online `dateShort` (`(app)/layout.tsx`), offline `dateLong` (`offline-driver-app.tsx`) — und die Shell kürzt mit `truncate`: „Donnerstag, 29. Ok…", und die Sync-Pille rutscht nach rechts. Danach ist der Tag auf allen Fahrer-Screens gleich formatiert und wird nicht abgeschnitten.
+
+**Entscheidung (2026-10-29, Option A):**
+> Ein Formatter (`dateShort`) in beiden Shells, Kopfzeile umbrechen statt kürzen. Aufwand S, Risiko niedrig. Migration: nein. i18n: nein (Intl).
+
+**Acceptance criteria**
+- [ ] Online- und Offline-Shell rendern dasselbe Datumsformat; kein `truncate` mehr auf dem Datum.
+- [ ] Bei 375 px und 390 px bleibt die Sync-Pille vollständig sichtbar (Screenshot).
+- [ ] Test/e2e prüft das Format (nicht nur die Sichtbarkeit); lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-182)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-183 · Dashboard: „0 / 0" und Loch im KPI-Raster
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F18 (§3 F18).
+
+**Goal:** `${done} / ${total}` ohne Basis-Guard zeigt „0 / 0"; das Raster (`sm:grid-cols-2 xl:grid-cols-3`) stellt drei Kacheln bei 1024 px zweispaltig dar und lässt eine leere Zelle stehen, die wie eine fehlende vierte Kachel aussieht.
+
+**Entscheidung (2026-10-29, Option A):**
+> „0 / 0" abfangen („—" oder „keine Tour") und das Raster auf `lg:grid-cols-3` stellen. Aufwand S, Risiko niedrig. Migration: nein.
+
+**Acceptance criteria**
+- [ ] Ohne Tour (oder mit 0 Stopps) steht keine Division ohne Nenner im Dashboard.
+- [ ] Bei 1024 px stehen die drei KPI-Kacheln in einer Reihe, ohne leere Zelle; 1024/1280-Screenshots im Ticket.
+- [ ] Bestehende Dashboard-Tests und `admin-progress.spec.ts` grün; de/en/zh-Hans.
+
+**Implementation notes (NUD-183)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-184 · Fehlgeschlagener Fahrer-Login leert Name **und** PIN
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F19 (§3 F19).
+
+**Goal:** `pin` ist kontrolliert, der Benutzername nicht — nach einer fehlgeschlagenen Anmeldung leert React nur das unkontrollierte Feld, die sechs PIN-Boxen behalten ihre Ziffern, und die Fehler werden aus den Formulardaten neu gebaut. Danach ist der Zustand nach einem Fehlversuch eindeutig.
+
+**Entscheidung (2026-10-29, Option A):**
+> Benutzername ebenfalls kontrolliert führen und die PIN beim Fehlschlag leeren; die Fehler aus derselben Zustandsquelle ableiten. Aufwand S, Risiko niedrig. Migration: nein.
+
+**Acceptance criteria**
+- [ ] Nach einem Fehlversuch sind Benutzername und PIN beide leer (oder beide erhalten — eine Regel), und die Fehlermeldung passt zum sichtbaren Zustand.
+- [ ] Ein zweiter Versuch funktioniert ohne die Meldung „Bitte Benutzername eingeben" bei gefüllter PIN.
+- [ ] `login-form.test.tsx` deckt den Ablauf ab; de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-184)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-185 · Angemeldete dürfen die Login-Seiten sehen (mit „Abmelden")
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F20 (§3 F20).
+
+**Goal:** `decideAccess` schickt jede angemeldete Rolle von `/driver/login` auf ihre Startseite — ohne Hinweis. Auf dem geteilten Büro-Tablet muss man erst abmelden, ohne zu wissen warum. Danach rendert die Login-Seite und sagt, wer angemeldet ist.
+
+**Entscheidung (2026-10-29, Option A):**
+> Login-Seiten auch für Angemeldete erlauben und „Angemeldet als … / Abmelden" anzeigen (bestehende `logoutAction`). Aufwand M, Risiko niedrig. Migration: nein. i18n: ja (×5). `access.test.ts` wird angepasst.
+
+**Acceptance criteria**
+- [ ] `/de/driver/login` ist mit Büro- und Fahrer-Sitzung erreichbar und zeigt „Angemeldet als …" plus „Abmelden".
+- [ ] Die beiden Login-Seiten verlinken weiterhin aufeinander; der Redirect für alle anderen geschützten Routen bleibt unverändert.
+- [ ] `src/lib/access.test.ts` und ein e2e-Fall decken die neue Regel ab; de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-185)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-186 · Sprachumschalter auf der Büro-Anmeldung
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F21 (§3 F21).
+
+**Goal:** Die Fahrer-Anmeldung hat fünf Sprach-Chips, die Büro-Anmeldung nur den Nachtmodus, obwohl die Büro-UI in de/en/zh-Hans existiert. Danach ist die Sprache vor dem Login wählbar.
+
+**Entscheidung (2026-10-29, Option A):**
+> Den vorhandenen `LanguageSwitcher` mit einer expliziten `area`-Prop auf der Büro-Anmeldung einsetzen. Aufwand S, Risiko niedrig. Migration: nein. i18n: nein (`common.language` existiert).
+
+**Acceptance criteria**
+- [ ] Die Büro-Anmeldung bietet genau de/en/zh-Hans (nicht die fünf Fahrer-Sprachen) und die Wahl wirkt sofort.
+- [ ] Kein Test-ID-Konflikt mit dem Fahrer-Formular; `/en/login`, `/zh-Hans/login` rendern korrekt.
+- [ ] e2e `auth.spec.ts` deckt die Wahl ab; lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-186)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-187 · „Auslastung" nennt den Ort der Arbeitszeiten
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F22 (§3 F22).
+
+**Goal:** Alle Fahrer zeigen „Keine Arbeitszeit hinterlegt", Soll-Zeit 0, Auslastung „—"; der Ort (Fahrer → Zeile → Aktionen → „Arbeitszeit bearbeiten") steht nirgends. Danach findet das Büro den Ort von der Seite aus.
+
+**Entscheidung (2026-10-29, Option A):**
+> Hinweis plus Link auf `/admin/drivers` über der Tabelle und im Leerzustand. Aufwand S, Risiko niedrig. Migration: nein. i18n: ja (de/en/zh-Hans).
+
+**Acceptance criteria**
+- [ ] Kopf und Leerzustand nennen den Pfad und verlinken auf die Fahrerliste; der Link führt in ≤ 2 Klicks zum Arbeitszeit-Dialog einer Zeile.
+- [ ] Die Zahlen der Seite bleiben unverändert; de/en/zh-Hans, lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-187)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-188 · Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern
+**Status:** todo · **depends_on:** – · Quelle: Blackbox-QA 2026-10-29, F10 + F16 (§3 F10, F16).
+
+**Goal:** `fahrer-de` ist in der Datenbank zh-Hans, deshalb landet der Login von `/de/driver/login` in einer chinesischen Oberfläche. In den Pickern stehen 3× „A3 Prueffahrer", 2× „E2E Fahrer", 司機 台灣/香港, 8 aktive e2e-Kunden, 3 e2e-Fahrzeuge und 5 A3-Produkte; keine Suche, kein Bulk-Archiv.
+
+**Entscheidung (2026-10-29, Option A):**
+> Seed korrigieren (`fahrer-de` → `de`), die Testreste einmalig **archivieren** (nicht löschen), und e2e nur gegen die dedizierte e2e-Datenbank laufen lassen (NUD-162 existiert). Aufwand S–M, Risiko mittel (das Archivieren berührt Daten und wird hier ausdrücklich freigegeben). Migration: nein.
+
+**Acceptance criteria**
+- [ ] `pnpm db:seed --demo` legt `fahrer-de` mit `de` an; ein Re-Seed ändert das nicht zurück. `SEED_DRIVERS=false` bleibt auf Produktion weiter wirksam.
+- [ ] Die Testreste (E2E-Fahrer, e2e-Kunden, E2E-Fahrzeuge, A3-Produkte) sind **archiviert/deaktiviert**, nicht gelöscht; keine Bestellung, kein Stopp und keine Tour wird entfernt.
+- [ ] Die e2e-Suite schreibt nicht mehr in die Demo-Datenbank (Doku in `docs/e2e-database.md`, Guard im Playwright-Setup).
+- [ ] Vorher/nachher-Screenshots der Picker; lint/typecheck/test/i18n:check grün.
+
+**Implementation notes (NUD-188)**
+- (leer — wird beim Umsetzen gefüllt)
+
+---
+
+#### NUD-189 · Teillieferung / Ist-Menge (Epic, nach dem Defekt-Block)
+**Status:** todo · **depends_on:** 172 · Quelle: Blackbox-QA 2026-10-29 §5 Wunsch 1.
+
+**Goal:** „5 Sackerl geplant, 4 geliefert" lässt sich heute nur als „Problem: Falsche Menge" ohne Zahl ausdrücken. Das ist Produktarbeit (Datenmodell, Buchhaltung), kein Defekt.
+
+**Entscheidung (2026-10-29, Option C):**
+> Als eigenes Epic **nach** dem Defekt-Block (NUD-172…188) planen; jetzt kein Code. Die Optionen A (Ist-Menge je Produkt inkl. Schema, Fahrer-UI, Büro, Ladeliste, Audit) und B (nur strukturierte Abweichung im Problem-Dialog) bleiben dokumentiert und werden beim Start des Epics erneut entschieden.
+
+**Acceptance criteria**
+- [ ] Eigene ACs werden beim Start des Epics geschrieben (Ist-Menge, ganze Einheiten per D23, Audit, Ladeliste, Berechtigungen, Retention).
+- [ ] Kein Code in diesem Lauf.
+
+**Implementation notes (NUD-189)**
+- Nicht umgesetzt (Entscheidung C). Aufwand A: L, Migration ja; B: M, Migration nein.
+
+---
+
+#### NUD-190 · Kundenstatus-Link (nach NUD-172)
+**Status:** todo · **depends_on:** 172 · Quelle: Blackbox-QA 2026-10-29 §5 Wunsch 10.
+
+**Goal:** Nicht im Produkt; jede „Wo ist meine Lieferung?"-Frage kostet einen Anruf. Der Link ist nur so gut wie das Zeitmodell — deshalb erst nach NUD-172.
+
+**Entscheidung (2026-10-29, Option C):**
+> Später, nach NUD-172; jetzt kein Code. Optionen A (signierter, ablaufender Link mit Status und Zeitfenster) und B (Büro verschickt „unterwegs"-Nachricht) bleiben dokumentiert.
+
+**Acceptance criteria**
+- [ ] Eigene ACs beim Start (Signatur/Ablauf, Rate-Limit, D19-Grenze „kein Kundenportal", Datenschutz in `docs/privacy.md`).
+- [ ] Kein Code in diesem Lauf.
+
+**Implementation notes (NUD-190)**
+- Nicht umgesetzt (Entscheidung C).
+
+---
+
+#### NUD-104 · Foto-Nachweis — erweitern (bestehendes Ticket)
+**Status:** todo · **depends_on:** 053 · Quelle: Blackbox-QA 2026-10-29 §5 Wunsch 2 (Entscheidung 2026-10-29: erweitern, kein neues Ticket).
+
+**Goal:** Der Sketch ist zu dünn für die Umsetzung. Er wird um die QA-Anforderungen erweitert: Foto je Stopp (Kamera/Galerie wie NUD-083), Speicherung wie Kundenfotos, Sichtbarkeit im Büro, Retention-Eintrag in `docs/privacy.md` §6, Offline-Verhalten über die bestehende Foto-Queue.
+
+**Entscheidung (2026-10-29, Option A):**
+> NUD-104 erweitern und nach dem Defekt-Block umsetzen; Aufwand L, Risiko mittel, Migration ja.
+
+**Acceptance criteria**
+- [ ] Die ACs unten ersetzen den Sketch und decken Upload, Offline-Queue, Büro-Ansicht, Retention und Berechtigungen ab.
+- [ ] Kein Code in diesem Lauf.
+
+**Implementation notes (NUD-104)**
+- Erweitert am 2026-10-29 (QA-Gate); Umsetzung folgt nach NUD-172…188.
+
+---
+
+#### Ein-Zeilen-Eintrag (aus F13, nicht umgesetzt)
+**NUD-191 · Checklisten-Zeilen brauchen explizite Accessible Names** — Status: todo · Quelle: Blackbox-QA 2026-10-29, F13. Die Zeilen sind bereits `<button role="checkbox" aria-checked>` (e2e klickt sie per Rolle); offen ist nur der vorlesbare Name (bisher der zusammengesetzte Kindtext). Aufwand S, ein e2e-Locator per Name. Kein Ticket im QA-Block, weil der Befund als solcher nicht reproduzierbar war.
 
 ## 9. Decision log (append-only, one line per decision taken during implementation)
 
@@ -3700,6 +4095,26 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 | 2026-10-28 | NUD-152 | The shift warning never blocks a release, and a driver without a schedule produces no warning | The office must stay able to plan for someone without a contract in the system; a blocking warning would be a hard rule nobody asked for |
 | 2026-10-28 | NUD-171 | Dauerbestellung: Wochen- und Monatsmuster sind eine **Vereinigung** (`weekdays` + `monthlyRules`), `dayOfMonth` wird nicht geklemmt, `nthWeekday` kennt `-1` = letzter; Produkte dürfen je Wochentag abweichen (`RecurringOrderDayItem`, ohne Zeilen gilt die Basismenge) | Kunden bestellen unregelmäßig ("jeden 1. und 15.", "jeden 1. Montag") und in unterschiedlichen Mengen je Tag; ein Vereinigung-Modell deckt beides ohne Sonderfälle in der Generierung ab |
 | 2026-10-28 | NUD-171 | Befristung ist **exklusiv** (unbefristet / bis Datum / nach N Lieferungen), ein leeres Feld bei gewählter Befristung ist ein Validierungsfehler; `maxDeliveries` zählt stornierte Lieferungen mit | Zwei gleichzeitige Endbedingungen wären nicht erklärbar; eine stornierte Lieferung ist trotzdem passiert und soll das Budget nicht wieder freigeben |
+| 2026-10-29 | NUD-172 | ETAs werden ab der Abfahrt und nach jedem Abschluss aus dem tatsächlichen Fortschritt neu berechnet und in `Stop.etaAt` geschrieben; „Ende ca." und die Büro-Kachel lesen diesen Wert statt eigener Rechnungen (Option B) | Nur die live gerechnete Zahl stimmt den ganzen Tag; drei Rechenbasen auf einem Bildschirm sind der Befund (F3) |
+| 2026-10-29 | NUD-173 | Background Sync wird der Hauptpfad (Registrierung bei jeder Queue-Mutation), dazu der Controller auf der Offline-Shell als Fallback mit zurückgesetztem Backoff und 60-s-Deckel (Option B) | Die Ursache war der fehlende Mount auf der Offline-Shell; Background Sync deckt zusätzlich die geschlossene App — ohne Polling |
+| 2026-10-29 | NUD-174 | Pille und Panel leiten ihren Text aus `flushing`/`inFlight`/letztem Fehler ab statt aus `navigator.onLine`; „wird gesendet" nur bei laufender Übertragung (Option A) | Der Controller kennt die Wahrheit bereits; `navigator.onLine` bleibt bei totem Server grün |
+| 2026-10-29 | NUD-175 | `public/theme.js` kommt in die Precache-Globs von `scripts/build-pwa.ts` (Option A) | Ein blockierendes Skript jeder Seite, das offline fehlt, ist ein unhandled dependency — kleinster Fix |
+| 2026-10-29 | NUD-176 | Nach dem Buchen bleibt der Fahrer auf dem Stopp („Weiter zu Stopp n" + „Rückgängig" bis zum Server-Fenster) und die Toaster-Ebene der Fahrer-App wandert auf `bottom-center` über die Aktionsleiste (Option B) | Der Undo war im Baum, aber nicht anklickbar; Auto-Advance und Toast-Ebene sind derselbe Fehler (F1+F2) |
+| 2026-10-29 | NUD-177 | `problemNote` reist im Fahrer-Payload und wird read-only auf Stopp-Detail, Listenzeile und im Büro-Dashboard gezeigt (Option A) | Der Text wird gespeichert, aber niemand außer dem Tourplaner sieht ihn — der Fahrer kann seine eigene Eingabe nicht prüfen |
+| 2026-10-29 | NUD-178 | Ein Lese-Modell für die Tour-Beziehung einer Bestellung (`{id, date, status, stopStatus}`, gefiltert auf den geplanten Tag), storniert = „war Teil einer Tour", klickbare Tour-Zeile (Option B) | Bestelldetail und Touren-Zähler lasen mit zwei Regeln; der gemeldete „verschwindende Knopf" existierte nie |
+| 2026-10-29 | NUD-179 | Die Bestellübersicht startet auf „Heute", das Bestellformular behält den nächsten Liefertag (Option A) | Bei Mo–Do-Liefertagen ist der „nächste Liefertag" am Donnerstag Montag — der erste Blick des Büros war eine leere Liste |
+| 2026-10-29 | NUD-180 | Problem-Stopps bekommen eine eigene Gruppe, erledigte Zeilen zeigen `completedAt` (Option A) | Ein Problem-Stopp sah aus wie eine Lieferung, und die Zeile nannte eine Uhrzeit, zu der niemand da war |
+| 2026-10-29 | NUD-181 | Die Karte (gemeinsamer `PinPickerMap`) kommt in den Auswahlschritt des Fahrer-Parkplatzdialogs, GPS und Zahlenfelder bleiben Fallback (Option A) | Der Picker existiert und wird im Büro benutzt; der Mann auf der Straße hatte das schlechtere Werkzeug |
+| 2026-10-29 | NUD-182 | Beide Shells formatieren mit `dateShort`, die Kopfzeile bricht um statt zu kürzen (Option A) | Zwei Formatter für denselben Slot plus `truncate` ergaben „Donnerstag, 29. Ok…" |
+| 2026-10-29 | NUD-183 | „0 / 0" wird abgefangen und das KPI-Raster steht ab `lg` dreispaltig (Option A) | Eine Quote ohne Nenner und eine leere Zelle, die wie eine fehlende Kachel aussieht |
+| 2026-10-29 | NUD-184 | Benutzername wird kontrolliert geführt und die PIN beim Fehlschlag geleert, Fehler aus derselben Zustandsquelle (Option A) | React setzt nur das unkontrollierte Feld zurück; die Reparatur begann am falschen Feld |
+| 2026-10-29 | NUD-185 | Login-Seiten bleiben auch für Angemeldete erreichbar und zeigen „Angemeldet als … / Abmelden" (Option A) | Auf dem geteilten Tablet musste man abmelden, ohne zu wissen warum |
+| 2026-10-29 | NUD-186 | Der vorhandene `LanguageSwitcher` bekommt eine `area`-Prop und steht auf der Büro-Anmeldung (Option A) | Die Büro-UI existiert in drei Sprachen, die Wahl war erst nach dem Login möglich |
+| 2026-10-29 | NUD-187 | Hinweis und Link auf die Fahrerliste über der Auslastungstabelle und im Leerzustand (Option A) | Ohne Arbeitszeiten ist die Seite eine Wand aus Strichen, und der Pfad stand nirgends |
+| 2026-10-29 | NUD-188 | Seed korrigiert `fahrer-de` auf `de`, Testreste werden einmalig archiviert (nicht gelöscht), e2e läuft gegen die dedizierte Datenbank (Option A) | Demo-Sprache und Testreste stören jede Vorführung; Archivieren respektiert die Regel „keine Geschäftsdaten löschen" |
+| 2026-10-29 | NUD-189 | Teillieferung wird ein eigenes Epic nach dem Defekt-Block (Option C) | Es ändert Datenmodell und Buchhaltung und ist kein Fix am QA-Befund |
+| 2026-10-29 | NUD-190 | Kundenstatus-Link kommt nach NUD-172 (Option C) | Der Link ist nur so gut wie das Zeitmodell, das er anzeigt |
+| 2026-10-29 | NUD-104 | Foto-Nachweis: NUD-104 wird erweitert und nach dem Defekt-Block umgesetzt (Option A) | Die Lücke in der Beweiskette ist unabhängig von Mengen und braucht eigene ACs |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
