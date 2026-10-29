@@ -1,6 +1,6 @@
 "use client";
 
-import { MenuIcon } from "lucide-react";
+import { EllipsisIcon, MenuIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -18,22 +18,36 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
  *
  * NUD-153: the trigger and the drawer rows are 48 px touch targets — this is the whole navigation of
  * a tablet and a phone, and there is no mouse at hand.
+ *
+ * `variant="tab"`: the same drawer opened from the "Mehr" slot of the bottom navigation
+ * (`AdminBottomNav`), for the sections that have no tab of their own.
  */
-export function MobileNav() {
+export function MobileNav({ variant = "header" }: { variant?: "header" | "tab" }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-12 min-[1025px]:hidden"
-          data-testid="open-menu"
-          aria-label={t("admin.shell.openMenu")}
-        >
-          <MenuIcon aria-hidden />
-        </Button>
+        {variant === "tab" ? (
+          <button
+            type="button"
+            data-testid="open-menu-tab"
+            className="flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <EllipsisIcon className="size-5" aria-hidden />
+            {t("admin.shell.more")}
+          </button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-12 min-[1025px]:hidden"
+            data-testid="open-menu"
+            aria-label={t("admin.shell.openMenu")}
+          >
+            <MenuIcon aria-hidden />
+          </Button>
+        )}
       </SheetTrigger>
       <SheetContent side="left" aria-describedby={undefined} className="w-64 max-w-[80vw]">
         <SheetHeader>

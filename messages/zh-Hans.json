@@ -191,7 +191,10 @@
         "tour": "今日路线",
         "noTour": "未创建",
         "tourSub": "今天尚未安排路线。",
-        "done": "今日已完成"
+        "done": "今日已完成",
+        "nextDay": "下一个配送日",
+        "nextDaySub": "{date} · {drafts, plural, =0 {全部已确认} other {# 个草稿待确认}}",
+        "nextDayValue": "{count, plural, other {# 个订单}}"
       },
       "attention": {
         "title": "待处理",
@@ -211,6 +214,26 @@
       "activity": {
         "title": "最近活动",
         "empty": "今天还没有记录。"
+      },
+      "week": {
+        "title": "本周订单",
+        "description": "每个配送日的已确认订单",
+        "past": "已过",
+        "today": "今天",
+        "upcoming": "即将",
+        "table": "本周每天的已确认订单",
+        "day": "日期",
+        "orders": "订单",
+        "bar": "{day}：{count, plural, other {# 个订单}}"
+      },
+      "gauge": {
+        "title": "路线进度",
+        "summary": "{total} 个站点中已完成 {done} 个：{delivered} 个已送达，{problems, plural, other {# 个问题}}，{open} 个未完成",
+        "center": "已完成 {done}/{total}",
+        "delivered": "{count} 个已送达",
+        "problems": "{count, plural, other {# 个问题}}",
+        "open": "{count} 个未完成",
+        "empty": "路线发布后，这里会显示进度。"
       }
     },
     "shell": {
@@ -220,7 +243,9 @@
       "skipToContent": "跳到正文",
       "breadcrumb": "面包屑导航",
       "collapseSidebar": "收起侧边栏",
-      "expandSidebar": "展开侧边栏"
+      "expandSidebar": "展开侧边栏",
+      "more": "更多",
+      "bottomNavigation": "快速导航"
     },
     "nav": {
       "dashboard": "总览",

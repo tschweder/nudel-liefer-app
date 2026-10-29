@@ -1,7 +1,7 @@
 import "../globals.css";
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -20,10 +20,10 @@ export function generateStaticParams() {
  * Self-hosted variable font (re-design.md §4.2). Latin only: Chinese text falls through to the
  * per-locale CJK stack in globals.css, which is why `variable` is used instead of a fixed stack.
  */
-const inter = Inter({
+const geist = Geist({
   subsets: ["latin", "latin-ext"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-geist",
 });
 
 export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Promise<Metadata> {
@@ -38,7 +38,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   setRequestLocale(locale);
 
   return (
-    <html lang={locale} className={`${inter.variable} h-full antialiased`}>
+    <html lang={locale} className={`${geist.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {/*
          * Colour scheme (NUD-132) is applied before the first paint by this static bootstrap, which

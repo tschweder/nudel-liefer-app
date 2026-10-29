@@ -649,7 +649,7 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       <div
         role="group"
         aria-label={t("saveBarLabel")}
-        className="sticky bottom-0 z-20 -mx-6 flex flex-wrap items-center gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8"
+        className="sticky bottom-0 z-20 -mx-6 max-[1024px]:bottom-[5.25rem] flex flex-wrap items-center gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8"
       >
         <Button type="submit" loading={pending} data-testid="customer-save">
           {customerId ? tc("actions.save") : t("create")}

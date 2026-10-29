@@ -29,9 +29,9 @@ import { setLocaleAction } from "@/server/locale-actions";
 const PIN_PATTERN = /^\d{6}$/;
 
 /**
- * Inline brand mark (re-design.md §7.5/§8.9): wordmark "Nudel Liefer" plus a terracotta dot, pure
- * CSS — no image file, no external font. The dot flips to the foreground colour on the terracotta
- * office panel where a terracotta dot would disappear.
+ * Inline brand mark (re-design.md §7.5/§8.9): wordmark "Nudel Liefer" plus a brand-coloured dot, pure
+ * CSS — no image file, no external font. The dot flips to the foreground colour on the brand-coloured
+ * office panel where a brand-coloured dot would disappear.
  */
 function BrandMark({ onPrimary = false, className }: { onPrimary?: boolean; className?: string }) {
   return (

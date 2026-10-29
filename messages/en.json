@@ -191,7 +191,10 @@
         "tour": "Tour today",
         "noTour": "not created",
         "tourSub": "No tour is planned for today.",
-        "done": "Done today"
+        "done": "Done today",
+        "nextDay": "Next delivery day",
+        "nextDaySub": "{date} · {drafts, plural, =0 {all confirmed} one {# draft open} other {# drafts open}}",
+        "nextDayValue": "{count, plural, one {# order} other {# orders}}"
       },
       "attention": {
         "title": "To do",
@@ -211,6 +214,26 @@
       "activity": {
         "title": "Recent activity",
         "empty": "No entries yet today."
+      },
+      "week": {
+        "title": "Orders this week",
+        "description": "Confirmed orders per delivery day",
+        "past": "Past",
+        "today": "Today",
+        "upcoming": "Upcoming",
+        "table": "Confirmed orders per day of this week",
+        "day": "Day",
+        "orders": "Orders",
+        "bar": "{day}: {count, plural, one {# order} other {# orders}}"
+      },
+      "gauge": {
+        "title": "Tour progress",
+        "summary": "{done} of {total} stops done: {delivered} delivered, {problems, plural, one {# problem} other {# problems}}, {open} open",
+        "center": "{done} of {total} done",
+        "delivered": "{count} delivered",
+        "problems": "{count, plural, one {# problem} other {# problems}}",
+        "open": "{count} open",
+        "empty": "Progress appears here once the tour is released."
       }
     },
     "shell": {
@@ -220,7 +243,9 @@
       "skipToContent": "Skip to content",
       "breadcrumb": "Breadcrumb navigation",
       "collapseSidebar": "Collapse sidebar",
-      "expandSidebar": "Expand sidebar"
+      "expandSidebar": "Expand sidebar",
+      "more": "More",
+      "bottomNavigation": "Quick navigation"
     },
     "nav": {
       "dashboard": "Overview",

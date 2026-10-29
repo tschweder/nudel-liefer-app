@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRightIcon, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { type Tone, toneClasses } from "@/components/shared/status";
@@ -7,11 +7,15 @@ import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * KPI tile for the admin dashboard and the tour header (redesign RD-3, re-design.md §5/§8.2).
+ * KPI tile for the admin dashboard and the tour header (redesign RD-3, re-design.md §5/§8.2;
+ * colour refresh 2026-10).
  *
- * Pure presentation: label (muted), big tabular value, optional sub line, optional icon in a soft
- * circle. With `href` the whole tile is a link — hover raises the shadow and the label text carries
- * the accessible name, so the link is never an unlabelled box.
+ * Pure presentation: label with an optional icon in a soft circle, big tabular value, optional sub
+ * line. With `href` the whole tile is a link — an arrow circle in the corner shows it, hover lifts
+ * the tile, and the label text carries the accessible name, so the link is never an unlabelled box.
+ *
+ * `variant="hero"`: the one tile the dashboard leads with, filled with the brand colour (at most one
+ * per row — a second hero tile would make neither stand out).
  */
 export function StatTile({
   label,
@@ -19,6 +23,7 @@ export function StatTile({
   sub,
   icon: Icon,
   tone = "neutral",
+  variant = "default",
   href,
   className,
   "data-testid": testId,
@@ -28,41 +33,72 @@ export function StatTile({
   sub?: ReactNode;
   icon?: LucideIcon;
   tone?: Tone;
+  variant?: "default" | "hero";
   href?: string;
   className?: string;
   "data-testid"?: string;
 }) {
+  const hero = variant === "hero";
   const content = (
-    <div className="flex items-start gap-3 px-5">
-      {Icon ? (
+    <div className="flex flex-col gap-3 px-4 sm:px-5">
+      <div className="flex items-center gap-2.5">
+        {Icon ? (
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-full",
+              hero ? "bg-hero-foreground/15 text-hero-foreground" : toneClasses[tone],
+            )}
+          >
+            <Icon className="size-[18px]" aria-hidden />
+          </span>
+        ) : null}
         <span
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-full",
-            toneClasses[tone],
+            "min-w-0 flex-1 text-sm font-medium",
+            hero ? "text-hero-foreground/90" : "text-muted-foreground",
           )}
         >
-          <Icon className="size-5" aria-hidden />
+          {label}
+        </span>
+        {href ? (
+          <span
+            aria-hidden
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
+              hero
+                ? "border-hero-foreground/30 bg-hero-foreground/10"
+                : "border-border group-hover:bg-muted",
+            )}
+          >
+            <ArrowUpRightIcon className="size-4" />
+          </span>
+        ) : null}
+      </div>
+      <span className="text-3xl leading-none font-semibold tracking-tight tabular-nums sm:text-4xl">
+        {value}
+      </span>
+      {sub ? (
+        <span className={cn("text-sm", hero ? "text-hero-foreground/85" : "text-muted-foreground")}>
+          {sub}
         </span>
       ) : null}
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <span className="text-3xl font-semibold tracking-tight tabular-nums">{value}</span>
-        {sub ? <span className="text-sm text-muted-foreground">{sub}</span> : null}
-      </div>
     </div>
   );
+
+  const surface = hero ? "bg-hero text-hero-foreground" : undefined;
 
   if (href) {
     return (
       <Link
         href={href}
         data-testid={testId}
+        data-variant={variant}
         className={cn(
-          "flex rounded-lg outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
+          "group flex rounded-xl outline-none transition-transform duration-200 ease-out hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0",
           className,
         )}
       >
-        <Card interactive className="w-full py-4 shadow-sm hover:shadow-md">
+        <Card interactive className={cn("w-full py-5", surface)}>
           {content}
         </Card>
       </Link>
@@ -70,7 +106,7 @@ export function StatTile({
   }
 
   return (
-    <Card className={cn("py-4", className)} data-testid={testId}>
+    <Card className={cn("py-5", surface, className)} data-testid={testId} data-variant={variant}>
       {content}
     </Card>
   );

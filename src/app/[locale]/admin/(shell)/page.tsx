@@ -1,4 +1,6 @@
+import { addDays, format as formatDate, startOfWeek } from "date-fns";
 import {
+  CalendarDaysIcon,
   CheckCircle2Icon,
   CircleAlertIcon,
   CircleCheckIcon,
@@ -8,16 +10,20 @@ import {
   RouteIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import type { createFormatter } from "next-intl";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/admin/page-header";
 import { TodayCard } from "@/components/admin/today-card";
+import { TourGauge } from "@/components/admin/tour-gauge";
+import { WeekOrdersChart, type WeekOrdersDay } from "@/components/admin/week-orders-chart";
 import { EmptyState, LoadingSkeleton } from "@/components/shared/states";
 import { tourTone } from "@/components/shared/status";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { StatTile } from "@/components/ui/stat-tile";
 import { formatCalendarDate, parseCalendarDate } from "@/domain/order";
+import { showsStopResults } from "@/domain/tour-progress";
 import { Link } from "@/i18n/navigation";
 import { type AppFormatters, createAppFormatters } from "@/lib/format";
 import { tourHistoryQuery } from "@/server/audit-queries";
@@ -41,15 +47,21 @@ import {
  * photos or Parkplatz are missing) — passed with filter inputs and read for their counts only
  * (`pageSize: 1`). No new aggregate and no new SQL: the same queries the Bestellungen and Kunden
  * pages use.
+ *
+ * Colour refresh 2026-10: a hero tile, a tile for the next delivery day, the week's confirmed orders
+ * per day (`getDateTotals` through `orderOverviewQuery`, read for its `totals` only) and a
+ * half-circle gauge of today's tour. Still no new aggregate and no new SQL.
  */
 async function Dashboard({ locale }: { locale: string }) {
   await requirePageActor("admin", locale);
   const t = await getTranslations({ locale });
-  const fmt = createAppFormatters(await getFormatter({ locale }), await getFactoryTimezone());
+  const formatter = await getFormatter({ locale });
+  const fmt = createAppFormatters(formatter, await getFactoryTimezone());
   const nextDeliveryDate = await getDefaultDeliveryDate();
   const nextDeliveryDay = formatCalendarDate(nextDeliveryDate);
-  const [today, missingPhotos, parkingMissing, drafts] = await Promise.all([
-    todayProgressQuery(),
+  const today = await todayProgressQuery();
+  const week = weekOf(today.date);
+  const [missingPhotos, parkingMissing, drafts, weekOrders] = await Promise.all([
     listCustomersQuery({ status: "active", photosMissing: true, pageSize: 1 }),
     listCustomersQuery({ status: "active", parkingMissing: true, pageSize: 1 }),
     orderOverviewQuery({
@@ -57,6 +69,7 @@ async function Dashboard({ locale }: { locale: string }) {
       to: nextDeliveryDay,
       status: "DRAFT",
     }),
+    orderOverviewQuery({ from: week[0], to: week[week.length - 1] }),
   ]);
   // Newest first, capped to the five shown. Only today's tour: a cross-tour feed has no query yet.
   const activity = today.tour ? (await tourHistoryQuery(today.tour.id)).slice(0, 5) : [];
@@ -65,6 +78,13 @@ async function Dashboard({ locale }: { locale: string }) {
     parkingMissing: parkingMissing.total,
     drafts: { count: drafts.rows.length, date: nextDeliveryDay },
   };
+  const nextDay = {
+    date: nextDeliveryDay,
+    // `totals` counts confirmed orders only, whatever the status filter of the listing.
+    confirmed: drafts.totals.find((day) => day.date === nextDeliveryDay)?.orderCount ?? 0,
+    drafts: drafts.rows.length,
+  };
+  const weekDays = weekChartDays(week, today.date, weekOrders.totals, formatter, t);
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,7 +93,31 @@ async function Dashboard({ locale }: { locale: string }) {
         description={t("admin.dashboard.description")}
         titleTestId="admin-title"
       />
-      <StatTiles today={today} t={t} />
+      <StatTiles today={today} nextDay={nextDay} fmt={fmt} t={t} />
+      <div className="grid items-stretch gap-6 xl:grid-cols-3">
+        <Card className="min-w-0 xl:col-span-2" data-testid="week-card">
+          <CardHeader>
+            <h2 className="text-lg font-semibold tracking-tight">
+              {t("admin.dashboard.week.title")}
+            </h2>
+            <CardDescription>{t("admin.dashboard.week.description")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <WeekOrdersChart
+              days={weekDays}
+              labels={{
+                past: t("admin.dashboard.week.past"),
+                today: t("admin.dashboard.week.today"),
+                upcoming: t("admin.dashboard.week.upcoming"),
+                table: t("admin.dashboard.week.table"),
+                day: t("admin.dashboard.week.day"),
+                orders: t("admin.dashboard.week.orders"),
+              }}
+            />
+          </CardContent>
+        </Card>
+        <GaugePanel today={today} t={t} />
+      </div>
       <div className="grid items-stretch gap-6 xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
           <TodayCard today={today} pollIntervalMs={getLivePollIntervalMs()} />
@@ -87,8 +131,55 @@ async function Dashboard({ locale }: { locale: string }) {
 
 type Translate = Awaited<ReturnType<typeof getTranslations>>;
 
-/** The three KPI tiles the existing data can fill, each linking to today's tour (re-design.md §8.2). */
-function StatTiles({ today, t }: { today: TodayProgress; t: Translate }) {
+/** Monday to Saturday of the week that contains `date` (`YYYY-MM-DD`), as `YYYY-MM-DD` strings. */
+function weekOf(date: string): string[] {
+  const monday = startOfWeek(new Date(`${date}T12:00:00Z`), { weekStartsOn: 1 });
+  return Array.from({ length: 6 }, (_, index) => formatDate(addDays(monday, index), "yyyy-MM-dd"));
+}
+
+/** Chart rows for `WeekOrdersChart`: one per day, confirmed orders from the day totals. */
+function weekChartDays(
+  week: string[],
+  todayDate: string,
+  totals: Array<{ date: string; orderCount: number }>,
+  formatter: ReturnType<typeof createFormatter>,
+  t: Translate,
+): WeekOrdersDay[] {
+  return week.map((date) => {
+    const at = new Date(`${date}T12:00:00Z`);
+    const count = totals.find((day) => day.date === date)?.orderCount ?? 0;
+    const day = formatter.dateTime(at, {
+      weekday: "short",
+      day: "numeric",
+      month: "numeric",
+      timeZone: "UTC",
+    });
+    return {
+      date,
+      label: formatter.dateTime(at, { weekday: "short", timeZone: "UTC" }),
+      description: t("admin.dashboard.week.bar", { day, count }),
+      count,
+      when: date < todayDate ? "past" : date === todayDate ? "today" : "upcoming",
+    };
+  });
+}
+
+/**
+ * The four KPI tiles (re-design.md §8.2, colour refresh 2026-10): today's progress as the hero tile,
+ * problems, the next delivery day and today's tour status. All but the next-day tile link to today's
+ * tour.
+ */
+function StatTiles({
+  today,
+  nextDay,
+  fmt,
+  t,
+}: {
+  today: TodayProgress;
+  nextDay: { date: string; confirmed: number; drafts: number };
+  fmt: AppFormatters;
+  t: Translate;
+}) {
   const { tour } = today;
   const tourHref = `/admin/tours?date=${today.date}`;
   const progress = tour?.progress;
@@ -100,9 +191,9 @@ function StatTiles({ today, t }: { today: TodayProgress; t: Translate }) {
   return (
     <section
       aria-label={t("admin.dashboard.tiles.title")}
-      // NUD-183 (QA 2026-10-29 F18): three tiles need three columns from `lg` on — at 1024 px the
-      // old `sm:grid-cols-2 xl:grid-cols-3` left an empty cell that read like a missing fourth card.
-      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      // Four tiles: 2 × 2 up to 1279 px (incl. the 1024 px tablet width), one row from `xl`. On a
+      // phone the hero tile takes the full width and the other three share two columns below it.
+      className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4"
     >
       {/* "erledigt" (delivered + problems) is the numerator of the percentage the card below shows
           as well — "geliefert" used to leave the tile at "2 / 6 (50 %)" while the card said
@@ -110,17 +201,16 @@ function StatTiles({ today, t }: { today: TodayProgress; t: Translate }) {
           ("0 / 0") is not a number — without a tour (or with a tour of no stops) the tile says so. */}
       <StatTile
         data-testid="stat-delivered"
+        variant="hero"
+        className="col-span-2 sm:col-span-1"
         label={t("admin.dashboard.tiles.done")}
-        value={
-          progress && progress.total > 0 ? `${progress.done} / ${progress.total}` : "—"
-        }
+        value={progress && progress.total > 0 ? `${progress.done} / ${progress.total}` : "—"}
         sub={
           progress && progress.total > 0
             ? t("admin.dashboard.today.percent", { percent: progress.percent })
             : t("admin.dashboard.tiles.noTour")
         }
         icon={CircleCheckIcon}
-        tone="success"
         href={tourHref}
       />
       <StatTile
@@ -133,15 +223,73 @@ function StatTiles({ today, t }: { today: TodayProgress; t: Translate }) {
         href={tourHref}
       />
       <StatTile
+        data-testid="stat-next-day"
+        label={t("admin.dashboard.tiles.nextDay")}
+        value={nextDay.confirmed}
+        sub={t("admin.dashboard.tiles.nextDaySub", {
+          date: fmt.calendarDate(parseCalendarDate(nextDay.date) ?? new Date(nextDay.date)),
+          drafts: nextDay.drafts,
+        })}
+        icon={CalendarDaysIcon}
+        tone="primary"
+        href={`/admin/orders?from=${nextDay.date}&to=${nextDay.date}`}
+      />
+      <StatTile
         data-testid="stat-tour"
+        className="col-span-2 sm:col-span-1"
         label={t("admin.dashboard.tiles.tour")}
-        value={statusLabel}
+        value={<span className="text-2xl">{statusLabel}</span>}
         sub={tour ? undefined : t("admin.dashboard.tiles.tourSub")}
         icon={RouteIcon}
         tone={tour ? tourTone(tour.status) : "neutral"}
         href={tourHref}
       />
     </section>
+  );
+}
+
+/** Half-circle progress of today's tour; before the release there is nothing to show yet. */
+function GaugePanel({ today, t }: { today: TodayProgress; t: Translate }) {
+  const progress = today.tour && showsStopResults(today.tour.status) ? today.tour.progress : null;
+  return (
+    <Card className="h-full" data-testid="gauge-card">
+      <CardHeader>
+        <h2 className="text-lg font-semibold tracking-tight">{t("admin.dashboard.gauge.title")}</h2>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col justify-center">
+        {progress && progress.total > 0 ? (
+          <TourGauge
+            delivered={progress.delivered}
+            problems={progress.problems}
+            total={progress.total}
+            percent={progress.percent}
+            labels={{
+              summary: t("admin.dashboard.gauge.summary", {
+                done: progress.done,
+                total: progress.total,
+                delivered: progress.delivered,
+                problems: progress.problems,
+                open: progress.pending,
+              }),
+              center: t("admin.dashboard.gauge.center", {
+                done: progress.done,
+                total: progress.total,
+              }),
+              delivered: t("admin.dashboard.gauge.delivered", { count: progress.delivered }),
+              problems: t("admin.dashboard.gauge.problems", { count: progress.problems }),
+              open: t("admin.dashboard.gauge.open", { count: progress.pending }),
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon={RouteIcon}
+            title={t("admin.dashboard.tiles.noTour")}
+            description={t("admin.dashboard.gauge.empty")}
+            className="border-0 p-0"
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

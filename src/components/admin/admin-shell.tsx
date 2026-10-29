@@ -4,6 +4,7 @@ import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 
+import { AdminBottomNav } from "@/components/admin/admin-bottom-nav";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { MobileNav } from "@/components/admin/mobile-nav";
 import { activeNavItem } from "@/components/admin/nav-items";
@@ -109,54 +110,58 @@ export function AdminShell({
           // §8.1: the 260 px rail needs the room, so **≤ 1024 px** the navigation is the off-canvas
           // drawer behind the hamburger (`MobileNav`) — `min-[1025px]`, not `lg` (which starts at
           // exactly 1024 px and left the rail expanded at the 1024 px review width).
+          // The aside itself stretches to the full page height (its surface and border run to the
+          // bottom of a long page); the inner column is sticky, so the navigation stays in view.
           className={cn(
-            "sticky top-0 hidden h-dvh shrink-0 flex-col border-e border-border bg-card min-[1025px]:flex",
+            "hidden shrink-0 border-e border-border bg-card min-[1025px]:block",
             collapsed ? "w-[72px]" : "w-[260px]",
           )}
         >
-          <div
-            className={cn(
-              "flex h-14 shrink-0 items-center gap-2 px-3",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-primary" />
-            {collapsed ? null : (
-              <span className="truncate text-lg font-semibold">{t("common.appName")}</span>
-            )}
-          </div>
-          <div className="min-h-0 flex-1 px-2 py-2">
-            <AdminNav collapsed={collapsed} />
-          </div>
-          <div
-            className={cn(
-              "shrink-0 border-t border-border p-2",
-              collapsed && "flex justify-center",
-            )}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  data-testid="toggle-sidebar"
-                  aria-label={t(
-                    collapsed ? "admin.shell.expandSidebar" : "admin.shell.collapseSidebar",
-                  )}
-                  aria-expanded={!collapsed}
-                  onClick={toggleSidebar}
-                >
-                  {collapsed ? (
-                    <PanelLeftOpenIcon aria-hidden />
-                  ) : (
-                    <PanelLeftCloseIcon aria-hidden />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {t(collapsed ? "admin.shell.expandSidebar" : "admin.shell.collapseSidebar")}
-              </TooltipContent>
-            </Tooltip>
+          <div className="sticky top-0 flex h-dvh flex-col">
+            <div
+              className={cn(
+                "flex h-14 shrink-0 items-center gap-2 px-3",
+                collapsed && "justify-center px-0",
+              )}
+            >
+              <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-primary" />
+              {collapsed ? null : (
+                <span className="truncate text-lg font-semibold">{t("common.appName")}</span>
+              )}
+            </div>
+            <div className="min-h-0 flex-1 px-2 py-2">
+              <AdminNav collapsed={collapsed} />
+            </div>
+            <div
+              className={cn(
+                "shrink-0 border-t border-border p-2",
+                collapsed && "flex justify-center",
+              )}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid="toggle-sidebar"
+                    aria-label={t(
+                      collapsed ? "admin.shell.expandSidebar" : "admin.shell.collapseSidebar",
+                    )}
+                    aria-expanded={!collapsed}
+                    onClick={toggleSidebar}
+                  >
+                    {collapsed ? (
+                      <PanelLeftOpenIcon aria-hidden />
+                    ) : (
+                      <PanelLeftCloseIcon aria-hidden />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {t(collapsed ? "admin.shell.expandSidebar" : "admin.shell.collapseSidebar")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </aside>
 
@@ -171,8 +176,12 @@ export function AdminShell({
             </div>
           </header>
           <main id="main" className="min-w-0 flex-1">
-            <div className="mx-auto w-full max-w-[1440px] px-6 py-6 lg:px-8">{children}</div>
+            {/* Bottom padding below the rail breakpoint keeps the last row clear of the bottom bar. */}
+            <div className="mx-auto w-full max-w-[1440px] px-6 pt-6 pb-28 lg:px-8 min-[1025px]:pb-6">
+              {children}
+            </div>
           </main>
+          <AdminBottomNav />
         </div>
       </div>
     </TooltipProvider>

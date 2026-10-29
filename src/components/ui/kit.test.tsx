@@ -81,7 +81,7 @@ describe("Button", () => {
 describe("Card", () => {
   afterEach(cleanup);
 
-  it("never nests: the surface is a card with a hairline border only", () => {
+  it("is a soft white surface: shadow, no visible border (colour refresh 2026-10)", () => {
     render(
       <Card data-testid="card">
         <CardHeader action={<Button size="sm">Neu</Button>}>
@@ -91,8 +91,9 @@ describe("Card", () => {
       </Card>,
     );
     const card = screen.getByTestId("card");
-    expect(card).toHaveClass("border");
-    expect(card).not.toHaveClass("shadow-sm");
+    expect(card).toHaveClass("border-transparent");
+    expect(card).toHaveClass("shadow-sm");
+    expect(card).not.toHaveClass("cursor-pointer");
     expect(screen.getByText("Touren")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Neu" })).toBeInTheDocument();
   });

@@ -10,136 +10,140 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Design tokens (redesign RD-1, re-design.md §4). shadcn/ui naming kept so existing components keep
- * working; the new tokens are additive. Values are HSL channels consumed through `hsl(var(--x))` in
- * `@theme inline`.
+ * Design tokens (redesign RD-1, re-design.md §4; colour refresh 2026-10). shadcn/ui naming kept so
+ * existing components keep working; the new tokens are additive. Values are HSL channels consumed
+ * through `hsl(var(--x))` in `@theme inline`.
  *
  * Light is the default (NUD-132: the office and the drivers asked for the brighter design; a device
  * whose OS prefers dark used to be forced into dark with no way back).
  *
- * Contrast (measured with `.redesign/contrast.mjs`, WCAG AA needs 4.5:1 for text, 3:1 for UI) -
- * re-measured after the NUD-132 brightness pass:
- *   foreground on background            16.06:1      foreground on card                17.05:1
- *   muted-foreground on background       4.99:1      muted-foreground on card           5.30:1
- *   primary on card                      5.45:1      primary-foreground on primary      5.45:1
- *   primary-soft-foreground on soft      7.32:1
- *   success-soft-foreground on soft      7.43:1      success on card                    5.01:1
- *   warning-soft-foreground on soft      7.96:1      warning-foreground on warning      7.60:1
- *   destructive-soft-foreground on soft  8.20:1      destructive-foreground on destr.   6.06:1
- *   info-soft-foreground on soft         7.68:1      info-foreground on info            5.25:1
- *   ring / map-route on card             5.45:1
+ * Palette: calm sage green on green-tinted grey neutrals (the office found the terracotta too loud).
+ * Big white cards without borders on a slightly darker page, soft shadows.
+ *
+ * Contrast (WCAG AA needs 4.5:1 for text, 3:1 for UI), measured for both schemes:
+ *   light: foreground on background 14.8:1, muted-foreground on background 5.0:1, on card 5.6:1,
+ *          primary on card 6.3:1, primary-foreground on primary 6.3:1, primary-soft-foreground on
+ *          soft 8.2:1.
+ *   dark:  foreground on background 14.9:1, muted-foreground on card 6.9:1, primary on card 6.0:1,
+ *          primary-foreground on primary 6.9:1, primary-soft-foreground on soft 8.8:1.
  */
 :root {
   color-scheme: light;
 
-  /* surfaces — warm neutrals (stone), never cool grey; lifted in NUD-132 for a brighter, airier page */
-  --background: 42 38% 98.5%;
-  --foreground: 20 14% 11%;
+  /* surfaces — green-tinted neutrals, never a warm/cool mix */
+  --background: 140 12% 94.5%;
+  --foreground: 150 14% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 20 14% 11%;
+  --card-foreground: 150 14% 11%;
   --popover: 0 0% 100%;
-  --popover-foreground: 20 14% 11%;
-  --muted: 40 24% 95.5%;
-  --muted-foreground: 25 6% 42%;
-  --border: 30 16% 90%;
-  --input: 30 14% 80%;
-  --ring: 18 76% 40%;
+  --popover-foreground: 150 14% 11%;
+  --muted: 140 12% 94.5%;
+  --muted-foreground: 150 6% 39.6%;
+  --border: 144 10% 89%;
+  --input: 147 9% 78%;
+  --ring: 152 39% 30.2%;
 
-  /* brand — terracotta */
-  --primary: 18 76% 40%;
-  --primary-hover: 18 76% 34%;
+  /* brand — sage green */
+  --primary: 152 39% 30.2%;
+  --primary-hover: 152 40% 25.3%;
   --primary-foreground: 0 0% 100%;
-  --primary-soft: 20 80% 95%;
-  --primary-soft-foreground: 18 76% 30%;
+  --primary-soft: 145 27% 91.4%;
+  --primary-soft-foreground: 151 43% 21.2%;
 
   /* kept for existing components */
-  --secondary: 40 15% 93%;
-  --secondary-foreground: 20 14% 11%;
-  --accent: 20 80% 95%;
-  --accent-foreground: 18 76% 30%;
+  --secondary: 140 10% 92%;
+  --secondary-foreground: 150 14% 11%;
+  --accent: 145 27% 91.4%;
+  --accent-foreground: 151 43% 21.2%;
 
   /* semantic — one vocabulary for badges, rows, map markers, progress */
-  --success: 152 55% 32%;
+  --success: 148 45% 32%;
   --success-foreground: 0 0% 100%;
-  --success-soft: 150 50% 94%;
-  --success-soft-foreground: 152 60% 22%;
+  --success-soft: 146 40% 92%;
+  --success-soft-foreground: 150 49% 24%;
 
-  --warning: 36 90% 42%;
-  /* Dark text on amber: white on this amber is only 3.2:1 (measured), dark is 7.6:1. */
+  --warning: 36 72% 42%;
+  /* Dark text on amber: white on this amber is too weak, dark text is well above 7:1. */
   --warning-foreground: 30 90% 10%;
-  --warning-soft: 42 100% 93%;
-  --warning-soft-foreground: 30 90% 24%;
+  --warning-soft: 39 80% 92%;
+  --warning-soft-foreground: 35 81% 26%;
 
-  --destructive: 0 70% 44%;
+  --destructive: 0 62% 45%;
   --destructive-foreground: 0 0% 100%;
-  --destructive-soft: 0 85% 96%;
-  --destructive-soft-foreground: 0 70% 32%;
+  --destructive-soft: 0 70% 96%;
+  --destructive-soft-foreground: 0 62% 32%;
 
-  --info: 214 80% 46%;
+  --info: 207 48% 36%;
   --info-foreground: 0 0% 100%;
-  --info-soft: 214 90% 95%;
-  --info-soft-foreground: 214 80% 32%;
+  --info-soft: 207 45% 93%;
+  --info-soft-foreground: 207 52% 25%;
 
   /* map */
-  --map-route: 18 76% 40%;
-  --map-depot: 20 14% 11%;
+  --map-route: 152 39% 30.2%;
+  --map-depot: 150 14% 11%;
+
+  /* the dashboard's hero tile: deep sage with white text in both schemes */
+  --hero: 152 39% 30.2%;
+  --hero-foreground: 0 0% 100%;
 
   --radius: 0.75rem;
 }
 
 /*
  * Dark mode (NUD-132). Class-based, selected by the toggle and rendered server-side, so it is a
- * choice rather than an OS preference. The surfaces are lifted compared with the old
- * `prefers-color-scheme` block: "brighter" was asked for in both schemes, and the previous
- * `background 8%` / `card 12%` read almost black on a tablet screen.
+ * choice rather than an OS preference. Its own tuned steps, not an inversion of the light ones:
+ * tinted near-black page, lifted cards, a lighter sage for accents.
  */
 .dark {
   color-scheme: dark;
-  --background: 24 12% 13%;
-  --foreground: 40 20% 96%;
-  --card: 24 10% 17%;
-  --card-foreground: 40 20% 96%;
-  --popover: 24 10% 17%;
-  --popover-foreground: 40 20% 96%;
-  --muted: 24 10% 23%;
-  --muted-foreground: 30 10% 72%;
-  --border: 24 9% 30%;
-  --input: 24 9% 36%;
-  --ring: 20 80% 60%;
+  --background: 150 5% 10.5%;
+  --foreground: 140 10% 93%;
+  --card: 150 5% 15%;
+  --card-foreground: 140 10% 93%;
+  --popover: 150 5% 15%;
+  --popover-foreground: 140 10% 93%;
+  --muted: 150 5% 19%;
+  --muted-foreground: 145 6% 68%;
+  --border: 150 5% 22%;
+  --input: 150 5% 30%;
+  --ring: 148 32% 56.5%;
 
-  --primary: 20 80% 58%;
-  --primary-hover: 20 80% 64%;
-  --primary-foreground: 20 40% 8%;
-  --primary-soft: 20 40% 18%;
-  --primary-soft-foreground: 20 80% 82%;
+  --primary: 148 32% 56.5%;
+  --primary-hover: 148 35% 63.7%;
+  --primary-foreground: 148 38% 8.8%;
+  --primary-soft: 152 23% 15.9%;
+  --primary-soft-foreground: 148 41% 76.1%;
 
-  --secondary: 24 10% 23%;
-  --secondary-foreground: 40 20% 96%;
-  --accent: 20 40% 18%;
-  --accent-foreground: 20 80% 82%;
+  --secondary: 150 7% 16.1%;
+  --secondary-foreground: 144 13% 92.4%;
+  --accent: 152 23% 15.9%;
+  --accent-foreground: 148 41% 76.1%;
 
-  --success: 152 45% 55%;
-  --success-foreground: 152 60% 8%;
-  --success-soft: 152 40% 16%;
-  --success-soft-foreground: 152 60% 82%;
+  --success: 148 40% 55%;
+  --success-foreground: 148 60% 8%;
+  --success-soft: 148 28% 15%;
+  --success-soft-foreground: 148 45% 78%;
 
-  --warning: 36 80% 60%;
+  --warning: 37 70% 60%;
   --warning-foreground: 30 90% 8%;
-  --warning-soft: 30 40% 18%;
-  --warning-soft-foreground: 40 90% 82%;
+  --warning-soft: 37 45% 15%;
+  --warning-soft-foreground: 39 78% 77%;
 
-  --destructive: 0 65% 60%;
+  --destructive: 0 66% 65%;
   --destructive-foreground: 0 40% 8%;
-  --destructive-soft: 0 40% 20%;
-  --destructive-soft-foreground: 0 80% 86%;
+  --destructive-soft: 0 35% 17%;
+  --destructive-soft-foreground: 0 75% 85%;
 
-  --info: 214 70% 62%;
-  --info-foreground: 214 60% 8%;
-  --info-soft: 214 40% 20%;
-  --info-soft-foreground: 214 80% 84%;
+  --info: 207 50% 64%;
+  --info-foreground: 207 60% 8%;
+  --info-soft: 207 30% 17%;
+  --info-soft-foreground: 207 60% 82%;
 
-  --map-route: 20 80% 58%;
-  --map-depot: 40 20% 92%;
+  --map-route: 148 32% 56.5%;
+  --map-depot: 140 10% 93%;
+
+  --hero: 152 36% 27%;
+  --hero-foreground: 0 0% 100%;
 }
 
 @theme inline {
@@ -181,6 +185,8 @@
   --color-ring: hsl(var(--ring));
   --color-map-route: hsl(var(--map-route));
   --color-map-depot: hsl(var(--map-depot));
+  --color-hero: hsl(var(--hero));
+  --color-hero-foreground: hsl(var(--hero-foreground));
 
   /* radius scale (re-design.md §4.3): inputs/buttons 10, cards 16, sheets 20, pills 999 */
   --radius-sm: 0.5rem; /* 8 */
@@ -190,11 +196,30 @@
   --radius-2xl: 1.5rem; /* 24 */
 
   /* elevation (re-design.md §4.1) */
-  --shadow-sm: 0 1px 2px 0 rgb(28 25 23 / 0.06);
-  --shadow-md: 0 4px 12px -2px rgb(28 25 23 / 0.1), 0 1px 2px 0 rgb(28 25 23 / 0.06);
-  --shadow-lg: 0 16px 40px -12px rgb(28 25 23 / 0.22), 0 2px 8px rgb(28 25 23 / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(20 32 26 / 0.05), 0 1px 3px 0 rgb(20 32 26 / 0.04);
+  --shadow-md: 0 4px 12px -2px rgb(20 32 26 / 0.1), 0 1px 2px 0 rgb(20 32 26 / 0.06);
+  --shadow-lg: 0 16px 40px -12px rgb(20 32 26 / 0.22), 0 2px 8px rgb(20 32 26 / 0.06);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Brand-filled surface of the dashboard's hero tile: a soft radial light from the top-right corner
+ * instead of a flat fill. Its own `--hero` token: deep sage with white text in both schemes (the
+ * light sage of the dark-mode `--primary` made the white-on-green tile hard to read).
+ */
+.bg-hero {
+  background: radial-gradient(
+    120% 140% at 100% 0%,
+    color-mix(in oklab, hsl(var(--hero)) 88%, white) 0%,
+    hsl(var(--hero)) 50%,
+    color-mix(in oklab, hsl(var(--hero)) 80%, black) 100%
+  );
+}
+
+/* "Not yet / still open" fill for charts (upcoming days, open stops): hatched, so it never relies on colour alone. */
+.bg-hatch {
+  background: repeating-linear-gradient(135deg, hsl(var(--input)) 0 2px, hsl(var(--muted)) 2px 7px);
 }
 
 /* Reduced motion (NUD-095): no slide / fade animations; spinners keep turning (they show progress). */
@@ -229,9 +254,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* CJK stack; Inter has no CJK glyphs, so this takes over for Chinese text. */
+/* CJK stack; Geist has no CJK glyphs, so this takes over for Chinese text. */
 :lang(zh-Hans) body {
-  font-family: var(--font-inter), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-geist), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   line-height: 1.6;
 }
 

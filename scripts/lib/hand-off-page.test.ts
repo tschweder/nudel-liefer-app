@@ -121,6 +121,6 @@ describe("the generated data and behaviour files", () => {
     expect(css).toContain('body[data-js="1"][data-lang="de"] .lang[data-lang="zh"]');
     expect(css).toContain("@media print");
     expect(handOffScript()).toContain('setAttribute("data-js", "1")');
-    expect(css).toContain("--primary: #9a3412");
+    expect(css).toContain("--primary: #2f6b4f");
   });
 });

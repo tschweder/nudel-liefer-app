@@ -521,7 +521,7 @@ export function SettingsForm({
       </div>
 
       {/* Sticky save bar (re-design.md §8.5/§8.8): always reachable, never hidden behind content. */}
-      <div className="sticky bottom-0 z-20 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8">
+      <div className="sticky bottom-0 z-20 -mx-6 max-[1024px]:bottom-[5.25rem] flex flex-wrap items-center justify-between gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8">
         <div className="flex items-center gap-3">
           {error ? (
             <p

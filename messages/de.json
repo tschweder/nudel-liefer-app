@@ -191,7 +191,10 @@
         "tour": "Tour heute",
         "noTour": "nicht angelegt",
         "tourSub": "Für heute ist keine Tour geplant.",
-        "done": "Heute erledigt"
+        "done": "Heute erledigt",
+        "nextDay": "Nächster Liefertag",
+        "nextDaySub": "{date} · {drafts, plural, =0 {alle bestätigt} one {# Entwurf offen} other {# Entwürfe offen}}",
+        "nextDayValue": "{count, plural, one {# Bestellung} other {# Bestellungen}}"
       },
       "attention": {
         "title": "Zu erledigen",
@@ -211,6 +214,26 @@
       "activity": {
         "title": "Letzte Aktivität",
         "empty": "Heute noch keine Einträge."
+      },
+      "week": {
+        "title": "Bestellungen diese Woche",
+        "description": "Bestätigte Bestellungen je Liefertag",
+        "past": "Vergangen",
+        "today": "Heute",
+        "upcoming": "Kommend",
+        "table": "Bestätigte Bestellungen je Tag dieser Woche",
+        "day": "Tag",
+        "orders": "Bestellungen",
+        "bar": "{day}: {count, plural, one {# Bestellung} other {# Bestellungen}}"
+      },
+      "gauge": {
+        "title": "Tourfortschritt",
+        "summary": "{done} von {total} Stopps erledigt: {delivered} geliefert, {problems, plural, one {# Problem} other {# Probleme}}, {open} offen",
+        "center": "{done} von {total} erledigt",
+        "delivered": "{count} geliefert",
+        "problems": "{count, plural, one {# Problem} other {# Probleme}}",
+        "open": "{count} offen",
+        "empty": "Sobald die Tour freigegeben ist, erscheint hier der Fortschritt."
       }
     },
     "shell": {
@@ -220,7 +243,9 @@
       "skipToContent": "Zum Inhalt springen",
       "breadcrumb": "Brotkrumen-Navigation",
       "collapseSidebar": "Seitenleiste einklappen",
-      "expandSidebar": "Seitenleiste ausklappen"
+      "expandSidebar": "Seitenleiste ausklappen",
+      "more": "Mehr",
+      "bottomNavigation": "Schnellnavigation"
     },
     "nav": {
       "dashboard": "Übersicht",

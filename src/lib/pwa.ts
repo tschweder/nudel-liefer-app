@@ -3,7 +3,7 @@
 import { withBasePath } from "./base-path";
 
 /** Browser UI / splash colours. Light primary of `globals.css`; background = page background. */
-export const PWA_THEME_COLOR = "#9a3412";
+export const PWA_THEME_COLOR = "#2f6b4f";
 export const PWA_BACKGROUND_COLOR = "#ffffff";
 
 // Every value below becomes a URL the BROWSER fetches: Next applies `basePath` to `next/link` and
