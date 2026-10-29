@@ -41,14 +41,13 @@ export type AccessDecision =
  * Route access policy (locale prefix already removed).
  * - /admin/** : ADMIN only.
  * - /driver/** : DRIVER, and ADMIN (support, read-only views; mutations still use requireRole).
- * - login pages: only for logged-out visitors.
+ * - login pages: always reachable. NUD-185 (QA 2026-10-29 F20): a signed-in office session used to be
+ *   bounced to its home screen with no hint, so a shared tablet could not hand a tour to a driver
+ *   without silently logging out first. The page now renders and shows who is signed in, with a
+ *   "Abmelden" button (`LoginPageContent`).
  */
 export function decideAccess(rest: string, role: AppRole | null): AccessDecision {
-  if (rest === ADMIN_LOGIN || rest === DRIVER_LOGIN) {
-    return role
-      ? { type: "redirect", to: homePathFor(role), withCallback: false }
-      : { type: "allow" };
-  }
+  if (rest === ADMIN_LOGIN || rest === DRIVER_LOGIN) return { type: "allow" };
   if (rest === DRIVER_OFFLINE_SHELL) return { type: "allow" };
   if (isSection(rest, "/admin")) {
     if (role === "ADMIN") return { type: "allow" };

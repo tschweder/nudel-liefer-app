@@ -3606,7 +3606,11 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] `src/lib/access.test.ts` und ein e2e-Fall decken die neue Regel ab; de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-185)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Zugriffspolitik:** `decideAccess` erlaubt die beiden Login-Pfade jetzt immer (vorher: angemeldete Rolle → Redirect auf ihre Startseite). Die Formulare selbst bleiben unverändert; ein Login mit anderen Zugangsdaten wechselt die Sitzung wie bisher.
+- **Seite benennt die Sitzung:** `LoginPageContent` liest die Sitzung serverseitig (`requireRole` in `try/catch`, `connection()` gegen den Prerender-Fehler) und rendert „Angemeldet als …" plus `LogoutButton` (`data-testid="login-session-banner"`). Beide Login-Seiten nutzen dieselbe Komponente.
+- **Nebenwirkung abgefangen:** `PurgeOfflineData` (löscht die Offline-Kopie) lief bisher unbedingt auf der Login-Seite. Mit dieser Änderung hätte ein angemeldeter Fahrer, der die Login-Seite öffnet, seine zwischengespeicherte Tour verloren — die Löschung passiert jetzt nur noch, wenn **keine** Sitzung da ist.
+- **Beleg:** mit Büro-Sitzung rendert `/de/driver/login` (vorher: 307 auf `/de/admin`) und zeigt „Angemeldet als Admin / Abmelden" (`web-test/20261029-1520-nud-179-183-187-verifica-e9ca/shots/023-*`); dasselbe auf `/de/login` (`025-*`).
+- **Tests:** `access.test.ts` auf die neue Regel umgestellt (10 grün), `tsc`/`eslint` grün. **NICHT geprüft:** `pnpm test:e2e` und der Abmelde-Klick im Browser (der `LogoutButton` ist unverändert und wird im Büro-Menü genutzt); ein e2e-Fall für „angemeldet → Login-Seite sichtbar" fehlt noch.
 
 ---
 

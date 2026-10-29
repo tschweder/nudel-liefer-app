@@ -46,11 +46,15 @@ describe("decideAccess", () => {
     expect(decideAccess("/drivers", null)).toEqual({ type: "allow" });
   });
 
-  it("login pages are for logged-out visitors only", () => {
+  it("login pages stay reachable, also for a signed-in user (NUD-185)", () => {
     expect(decideAccess("/login", null)).toEqual({ type: "allow" });
     expect(decideAccess("/driver/login", null)).toEqual({ type: "allow" });
-    expect(decideAccess("/login", "ADMIN")).toMatchObject({ to: "/admin" });
-    expect(decideAccess("/driver/login", "DRIVER")).toMatchObject({ to: "/driver" });
+    // A shared tablet must be able to hand the device over: the page says who is signed in and
+    // offers "Abmelden" instead of silently bouncing to that role's home screen.
+    expect(decideAccess("/login", "ADMIN")).toEqual({ type: "allow" });
+    expect(decideAccess("/driver/login", "DRIVER")).toEqual({ type: "allow" });
+    expect(decideAccess("/login", "DRIVER")).toEqual({ type: "allow" });
+    expect(decideAccess("/driver/login", "ADMIN")).toEqual({ type: "allow" });
   });
 });
 
