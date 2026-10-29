@@ -85,6 +85,9 @@ async function main() {
       "public/icons/*.png",
       "public/offline.html",
       "public/offline.js",
+      // NUD-175 (QA 2026-10-29 F8): the blocking theme bootstrap of every page — without it an
+      // offline reload asks the network for it and gets ERR_CONNECTION_REFUSED.
+      "public/theme.js",
     ],
     globIgnores: ["**/*.map", "**/_buildManifest.js", "**/_ssgManifest.js"],
     globFollow: false,

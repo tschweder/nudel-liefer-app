@@ -3394,7 +3394,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-175)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Ein Glob:** `"public/theme.js"` in `globPatterns` von `scripts/build-pwa.ts`; der Build meldet jetzt **103** statt 102 Precache-Einträge, und `public/sw.js` enthält `/theme.js` mit Revision.
+- **Beleg:** Offline-Reload im Produktionsbuild zeigt **keinen** `ERR_CONNECTION_REFUSED http://localhost:3100/theme.js` mehr (vorher: `web-test/20261029-1320-localhost-f18a/shots/014-*`, nachher: `web-test/20261029-1423-nud-172-175-verification-7fc8/shots/012-*` — nur noch API/RSC-Aufrufe scheitern, wie offline erwartet).
+- `docs/offline.md` (Cache-Tabelle) und `tests/e2e/pwa.spec.ts` (Allowlist + `toContain("/theme.js")`) angepasst.
+- **NICHT geprüft:** `pnpm test:e2e` lief nicht; die Spec-Änderung ist ungetestet (die Allowlist enthält `/theme\.js` und die Erwartung ist ergänzt).
 
 ---
 
