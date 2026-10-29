@@ -3,15 +3,21 @@ import { z } from "zod";
 import { toAuditQuantity } from "@/domain/audit";
 import { formatCalendarDate } from "@/domain/order";
 import {
+  type DayItem,
   DEFAULT_LEAD_DAYS,
   generationHorizon,
+  itemsForWeekday,
+  type MonthlyRule,
   nextScheduleDates,
+  parseMonthlyRules,
   recurringOrderInputSchema,
   type RecurringSchedule,
   type RuleState,
   ruleState,
   scheduleDates,
+  type ValidRecurringOrder,
 } from "@/domain/recurring-order";
+import { isoWeekday } from "@/domain/settings";
 import { outdatedTourTargets } from "@/domain/tour-diff";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
@@ -20,15 +26,19 @@ import type { TourHook } from "./orders";
 import type { TourDb } from "./tour-service";
 
 /**
- * Recurring orders (Dauerbestellungen, NUD-149, D25). The office confirms a rule once; the daily
- * job (`GET /api/cron/recurring-orders`) and every rule save generate CONFIRMED orders for the
- * rule's days from today to `Settings.recurringLeadDays` ahead. Idempotent: the unique key
- * (recurringOrderId, recurringDate) allows one order per rule and day, also after the office
- * cancelled that order (it is not generated again). Rules are never deleted: `active=false` pauses
- * them. Orders already generated stay when a rule is edited or paused (the office cancels them
- * on the order page); only a customer set inactive cancels them (see `cascadeCustomerInactive`).
- * Every write is audited in its own transaction; generated orders are attributed to the person
- * who confirmed the rule.
+ * Recurring orders (Dauerbestellungen, NUD-149, D25; more patterns NUD-171). The office confirms a
+ * rule once; the daily job (`GET /api/cron/recurring-orders`) and every rule save generate CONFIRMED
+ * orders for the rule's days from today to `Settings.recurringLeadDays` ahead. Idempotent: the
+ * unique key (recurringOrderId, recurringDate) allows one order per rule and day, also after the
+ * office cancelled that order (it is not generated again). Rules are never deleted: `active=false`
+ * pauses them. Orders already generated stay when a rule is edited or paused (the office cancels
+ * them on the order page); only a customer set inactive cancels them (see `cascadeCustomerInactive`).
+ * Every write is audited in its own transaction; generated orders are attributed to the person who
+ * confirmed the rule.
+ *
+ * NUD-171 adds patterns and end conditions without changing old rules: a rule with only weekdays and
+ * no new fields generates exactly as before. Every generated order takes the delivery window time
+ * and the product list of that weekday (`dayItems`, falling back to the base `items`).
  */
 
 export type RecurringDb = Pick<
@@ -46,20 +56,40 @@ export type RuleLine = {
   quantity: number;
 };
 
+export type RuleDayLine = {
+  weekday: number;
+  productId: string;
+  productName: unknown;
+  unit: string;
+  quantity: number;
+};
+
 export type RecurringRuleView = {
   id: string;
   customerId: string;
   weekdays: number[];
+  monthlyRules: MonthlyRule[];
   everyNWeeks: number;
   /** `YYYY-MM-DD` */
   anchorDate: string;
   seasonFrom: string | null;
   seasonTo: string | null;
   exceptions: string[];
+  /** The one skipped range, both `YYYY-MM-DD`, or `null` (NUD-171). */
+  skipFrom: string | null;
+  skipTo: string | null;
+  /** Delivery window time of every generated order, both "HH:MM" or `null` (NUD-171). */
+  windowFromTime: string | null;
+  windowToTime: string | null;
+  /** End conditions (NUD-171); both `null` = open-ended. */
+  endsOn: string | null;
+  maxDeliveries: number | null;
   state: RuleState;
   confirmedAt: Date;
   confirmedBy: string | null;
   lines: RuleLine[];
+  /** Per-weekday product lists; a weekday without rows uses `lines` (NUD-171). */
+  dayItems: RuleDayLine[];
   /** The next three delivery days (`YYYY-MM-DD`) of a running rule. */
   nextDates: string[];
 };
@@ -85,21 +115,56 @@ type StoredRule = {
   seasonFrom: string | null;
   seasonTo: string | null;
   exceptions: Date[];
+  /** `Json` in the database; always read through `parseMonthlyRules`. */
+  monthlyRules: unknown;
+  skipFrom: Date | null;
+  skipTo: Date | null;
+  endsOn: Date | null;
+  maxDeliveries: number | null;
+  windowFromTime: string | null;
+  windowToTime: string | null;
 };
 
-const asSchedule = (r: StoredRule): RecurringSchedule => r;
+/** The stored rule as the pure schedule logic sees it (NUD-171 fields included). */
+const asSchedule = (r: StoredRule): RecurringSchedule => ({
+  weekdays: r.weekdays,
+  everyNWeeks: r.everyNWeeks,
+  anchorDate: r.anchorDate,
+  seasonFrom: r.seasonFrom,
+  seasonTo: r.seasonTo,
+  exceptions: r.exceptions,
+  monthlyRules: parseMonthlyRules(r.monthlyRules),
+  skipFrom: r.skipFrom,
+  skipTo: r.skipTo,
+  endsOn: r.endsOn,
+});
 
 function snapshot(
-  r: StoredRule & { lines: ReadonlyArray<{ productId: string; quantity: number }> },
+  r: StoredRule & {
+    lines: ReadonlyArray<{ productId: string; quantity: number }>;
+    dayItems: ReadonlyArray<DayItem>;
+  },
 ) {
   return {
     weekdays: r.weekdays,
+    monthlyRules: parseMonthlyRules(r.monthlyRules),
     everyNWeeks: r.everyNWeeks,
     anchorDate: formatCalendarDate(r.anchorDate),
     seasonFrom: r.seasonFrom,
     seasonTo: r.seasonTo,
     exceptions: r.exceptions.map(formatCalendarDate),
+    skipFrom: r.skipFrom ? formatCalendarDate(r.skipFrom) : null,
+    skipTo: r.skipTo ? formatCalendarDate(r.skipTo) : null,
+    windowFromTime: r.windowFromTime,
+    windowToTime: r.windowToTime,
+    endsOn: r.endsOn ? formatCalendarDate(r.endsOn) : null,
+    maxDeliveries: r.maxDeliveries,
     lines: r.lines.map((l) => ({ productId: l.productId, quantity: toAuditQuantity(l.quantity) })),
+    dayItems: r.dayItems.map((l) => ({
+      weekday: l.weekday,
+      productId: l.productId,
+      quantity: toAuditQuantity(l.quantity),
+    })),
   };
 }
 
@@ -128,9 +193,21 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 /**
+ * How many deliveries the rule has produced so far, cancelled ones included: they happened and the
+ * unique key prevents a second one for the same day. One query per rule, not one per day.
+ */
+function deliveredCount(db: RecurringDb, ruleId: string): Promise<number> {
+  return db.order.count({ where: { recurringOrderId: ruleId } });
+}
+
+/**
  * Generates the missing orders of all running rules (or only `ruleIds`) for the days from `today`
  * to today + lead days. Safe to run any number of times, also concurrently: a second order for the
  * same rule and day hits the unique key and is counted as existing.
+ *
+ * NUD-171: the rule stops at `endsOn` (already in the schedule) and once it has produced
+ * `maxDeliveries` orders; every order carries the rule's window time and the product list of its
+ * weekday.
  */
 export async function generateRecurringOrders(
   db: RecurringDb,
@@ -151,11 +228,17 @@ export async function generateRecurringOrders(
         select: { productId: true, quantity: true },
         orderBy: { id: "asc" },
       },
+      dayItems: {
+        where: { product: { active: true } },
+        select: { weekday: true, productId: true, quantity: true },
+        orderBy: { id: "asc" },
+      },
     },
   });
   for (const rule of rules) {
     report.rules += 1;
-    const days = scheduleDates(asSchedule(rule), options.today, horizon);
+    const schedule = asSchedule(rule);
+    const days = scheduleDates(schedule, options.today, horizon);
     if (days.length === 0) continue;
     const have = new Set(
       (
@@ -165,12 +248,20 @@ export async function generateRecurringOrders(
         })
       ).map((o) => o.recurringDate?.getTime()),
     );
+    // maxDeliveries is a lifetime budget of the rule; the orders counted here are the ones already
+    // created, so only the free slots are left for this run.
+    let free =
+      rule.maxDeliveries === null
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, rule.maxDeliveries - (await deliveredCount(db, rule.id)));
     for (const day of days) {
       if (have.has(day.getTime())) {
         report.existing += 1;
         continue;
       }
-      if (rule.items.length === 0) {
+      if (free <= 0) break;
+      const items = itemsForWeekday(schedule, isoWeekday(day), rule.items, rule.dayItems);
+      if (items.length === 0) {
         report.skipped += 1;
         continue;
       }
@@ -182,13 +273,15 @@ export async function generateRecurringOrders(
               deliveryDate: day,
               windowFrom: day,
               windowTo: day,
+              windowFromTime: rule.windowFromTime,
+              windowToTime: rule.windowToTime,
               status: "CONFIRMED",
               source: "MANUAL",
               recurringOrder: { connect: { id: rule.id } },
               recurringDate: day,
               createdBy: { connect: { id: rule.confirmedById } },
               items: {
-                create: rule.items.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+                create: items.map((l) => ({ productId: l.productId, quantity: l.quantity })),
               },
             },
             select: { id: true },
@@ -203,9 +296,13 @@ export async function generateRecurringOrders(
               status: "CONFIRMED",
               deliveryDate: formatCalendarDate(day),
               window: `${formatCalendarDate(day)}..${formatCalendarDate(day)}`,
+              windowTimes:
+                rule.windowFromTime === null
+                  ? null
+                  : { from: rule.windowFromTime, to: rule.windowToTime },
               source: "MANUAL",
               recurringOrderId: rule.id,
-              lines: rule.items.map((l) => ({
+              lines: items.map((l) => ({
                 productId: l.productId,
                 before: null,
                 after: toAuditQuantity(l.quantity),
@@ -216,10 +313,11 @@ export async function generateRecurringOrders(
             status: "CONFIRMED",
             customerId: rule.customerId,
             deliveryDate: day,
-            items: rule.items,
+            items,
           });
         });
         report.created += 1;
+        free -= 1;
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         report.existing += 1;
@@ -266,6 +364,11 @@ async function checkCustomerAndProducts(
 
 type Context = { today: Date; tours: TourHook };
 
+/** Every product the rule mentions, base list and per-weekday lists together. */
+function ruleProductIds(v: ValidRecurringOrder): string[] {
+  return [...new Set([...v.lines, ...v.dayItems].map((l) => l.productId))];
+}
+
 /** Confirms a new rule (the office confirms it once) and generates its orders right away. */
 export async function createRecurringOrder(
   db: RecurringDb,
@@ -276,24 +379,34 @@ export async function createRecurringOrder(
   const parsed = recurringOrderInputSchema.safeParse(rawInput);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const v = parsed.data;
-  const problem = await checkCustomerAndProducts(
-    db,
-    v.customerId,
-    v.lines.map((l) => l.productId),
-  );
+  const problem = await checkCustomerAndProducts(db, v.customerId, ruleProductIds(v));
   if (problem) return { ok: false, error: problem };
   const id = await db.$transaction(async (tx) => {
     const row = await tx.recurringOrder.create({
       data: {
         customer: { connect: { id: v.customerId } },
         weekdays: v.weekdays,
+        monthlyRules: v.monthlyRules as unknown as Prisma.InputJsonValue,
         everyNWeeks: v.everyNWeeks,
         anchorDate: v.anchorDate,
         seasonFrom: v.seasonFrom,
         seasonTo: v.seasonTo,
         exceptions: v.exceptions,
+        skipFrom: v.skipFrom,
+        skipTo: v.skipTo,
+        windowFromTime: v.windowFromTime,
+        windowToTime: v.windowToTime,
+        endsOn: v.endsOn,
+        maxDeliveries: v.maxDeliveries,
         confirmedBy: { connect: { id: actorId } },
         items: { create: v.lines.map((l) => ({ productId: l.productId, quantity: l.quantity })) },
+        dayItems: {
+          create: v.dayItems.map((l) => ({
+            weekday: l.weekday,
+            productId: l.productId,
+            quantity: l.quantity,
+          })),
+        },
       },
       select: { id: true },
     });
@@ -327,31 +440,48 @@ export async function updateRecurringOrder(
   const v = parsed.data;
   const stored = await db.recurringOrder.findUnique({
     where: { id: id.data },
-    include: { items: { select: { productId: true, quantity: true }, orderBy: { id: "asc" } } },
+    include: {
+      items: { select: { productId: true, quantity: true }, orderBy: { id: "asc" } },
+      dayItems: {
+        select: { weekday: true, productId: true, quantity: true },
+        orderBy: { id: "asc" },
+      },
+    },
   });
   if (!stored) return { ok: false, error: "not_found" };
   if (stored.customerId !== v.customerId) return { ok: false, error: "invalid" };
-  const problem = await checkCustomerAndProducts(
-    db,
-    v.customerId,
-    v.lines.map((l) => l.productId),
-  );
+  const problem = await checkCustomerAndProducts(db, v.customerId, ruleProductIds(v));
   if (problem) return { ok: false, error: problem };
   await db.$transaction(async (tx) => {
     await tx.recurringOrder.update({
       where: { id: stored.id },
       data: {
         weekdays: v.weekdays,
+        monthlyRules: v.monthlyRules as unknown as Prisma.InputJsonValue,
         everyNWeeks: v.everyNWeeks,
         anchorDate: v.anchorDate,
         seasonFrom: v.seasonFrom,
         seasonTo: v.seasonTo,
         exceptions: v.exceptions,
+        skipFrom: v.skipFrom,
+        skipTo: v.skipTo,
+        windowFromTime: v.windowFromTime,
+        windowToTime: v.windowToTime,
+        endsOn: v.endsOn,
+        maxDeliveries: v.maxDeliveries,
         confirmedBy: { connect: { id: actorId } },
         confirmedAt: new Date(),
         items: {
           deleteMany: {},
           create: v.lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+        },
+        dayItems: {
+          deleteMany: {},
+          create: v.dayItems.map((l) => ({
+            weekday: l.weekday,
+            productId: l.productId,
+            quantity: l.quantity,
+          })),
         },
       },
     });
@@ -432,6 +562,10 @@ export async function listRecurringOrders(
         orderBy: { id: "asc" },
         include: { product: { select: { name: true, unit: true } } },
       },
+      dayItems: {
+        orderBy: [{ weekday: "asc" }, { id: "asc" }],
+        include: { product: { select: { name: true, unit: true } } },
+      },
     },
   });
   return rows.map((r) => {
@@ -440,16 +574,30 @@ export async function listRecurringOrders(
       id: r.id,
       customerId: r.customerId,
       weekdays: r.weekdays,
+      monthlyRules: parseMonthlyRules(r.monthlyRules),
       everyNWeeks: r.everyNWeeks,
       anchorDate: formatCalendarDate(r.anchorDate),
       seasonFrom: r.seasonFrom,
       seasonTo: r.seasonTo,
       exceptions: r.exceptions.map(formatCalendarDate),
+      skipFrom: r.skipFrom ? formatCalendarDate(r.skipFrom) : null,
+      skipTo: r.skipTo ? formatCalendarDate(r.skipTo) : null,
+      windowFromTime: r.windowFromTime,
+      windowToTime: r.windowToTime,
+      endsOn: r.endsOn ? formatCalendarDate(r.endsOn) : null,
+      maxDeliveries: r.maxDeliveries,
       state,
       confirmedAt: r.confirmedAt,
       confirmedBy: r.confirmedBy.displayName,
       lines: r.items.map((i) => ({
         id: i.id,
+        productId: i.productId,
+        productName: i.product.name,
+        unit: i.product.unit,
+        quantity: i.quantity,
+      })),
+      dayItems: r.dayItems.map((i) => ({
+        weekday: i.weekday,
         productId: i.productId,
         productName: i.product.name,
         unit: i.product.unit,

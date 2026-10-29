@@ -326,6 +326,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-168 | 👤 Production map tiles: replace the dev-only OSM default with a provider key | M2.6 | – | blocked |
 | NUD-169 | Fahrer table needs a column decision (scrolls inside its card at tablet sizes) | M2.6 | 153 | done |
 | NUD-170 | Inline Aktiv switch: 48 px hit area in the UI kit | M2.6 | 153 | todo |
+| NUD-171 | Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau | M2.6 | 149, 152 | in-progress |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3242,6 +3243,34 @@ Optional photo of delivered goods and/or signature on screen per stop; viewable 
 - [ ] No visual change to the 44×24 track; keyboard focus and the existing `aria-checked` behaviour unchanged; the product/vehicle specs stay green.
 - [ ] First find out what moves the thumb (`grep` the rendered DOM for the transform), then restructure; take before/after screenshots from the tablet audit.
 
+#### NUD-171 · Dauerbestellung: mehr Muster, Zeitfenster, Befristung, Ausnahmen, Vorschau
+**Status:** in-progress (2026-10-28) · **depends_on:** 149, 152 · owner request 2026-10-28 (screenshot of the dialog: "add more options … like that it repeats multiple times a week"; the multi-weekday part already existed, the rest did not). Decisions were collected in two question rounds with the owner.
+
+**Decided UI (two question rounds, 2026-10-28)**
+1. **Mengen/Produkte je Liefertag** — *Karte je Liefertag*: für jeden gewählten Wochentag ein aufklappbarer Block mit eigenen Produktzeilen, Vorgabe = Basismenge der Regel.
+2. **Vorlagen** — *Chip-Reihe* über den Wochentagen: Täglich, Werktags, 2×/Woche, 14-tägig, Monatlich. Ein Klick setzt Häkchen/Rhythmus, danach frei änderbar (kein Modus).
+3. **Monatsmuster** — *frei zusammenklickbare Regel-Chips*: zusätzlich zum Wochenmuster beliebig viele Monats-Bausteine ("jeder 1. des Monats", "jeder 1. Montag", "letzter Freitag"); die Liefertage sind die **Vereinigung** aller Bausteine.
+4. **Lieferzeitraum** — *zwei Zeitfelder von–bis* (Standard leer = ganztags), wird auf jede erzeugte Bestellung als `windowFromTime`/`windowToTime` übernommen.
+5. **Befristung** — *drei Auswahlmöglichkeiten*: unbefristet / bis Datum / nach N Lieferungen.
+6. **Ausnahmen** — *Kalender-Popover*: einzelne Tage antippen und einen zusammenhängenden Zeitraum (Urlaub) wählen.
+7. **Saison** — wie auf der Kundenseite (Checkbox + Monat/Tag von–bis), nur zusätzlich hier.
+8. **Vorschau** — *kleine Tabelle* der nächsten 5 Liefertermine mit Datum und Produkten/Mengen, live im Dialog.
+9. **Aufbau** — Mischung aus aufklappbar und zweistufig, nach eigenem Ermessen des Umsetzers: ein Dialog, die Basisfelder (Tage mit Vorlagen, Rhythmus, Starttag) offen, alles Seltenere (Zeitfenster, Saison, Befristung, Ausnahmen) in einem aufklappbaren Abschnitt "Mehr Optionen", die Vorschau darunter. **Kein** Wizard (die Antwort erlaubte beides; ein Schritt ist für ein 5-Feld-Formular weniger Reibung).
+
+**Data model (additive)**
+- `RecurringOrder.dayItems` (`RecurringOrderDayItem`: `weekday` 1–7, `productId`, `quantity`) — Overrides je Wochentag; keine Zeilen für einen Tag = Basismenge aus `items`.
+- `RecurringOrder.monthlyRules` (`Json`, default `[]`): `{"kind":"dayOfMonth","day":N}` und `{"kind":"nthWeekday","nth":1|-1..,"weekday":1..7}`.
+- `RecurringOrder.windowFromTime` / `windowToTime` (`String?` "HH:MM", geprüft mit derselben Regel wie im Bestellformular).
+- `RecurringOrder.endsOn` (`DateTime? @db.Date`) und `maxDeliveries` (`Int?`) — beide leer = unbefristet.
+- `RecurringOrder.skipFrom` / `skipTo` (`DateTime? @db.Date`) — ein zusammenhängender Ausnahmezeitraum zusätzlich zu den einzelnen `exceptions`.
+
+**Acceptance criteria**
+- [ ] Die sechs neuen Regeln (Tages-Override, Monats-Bausteine, Zeitfenster, Befristung, Ausnahmezeitraum, Saison im Dialog) erzeugen genau die erwarteten Bestellungen; Domain- und Integrationstests decken jede einzeln und in Kombination ab.
+- [ ] Der Dialog bietet die oben entschiedene Bedienung inklusive Vorlagen-Chips, Tages-Karten, Kalender-Popover und der Live-Vorschau der nächsten 5 Termine.
+- [ ] Bestehende Regeln (ohne die neuen Felder) verhalten sich unverändert; die Migration ist rein additiv.
+- [ ] de/en/zh-Hans; `pnpm lint`, `typecheck`, `test`, `i18n:check` grün.
+
+---
 ---
 ---
 

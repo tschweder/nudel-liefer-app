@@ -259,6 +259,7 @@ model Product {
 
   orderItems          OrderItem[]
   recurringOrderItems RecurringOrderItem[]
+  recurringDayItems   RecurringOrderDayItem[]
 }
 
 model Screenshot {
@@ -327,6 +328,21 @@ model RecurringOrder {
   seasonTo         String?
   /// Single days the rule skips.
   exceptions       DateTime[] @db.Date
+  /// One connected skipped range (holiday/vacation), both or none (NUD-171). `skipFrom <= skipTo`.
+  skipFrom         DateTime?  @db.Date
+  skipTo           DateTime?  @db.Date
+  /// Extra monthly patterns beside the weekly ones (NUD-171), a JSON array of
+  /// `{"kind":"dayOfMonth","day":1..31}` or `{"kind":"nthWeekday","nth":1..4|-1,"weekday":1..7}`.
+  /// The delivery days of the rule are the union of the weekly and the monthly patterns.
+  monthlyRules     Json       @default("[]")
+  /// Delivery window time "HH:MM" copied onto every generated order (NUD-171); both empty = all day.
+  windowFromTime   String?
+  windowToTime     String?
+  /// End of the rule (NUD-171): a last delivery day and/or a maximum number of generated deliveries.
+  /// Both empty = open-ended. `maxDeliveries` counts the orders the rule has created, cancelled ones
+  /// included (they happened).
+  endsOn           DateTime?  @db.Date
+  maxDeliveries    Int?
   active           Boolean    @default(true)
   /// Paused because the customer was set inactive; reactivating the customer resumes exactly these rules.
   pausedByCustomer Boolean    @default(false)
@@ -338,9 +354,30 @@ model RecurringOrder {
   customer    Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
   confirmedBy User                 @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
   items       RecurringOrderItem[]
+  /// Products that differ from the base `items` on one ISO weekday (NUD-171); no rows for a weekday
+  /// means "same as the base list".
+  dayItems    RecurringOrderDayItem[]
   orders      Order[]
 
   @@index([customerId, active])
+}
+
+/// A weekday-specific product list of a recurring order (NUD-171): the office can send 2 crates every
+/// Monday and 1 bag every Thursday within the same rule.
+model RecurringOrderDayItem {
+  id               String @id @default(cuid())
+  recurringOrderId String
+  /// ISO weekday 1 (Monday) .. 7 (Sunday); CHECK in the migration.
+  weekday          Int
+  productId        String
+  quantity         Int
+
+  recurringOrder RecurringOrder @relation(fields: [recurringOrderId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([recurringOrderId, weekday, productId])
+  @@index([recurringOrderId, weekday])
+  @@index([productId])
 }
 
 model RecurringOrderItem {
