@@ -209,8 +209,11 @@ function OutboxSheet({
   const online = useOnline();
   const formatter = useFormatter();
   const fmt = createAppFormatters(formatter);
-  const { entries, failure } = useOutbox();
+  const { entries, failure, flushing, inFlight } = useOutbox();
   const { entries: photos } = usePhotoOutbox();
+  // NUD-174 (QA 2026-10-29 F7): the panel says what the queue is doing, not what the browser thinks
+  // the connection is. `navigator.onLine` stays green when only the server is gone.
+  const sending = flushing || inFlight.size > 0;
   const rows: Array<{ id: string; text: string }> = [
     ...entries.map((entry) => ({
       id: entry.clientMutationId,
@@ -232,7 +235,9 @@ function OutboxSheet({
           </SheetTitle>
           {rows.length === 0 ? null : (
             <SheetDescription>
-              {online ? t("outboxSending", { count: rows.length }) : t("outboxExplanation")}
+              {sending
+                ? t("outboxSending", { count: rows.length })
+                : t("outboxWaitingForConnection", { count: rows.length })}
             </SheetDescription>
           )}
         </SheetHeader>
@@ -267,13 +272,23 @@ function OutboxSheet({
             </Button>
           ) : null}
           {rows.length > 0 ? (
-            <p className="flex items-center gap-2 text-base text-muted-foreground">
-              {online ? (
+            <p
+              className="flex items-center gap-2 text-base text-muted-foreground"
+              data-testid="outbox-state"
+              data-state={sending ? "sending" : failure ? "unreachable" : online ? "online" : "offline"}
+            >
+              {sending || online ? (
                 <WifiIcon className="size-5 shrink-0" aria-hidden />
               ) : (
                 <WifiOffIcon className="size-5 shrink-0" aria-hidden />
               )}
-              {online ? t("outboxOnlineExplanation") : t("outboxExplanation")}
+              {sending
+                ? t("outboxOnlineExplanation")
+                : failure
+                  ? t("outboxUnreachable")
+                  : online
+                    ? t("outboxWaitingForConnection", { count: rows.length })
+                    : t("outboxExplanation")}
             </p>
           ) : null}
         </div>

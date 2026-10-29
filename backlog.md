@@ -3371,7 +3371,12 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-174)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Panel:** `OutboxSheet` liest jetzt `{flushing, inFlight}` aus dem Controller (`useOutbox()`), nicht mehr `navigator.onLine`. Beschreibung: „wird gesendet" nur während eines Laufs, sonst „N wartet auf Verbindung – es wird gerade nichts gesendet."; Fußzeile: „nicht erreichbar" nach einem Fehlversuch, sonst online/offline-Erklärung. Ein `data-state` am neuen `outbox-state`-Knoten macht die vier Zustände testbar.
+- **Pille:** unverändert in der Logik (`failure && pending > 0 → error`), aber sie kommt jetzt in den Fehlerzustand, weil der Flush auf der Offline-Shell wirklich versucht wird (NUD-173) — im Test zeigte sie „Sync-Fehler" statt grün „Online".
+- **Texte:** zwei neue Schlüssel `driver.sync.outboxWaitingForConnection` und `driver.sync.outboxUnreachable` in de/en/sr-Latn/cs/zh-Hans (Pluralformen je CLDR: sr one/few/other, cs one/few/many/other); `pnpm i18n:check` grün.
+- **Nachgewiesen:** offline, eine Eingabe in der Warteschlange → Panel: „1 Eingabe wartet auf Verbindung – es wird gerade nichts gesendet." + „Der Server ist gerade nicht erreichbar." (`web-test/20261029-1423-nud-172-175-verification-7fc8/shots/017-*`), Pille „Sync-Fehler" (`015`). Vorher: „1 Eingabe wird gesendet …" bei totem Server.
+- **Tests:** `driver-shell.test.tsx` um „never claims to be sending while nothing is in flight" erweitert (fünf Locales), Mock um `flushing`/`inFlight` ergänzt; 20 Tests grün.
+- **Lässt offen (bewusst):** ohne Queue-Eintrag und ohne Fehlversuch bleibt die Pille „online", auch wenn nur der Server fehlt — dafür bräuchte es einen Erreichbarkeits-Heartbeat (Option B des Tickets), den die Entscheidung nicht gewählt hat.
 
 ---
 

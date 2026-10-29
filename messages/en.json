@@ -2047,7 +2047,9 @@
       "mutationAbbreviation": "abbreviation",
       "mutationParking": "parking spot",
       "mutationLoading": "checklist opened",
-      "mutationDepart": "departure"
+      "mutationDepart": "departure",
+      "outboxWaitingForConnection": "{count, plural, one {# entry is waiting for a connection – nothing is being sent right now.} other {# entries are waiting for a connection – nothing is being sent right now.}}",
+      "outboxUnreachable": "The server cannot be reached right now. The entries stay on the device and are sent again automatically."
     },
     "unitsTotal": {
       "KG": "kg",

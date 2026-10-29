@@ -407,7 +407,9 @@
       "mutationAbbreviation": "zkratka",
       "mutationParking": "parkovací místo",
       "mutationLoading": "seznam otevřen",
-      "mutationDepart": "odjezd"
+      "mutationDepart": "odjezd",
+      "outboxWaitingForConnection": "{count, plural, one {# zápis čeká na připojení – právě se nic neodesílá.} few {# zápisy čekají na připojení – právě se nic neodesílá.} many {# zápisu čeká na připojení – právě se nic neodesílá.} other {# zápisů čeká na připojení – právě se nic neodesílá.}}",
+      "outboxUnreachable": "Server je momentálně nedostupný. Zápisy zůstávají v zařízení a odešlou se znovu automaticky."
     },
     "unitsTotal": {
       "KG": "kg",

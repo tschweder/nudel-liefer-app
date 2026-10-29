@@ -2047,7 +2047,9 @@
       "mutationAbbreviation": "缩写",
       "mutationParking": "停车位",
       "mutationLoading": "已打开清单",
-      "mutationDepart": "出发"
+      "mutationDepart": "出发",
+      "outboxWaitingForConnection": "{count} 条内容正在等待网络连接，目前没有在发送。",
+      "outboxUnreachable": "暂时无法连接服务器。内容仍保存在设备上，会再次自动发送。"
     },
     "unitsTotal": {
       "KG": "公斤",

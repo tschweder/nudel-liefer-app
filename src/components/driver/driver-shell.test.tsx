@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type AbstractIntlMessages, NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -26,12 +26,21 @@ const state = vi.hoisted(() => ({
   } as Record<string, unknown>,
   entries: [] as unknown[],
   notices: [] as unknown[],
+  flushing: false,
+  inFlight: new Set<string>(),
 }));
 
 vi.mock("@/lib/offline/use-online", () => ({ useOnline: () => state.online }));
 vi.mock("@/lib/offline/browser", () => ({ useOfflineStatus: () => state.offline }));
 vi.mock("@/lib/offline/outbox-browser", () => ({
-  useOutbox: () => ({ entries: state.entries, notices: state.notices, failure: null }),
+  useOutbox: () => ({
+    entries: state.entries,
+    notices: state.notices,
+    failure: null,
+    // NUD-174: the panel reads the real flush state, not `navigator.onLine`.
+    flushing: state.flushing,
+    inFlight: state.inFlight,
+  }),
   getOutbox: () => ({ flush: vi.fn(), dismissNotice: vi.fn() }),
 }));
 vi.mock("@/lib/offline/photo-outbox-browser", () => ({
@@ -79,6 +88,8 @@ afterEach(() => {
   state.online = true;
   state.offline = { ...state.offline, phase: "ready", savedAt: "2099-07-02T05:12:00.000Z" };
   state.entries = [];
+  state.flushing = false;
+  state.inFlight = new Set<string>();
 });
 
 describe.each(Object.keys(MESSAGES))("DriverShell in %s", (locale) => {
@@ -119,5 +130,29 @@ describe.each(Object.keys(MESSAGES))("DriverShell in %s", (locale) => {
     expect(screen.getByTestId("connection-indicator")).toHaveAttribute("data-online", "false");
     expect(screen.getByTestId("sync-chip")).toHaveAttribute("data-state", "pending");
     expect(screen.getByTestId("pending-badge")).toHaveAttribute("data-count", "1");
+  });
+
+  it("never claims to be sending while nothing is in flight (NUD-174)", async () => {
+    state.entries = [
+      {
+        clientMutationId: "a",
+        userId: "u",
+        type: "delivered",
+        stopId: "s1",
+        createdAt: "2099-07-02T06:12:00.000Z",
+        seq: 1,
+        customerName: "Trattoria 1",
+      },
+    ];
+    show(locale);
+    fireEvent.click(screen.getByTestId("sync-chip"));
+    const panel = await screen.findByTestId("outbox-state");
+    // no flush running: the panel says "waiting", whatever `navigator.onLine` says
+    expect(panel).toHaveAttribute("data-state", "online");
+    cleanup();
+    state.flushing = true;
+    show(locale);
+    fireEvent.click(screen.getByTestId("sync-chip"));
+    expect(await screen.findByTestId("outbox-state")).toHaveAttribute("data-state", "sending");
   });
 });

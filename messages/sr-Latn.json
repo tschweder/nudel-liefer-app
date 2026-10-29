@@ -407,7 +407,9 @@
       "mutationAbbreviation": "skraćenica",
       "mutationParking": "parking mesto",
       "mutationLoading": "lista otvorena",
-      "mutationDepart": "polazak"
+      "mutationDepart": "polazak",
+      "outboxWaitingForConnection": "{count, plural, one {# unos čeka vezu – trenutno se ništa ne šalje.} few {# unosa čekaju vezu – trenutno se ništa ne šalje.} other {# unosa čeka vezu – trenutno se ništa ne šalje.}}",
+      "outboxUnreachable": "Server trenutno nije dostupan. Unosi ostaju na uređaju i biće ponovo poslati automatski."
     },
     "unitsTotal": {
       "KG": "kg",
