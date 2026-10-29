@@ -1744,7 +1744,8 @@
         "invalidWindow": "Zeiten unplausibel",
         "crossesMidnight": "Über Mitternacht"
       },
-      "percentValue": "{percent} %"
+      "percentValue": "{percent} %",
+      "scheduleHint": "Arbeitszeiten pflegst du unter Fahrer → Zeile → Aktionen → „Arbeitszeit bearbeiten\"."
     },
     "vehicles": {
       "title": "Fahrzeuge",

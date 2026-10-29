@@ -1796,7 +1796,8 @@
         "invalidWindow": "时间不合理",
         "crossesMidnight": "跨午夜"
       },
-      "percentValue": "{percent} %"
+      "percentValue": "{percent} %",
+      "scheduleHint": "工作时间在“司机 → 行 → 操作 → 编辑工作时间”中维护。"
     }
   },
   "driver": {

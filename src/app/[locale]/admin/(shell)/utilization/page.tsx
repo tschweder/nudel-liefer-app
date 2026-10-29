@@ -102,7 +102,21 @@ async function Guarded({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={t("title")}
-        description={t("description")}
+        // NUD-187 (QA 2026-10-29 F22): the page explains Ist/Soll well but never said WHERE working
+        // hours are maintained, so every row read "Keine Arbeitszeit hinterlegt" and nobody found
+        // the place. The path is named here and linked in the table's empty state below.
+        description={
+          <>
+            {t("description")}{" "}
+            <Link
+              href="/admin/drivers"
+              className="underline underline-offset-4"
+              data-testid="utilization-schedule-hint"
+            >
+              {t("scheduleHint")}
+            </Link>
+          </>
+        }
         actions={
           <div className="flex items-center gap-2">
             <Link
@@ -271,7 +285,15 @@ async function Guarded({
 
       {report.withoutSchedule > 0 ? (
         <p className="text-base text-muted-foreground" data-testid="utilization-missing-schedule">
-          {t("missingSchedule", { count: report.withoutSchedule })}
+          {t("missingSchedule", { count: report.withoutSchedule })}{" "}
+          {/* NUD-187: the way out of the wall of dashes, right where it is read. */}
+          <Link
+            href="/admin/drivers"
+            className="underline underline-offset-4"
+            data-testid="utilization-missing-schedule-link"
+          >
+            {t("scheduleHint")}
+          </Link>
         </p>
       ) : null}
     </div>

@@ -3641,7 +3641,9 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] Die Zahlen der Seite bleiben unverändert; de/en/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-187)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Hinweis + Link an zwei Stellen:** in der Seitenbeschreibung („Arbeitszeiten pflegst du unter Fahrer → Zeile → Aktionen → ‚Arbeitszeit bearbeiten'.") und direkt hinter der Zeile, die die Fahrer ohne Arbeitszeit zählt; beide verlinken auf `/admin/drivers`, wo der Zeilen-Dialog „Arbeitszeit bearbeiten" sitzt. Neuer Schlüssel `admin.utilization.scheduleHint` in de/en/zh-Hans.
+- **Beleg:** `/admin/utilization` zeigt den Link oben und unten (`web-test/20261029-1520-nud-179-183-187-verifica-e9ca/shots/006-*`), Ziel `/de/admin/drivers`. Vorher nannte die Seite keinen Ort (`web-test/20261029-1315-.../shots/014-*`).
+- Die Zahlen der Seite sind unverändert (es gibt weiterhin keine Arbeitszeiten in der Demo-Datenbank — das ist Aufgabe von NUD-188 bzw. der Büro-Pflege).
 
 ---
 
