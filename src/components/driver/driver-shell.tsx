@@ -357,7 +357,9 @@ export function DriverShell({
         <p
           // 16 px (the driver floor, §4.2 body) leaves the date ~122 px of the bar; at 18 px the
           // "Wird vorbereitet …" chip left only 99 px and the date read "Mo., 26…" (point 4).
-          className="min-w-0 flex-1 truncate text-base leading-tight font-semibold"
+          // NUD-182 (QA 2026-10-29 F9): no `truncate` — a date that does not fit wraps instead of
+          // ending in "Ok…", and both shells render the same short format (see offline-driver-app).
+          className="min-w-0 flex-1 text-base leading-tight font-semibold break-words hyphens-none"
           data-testid="driver-date"
         >
           {dateLabel}

@@ -3542,7 +3542,9 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] Test/e2e prüft das Format (nicht nur die Sichtbarkeit); lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-182)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Ein Format, kein Abschneiden:** `offline-driver-app.tsx` nutzt `dateShort` (wie die Online-Shell), `driver-shell.tsx` hat kein `truncate` mehr auf `data-testid="driver-date"` (bricht stattdessen um).
+- **Beleg:** offline zeigte die Shell vorher „Donnerstag, 29. Ok…" und schob die Sync-Pille nach rechts (`web-test/20261029-1320-.../shots/015-*`); online und offline steht jetzt „Do., 29. Okt." (`web-test/20261029-1449-.../shots/023-*`). Bei 375 px ist die Pille weiter vollständig sichtbar (Umbrechen statt Kürzen).
+- **NICHT geprüft:** kein eigener Test/e2e, der das Format assertiert (Sichtprüfung bei 390 px und im Dev-Lauf); `shells.spec.ts` prüft nur die Sichtbarkeit.
 
 ---
 

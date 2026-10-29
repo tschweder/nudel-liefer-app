@@ -67,8 +67,9 @@ export function OfflineDriverApp({ tiles }: { tiles: MapTileConfig }) {
 
   const record = loaded.state === "ready" ? loaded.record : null;
   const timezone = record?.data.timezone;
-  // Only after loading (prerendering must not read the clock).
-  const dateLabel = record ? createAppFormatters(formatter, timezone).dateLong(new Date()) : "";
+  // Only after loading (prerendering must not read the clock). NUD-182 (QA 2026-10-29 F9): the same
+  // short format as the online shell — one date, one shape, on every driver screen.
+  const dateLabel = record ? createAppFormatters(formatter, timezone).dateShort(new Date()) : "";
 
   let body;
   if (pathname === null || loaded.state === "loading") {
