@@ -3417,7 +3417,11 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-176)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Toast-Ebene:** neuer Client-Host `src/components/ui/toaster-area.tsx` ersetzt `<Toaster />` im Root-Layout und wählt die Position nach Pfad — Fahrer `bottom-center` mit 96 px Offset (über der 2-Knopf-Aktionsleiste), Büro `top-right` mit 72 px (unter dem Header). Er liegt in derselben `<Suspense>`-Klammer wie `ThemeClass`, weil `usePathname()` URL-Daten sind (Next 16 blockiert sonst das Prerendering — im Dev-Lauf gesehen und behoben). Ein einziger Host, damit kein Toast doppelt erscheint.
+- **Kein Auto-Advance:** `complete()` in `src/components/driver/stop-status-actions.tsx` navigiert nicht mehr; der Ergebnis-Screen des Stopps bietet „Weiter zu Stopp n" und „Rückgängig" (bis zum 5-Minuten-Fenster des Servers). `undo()` springt weiterhin auf den Stopp zurück.
+- **Beleg (Dev-Server):** Ein Tipp auf „Geliefert" bleibt auf „Stopp 3 von 19", der Toast sitzt unten über der Aktionsleiste, Datum/Sync-Pille/Stoppzähler bleiben frei (`web-test/20261029-1449-nud-176-177-180-182-184--3856/shots/011-*`, `012-*`); die Kopfzeile ist unverdeckt.
+- **NICHT geprüft:** `pnpm test:e2e`; `tests/e2e/driver-status.spec.ts` erwartet nach dem Abschluss noch die Navigation zum nächsten Stopp und muss auf „bleibt auf dem Stopp" umgestellt werden (im Ticket vermerkt, nicht geändert).
+- **Nebenbeobachtung (nicht Teil des Tickets):** der Offline-Hinweisbalken am unteren Rand überlappt im Dev-Lauf die Aktionsleiste („Weiter zu Stopp 5" war halb verdeckt) — eigene Backlog-Zeile wert, hier nicht angefasst.
 
 ---
 

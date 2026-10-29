@@ -8,7 +8,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
 import { ThemeClass } from "@/components/shared/theme-class";
-import { Toaster } from "@/components/ui/sonner";
+import { ToasterArea } from "@/components/ui/toaster-area";
 import { routing } from "@/i18n/routing";
 import { withBasePath } from "@/lib/base-path";
 
@@ -65,8 +65,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <NextIntlClientProvider>
           {children}
           {/* Toast colours come from our own tokens (--popover/--border), so the surface follows the
-              class on <html> without sonner needing to be told the theme. */}
-          <Toaster />
+              class on <html> without sonner needing to be told the theme. NUD-176: the host picks its
+              position from the path (driver = bottom, office = top), which is URL data — hence the
+              same Suspense wrapper as `ThemeClass` above. */}
+          <Suspense fallback={null}>
+            <ToasterArea />
+          </Suspense>
         </NextIntlClientProvider>
       </body>
     </html>

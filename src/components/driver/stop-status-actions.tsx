@@ -176,7 +176,10 @@ export function StopStatusActions({
         actionButtonStyle: { height: 48, minWidth: 48, fontSize: 16, padding: "0 16px" },
       },
     );
-    router.push(next ? `/driver/stops/${next.id}` : "/driver");
+    // NUD-176 (QA 2026-10-29, F1): NO automatic jump to the next stop. The only durable undo lived
+    // in the toast, and the push in the same tick took the screen — and with it the reachable undo —
+    // away from the driver. The result card of this stop now offers "Weiter zu Stopp n" and
+    // "Rückgängig" until the server's 5-minute window closes.
   }
 
   const queuedEntries = outbox.entries.filter((e) => e.stopId === stop.id);
