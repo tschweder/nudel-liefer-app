@@ -3440,7 +3440,11 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün.
 
 **Implementation notes (NUD-177)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Payload:** `problemNote` reist als rohes `LocalizedText` mit (`DriverStop.problemNote` in `src/server/tour-driver.ts`, gemappt in `src/server/driver-tour-payload.ts`), das Modell wählt die Sprache (`pickNote` in `src/lib/driver-tour-model.ts`, gleiche Form wie `notes`). Kein Schema-Versionssprung: das Feld hat `default(null)`, alte Offline-Kopien lesen als „keine Notiz".
+- **Anzeige Fahrer:** Stopp-Detail zeigt „Deine Anmerkung" read-only unter dem Status-Badge (`data-testid="stop-problem-note"`), die Listenzeile eine gekürzte Vorschau (`stop-row-note`). Neuer Schlüssel `driver.stop.problemNoteLabel` in de/en/sr-Latn/cs/zh-Hans.
+- **Beleg:** 117-Zeichen-Notiz gemeldet → nach dem Neuladen steht sie im Stopp-Detail (`web-test/20261029-1449-nud-176-177-180-182-184--3856/shots/021-*`) und als Vorschau in der Erledigt-/Problem-Zeile (`shots/023-*`). Vorher: nur „Problem: Sonstiges" (`web-test/.../-f18a/shots/027-*` aus der Reproduktion).
+- **Bewusst NICHT gebaut:** die Notiz im Büro-Dashboard. Der Tourplaner zeigt sie bereits (`ProblemNote`), das Dashboard-Ziel würde `tour-progress.ts` und `today-card.tsx` mit derselben Übersetzungs-Logik anfassen — offen als Folgeschritt dieses Tickets, nicht als neues Ticket, weil die Entscheidung (A) die Anzeige umfasst.
+- **Tests:** `driver-stop.integration` (7), `stop-detail` (29), `today-tour` (65), Offline-Lib (101) grün; `tsc`, `eslint`, `i18n:check` grün.
 
 ---
 

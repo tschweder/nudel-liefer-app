@@ -1873,7 +1873,8 @@
       "reloadTitle": "Nachladen im Depot",
       "reloadHint": "Zurück ins Depot und für Fahrt {trip} aufladen:",
       "switchTitle": "Fahrzeug wechseln",
-      "switchHint": "Zurück ins Depot und in {vehicle} umsteigen. Für Fahrt {trip} ist geladen:"
+      "switchHint": "Zurück ins Depot und in {vehicle} umsteigen. Für Fahrt {trip} ist geladen:",
+      "problemGroup": "{count, plural, one {Probleme (#)} other {Probleme (#)}}"
     },
     "units": {
       "KG": "kg",
@@ -1935,7 +1936,8 @@
       "parkingHint": "Die Navigation führt zuerst zum ersten Parkplatz, dann zur Lieferadresse.",
       "parkingSpotNumber": "Parkplatz {number}",
       "parkingFirst": "zuerst",
-      "parkingNone": "Noch kein Parkplatz festgelegt."
+      "parkingNone": "Noch kein Parkplatz festgelegt.",
+      "problemNoteLabel": "Deine Anmerkung"
     },
     "status": {
       "delivered": "Geliefert",

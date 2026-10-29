@@ -233,7 +233,8 @@
       "reloadTitle": "Doplnění nákladu v depu",
       "reloadHint": "Vraťte se do depa a naložte zboží pro jízdu {trip}:",
       "switchTitle": "Výměna vozidla",
-      "switchHint": "Vraťte se do depa a přesedněte do vozidla {vehicle}. Pro jízdu {trip} je naloženo:"
+      "switchHint": "Vraťte se do depa a přesedněte do vozidla {vehicle}. Pro jízdu {trip} je naloženo:",
+      "problemGroup": "{count, plural, one {Problémy (#)} few {Problémy (#)} many {Problémy (#)} other {Problémy (#)}}"
     },
     "units": {
       "KG": "kg",
@@ -295,7 +296,8 @@
       "parkingHint": "Navigace vede nejdřív na první parkovací místo, potom na adresu dodání.",
       "parkingSpotNumber": "Parkovací místo {number}",
       "parkingFirst": "nejdřív",
-      "parkingNone": "Parkovací místo ještě není nastaveno."
+      "parkingNone": "Parkovací místo ještě není nastaveno.",
+      "problemNoteLabel": "Vaše poznámka"
     },
     "status": {
       "delivered": "Doručeno",

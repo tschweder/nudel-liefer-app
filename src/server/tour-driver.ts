@@ -48,6 +48,11 @@ export type DriverStop = {
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   /** Why the stop is a PROBLEM (NUD-053), else `null`. */
   problemReason: string | null;
+  /**
+   * NUD-177 (QA 2026-10-29 F5): the driver's free text to the problem as `LocalizedText` JSON (raw,
+   * the reader picks the locale) or `null`. It was stored since NUD-053 but never left the server.
+   */
+  problemNote: unknown;
   /** When the driver completed the stop (ISO), else `null`; the undo window counts from here. */
   completedAt: string | null;
   etaAt: string | null;
@@ -152,6 +157,7 @@ export async function getDriverTours(
           customerId: stop.customerId,
           status: stop.status,
           problemReason: stop.problemReason,
+          problemNote: stop.problemNote ?? null,
           completedAt: stop.completedAt?.toISOString() ?? null,
           etaAt: stop.etaAt?.toISOString() ?? null,
           legDurationS: stop.legDurationS,

@@ -423,6 +423,9 @@ function StopRow({
     : null;
   const rowClass =
     "flex min-h-[76px] w-full items-center gap-2 px-1 py-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:bg-muted";
+  // NUD-180 (QA 2026-10-29 F17): a closed row names the time it was actually done, not the planned
+  // arrival — the office already showed "Erledigt um 11:49" while the driver saw "06:30".
+  const rowTime = stop.status === "PENDING" ? stop.etaAt : (stop.completedAt ?? stop.etaAt);
   const content = (
     <>
       <StopNumberBadge
@@ -467,6 +470,12 @@ function StopRow({
             {stop.street}, {stop.postalCode} {stop.city}
           </span>
         )}
+        {/* NUD-177 (QA 2026-10-29 F5): the note the driver wrote, at least one line of it. */}
+        {stop.problemNote ? (
+          <span className="truncate text-sm text-muted-foreground" data-testid="stop-row-note">
+            {stop.problemNote.text}
+          </span>
+        ) : null}
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusLabel status={stop.status} />
           <KeyChip stop={stop} />
@@ -476,8 +485,10 @@ function StopRow({
       {/* Reserved right column (80 px): the summary stacks inside it, so it can never spill onto
           the status badge or squeeze the customer name below ~20 visible characters. */}
       <span className="flex w-20 shrink-0 flex-col items-end gap-0.5 overflow-hidden">
-        {stop.etaAt ? (
-          <span className="font-sans text-base tabular-nums">{fmtTime(new Date(stop.etaAt))}</span>
+        {rowTime ? (
+          <span className="font-sans text-base tabular-nums" data-testid="stop-row-time">
+            {fmtTime(new Date(rowTime))}
+          </span>
         ) : null}
         <RowSummary items={stop.items} />
       </span>
@@ -514,16 +525,20 @@ function StopRow({
   );
 }
 
-/** "Erledigt (3)" group at the end of the list: collapsed per default, state kept per tour. */
+/** Collapsible group at the end of the list ("Erledigt (3)" / "Probleme (1)"); state per tour. */
 function DoneGroup({
   stops,
   open,
   onToggle,
+  label,
+  testId,
   children,
 }: {
   stops: TodayStop[];
   open: boolean;
   onToggle: (open: boolean) => void;
+  label?: string;
+  testId?: string;
   children: React.ReactNode;
 }) {
   const t = useTranslations("driver.today");
@@ -532,7 +547,7 @@ function DoneGroup({
       <details
         open={open || stops.length === 0}
         onToggle={(event) => onToggle(event.currentTarget.open)}
-        data-testid="done-group"
+        data-testid={testId ?? "done-group"}
       >
         <summary className="flex min-h-[52px] cursor-pointer list-none items-center gap-2 px-1 py-2 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           <ChevronRightIcon
@@ -542,7 +557,7 @@ function DoneGroup({
             )}
             aria-hidden
           />
-          {open ? t("doneGroup", { count: stops.length }) : t("doneGroup", { count: stops.length })}
+          {label ?? t("doneGroup", { count: stops.length })}
         </summary>
         <ol className="list-none">{children}</ol>
       </details>
@@ -565,7 +580,10 @@ function OtherTourSection({ tour }: { tour: DriverToday }) {
     entries.filter((entry) => isStopStatusEntry(entry.type)).map((entry) => entry.stopId),
   );
   const open = stops.filter((s) => s.status === "PENDING");
-  const closed = stops.filter((s) => s.status !== "PENDING");
+  // NUD-180 (QA 2026-10-29 F17): a stop with a reported problem is not a delivery - it gets its own
+  // group instead of sitting under "Erledigt".
+  const delivered = stops.filter((s) => s.status === "DELIVERED");
+  const problemsList = stops.filter((s) => s.status === "PROBLEM");
   const [doneOpen, setDoneOpen] = useState(false);
   const headingId = `other-tour-${tour.tourId}`;
   return (
@@ -604,9 +622,29 @@ function OtherTourSection({ tour }: { tour: DriverToday }) {
             waiting={waitingIds.has(stop.id)}
           />
         ))}
-        {closed.length > 0 ? (
-          <DoneGroup stops={closed} open={doneOpen} onToggle={setDoneOpen}>
-            {closed.map((stop) => (
+        {delivered.length > 0 ? (
+          <DoneGroup stops={delivered} open={doneOpen} onToggle={setDoneOpen}>
+            {delivered.map((stop) => (
+              <StopRow
+                key={stop.id}
+                stop={stop}
+                timezone={tour.timezone}
+                isNext={false}
+                unseen={false}
+                waiting={waitingIds.has(stop.id)}
+              />
+            ))}
+          </DoneGroup>
+        ) : null}
+        {problemsList.length > 0 ? (
+          <DoneGroup
+            stops={problemsList}
+            open={doneOpen}
+            onToggle={setDoneOpen}
+            label={t("problemGroup", { count: problemsList.length })}
+            testId="problem-group"
+          >
+            {problemsList.map((stop) => (
               <StopRow
                 key={stop.id}
                 stop={stop}
@@ -733,7 +771,10 @@ export function TodayTour({
   const remaining = roundedMinutes(remainingSeconds(stops, today.serviceSecondsPerStop));
   const reloadBefore = reloadBeforeStops(stops);
   const open = stops.filter((s) => s.status === "PENDING");
-  const closed = stops.filter((s) => s.status !== "PENDING");
+  // NUD-180 (QA 2026-10-29 F17): a stop with a reported problem is not a delivery - it gets its own
+  // group instead of sitting under "Erledigt".
+  const delivered = stops.filter((s) => s.status === "DELIVERED");
+  const problemsList = stops.filter((s) => s.status === "PROBLEM");
   const problems = stops.filter((s) => s.status === "PROBLEM").length;
   const showBanner = today.updated && seen < today.revision;
   const departureCard =
@@ -823,9 +864,31 @@ export function TodayTour({
             />
           </Fragment>
         ))}
-        {closed.length > 0 ? (
-          <DoneGroup stops={closed} open={doneOpen} onToggle={toggleDone}>
-            {closed.map((stop) => (
+        {delivered.length > 0 ? (
+          <DoneGroup stops={delivered} open={doneOpen} onToggle={toggleDone}>
+            {delivered.map((stop) => (
+              <StopRow
+                key={stop.id}
+                stop={stop}
+                timezone={today.timezone}
+                isNext={false}
+                unseen={unseen(stop)}
+                waiting={waitingIds.has(stop.id)}
+                selected={selectedId === stop.id}
+                onFocus={onFocus}
+              />
+            ))}
+          </DoneGroup>
+        ) : null}
+        {problemsList.length > 0 ? (
+          <DoneGroup
+            stops={problemsList}
+            open={doneOpen}
+            onToggle={toggleDone}
+            label={t("problemGroup", { count: problemsList.length })}
+            testId="problem-group"
+          >
+            {problemsList.map((stop) => (
               <StopRow
                 key={stop.id}
                 stop={stop}

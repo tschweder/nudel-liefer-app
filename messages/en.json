@@ -1873,7 +1873,8 @@
       "reloadTitle": "Reload at the depot",
       "reloadHint": "Return to the depot and load for trip {trip}:",
       "switchTitle": "Switch vehicle",
-      "switchHint": "Return to the depot and switch into {vehicle}. Loaded for trip {trip}:"
+      "switchHint": "Return to the depot and switch into {vehicle}. Loaded for trip {trip}:",
+      "problemGroup": "{count, plural, one {Problems (#)} other {Problems (#)}}"
     },
     "units": {
       "KG": "kg",
@@ -1935,7 +1936,8 @@
       "parkingHint": "Navigation goes to the first parking spot, then to the delivery address.",
       "parkingSpotNumber": "Parking spot {number}",
       "parkingFirst": "first",
-      "parkingNone": "No parking spot set yet."
+      "parkingNone": "No parking spot set yet.",
+      "problemNoteLabel": "Your note"
     },
     "status": {
       "delivered": "Delivered",

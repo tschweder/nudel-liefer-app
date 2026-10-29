@@ -191,6 +191,19 @@ export function StopDetail({
                   })
                 : t("today.statusPending")}
           </StatusBadge>
+          {/* NUD-177 (QA 2026-10-29 F5): the driver could not read back what he wrote. Read-only —
+              the note is his report to the office, not an editable field. */}
+          {stop.status === "PROBLEM" && stop.problemNote ? (
+            <p
+              className="mt-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-base whitespace-pre-wrap"
+              data-testid="stop-problem-note"
+            >
+              <span className="block text-sm font-medium text-muted-foreground">
+                {tStop("problemNoteLabel")}
+              </span>
+              {stop.problemNote.text}
+            </p>
+          ) : null}
         </div>
       </header>
 

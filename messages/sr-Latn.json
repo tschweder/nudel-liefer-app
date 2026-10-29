@@ -233,7 +233,8 @@
       "reloadTitle": "Dopuna tovara u depou",
       "reloadHint": "Vratite se u depo i utovarite robu za vožnju {trip}:",
       "switchTitle": "Promena vozila",
-      "switchHint": "Vratite se u depo i presedite u vozilo {vehicle}. Za vožnju {trip} je utovareno:"
+      "switchHint": "Vratite se u depo i presedite u vozilo {vehicle}. Za vožnju {trip} je utovareno:",
+      "problemGroup": "{count, plural, one {Problemi (#)} few {Problemi (#)} other {Problemi (#)}}"
     },
     "units": {
       "KG": "kg",
@@ -295,7 +296,8 @@
       "parkingHint": "Navigacija vodi prvo do prvog parking mesta, a zatim do adrese isporuke.",
       "parkingSpotNumber": "Parking mesto {number}",
       "parkingFirst": "prvo",
-      "parkingNone": "Parking mesto još nije određeno."
+      "parkingNone": "Parking mesto još nije određeno.",
+      "problemNoteLabel": "Vaša napomena"
     },
     "status": {
       "delivered": "Isporučeno",

@@ -84,6 +84,9 @@ export const payloadStopSchema = z.object({
   vehicleName: z.string().nullable().default(null),
   status: z.enum(["PENDING", "DELIVERED", "PROBLEM"]),
   problemReason: z.string().nullable(),
+  /** NUD-177: the driver's own note to the problem (LocalizedText); old caches read as 
+ull. */
+  problemNote: localizedTextSchema.nullable().default(null),
   completedAt: z.string().nullable(),
   etaAt: z.string().nullable(),
   legDurationS: z.number().nullable(),
@@ -208,6 +211,9 @@ export type TodayStop = {
   vehicleName?: string | null;
   status: "PENDING" | "DELIVERED" | "PROBLEM";
   problemReason: string | null;
+  /** NUD-177: the driver's own note to the problem, in his language (
+ull when he wrote none). */
+  problemNote?: { text: string; lang: AppLocale } | null;
   completedAt: string | null;
   etaAt: string | null;
   legDurationS: number | null;
@@ -304,6 +310,15 @@ export type DriverStopDetail = {
   photos: Record<PhotoKind, StopPhoto | null>;
 };
 
+/** NUD-177: the problem note in the driver's language, in the same shape as the customer note. */
+function pickNote(
+  note: LocalizedText | null,
+  locale: AppLocale,
+): { text: string; lang: AppLocale } | null {
+  const picked = note ? pickWithSource(note, locale) : null;
+  return picked ? { text: picked.value, lang: picked.locale } : null;
+}
+
 function pickName(name: LocalizedText | null, sku: string, locale: AppLocale): string {
   return (name ? pickWithSource(name, locale)?.value : undefined) || sku;
 }
@@ -316,6 +331,7 @@ function todayStop(stop: PayloadStop, locale: AppLocale): TodayStop {
     vehicleName: stop.vehicleName,
     status: stop.status,
     problemReason: stop.problemReason,
+    problemNote: pickNote(stop.problemNote, locale),
     completedAt: stop.completedAt,
     etaAt: stop.etaAt,
     legDurationS: stop.legDurationS,
@@ -440,6 +456,7 @@ export function toDriverStopDetail(
       sequence: s.sequence,
       status: s.status,
       problemReason: s.problemReason,
+      problemNote: pickNote(s.problemNote, locale),
       completedAt: s.completedAt,
     })),
     notes: notes ? { text: notes.value, lang: notes.locale } : null,

@@ -47,6 +47,7 @@ function response(date: string, photoIds: string[] = ["a", "b"]): DriverTourResp
         vehicleName: null,
         status: "PENDING",
         problemReason: null,
+        problemNote: null,
         completedAt: null,
         etaAt: null,
         legDurationS: null,

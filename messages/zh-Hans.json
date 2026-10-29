@@ -1873,7 +1873,8 @@
       "reloadTitle": "返回仓库补货",
       "reloadHint": "返回仓库，装载第 {trip} 趟的货物：",
       "switchTitle": "换车",
-      "switchHint": "返回仓库，换乘 {vehicle}。第 {trip} 趟已装载："
+      "switchHint": "返回仓库，换乘 {vehicle}。第 {trip} 趟已装载：",
+      "problemGroup": "{count} 个问题"
     },
     "units": {
       "KG": "公斤",
@@ -1935,7 +1936,8 @@
       "parkingHint": "导航先到第一个停车位，再到送货地址。",
       "parkingSpotNumber": "停车位 {number}",
       "parkingFirst": "先到这里",
-      "parkingNone": "尚未设置停车位。"
+      "parkingNone": "尚未设置停车位。",
+      "problemNoteLabel": "你的备注"
     },
     "status": {
       "delivered": "已送达",

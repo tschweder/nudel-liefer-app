@@ -152,6 +152,9 @@ export async function getDriverTourResponse(
         vehicleName: stop.vehicleName,
         status: stop.status,
         problemReason: stop.problemReason,
+        // NUD-177 (QA 2026-10-29 F5): the note travels with the stop so the driver can read his own
+        // text again; the model picks the locale, exactly like `notes`.
+        problemNote: localizedTextSchema.safeParse(stop.problemNote).data ?? null,
         completedAt: stop.completedAt,
         etaAt: stop.etaAt,
         legDurationS: stop.legDurationS,
