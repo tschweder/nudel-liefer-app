@@ -3502,7 +3502,10 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 - [ ] de/en/sr-Latn/cs/zh-Hans, lint/typecheck/test/i18n:check grün; vorher/nachher-Screenshot im Ticket.
 
 **Implementation notes (NUD-180)**
-- (leer — wird beim Umsetzen gefüllt)
+- **Zwei Gruppen:** `DoneGroup` nimmt jetzt ein optionales Label und eine Test-ID; die Liste trennt `delivered` (Status DELIVERED) von `problemsList` (Status PROBLEM) in Haupt- und Folgetour-Ansicht. Neuer Schlüssel `driver.today.problemGroup` in de/en/sr-Latn/cs/zh-Hans. Fortschritt/Zähler unverändert (Probleme zählen weiter als erledigt).
+- **Tatsächliche Zeit:** `StopRow` rendert `completedAt` bei geschlossenen Stopps (`data-testid="stop-row-time"`), offene weiter die geplante Ankunft.
+- **Beleg:** „Erledigt (3)" enthält nur Lieferungen mit **11:49 / 12:37 / 15:52** (vorher 06:30/06:48), darunter eine eigene Gruppe „Probleme (1)" mit dem Problem-Stopp (`web-test/20261029-1449-nud-176-177-180-182-184--3856/shots/023-*`). Vorher: Problem unter „Erledigt (2)", Planzeiten (`web-test/20261029-1310-.../shots/025-*`).
+- Tests: `today-tour` (65) grün, `tsc`/`eslint`/`i18n:check` grün.
 
 ---
 
