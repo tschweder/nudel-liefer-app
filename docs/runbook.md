@@ -254,7 +254,14 @@ docker stop nudel-ors photon-austria ; docker start nudel-ors photon-austria    
 ```
 
 The tunnel is registered for autostart (`HKCU\…\Run` → `NudelLieferApp-Tunnel`); the containers
-have `--restart unless-stopped`, so they come back with Docker after a reboot.
+have `--restart unless-stopped`, so they come back with Docker after a reboot. Both must be
+verified separately after a deploy or a Docker Desktop restart: **a deploy starts neither.**
+
+**This is a stopgap, not the final hosting.** Production depends on this PC being awake while the
+client's server is the 2 GB box. At the hand-over the app must run against ORS/Photon on a host that
+can carry them, or against a paid `ORS_API_KEY`; then remove `ORS_BASE_URL` / `PHOTON_URL` from
+`/etc/delivery-app.env`, restart the service, drop the tunnel and its autostart entry. The ordered
+checklist is in `deploy/local-services/README.md` ("This is a stopgap, not the final setup").
 
 **Rebuild the ORS graph** (after a new OSM extract, or when the graph is corrupt — takes ~15 min):
 
@@ -269,7 +276,8 @@ powershell -ExecutionPolicy Bypass -File deploy\local-services\start-ors.ps1 -Re
 
 | Symptom | Cause / fix |
 | --- | --- |
-| Tour shows "Näherungswerte" | Tunnel down, ORS container down, or `ORS_BASE_URL` missing in `/etc/delivery-app.env`. The app keeps working — check `routing.mode` in `/api/health`. |
+| Tour shows "Näherungswerte" | Tunnel down, ORS container down, or `ORS_BASE_URL` missing in `/etc/delivery-app.env`. The app keeps working — check `routing.mode` in `/api/health`, but note that it only reports the configuration; curl `127.0.0.1:8082/ors/v2/health` from the server for the truth. |
+| Geocoding silently invents coordinates | Photon down while the tunnel is up — and `geocoding.mode` stays `self-hosted`, because it only reads the env: `docker ps` shows `photon-austria` exited. `docker start photon-austria`, then `ssh root@<server> "curl -s 'http://127.0.0.1:2322/api?q=Wien&limit=1'"` must return a hit. Seen on 2026-10-31: the container predated the `--restart` flag, so Docker never brought it back; `docker update --restart unless-stopped photon-austria` fixed it. |
 | New customers get no Adresspunkt | `PHOTON_URL` unset or Photon down (`geocoding.mode` = `fake`). `tsx scripts/geocode-customers.ts` fills them (dry run first). |
 | `ssh: connect … ExitOnForwardFailure` | The ports are already forwarded on the server (an old tunnel is still alive): `pkill -f 'ssh.*8082:127.0.0.1:8082'` on the server, then start the tunnel again. |
 | ORS answers 503 for a long time | The graph is still building (`docker logs -f nudel-ors`); after a `-Rebuild` this is normal for ~15 min. |

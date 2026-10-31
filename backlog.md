@@ -347,6 +347,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-189 | Teillieferung / Ist-Menge (Epic nach dem Defekt-Block) | M2.7 | 172 | todo |
 | NUD-190 | Kundenstatus-Link (nach NUD-172) | M2.7 | 172 | todo |
 | NUD-192 | Layout-Refresh des Designers (Büro-Formulare, Tabellen, Login, Auslastung) | M2.7 | – | done |
+| NUD-193 | ORS und Photon vom Entwickler-PC lösen (vor dem Hand-over) | M3 | – | todo |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3752,6 +3753,25 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 
 ---
 
+#### NUD-193 · ORS und Photon vom Entwickler-PC lösen (vor dem Hand-over)
+**Status:** todo · **depends_on:** – · Quelle: Betrieb 2026-10-31 (Betreiber-Hinweis).
+
+**Goal:** Routing und Geocoding laufen im Produktivbetrieb auf dem Entwickler-PC (Docker + Reverse-Tunnel), weil der 2-GB-vServer openrouteservice und Photon nicht tragen kann. Für den Piloten ist das tragbar, für die Übergabe nicht: ohne wachen Entwickler-PC plant die App nur noch Näherungswerte und erfindet Koordinaten für neue Kunden.
+
+**Scope:** ein Host mit ≥ 4 GB für ORS + Photon oder ein bezahlter `ORS_API_KEY` (hosted Routing und Geocoding); danach `ORS_BASE_URL` / `PHOTON_URL` in `/etc/delivery-app.env` umstellen bzw. entfernen, Dienst neu starten, Tunnel und Autostart-Eintrag `NudelLieferApp-Tunnel` abbauen.
+
+**Acceptance criteria**
+- [ ] `GET /delivery-app/api/health` meldet `routing.mode` und `geocoding.mode` passend zum neuen Provider, und eine echte Tour plus ein neuer Kunde sind gegen ihn geprüft.
+- [ ] `/etc/delivery-app.env` enthält keine `127.0.0.1`-Adressen des Entwickler-PCs mehr; Tunnel-Prozess und Autostart-Eintrag sind entfernt.
+- [ ] `deploy/local-services/README.md`, `docs/runbook.md` §14, `docs/deploy.md` §13 und der Abschnitt in `AGENTS.md` beschreiben den neuen Zustand.
+- [ ] Die verbleibende Abhängigkeit (falls ORS/Photon auf einem zweiten Server bleiben: Erreichbarkeit, Neustartverhalten) steht in `docs/runbook.md`.
+
+**Implementation notes (NUD-193)**
+- Am 2026-10-31 geprüft: ORS und Photon antworten vom vServer aus durch den Tunnel (`/ors/v2/health` = ready, Photon `/api` liefert Treffer). Der Photon-Container war zu dem Zeitpunkt ausgestiegen (kein `--restart`), live auf `unless-stopped` umgestellt; `deploy.bat` prüft jetzt beide Provider und warnt, statt zu scheitern.
+- Reihenfolge der Ablösung: `deploy/local-services/README.md`, Abschnitt „This is a stopgap, not the final setup".
+
+---
+
 #### Ein-Zeilen-Eintrag (aus F13, nicht umgesetzt)
 **NUD-191 · Checklisten-Zeilen brauchen explizite Accessible Names** — Status: todo · Quelle: Blackbox-QA 2026-10-29, F13. Die Zeilen sind bereits `<button role="checkbox" aria-checked>` (e2e klickt sie per Rolle); offen ist nur der vorlesbare Name (bisher der zusammengesetzte Kindtext). Aufwand S, ein e2e-Locator per Name. Kein Ticket im QA-Block, weil der Befund als solcher nicht reproduzierbar war.
 
@@ -4192,6 +4212,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 | 2026-10-29 | NUD-190 | Kundenstatus-Link kommt nach NUD-172 (Option C) | Der Link ist nur so gut wie das Zeitmodell, das er anzeigt |
 | 2026-10-29 | NUD-104 | Foto-Nachweis: NUD-104 wird erweitert und nach dem Defekt-Block umgesetzt (Option A) | Die Lücke in der Beweiskette ist unabhängig von Mengen und braucht eigene ACs |
 | 2026-10-31 | NUD-192 | Das Designer-Archiv wird als ein Commit übernommen (kein Rebase auf fremde Zwischenstände), Herkunft nur im Ticket vermerkt | Der Import ist ein UI-Diff gegen `main`; ein Zwischenstand hätte keinen eigenen Prüfwert |
+| 2026-10-31 | NUD-156/157 | ORS und Photon bleiben vorerst auf dem Entwickler-PC (Docker + Reverse-Tunnel); die Ablösung ist als geordnete Checkliste in `deploy/local-services/README.md` festgehalten und in `AGENTS.md`, `docs/runbook.md` §14 und `docs/deploy.md` §13 verlinkt | Der 2-GB-vServer kann beide nicht tragen, aber ein Deploy startet sie nicht mit — ohne Notiz geht das beim Übergang auf den Kundenserver verloren |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

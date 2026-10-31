@@ -11,7 +11,7 @@ dev PC                                   vServer (2 GB)
 ┌───────────────────────┐   ssh -R     ┌──────────────────────────────┐
 │ docker: nudel-ors     │◄────────────►│ delivery-app (systemd, 3100) │
 │   127.0.0.1:8082      │              │   ORS_BASE_URL=http://127.0.0.1:8082/ors
-│ docker: nudel-photon  │              │   PHOTON_URL=http://127.0.0.1:2322
+│ docker: photon-austria│              │   PHOTON_URL=http://127.0.0.1:2322
 │   127.0.0.1:2322      │              └──────────────────────────────┘
 └───────────────────────┘
 ```
@@ -52,9 +52,15 @@ powershell -ExecutionPolicy Bypass -File deploy\local-services\tunnel.ps1 -Statu
 Check from the server:
 
 ```bash
-curl -s http://127.0.0.1:8082/ors/health            # {"status":"ready", …}
+curl -s http://127.0.0.1:8082/ors/v2/health           # {"status":"ready", …}  (/ors/health does not exist)
 curl -s 'http://127.0.0.1:2322/api?q=Mariahilfer+Straße+1+Wien&limit=1&lang=de'
 ```
+
+A deploy (`deploy.bat`) starts **none** of this. After a deploy, and after every Docker Desktop
+restart, check in this order: `docker ps` (both containers `Up`), the tunnel (`ss -ltnp | grep -E
+':8082|:2322'` on the server), then the two `curl`s above. A container that was created before the
+`--restart` flag existed keeps `restart=no`; fix it once with
+`docker update --restart unless-stopped photon-austria` (done on 2026-10-31).
 
 ## Server configuration
 
@@ -75,3 +81,29 @@ and geocoding use the local instances or a fallback.
 
 Measured 2026-10-28: the box has 1.8 GB RAM, no JVM, and already runs Postgres, MinIO, the app
 and two other apps. The ORS car graph for Austria alone wants ~2 GB heap.
+
+## This is a stopgap, not the final setup
+
+While the client's server is this 2 GB box, the **production** app depends on this PC being awake,
+on Docker Desktop having started both containers and on the reverse tunnel being up. That is
+acceptable for the pilot and wrong for the hand-over: the client must not depend on the developer's
+machine.
+
+Leaving this state behind, in this order:
+
+1. Get a host that can carry it: a second vServer with ≥ 4 GB RAM for ORS + Photon, or a paid
+   openrouteservice key (`ORS_API_KEY`, hosted routing **and** geocoding) which makes both
+   containers unnecessary. Decide with the client; keep the key out of git (it belongs in
+   `/etc/delivery-app.env` only).
+2. Point the app at the new provider in `/etc/delivery-app.env` — the app reads these only at
+   start-up: either keep the self-hosted shape and set `ORS_BASE_URL` / `PHOTON_URL` to the new
+   host's address, or delete both and set `ORS_API_KEY` for the hosted openrouteservice. Never leave
+   `127.0.0.1:8082` / `127.0.0.1:2322` behind on a server that no longer has a tunnel.
+3. `systemctl restart delivery-app`, then re-check `GET /delivery-app/api/health` (`routing.mode`,
+   `geocoding.mode`) and plan one tour plus geocode one new customer.
+4. Only after that: stop the tunnel, delete the `NudelLieferApp-Tunnel` autostart entry
+   (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), and stop/remove the two containers.
+5. Record the change in `backlog.md` §9 (decision log) and correct `docs/runbook.md` section 14 and
+   the note in `AGENTS.md` — otherwise the next agent keeps believing production lives on this PC.
+
+Until step 4 is done, rolling the vServer back also means: this PC must stay on.

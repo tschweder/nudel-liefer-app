@@ -438,6 +438,7 @@ Things that are different from the Vercel path and must not be forgotten:
 - **`/quiz` and the other sites on that nginx must keep working**: the deploy backs up `/etc/nginx`,
   only *adds* an `include` to the existing server blocks and rolls back automatically when `nginx -t`
   fails.
+- **Routing and geocoding live on the developer PC**, not on this server (NUD-156/157): the vServer reaches openrouteservice and Photon as `127.0.0.1:8082` / `127.0.0.1:2322` through a reverse SSH tunnel, configured by `ORS_BASE_URL` / `PHOTON_URL` in `/etc/delivery-app.env`. That is a stopgap while the box has 2 GB. `deploy.bat` prints whether both are reachable; details and the hand-over checklist: `deploy/local-services/README.md`, `docs/runbook.md` section 14, `AGENTS.md`.
 - Backups are a local `pg_dump` (there is no Neon PITR here); the retention jobs stay in `dry-run`
   until the operator changes them.
 - After the first deploy the office has to confirm the **depot pin** before any tour can be created.

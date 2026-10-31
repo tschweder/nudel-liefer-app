@@ -68,6 +68,24 @@ if ($LASTEXITCODE -ne 0) { throw 'Upload failed.' }
 ssh -i $key $target "sed -i 's/\r$//' /tmp/server-setup.sh && bash /tmp/server-setup.sh $ip /tmp/nudel-delivery-app.tgz"
 if ($LASTEXITCODE -ne 0) { throw 'Server setup failed (see the output above).' }
 
+# --- background services: routing + geocoding (NUD-156/157) ------------------------------------
+# A deploy starts neither the two containers nor the reverse tunnel, and without them the app still
+# answers but plans tours with estimates ("Naeherungswerte") and invents coordinates for new
+# customers. Never fail the deploy over this; just say what is missing.
+Write-Host "`nRouting and geocoding (dev PC -> tunnel):" -ForegroundColor Cyan
+foreach ($container in 'nudel-ors', 'photon-austria') {
+  $state = (docker ps --filter "name=$container" --format '{{.Status}}' 2>$null)
+  if ($state) { Write-Host "  $container : $state" -ForegroundColor Green }
+  else { Write-Host "  $container : NOT RUNNING (deploy\local-services\start-*.ps1)" -ForegroundColor Yellow }
+}
+$orsHealth = (ssh -i $key $target "curl -s -m 5 http://127.0.0.1:8082/ors/v2/health" 2>$null)
+$photonHit = (ssh -i $key $target "curl -s -m 8 'http://127.0.0.1:2322/api?q=Wien&limit=1'" 2>$null)
+if ($orsHealth -match 'ready') { Write-Host '  ORS through the tunnel : ready' -ForegroundColor Green }
+else { Write-Host '  ORS through the tunnel : NOT REACHABLE (tunnel down? deploy\local-services\tunnel.ps1)' -ForegroundColor Yellow }
+if ($photonHit -match 'features') { Write-Host '  Photon through the tunnel : answers' -ForegroundColor Green }
+else { Write-Host '  Photon through the tunnel : NOT REACHABLE (container or tunnel down)' -ForegroundColor Yellow }
+Write-Host '  Details: deploy\local-services\README.md, docs/runbook.md section 14' -ForegroundColor DarkGray
+
 Write-Host "`nDone:" -ForegroundColor Green
 Write-Host "  Büro:   https://$ip/delivery-app/de/login"
 Write-Host "  Fahrer: https://$ip/delivery-app/de/driver/login"
