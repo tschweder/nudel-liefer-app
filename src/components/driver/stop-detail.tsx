@@ -59,8 +59,8 @@ function useIsIos(): boolean {
  * Order top to bottom: sticky top bar (back + "Stopp n von N" + previous/next), header block on the
  * page background (badge, customer, address + copy, ETA/hours line, status badge, "Navigation
  * starten"), the note callout, the delivery card, the photos card with the fullscreen viewer and the
- * sticky bottom action bar. Nothing about the status/offline logic changed: the buttons still render
- * the existing `StopStatusActions`, only the presentation moved into the sticky bar.
+ * action card at the end. Nothing about the status/offline logic changed: the buttons still render
+ * the existing `StopStatusActions`, only the presentation moved into the action card at the end.
  */
 export function StopDetail({
   detail,
@@ -94,7 +94,11 @@ export function StopDetail({
     : null;
 
   return (
-    <div className="pb-48" data-testid="stop-detail" data-stop-id={stop.id}>
+    <div
+      className="pb-[max(2rem,env(safe-area-inset-bottom))]"
+      data-testid="stop-detail"
+      data-stop-id={stop.id}
+    >
       {offline ? null : <RefreshOnFocus />}
 
       {/* Sticky top bar variant (§7.3): back, position, previous/next. The "Weiter"/"Zurück" names

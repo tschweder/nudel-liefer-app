@@ -122,9 +122,9 @@ export function CustomersTable({
       <Table data-testid="customers-table" aria-label={t("title")}>
         <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm [&_th]:bg-muted/95">
           <TableRow>
-            <TableHead>{t("columns.customer")}</TableHead>
-            <TableHead>{t("columns.number")}</TableHead>
-            <TableHead>{t("columns.city")}</TableHead>
+            <TableHead className="max-md:w-full">{t("columns.customer")}</TableHead>
+            <TableHead className="max-md:hidden">{t("columns.number")}</TableHead>
+            <TableHead className="max-md:hidden">{t("columns.city")}</TableHead>
             <TableHead>{t("columns.flags")}</TableHead>
             <TableHead className="w-12 text-end">{t("columns.actions")}</TableHead>
           </TableRow>
@@ -202,13 +202,17 @@ function CustomerRow({ customer }: { customer: CustomerListRow }) {
               {customer.name}
             </Link>
             <span className="text-sm text-muted-foreground">{customer.street}</span>
+            <span className="text-sm text-muted-foreground md:hidden">
+              <span className="font-mono tabular-nums">{customer.customerNumber}</span> ·{" "}
+              {customer.postalCode} {customer.city}
+            </span>
           </div>
         </div>
       </TableCell>
-      <TableCell className="font-mono text-sm text-muted-foreground tabular-nums">
+      <TableCell className="font-mono text-sm text-muted-foreground tabular-nums max-md:hidden">
         {customer.customerNumber}
       </TableCell>
-      <TableCell>
+      <TableCell className="max-md:hidden">
         {customer.postalCode} {customer.city}
       </TableCell>
       <TableCell>

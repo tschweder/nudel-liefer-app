@@ -129,6 +129,7 @@
   },
   "auth": {
     "adminLogin": {
+      "subtitle": "Sign in with your e-mail and password.",
       "title": "Office login",
       "email": "Email",
       "password": "Password",
@@ -976,7 +977,7 @@
         "nameCs": "Name (Czech)",
         "hansRequired": "The name in simplified Chinese is required.",
         "auto": "automatic",
-        "autoPlaceholder": "Translated automatically when you save",
+        "autoPlaceholder": "Automatic on save",
         "rederive": "Translate again from the German name",
         "invalid": "Please check your entries.",
         "generic": "Saving failed. Please try again.",
@@ -1122,8 +1123,8 @@
             "notConfigured": "AI reading is not configured (no API key). Please enter the order manually.",
             "screenshotUnavailable": "The screenshot could not be read. Please upload it again."
           },
-          "heading": "Read the order message",
-          "hint": "Paste the customer's message (WhatsApp/WeChat) and/or attach a screenshot. The AI fills a draft that the office always reviews.",
+          "heading": "Take over from the customer's message",
+          "hint": "Paste the message or attach a screenshot. The AI suggests products and window, the office reviews.",
           "label": "Customer message",
           "lineLabelHint": "Read as: {label}",
           "lineLowConfidence": "Recognised with low confidence – please check the quantity.",
@@ -1139,14 +1140,14 @@
         "customerPlaceholder": "Choose a customer",
         "customerSearch": "Search by name or number",
         "customerEmpty": "No customer found.",
-        "date": "Planned delivery day",
+        "date": "Fixed delivery day",
         "linesHeading": "Products",
         "product": "Product",
         "productPlaceholder": "Choose a product",
         "productSearch": "Search by name or item number",
         "productEmpty": "No product found.",
         "quantity": "Quantity",
-        "quantityHint": "Press Enter for a new product.",
+        "quantityHint": "Enter in a quantity adds the next line.",
         "lineLabel": "Product {n}",
         "addLine": "Add product",
         "removeLine": "Remove product {n}",
@@ -1192,7 +1193,7 @@
         "savedDraft": "Draft saved.",
         "screenshot": {
           "heading": "Screenshot",
-          "hint": "Optional: upload the screenshot of the WhatsApp / WeChat message, drag it in or paste it with Ctrl+V. It is shown next to the form and saved with the order.",
+          "hint": "Drag the screenshot in, choose it or paste it with Ctrl+V.",
           "remove": "Remove screenshot",
           "alt": "Screenshot of the order message",
           "zoomHint": "Mouse wheel or plus/minus to zoom, drag to move, double-click to zoom in.",
@@ -1202,18 +1203,23 @@
         "editTitle": "Edit order",
         "customerFixed": "The customer cannot be changed afterwards. If the customer is wrong, cancel the order and enter it again.",
         "window": {
-          "heading": "Requested delivery window",
-          "hint": "When the customer accepts the delivery: a few hours up to several days. The times of day are optional.",
+          "heading": "Delivery",
+          "hint": "When the customer accepts the delivery. Times of day only when needed.",
           "from": "From (day)",
           "to": "To (day)",
           "fromTime": "From time",
           "toTime": "To time"
         },
-        "dateHint": "Leave empty to choose automatically (earliest delivery day in the window with free vehicle capacity).",
+        "dateHint": "Leave empty: the earliest delivery day in the window with free vehicle capacity is chosen.",
         "planWarnings": {
           "no_capacity": "Every delivery day in the window is fully booked. The order was planned for {date}.",
           "no_delivery_day": "The window contains no delivery day. The order was planned for {date}.",
           "outside_window": "The planned delivery day {date} lies outside the requested delivery window."
+        },
+        "optional": "optional",
+        "import": {
+          "toggle": "Message or screenshot",
+          "optional": "Optional: the AI fills a draft from it."
         }
       },
       "detail": {
@@ -1326,7 +1332,8 @@
       "window": {
         "label": "Delivery window"
       },
-      "fromRecurring": "from standing order"
+      "fromRecurring": "from standing order",
+      "newDescription": "Pick the customer and products, check the delivery, save."
     },
     "tours": {
       "title": "Tours",

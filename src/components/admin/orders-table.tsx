@@ -96,13 +96,16 @@ export function OrdersTable({
         // with the two lines of the customer cell stays inside the 48–52 px density budget
         // (§8.10). Auto table layout on purpose: the customer cell is capped, so the leftover width
         // goes to the Produkte column instead of being shared out evenly.
-        className="[&_td]:px-2 [&_td]:py-0.5 [&_th]:px-2"
-        containerClassName="max-h-[70dvh] overflow-auto"
+        // Below `md` the rows become stacked blocks (review 2026-10-31: seven columns squeezed into
+        // 390 px read as cramped): name and menu on the first line, the position chips on their
+        // own line, status / source / tour as a row of badges — see `OrderRow`.
+        className="md:[&_td]:px-2 md:[&_td]:py-0.5 md:[&_th]:px-2 max-md:[&_td]:p-0"
+        containerClassName="md:max-h-[70dvh] md:overflow-auto"
         aria-label={t("title")}
       >
         {/* Sticky header: the utilities are set here so the table does not depend on an optional
             prop of the shared kit (`TableHeader` also supports `data-sticky`). */}
-        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm [&_th]:bg-muted/95">
+        <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm max-md:hidden [&_th]:bg-muted/95">
           <TableRow>
             {multiDay ? <TableHead>{t("columns.date")}</TableHead> : null}
             <TableHead>{t("columns.customer")}</TableHead>
@@ -127,7 +130,7 @@ export function OrdersTable({
                   <TableHead
                     scope="colgroup"
                     colSpan={columns}
-                    className="bg-muted/50 text-sm font-medium text-muted-foreground"
+                    className="bg-muted/50 text-sm font-medium text-muted-foreground max-md:block max-md:px-2 max-md:py-1.5"
                   >
                     {t("group.label", { date: fmt.calendarDate(group.date) })}
                   </TableHead>
@@ -195,14 +198,14 @@ function OrderRow({
     <TableRow
       data-testid="order-row"
       data-order-id={order.id}
-      className="cursor-pointer"
+      className="cursor-pointer max-md:flex max-md:h-auto max-md:flex-wrap max-md:items-center max-md:gap-x-2 max-md:gap-y-2 max-md:px-2 max-md:py-3"
       onClick={(event) => {
         if (clickedControl(event.target)) return;
         onOpen();
       }}
     >
       {multiDay ? (
-        <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+        <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums max-md:order-first max-md:basis-full max-md:text-sm">
           {fmt.calendarDate(order.deliveryDate)}
         </TableCell>
       ) : null}
@@ -210,7 +213,7 @@ function OrderRow({
       {/* A floor, not a cap: the customer name may wrap to two lines, and everything the fixed
           columns leave goes to the Produkte column (round-3 review: that column carries the order
           content). Without the floor the greedy chip column squeezed the name to three lines. */}
-      <TableCell className="min-w-[12rem]">
+      <TableCell className="min-w-[12rem] max-md:order-1 max-md:min-w-0 max-md:flex-1">
         <Link
           href={`/admin/customers/${order.customer.id}`}
           className={
@@ -234,7 +237,7 @@ function OrderRow({
           the fixed columns (Status / Quelle / Tour / actions) leave over. The chips wrap instead of
           being cut in the middle of a word (the round-3 review read "2 Pa…"), and the two-line cap
           keeps the row inside the 48–52 px density budget (§8.10) as long as the labels fit. */}
-      <TableCell className="min-w-0">
+      <TableCell className="min-w-0 max-md:order-3 max-md:basis-full">
         {/* One line where it fits: the count sits inline with the chips (never a bubble of its own).
             The old `max-w-48`/`max-w-80` cap is gone — it squeezed the chips below their content
             width at 1280 px while the totals rail shared the row. */}
@@ -302,7 +305,7 @@ function OrderRow({
         ) : null}
       </TableCell>
 
-      <TableCell>
+      <TableCell className="max-md:order-4">
         <span data-testid="order-status" className="inline-flex">
           <StatusBadge tone={orderTone(order.status)} icon={orderIcon(order.status)} size="sm">
             {tc(`statuses.order.${order.status}`)}
@@ -310,7 +313,7 @@ function OrderRow({
         </span>
       </TableCell>
 
-      <TableCell>
+      <TableCell className="max-md:order-5">
         <span
           className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap"
           data-testid="order-source"
@@ -328,7 +331,7 @@ function OrderRow({
         </span>
       </TableCell>
 
-      <TableCell>
+      <TableCell className="max-md:order-6">
         {order.tour ? (
           <Link
             href={{
@@ -368,7 +371,7 @@ function OrderRow({
         )}
       </TableCell>
 
-      <TableCell className="text-end">
+      <TableCell className="text-end max-md:order-2">
         <RowActions label={t("rowMenu.label", { customer: order.customer.name })}>
           <DropdownMenuItem onSelect={onOpen} data-testid="order-row-details">
             <ExternalLinkIcon aria-hidden />

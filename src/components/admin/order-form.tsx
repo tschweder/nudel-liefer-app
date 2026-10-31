@@ -1,6 +1,15 @@
 "use client";
 
-import { AlertTriangleIcon, PlusIcon, RepeatIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ChevronDownIcon,
+  MessageSquareTextIcon,
+  PlusIcon,
+  RepeatIcon,
+  SparklesIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type KeyboardEvent, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -13,9 +22,12 @@ import { ZoomableImage } from "@/components/shared/image-preview";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { isInsideWindow, isValidWindow } from "@/domain/delivery-window";
 import {
   hasDuplicateProducts,
@@ -99,16 +111,19 @@ const AI_ERRORS: Record<OrderDraftFailure, string> = {
 type Screenshot = { storageKey: string; url: string };
 
 /**
- * Manual order entry: customer, delivery date, product lines (picker + quantity + unit). Keyboard
- * flow: Enter in a quantity adds the next line and focuses its product picker; quantities accept
- * `,` and `.`. Blank lines are ignored on save. The server validates everything again.
+ * Manual order entry (layout refresh 2026-10): cards in the order the office works — customer,
+ * product lines (picker + quantity + unit), delivery (requested window, optional fixed day), internal
+ * note — closed by a sticky save bar. Keyboard flow: Enter in a quantity adds the next line and
+ * focuses its product picker; quantities accept `,` and `.`. Blank lines are ignored on save. The
+ * server validates everything again.
  *
- * Screenshot (NUD-031): can be uploaded, dropped or pasted (Ctrl+V anywhere on the page). With a
- * screenshot the page is a split view from 1024 px: zoomable image left, form right; stacked
- * (image above the form) on smaller screens. The order is saved with `source=SCREENSHOT`.
+ * Import column (NUD-031/NUD-150): the customer's message and/or a screenshot (uploaded, dropped or
+ * pasted with Ctrl+V anywhere on the page) live in a column left of the form from 1024 px; below
+ * that they fold behind one row at the top, which a screenshot opens. With a screenshot the zoomable
+ * image sits at the top of that column and the order is saved with `source=SCREENSHOT`.
  *
  * Edit mode (NUD-032, `order` given): same fields and the same server validation; the customer is
- * fixed, the attached screenshot (if any) is shown read-only in the split view.
+ * fixed, the attached screenshot (if any) is shown read-only, the import tools are hidden.
  */
 export function OrderForm({ customers, products, defaultDate, order, aiAvailable = false }: Props) {
   const t = useTranslations("admin.orders.form");
@@ -159,6 +174,8 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
   } | null>(null);
   // Recurring order (NUD-166): the rule is created from the lines typed above, not from a copy.
   const [recurringOpen, setRecurringOpen] = useState(false);
+  // Below 1024 px the message/screenshot import is folded behind one row; a screenshot opens it.
+  const [importOpen, setImportOpen] = useState(false);
 
   const customer = customers.find((c) => c.value === customerId);
   const productById = new Map(products.map((p) => [p.value, p]));
@@ -263,6 +280,7 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
     setAiConfidence(null);
     setAiNotice(null);
     setRecurringOpen(false);
+    setImportOpen(false);
   }
 
   /**
@@ -339,6 +357,7 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
 
   async function onScreenshotUploaded(image: { storageKey: string }) {
     setScreenshotError(false);
+    setImportOpen(true);
     try {
       const url = await screenshotPreviewUrlAction(image.storageKey);
       if (!url) throw new Error("no preview");
@@ -457,468 +476,524 @@ export function OrderForm({ customers, products, defaultDate, order, aiAvailable
     });
   }
 
+  const hasSide = !editing || screenshot !== null;
+  const showImportPanel = importOpen || screenshot !== null;
+
   return (
     <div
-      className={cn("flex flex-col gap-6", screenshot && "lg:grid lg:grid-cols-2 lg:items-start")}
+      className="flex flex-col gap-6"
       data-testid="order-entry"
       data-split={screenshot ? "true" : "false"}
     >
-      {screenshot ? (
-        <aside
-          aria-label={t("screenshot.heading")}
-          className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-4"
-          data-testid="screenshot-pane"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-xl font-semibold">{t("screenshot.heading")}</h2>
-            {editing ? null : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setScreenshot(null)}
-                data-testid="screenshot-remove"
-              >
-                <XIcon aria-hidden />
-                {t("screenshot.remove")}
-              </Button>
-            )}
-          </div>
-          <div className="relative h-[50dvh] overflow-hidden rounded-md bg-black lg:h-[calc(100dvh-17rem)] lg:min-h-80">
-            <ZoomableImage src={screenshot.url} alt={t("screenshot.alt")} />
-          </div>
-          <p className="text-sm text-muted-foreground">{t("screenshot.zoomHint")}</p>
-        </aside>
-      ) : null}
-      <form
-        onSubmit={(event) => event.preventDefault()}
-        className="flex min-w-0 max-w-3xl flex-col gap-8"
-        noValidate
-        data-testid="order-form"
-      >
-        {screenshot || editing ? null : (
-          <section className="flex flex-col gap-2" aria-labelledby="order-screenshot">
-            <h2 id="order-screenshot" className="text-xl font-semibold">
-              {t("screenshot.heading")}
-            </h2>
-            <p className="text-sm text-muted-foreground">{t("screenshot.hint")}</p>
-            <ImageUploader
-              purpose="screenshot"
-              pasteAnywhere
-              onUploaded={(image) => void onScreenshotUploaded(image)}
-            />
-            {screenshotError ? (
-              <p className="text-sm text-destructive" role="alert" data-testid="screenshot-error">
-                {t("screenshot.previewFailed")}
-              </p>
-            ) : null}
-          </section>
+      <div
+        className={cn(
+          "flex flex-col gap-6",
+          hasSide && "lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-8",
         )}
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="order-customer">{t("customer")}</Label>
-            <Combobox
-              id="order-customer"
-              disabled={editing}
-              options={customers}
-              value={customerId}
-              onChange={(value) => {
-                setCustomerId(value);
-                setServerError(null);
-              }}
-              placeholder={t("customerPlaceholder")}
-              searchPlaceholder={t("customerSearch")}
-              emptyText={t("customerEmpty")}
-            />
-            {editing ? (
-              <p className="text-sm text-muted-foreground" data-testid="customer-fixed">
-                {t("customerFixed")}
-              </p>
-            ) : null}
-            {submitted && !customerId ? (
-              <p className="text-sm text-destructive" role="alert" data-testid="error-customer">
-                {t("errors.customerRequired")}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <fieldset
-          className="flex max-w-3xl flex-col gap-3 rounded-md border border-input p-4"
-          data-testid="order-window"
-        >
-          <legend className="px-1 text-base font-semibold">{t("window.heading")}</legend>
-          <p className="text-sm text-muted-foreground">{t("window.hint")}</p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="order-window-from">{t("window.from")}</Label>
-              <Input
-                id="order-window-from"
-                type="date"
-                value={windowFrom}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  windowTouched.current = true;
-                  setWindowFrom(value);
-                  if (windowTo < value || windowTo === windowFrom) setWindowTo(value);
-                  setServerError(null);
-                }}
-                aria-invalid={(submitted && !windowValid) || undefined}
-                required
-                data-testid="order-window-from"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="order-window-to">{t("window.to")}</Label>
-              <Input
-                id="order-window-to"
-                type="date"
-                value={windowTo}
-                min={windowFrom || undefined}
-                onChange={(e) => {
-                  windowTouched.current = true;
-                  setWindowTo(e.target.value);
-                  setServerError(null);
-                }}
-                aria-invalid={(submitted && !windowValid) || undefined}
-                required
-                data-testid="order-window-to"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="order-window-from-time">{t("window.fromTime")}</Label>
-              <Input
-                id="order-window-from-time"
-                type="time"
-                value={windowFromTime}
-                onChange={(e) => {
-                  windowTouched.current = true;
-                  setWindowFromTime(e.target.value);
-                  setServerError(null);
-                }}
-                data-testid="order-window-from-time"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="order-window-to-time">{t("window.toTime")}</Label>
-              <Input
-                id="order-window-to-time"
-                type="time"
-                value={windowToTime}
-                onChange={(e) => {
-                  windowTouched.current = true;
-                  setWindowToTime(e.target.value);
-                  setServerError(null);
-                }}
-                data-testid="order-window-to-time"
-              />
-            </div>
-          </div>
-          {submitted && !windowValid ? (
-            <p className="text-sm text-destructive" role="alert" data-testid="error-window">
-              {t("errors.windowInvalid")}
-            </p>
-          ) : null}
-          <div className="flex max-w-xs flex-col gap-2">
-            <Label htmlFor="order-date">{t("date")}</Label>
-            <Input
-              id="order-date"
-              type="date"
-              value={plannedDay}
-              onChange={(e) => {
-                const value = e.target.value;
-                plannedTouched.current = true;
-                setPlannedDay(value);
-                // Without a window of its own the chosen day is the window: the whole day.
-                if (!windowTouched.current && value) {
-                  setWindowFrom(value);
-                  setWindowTo(value);
-                }
-                setServerError(null);
-              }}
-              aria-invalid={(submitted && !plannedValid) || undefined}
-              data-testid="order-date"
-            />
-            <p className="text-sm text-muted-foreground">{t("dateHint")}</p>
-            {submitted && !plannedValid ? (
-              <p className="text-sm text-destructive" role="alert" data-testid="error-date">
-                {t("errors.dateInvalid")}
-              </p>
-            ) : null}
-            {outsideWindow ? (
-              <p
-                className="text-sm text-warning"
-                role="status"
-                data-testid="warning-outside-window"
+      >
+        {hasSide ? (
+          <div className="flex flex-col gap-3 lg:sticky lg:top-20" data-testid="order-import">
+            {editing ? null : (
+              <button
+                type="button"
+                aria-expanded={showImportPanel}
+                aria-controls="order-import-panel"
+                onClick={() => setImportOpen((open) => !open)}
+                data-testid="order-import-toggle"
+                className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-card px-4 py-3 text-start shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
               >
-                {t("planWarnings.outside_window", { date: plannedDay })}
-              </p>
-            ) : null}
-          </div>
-        </fieldset>
-
-        {warnings.length > 0 ? (
-          <div className="flex flex-col gap-3" data-testid="order-warnings">
-            {warnings.includes("combined_stop") ? (
-              <Alert
-                role="status"
-                className="border-warning text-warning"
-                data-testid="warning-combined"
-              >
-                <AlertTriangleIcon aria-hidden />
-                <div>{t("warningCombined", { count: confirmedCount })}</div>
-              </Alert>
-            ) : null}
-            {warnings.includes("tour_completed") ? (
-              <Alert
-                role="status"
-                className="border-warning text-warning"
-                data-testid="warning-tour-completed"
-              >
-                <AlertTriangleIcon aria-hidden />
-                <div>{t("warningTourCompleted", { date })}</div>
-              </Alert>
-            ) : null}
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-soft-foreground">
+                  <MessageSquareTextIcon className="size-[18px]" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-medium">{t("import.toggle")}</span>
+                  <span className="block text-sm text-muted-foreground">
+                    {t("import.optional")}
+                  </span>
+                </span>
+                <ChevronDownIcon
+                  aria-hidden
+                  className={cn(
+                    "size-5 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+                    showImportPanel && "rotate-180",
+                  )}
+                />
+              </button>
+            )}
+            <div
+              id="order-import-panel"
+              className={cn("flex-col gap-3", showImportPanel ? "flex" : "hidden lg:flex")}
+            >
+              {screenshot ? (
+                <aside
+                  aria-label={t("screenshot.heading")}
+                  className="flex min-w-0 flex-col gap-3 rounded-xl bg-card p-3 shadow-sm"
+                  data-testid="screenshot-pane"
+                >
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <h2 className="text-base font-semibold">{t("screenshot.heading")}</h2>
+                    {editing ? null : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setScreenshot(null)}
+                        data-testid="screenshot-remove"
+                      >
+                        <XIcon aria-hidden />
+                        {t("screenshot.remove")}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative h-[45dvh] min-h-64 overflow-hidden rounded-lg bg-black lg:h-[calc(100dvh-26rem)]">
+                    <ZoomableImage src={screenshot.url} alt={t("screenshot.alt")} />
+                  </div>
+                  <p className="px-1 text-xs text-muted-foreground">{t("screenshot.zoomHint")}</p>
+                </aside>
+              ) : null}
+              {editing ? null : (
+                <Card data-testid="order-ai" aria-labelledby="order-ai-heading">
+                  <CardHeader>
+                    <CardTitle id="order-ai-heading">{t("ai.heading")}</CardTitle>
+                    <CardDescription>{t("ai.hint")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    {screenshot ? null : (
+                      <div className="flex flex-col gap-2">
+                        <ImageUploader
+                          purpose="screenshot"
+                          pasteAnywhere
+                          compact
+                          onUploaded={(image) => void onScreenshotUploaded(image)}
+                        />
+                        {screenshotError ? (
+                          <p
+                            className="text-sm text-destructive"
+                            role="alert"
+                            data-testid="screenshot-error"
+                          >
+                            {t("screenshot.previewFailed")}
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                    <FormField label={t("ai.label")}>
+                      <Textarea
+                        id="order-ai-source"
+                        value={sourceText}
+                        maxLength={4000}
+                        rows={4}
+                        onChange={(e) => {
+                          setSourceText(e.target.value);
+                          setAiError(null);
+                        }}
+                        placeholder={t("ai.placeholder")}
+                        className="min-h-20"
+                        data-testid="ai-source-text"
+                      />
+                    </FormField>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        variant={aiAvailable ? "default" : "outline"}
+                        disabled={aiDisabled}
+                        onClick={() => void runExtraction()}
+                        data-testid="ai-extract"
+                      >
+                        <SparklesIcon aria-hidden />
+                        {aiPending ? t("ai.buttonBusy") : t("ai.button")}
+                      </Button>
+                      {aiAvailable ? null : (
+                        <p className="text-sm text-muted-foreground" data-testid="ai-disabled-hint">
+                          {t("ai.disabledHint")}
+                        </p>
+                      )}
+                    </div>
+                    {aiError ? (
+                      <p className="text-sm text-destructive" role="alert" data-testid="ai-error">
+                        {t(`ai.errors.${AI_ERRORS[aiError]}`)}
+                      </p>
+                    ) : null}
+                    {aiConfidence !== null && aiConfidence < 0.6 ? (
+                      <Alert variant="warning" role="status" data-testid="ai-low-confidence">
+                        <AlertTriangleIcon aria-hidden />
+                        <div>
+                          {t("ai.lowConfidence", { percent: Math.round(aiConfidence * 100) })}
+                        </div>
+                      </Alert>
+                    ) : null}
+                    {aiNotice &&
+                    (aiNotice.unmatched.length > 0 || aiNotice.note || aiNotice.windowNote) ? (
+                      <Alert variant="info" role="status" data-testid="ai-notice">
+                        <div className="flex flex-col gap-1">
+                          {aiNotice.unmatched.length > 0 ? (
+                            <>
+                              <p className="font-medium">{t("ai.unmatchedHeading")}</p>
+                              <ul className="list-disc pl-5">
+                                {aiNotice.unmatched.map((line, index) => (
+                                  <li
+                                    key={`${line.label}-${index}`}
+                                    data-testid="ai-unmatched-line"
+                                  >
+                                    {t("ai.unmatchedLine", {
+                                      label: line.label,
+                                      quantity: line.quantity ?? t("ai.quantityUnknown"),
+                                    })}
+                                    {candidateNames(line.candidates).length > 0
+                                      ? ` ${t("ai.candidates", {
+                                          names: candidateNames(line.candidates).join(", "),
+                                        })}`
+                                      : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          ) : null}
+                          {aiNotice.note ? <p>{t("ai.note", { note: aiNotice.note })}</p> : null}
+                          {aiNotice.windowNote ? (
+                            <p data-testid="ai-window-note">
+                              {t("ai.windowUnclear", { text: aiNotice.windowNote })}
+                            </p>
+                          ) : null}
+                        </div>
+                      </Alert>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         ) : null}
 
-        {editing ? null : (
-          <section
-            className="flex flex-col gap-3 rounded-md border border-input p-4"
-            aria-labelledby="order-ai"
-            data-testid="order-ai"
-          >
-            <h2 id="order-ai" className="text-xl font-semibold">
-              {t("ai.heading")}
-            </h2>
-            <p className="text-sm text-muted-foreground">{t("ai.hint")}</p>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="order-ai-source">{t("ai.label")}</Label>
-              <textarea
-                id="order-ai-source"
-                value={sourceText}
-                maxLength={4000}
-                rows={4}
-                onChange={(e) => {
-                  setSourceText(e.target.value);
-                  setAiError(null);
-                }}
-                placeholder={t("ai.placeholder")}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-                data-testid="ai-source-text"
-              />
-            </div>
-            {aiAvailable ? null : (
-              <p className="text-sm text-muted-foreground" data-testid="ai-disabled-hint">
-                {t("ai.disabledHint")}
-              </p>
-            )}
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={aiDisabled}
-                onClick={() => void runExtraction()}
-                data-testid="ai-extract"
+        <form
+          onSubmit={(event) => event.preventDefault()}
+          className="flex min-w-0 flex-col gap-4"
+          noValidate
+          data-testid="order-form"
+        >
+          <Card>
+            <CardContent>
+              <FormField
+                label={t("customer")}
+                required={!editing}
+                description={editing ? t("customerFixed") : undefined}
+                error={submitted && !customerId ? t("errors.customerRequired") : undefined}
               >
-                {aiPending ? t("ai.buttonBusy") : t("ai.button")}
-              </Button>
-            </div>
-            {aiError ? (
-              <p className="text-sm text-destructive" role="alert" data-testid="ai-error">
-                {t(`ai.errors.${AI_ERRORS[aiError]}`)}
-              </p>
-            ) : null}
-            {aiConfidence !== null && aiConfidence < 0.6 ? (
-              <p className="text-sm text-warning" role="status" data-testid="ai-low-confidence">
-                {t("ai.lowConfidence", { percent: Math.round(aiConfidence * 100) })}
-              </p>
-            ) : null}
-            {aiNotice && (aiNotice.unmatched.length > 0 || aiNotice.note || aiNotice.windowNote) ? (
-              <Alert variant="info" role="status" data-testid="ai-notice">
-                <div className="flex flex-col gap-1">
-                  {aiNotice.unmatched.length > 0 ? (
-                    <>
-                      <p className="font-medium">{t("ai.unmatchedHeading")}</p>
-                      <ul className="list-disc pl-5">
-                        {aiNotice.unmatched.map((line, index) => (
-                          <li key={`${line.label}-${index}`} data-testid="ai-unmatched-line">
-                            {t("ai.unmatchedLine", {
-                              label: line.label,
-                              quantity: line.quantity ?? t("ai.quantityUnknown"),
-                            })}
-                            {candidateNames(line.candidates).length > 0
-                              ? ` ${t("ai.candidates", {
-                                  names: candidateNames(line.candidates).join(", "),
-                                })}`
-                              : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
+                <Combobox
+                  id="order-customer"
+                  disabled={editing}
+                  options={customers}
+                  value={customerId}
+                  onChange={(value) => {
+                    setCustomerId(value);
+                    setServerError(null);
+                  }}
+                  placeholder={t("customerPlaceholder")}
+                  searchPlaceholder={t("customerSearch")}
+                  emptyText={t("customerEmpty")}
+                />
+              </FormField>
+            </CardContent>
+          </Card>
+
+          <Card aria-labelledby="order-lines">
+            <CardHeader>
+              <CardTitle id="order-lines">{t("linesHeading")}</CardTitle>
+              <CardDescription className="hidden sm:block">{t("quantityHint")}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-3">
+                {lines.map((line, index) => {
+                  const product = line.productId ? productById.get(line.productId) : undefined;
+                  const error = submitted ? lineErrors(line) : null;
+                  const aiLabel = aiLabels[line.key];
+                  const aiLineConfidence = aiConfidences[line.key];
+                  return (
+                    <li key={line.key} className="flex flex-col gap-1" data-testid="order-line">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_10rem_auto] sm:items-center">
+                        <Label htmlFor={`order-line-product-${line.key}`} className="sr-only">
+                          {t("product")} · {t("lineLabel", { n: index + 1 })}
+                        </Label>
+                        <Combobox
+                          id={`order-line-product-${line.key}`}
+                          options={products}
+                          value={line.productId}
+                          onChange={(value) => updateLine(line.key, { productId: value })}
+                          placeholder={t("productPlaceholder")}
+                          searchPlaceholder={t("productSearch")}
+                          emptyText={t("productEmpty")}
+                          className="col-span-2 sm:col-span-1"
+                        />
+                        <div className="relative">
+                          <Label htmlFor={`order-line-quantity-${line.key}`} className="sr-only">
+                            {t("quantity")} · {t("lineLabel", { n: index + 1 })}
+                          </Label>
+                          <Input
+                            id={`order-line-quantity-${line.key}`}
+                            inputMode="numeric"
+                            autoComplete="off"
+                            value={line.quantity}
+                            placeholder={t("quantity")}
+                            onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
+                            onKeyDown={(e) => onQuantityKeyDown(e, line)}
+                            aria-invalid={error === "quantityInvalid" || undefined}
+                            className={cn("min-w-0 tabular-nums", product && "pe-16")}
+                            data-testid="line-quantity"
+                          />
+                          <span
+                            className={cn(
+                              "pointer-events-none absolute inset-y-0 end-3 flex items-center text-sm text-muted-foreground",
+                              !product && "sr-only",
+                            )}
+                            data-testid="line-unit"
+                          >
+                            {product ? tc(`units.${product.unit}`) : ""}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => removeLine(line.key)}
+                          aria-label={t("removeLine", { n: index + 1 })}
+                          data-testid="line-remove"
+                        >
+                          <Trash2Icon aria-hidden />
+                        </Button>
+                      </div>
+                      {aiLabel !== undefined ? (
+                        <p className="text-sm text-muted-foreground" data-testid="line-ai-label">
+                          {t("ai.lineLabelHint", { label: aiLabel })}
+                        </p>
+                      ) : null}
+                      {aiLineConfidence !== undefined && aiLineConfidence < 0.6 ? (
+                        <p
+                          className="text-sm text-warning"
+                          role="status"
+                          data-testid="line-low-confidence"
+                        >
+                          {t("ai.lineLowConfidence")}
+                        </p>
+                      ) : null}
+                      {error ? (
+                        <p
+                          className="text-sm text-destructive"
+                          role="alert"
+                          data-testid="error-line"
+                        >
+                          {t(`errors.${error}`)}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" onClick={addLine} data-testid="add-line">
+                  <PlusIcon aria-hidden />
+                  {t("addLine")}
+                </Button>
+                {editing ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={pending || !customerId || recurringLines.length === 0}
+                    onClick={() => setRecurringOpen(true)}
+                    data-testid="order-recurring-open"
+                    className="sm:ms-auto"
+                  >
+                    <RepeatIcon aria-hidden />
+                    {t("recurring.open")}
+                  </Button>
+                )}
+              </div>
+              {hasDuplicateProducts(usedProducts) ? (
+                <p className="text-sm text-muted-foreground" data-testid="duplicate-notice">
+                  {t("duplicateNotice")}
+                </p>
+              ) : null}
+              {submitted && customerId && dateValid && filled.length === 0 ? (
+                <p className="text-sm text-destructive" role="alert" data-testid="error-lines">
+                  {t("errors.linesRequired")}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card aria-labelledby="order-window-heading" data-testid="order-window">
+            <CardHeader>
+              <CardTitle id="order-window-heading">{t("window.heading")}</CardTitle>
+              <CardDescription>{t("window.hint")}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <FormField label={t("window.from")}>
+                  <Input
+                    id="order-window-from"
+                    type="date"
+                    value={windowFrom}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      windowTouched.current = true;
+                      setWindowFrom(value);
+                      if (windowTo < value || windowTo === windowFrom) setWindowTo(value);
+                      setServerError(null);
+                    }}
+                    aria-invalid={(submitted && !windowValid) || undefined}
+                    required
+                    data-testid="order-window-from"
+                  />
+                </FormField>
+                <FormField label={t("window.to")}>
+                  <Input
+                    id="order-window-to"
+                    type="date"
+                    value={windowTo}
+                    min={windowFrom || undefined}
+                    onChange={(e) => {
+                      windowTouched.current = true;
+                      setWindowTo(e.target.value);
+                      setServerError(null);
+                    }}
+                    aria-invalid={(submitted && !windowValid) || undefined}
+                    required
+                    data-testid="order-window-to"
+                  />
+                </FormField>
+                <FormField label={t("window.fromTime")} hint={t("optional")}>
+                  <Input
+                    id="order-window-from-time"
+                    type="time"
+                    value={windowFromTime}
+                    onChange={(e) => {
+                      windowTouched.current = true;
+                      setWindowFromTime(e.target.value);
+                      setServerError(null);
+                    }}
+                    data-testid="order-window-from-time"
+                  />
+                </FormField>
+                <FormField label={t("window.toTime")} hint={t("optional")}>
+                  <Input
+                    id="order-window-to-time"
+                    type="time"
+                    value={windowToTime}
+                    onChange={(e) => {
+                      windowTouched.current = true;
+                      setWindowToTime(e.target.value);
+                      setServerError(null);
+                    }}
+                    data-testid="order-window-to-time"
+                  />
+                </FormField>
+              </div>
+              {submitted && !windowValid ? (
+                <p className="text-sm text-destructive" role="alert" data-testid="error-window">
+                  {t("errors.windowInvalid")}
+                </p>
+              ) : null}
+              <div className="grid gap-3 border-t border-border pt-5 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-end sm:gap-4">
+                <FormField
+                  label={t("date")}
+                  hint={t("optional")}
+                  error={submitted && !plannedValid ? t("errors.dateInvalid") : undefined}
+                >
+                  <Input
+                    id="order-date"
+                    type="date"
+                    value={plannedDay}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      plannedTouched.current = true;
+                      setPlannedDay(value);
+                      // Without a window of its own the chosen day is the window: the whole day.
+                      if (!windowTouched.current && value) {
+                        setWindowFrom(value);
+                        setWindowTo(value);
+                      }
+                      setServerError(null);
+                    }}
+                    data-testid="order-date"
+                  />
+                </FormField>
+                <p className="text-sm text-muted-foreground sm:pb-2.5">{t("dateHint")}</p>
+              </div>
+              {outsideWindow ? (
+                <Alert variant="warning" role="status" data-testid="warning-outside-window">
+                  <AlertTriangleIcon aria-hidden />
+                  <div>{t("planWarnings.outside_window", { date: plannedDay })}</div>
+                </Alert>
+              ) : null}
+              {warnings.length > 0 ? (
+                <div className="flex flex-col gap-3" data-testid="order-warnings">
+                  {warnings.includes("combined_stop") ? (
+                    <Alert variant="warning" role="status" data-testid="warning-combined">
+                      <AlertTriangleIcon aria-hidden />
+                      <div>{t("warningCombined", { count: confirmedCount })}</div>
+                    </Alert>
                   ) : null}
-                  {aiNotice.note ? <p>{t("ai.note", { note: aiNotice.note })}</p> : null}
-                  {aiNotice.windowNote ? (
-                    <p data-testid="ai-window-note">
-                      {t("ai.windowUnclear", { text: aiNotice.windowNote })}
-                    </p>
+                  {warnings.includes("tour_completed") ? (
+                    <Alert variant="warning" role="status" data-testid="warning-tour-completed">
+                      <AlertTriangleIcon aria-hidden />
+                      <div>{t("warningTourCompleted", { date })}</div>
+                    </Alert>
                   ) : null}
                 </div>
-              </Alert>
-            ) : null}
-          </section>
-        )}
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <section className="flex flex-col gap-3" aria-labelledby="order-lines">
-          <h2 id="order-lines" className="text-xl font-semibold">
-            {t("linesHeading")}
-          </h2>
-          <p className="text-sm text-muted-foreground">{t("quantityHint")}</p>
-          <ul className="flex flex-col gap-3">
-            {lines.map((line, index) => {
-              const product = line.productId ? productById.get(line.productId) : undefined;
-              const error = submitted ? lineErrors(line) : null;
-              const aiLabel = aiLabels[line.key];
-              const aiLineConfidence = aiConfidences[line.key];
-              return (
-                <li key={line.key} className="flex flex-col gap-1" data-testid="order-line">
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center">
-                    <Label htmlFor={`order-line-product-${line.key}`} className="sr-only">
-                      {t("product")} · {t("lineLabel", { n: index + 1 })}
-                    </Label>
-                    <Combobox
-                      id={`order-line-product-${line.key}`}
-                      options={products}
-                      value={line.productId}
-                      onChange={(value) => updateLine(line.key, { productId: value })}
-                      placeholder={t("productPlaceholder")}
-                      searchPlaceholder={t("productSearch")}
-                      emptyText={t("productEmpty")}
-                      className="col-span-2 sm:col-span-1"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`order-line-quantity-${line.key}`} className="sr-only">
-                        {t("quantity")} · {t("lineLabel", { n: index + 1 })}
-                      </Label>
-                      <Input
-                        id={`order-line-quantity-${line.key}`}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        value={line.quantity}
-                        placeholder={t("quantity")}
-                        onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                        onKeyDown={(e) => onQuantityKeyDown(e, line)}
-                        aria-invalid={error === "quantityInvalid" || undefined}
-                        className="min-w-0 flex-1"
-                        data-testid="line-quantity"
-                      />
-                      <span className="w-16 shrink-0 text-base" data-testid="line-unit">
-                        {product ? tc(`units.${product.unit}`) : ""}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeLine(line.key)}
-                      aria-label={t("removeLine", { n: index + 1 })}
-                      data-testid="line-remove"
-                    >
-                      <Trash2Icon aria-hidden />
-                    </Button>
-                  </div>
-                  {aiLabel !== undefined ? (
-                    <p className="text-sm text-muted-foreground" data-testid="line-ai-label">
-                      {t("ai.lineLabelHint", { label: aiLabel })}
-                    </p>
-                  ) : null}
-                  {aiLineConfidence !== undefined && aiLineConfidence < 0.6 ? (
-                    <p
-                      className="text-sm text-warning"
-                      role="status"
-                      data-testid="line-low-confidence"
-                    >
-                      {t("ai.lineLowConfidence")}
-                    </p>
-                  ) : null}
-                  {error ? (
-                    <p className="text-sm text-destructive" role="alert" data-testid="error-line">
-                      {t(`errors.${error}`)}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          <div>
-            <Button type="button" variant="outline" onClick={addLine} data-testid="add-line">
-              <PlusIcon aria-hidden />
-              {t("addLine")}
+          <Card>
+            <CardContent>
+              <FormField label={t("internalNote")} description={t("internalNoteHint")}>
+                <Textarea
+                  id="order-note"
+                  value={note}
+                  maxLength={1000}
+                  rows={3}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="min-h-20"
+                  data-testid="order-note"
+                />
+              </FormField>
+            </CardContent>
+          </Card>
+
+          {serverError ? (
+            <Alert variant="destructive" role="alert" data-testid="order-error">
+              <AlertTriangleIcon aria-hidden />
+              <div>{t(`errors.${serverError as "generic"}`)}</div>
+            </Alert>
+          ) : null}
+
+          <div
+            className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center"
+            data-testid="order-save-bar"
+          >
+            <Button
+              type="button"
+              disabled={pending}
+              onClick={() => save("CONFIRMED")}
+              data-testid="order-save"
+              className="w-full sm:w-auto"
+            >
+              {t("saveConfirmed")}
             </Button>
-          </div>
-          {hasDuplicateProducts(usedProducts) ? (
-            <p className="text-sm text-muted-foreground" data-testid="duplicate-notice">
-              {t("duplicateNotice")}
-            </p>
-          ) : null}
-          {submitted && customerId && dateValid && filled.length === 0 ? (
-            <p className="text-sm text-destructive" role="alert" data-testid="error-lines">
-              {t("errors.linesRequired")}
-            </p>
-          ) : null}
-        </section>
-
-        <div className="flex max-w-xl flex-col gap-2">
-          <Label htmlFor="order-note">{t("internalNote")}</Label>
-          <textarea
-            id="order-note"
-            value={note}
-            maxLength={1000}
-            rows={3}
-            onChange={(e) => setNote(e.target.value)}
-            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-            data-testid="order-note"
-          />
-          <p className="text-sm text-muted-foreground">{t("internalNoteHint")}</p>
-        </div>
-
-        {serverError ? (
-          <p className="text-sm text-destructive" role="alert" data-testid="order-error">
-            {t(`errors.${serverError as "generic"}`)}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            disabled={pending}
-            onClick={() => save("CONFIRMED")}
-            data-testid="order-save"
-          >
-            {t("saveConfirmed")}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={() => save("DRAFT")}
-            data-testid="order-save-draft"
-          >
-            {t("saveDraft")}
-          </Button>
-          {editing ? null : (
             <Button
               type="button"
               variant="outline"
-              disabled={pending || !customerId || recurringLines.length === 0}
-              onClick={() => setRecurringOpen(true)}
-              data-testid="order-recurring-open"
+              disabled={pending}
+              onClick={() => save("DRAFT")}
+              data-testid="order-save-draft"
+              className="w-full sm:w-auto"
             >
-              <RepeatIcon aria-hidden />
-              {t("recurring.open")}
+              {t("saveDraft")}
             </Button>
-          )}
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
+
       {!editing && recurringOpen && customerId && recurringLines.length > 0 ? (
         <OrderRecurringDialog
           customerId={customerId}

@@ -166,15 +166,17 @@ function DriverLoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-6">
-      <BrandMark />
+      <div className="flex items-center justify-between gap-3">
+        <BrandMark />
+        {/* Colour scheme (NUD-132): the tablet may be installed before anyone logs in. Icon only
+            (review 2026-10-31): the moon/sun says enough, the label made the row look cluttered. */}
+        <ThemeToggle className="size-12 border border-input bg-background" />
+      </div>
       <h1 id="driver-login-title" className="text-2xl font-semibold" data-testid="login-title">
         {t("driverLogin.title")}
       </h1>
 
       <LanguagePills callbackUrl={callbackUrl} />
-
-      {/* Colour scheme (NUD-132): the tablet may be installed before anyone logs in. */}
-      <ThemeToggle variant="labeled" className="self-center" />
 
       <form
         action={formAction}
@@ -309,33 +311,41 @@ function AdminLoginForm({ callbackUrl }: { callbackUrl?: string }) {
         <p className="text-sm text-primary-foreground/80">{tCommon("appName")}</p>
       </aside>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+      <div className="relative flex flex-1 flex-col items-center justify-center gap-6 p-6 pt-20 lg:pt-6">
+        {/* NUD-186 (QA 2026-10-29 F21): the office UI exists in de/en/zh-Hans, so the language is
+            pickable before signing in — with `area="admin"`, because `/login` is not `/admin`. The
+            scheme toggle (NUD-132) sits next to it. Both live in the corner of the screen, not in
+            the card (review 2026-10-31): inside the card they pulled the title off balance, and the
+            toggle shows its icon only. */}
+        <div
+          className="absolute top-4 right-4 flex items-center gap-2"
+          data-testid="login-controls"
+        >
+          <LanguageSwitcher
+            variant="compact"
+            area="admin"
+            query={callbackUrl ? { callbackUrl } : undefined}
+            // 48 px: the tablet audit's touch floor also applies to the login screen.
+            className="min-h-12"
+          />
+          <ThemeToggle className="size-12 border border-input bg-background" />
+        </div>
+
         <BrandMark className="lg:hidden" />
 
-        <Card className="w-full max-w-md p-6">
-          <div className="flex flex-col gap-3">
-            <h1 className="text-2xl font-semibold" data-testid="login-title">
+        <Card className="w-full max-w-md p-6 sm:p-8">
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-2xl font-semibold tracking-tight" data-testid="login-title">
               {t("adminLogin.title")}
             </h1>
-            {/* NUD-186 (QA 2026-10-29 F21): the office UI exists in de/en/zh-Hans, so the language is
-                pickable before signing in — with `area="admin"`, because `/login` is not `/admin`.
-                Both controls sit on their own row so the title keeps its width. */}
-            <div className="flex items-center justify-end gap-2">
-              <LanguageSwitcher
-                variant="compact"
-                area="admin"
-                query={callbackUrl ? { callbackUrl } : undefined}
-              />
-              {/* Reachable before signing in (NUD-132), so the office can pick its scheme up front. */}
-              <ThemeToggle variant="labeled" />
-            </div>
+            <p className="text-base text-muted-foreground">{t("adminLogin.subtitle")}</p>
           </div>
 
           <form
             action={formAction}
             noValidate
             onSubmit={handleSubmit}
-            className="mt-5 flex flex-col gap-4"
+            className="mt-6 flex flex-col gap-4"
             data-testid="admin-login-form"
           >
             <input type="hidden" name="locale" value={locale} />

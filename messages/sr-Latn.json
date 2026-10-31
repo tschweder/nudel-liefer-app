@@ -129,6 +129,7 @@
   },
   "auth": {
     "adminLogin": {
+      "subtitle": "Prijavite se e-poštom i lozinkom.",
       "title": "Prijava za kancelariju",
       "email": "E-pošta",
       "password": "Lozinka",

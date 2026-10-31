@@ -2,10 +2,12 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { ImagePreview } from "@/components/shared/image-preview";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCalendarDate } from "@/domain/order";
 import { Link } from "@/i18n/navigation";
 import { createAppFormatters, formatOrderWindow } from "@/lib/format";
 import { type AppLocale, localizedTextSchema, pick } from "@/lib/localized-text";
+import { cn } from "@/lib/utils";
 import type { AuditEntryView } from "@/server/audit-history";
 import type { OrderDetail } from "@/server/orders";
 
@@ -69,131 +71,155 @@ export function OrderDetailView({
         </p>
       )}
 
-      <dl className="grid max-w-3xl gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{t("columns.customer")}</dt>
-          <dd className="text-base">
-            <Link
-              href={`/admin/customers/${order.customer.id}`}
-              className="font-medium text-primary underline-offset-4 hover:underline"
-              data-testid="detail-customer"
-            >
-              {order.customer.name}
-            </Link>
-            <div className="text-sm text-muted-foreground">{order.customer.customerNumber}</div>
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{t("window.label")}</dt>
-          <dd className="text-base" data-testid="detail-window">
-            {formatOrderWindow(fmt, order.window)}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{t("columns.date")}</dt>
-          <dd className="text-base" data-testid="detail-date">
-            {fmt.calendarDate(order.deliveryDate)}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{t("columns.status")}</dt>
-          <dd>
-            <Badge
-              variant={order.status === "CONFIRMED" ? "success" : "secondary"}
-              data-testid="detail-status"
-            >
-              {tc(`statuses.order.${order.status}`)}
-            </Badge>
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{t("columns.source")}</dt>
-          <dd className="text-base" data-testid="detail-source">
-            {t(`source.${order.source}`)}
-            {order.fromRecurring ? (
-              <span className="block text-sm text-muted-foreground" data-testid="detail-recurring">
-                {t("fromRecurring")}
-              </span>
-            ) : null}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-sm text-muted-foreground">{td("tourHeading")}</dt>
-          <dd className="text-base" data-testid="detail-tour" data-tour-id={order.tour?.tourId}>
-            {/* NUD-178 (QA 2026-10-29 F6 + F11): one line, one truth — with the tour's own day, the
+      <Card className="max-w-4xl">
+        <CardContent>
+          <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{t("columns.customer")}</dt>
+              <dd className="text-base">
+                <Link
+                  href={`/admin/customers/${order.customer.id}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  data-testid="detail-customer"
+                >
+                  {order.customer.name}
+                </Link>
+                <div className="text-sm text-muted-foreground">{order.customer.customerNumber}</div>
+              </dd>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{t("window.label")}</dt>
+              <dd className="text-base" data-testid="detail-window">
+                {formatOrderWindow(fmt, order.window)}
+              </dd>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{t("columns.date")}</dt>
+              <dd className="text-base" data-testid="detail-date">
+                {fmt.calendarDate(order.deliveryDate)}
+              </dd>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{t("columns.status")}</dt>
+              <dd>
+                <Badge
+                  variant={order.status === "CONFIRMED" ? "success" : "secondary"}
+                  data-testid="detail-status"
+                >
+                  {tc(`statuses.order.${order.status}`)}
+                </Badge>
+              </dd>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{t("columns.source")}</dt>
+              <dd className="text-base" data-testid="detail-source">
+                {t(`source.${order.source}`)}
+                {order.fromRecurring ? (
+                  <span
+                    className="block text-sm text-muted-foreground"
+                    data-testid="detail-recurring"
+                  >
+                    {t("fromRecurring")}
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted-foreground">{td("tourHeading")}</dt>
+              <dd className="text-base" data-testid="detail-tour" data-tour-id={order.tour?.tourId}>
+                {/* NUD-178 (QA 2026-10-29 F6 + F11): one line, one truth — with the tour's own day, the
                 stop's state and a way into it, and "war Teil einer Tour" once the order is cancelled
                 (a cancelled order is history, not a plan). */}
-            {order.tour ? (
-              <>
-                <Link
-                  href={`/admin/tours?date=${order.tour.date}&tour=${order.tour.tourId}`}
-                  className="underline underline-offset-4"
-                  data-testid="detail-tour-link"
-                >
-                  {order.status === "CANCELLED" ? td("wasInTour") : td("inTourLink")}
-                </Link>
-                <span className="block text-sm text-muted-foreground" data-testid="detail-tour-meta">
-                  {td("tourMeta", {
-                    date: fmt.calendarDate(new Date(`${order.tour.date}T00:00:00Z`)),
-                    stop: td(`stopStatus.${order.tour.stopStatus}`),
-                  })}
-                </span>
-              </>
+                {order.tour ? (
+                  <>
+                    <Link
+                      href={`/admin/tours?date=${order.tour.date}&tour=${order.tour.tourId}`}
+                      className="underline underline-offset-4"
+                      data-testid="detail-tour-link"
+                    >
+                      {order.status === "CANCELLED" ? td("wasInTour") : td("inTourLink")}
+                    </Link>
+                    <span
+                      className="block text-sm text-muted-foreground"
+                      data-testid="detail-tour-meta"
+                    >
+                      {td("tourMeta", {
+                        date: fmt.calendarDate(new Date(`${order.tour.date}T00:00:00Z`)),
+                        stop: tc(`statuses.stop.${order.tour.stopStatus}`),
+                      })}
+                    </span>
+                  </>
+                ) : (
+                  td("notInTour")
+                )}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      <div className="grid max-w-4xl gap-6 lg:grid-cols-2">
+        <Card aria-labelledby="detail-items">
+          <CardHeader>
+            <CardTitle id="detail-items">{t("form.linesHeading")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-1.5" data-testid="detail-items">
+              {order.items.map((item) => (
+                <li key={item.id} className="text-base" data-testid="detail-item">
+                  <span className="font-semibold">
+                    {fmt.quantity(item.quantity)}{" "}
+                    {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
+                      count: Number(item.quantity),
+                    })}
+                  </span>{" "}
+                  {productName(item.productName, locale)}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card aria-labelledby="detail-note">
+          <CardHeader>
+            <CardTitle id="detail-note">{t("form.internalNote")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={cn(
+                "text-base whitespace-pre-line",
+                !order.internalNote && "text-muted-foreground",
+              )}
+              data-testid="detail-note"
+            >
+              {order.internalNote ?? td("noNote")}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card aria-labelledby="detail-screenshot" className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle id="detail-screenshot">{t("form.screenshot.heading")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {order.screenshot ? (
+              <div className="flex flex-col gap-1" data-testid="detail-screenshot">
+                <ImagePreview
+                  src={order.screenshot.url}
+                  alt={td("screenshotAlt")}
+                  fit="contain"
+                  className="h-48 w-48 rounded-lg bg-muted"
+                />
+                <p className="text-sm text-muted-foreground">{td("screenshotHint")}</p>
+              </div>
             ) : (
-              td("notInTour")
+              <p className="text-base text-muted-foreground" data-testid="detail-no-screenshot">
+                {td("noScreenshot")}
+              </p>
             )}
-          </dd>
-        </div>
-      </dl>
-
-      <section className="flex max-w-3xl flex-col gap-2" aria-labelledby="detail-items">
-        <h2 id="detail-items" className="text-xl font-semibold">
-          {t("form.linesHeading")}
-        </h2>
-        <ul className="flex flex-col gap-1" data-testid="detail-items">
-          {order.items.map((item) => (
-            <li key={item.id} className="text-base" data-testid="detail-item">
-              <span className="font-semibold">
-                {fmt.quantity(item.quantity)}{" "}
-                {tu(item.unit as "KG" | "PACK" | "CRATE" | "PIECE", {
-                  count: Number(item.quantity),
-                })}
-              </span>{" "}
-              {productName(item.productName, locale)}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="flex max-w-3xl flex-col gap-2" aria-labelledby="detail-note">
-        <h2 id="detail-note" className="text-xl font-semibold">
-          {t("form.internalNote")}
-        </h2>
-        <p className="text-base whitespace-pre-line" data-testid="detail-note">
-          {order.internalNote ?? td("noNote")}
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-2" aria-labelledby="detail-screenshot">
-        <h2 id="detail-screenshot" className="text-xl font-semibold">
-          {t("form.screenshot.heading")}
-        </h2>
-        {order.screenshot ? (
-          <div className="flex flex-col gap-1" data-testid="detail-screenshot">
-            <ImagePreview
-              src={order.screenshot.url}
-              alt={td("screenshotAlt")}
-              fit="contain"
-              className="h-48 w-48 border bg-muted"
-            />
-            <p className="text-sm text-muted-foreground">{td("screenshotHint")}</p>
-          </div>
-        ) : (
-          <p className="text-base text-muted-foreground" data-testid="detail-no-screenshot">
-            {td("noScreenshot")}
-          </p>
-        )}
-      </section>
+          </CardContent>
+        </Card>
+      </div>
 
       <AuditTimeline entries={history} />
     </div>

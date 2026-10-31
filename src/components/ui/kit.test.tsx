@@ -140,7 +140,10 @@ describe("FormField", () => {
     );
     const label = document.querySelector("label")!;
     expect(label).toHaveAttribute("for", "name");
-    expect(label.querySelector("[aria-hidden]")).toHaveTextContent("*");
+    // The marker sits right after the label text but outside the <label>, so the accessible
+    // name stays exactly "Name" (layout refresh 2026-10).
+    expect(label).toHaveTextContent(/^Name$/);
+    expect(label.parentElement!.querySelector("[aria-hidden]")).toHaveTextContent("*");
   });
 
   it("keeps an appending aria-describedby from the caller", () => {

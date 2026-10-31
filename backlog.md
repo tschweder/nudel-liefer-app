@@ -346,6 +346,7 @@ Read rule: `pick(text, locale)` returns the requested locale; if empty, the clos
 | NUD-188 | Demo-Daten: Sprache des Demo-Fahrers, Testreste in den Pickern | M2.7 | – | done |
 | NUD-189 | Teillieferung / Ist-Menge (Epic nach dem Defekt-Block) | M2.7 | 172 | todo |
 | NUD-190 | Kundenstatus-Link (nach NUD-172) | M2.7 | 172 | todo |
+| NUD-192 | Layout-Refresh des Designers (Büro-Formulare, Tabellen, Login, Auslastung) | M2.7 | – | done |
 | NUD-100 | AI screenshot extraction (review required) | M3 | 031 | superseded → NUD-150 |
 | NUD-101 | Recurring / standing orders | M3 | 032 | superseded → NUD-149 |
 | NUD-102 | Multiple drivers / tours per day | M3 | 043 | superseded → NUD-147 |
@@ -3731,6 +3732,26 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 
 ---
 
+#### NUD-192 · Layout-Refresh des Designers (Büro-Formulare, Tabellen, Login, Auslastung)
+**Status:** done · **depends_on:** – · Quelle: Archiv des Designers (Google Drive, `nudel-liefer-app.zip`), importiert 2026-10-31.
+
+**Goal:** Die vom Designer (eigener Claude-Lauf, ohne Git-Zugriff) überarbeiteten Bildschirme ins Repository holen. Es ist eine reine UI-/Text-Überarbeitung: Karten im Bestellformular, Import-Spalte für Nachricht/Screenshot, ruhigere Tabellen und Formulare, Login mit Untertitel und 48-px-Sprachumschalter, zweizeilige Kacheln unter `sm`.
+
+**Umfang:** 26 Dateien, keine neue Server-Action, keine Route, keine Migration, kein neues i18n-Namespace. `AGENTS.md` kommt mit der vom Designer mitgeschriebenen `next dev`-Fassung des Next.js-Blocks zurück.
+
+**Acceptance criteria**
+- [x] Der Diff gegen `main` (`4e66e72`) enthält ausschließlich Komponenten, `messages/*.json` und den Next.js-Block in `AGENTS.md`.
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm i18n:check` grün; `pnpm test` 2084 Einheitstests grün (`kit.test.tsx` prüft den neuen `FormField`-Marker).
+- [x] Die 57 fehlgeschlagenen `*.integration.test.ts` scheitern identisch auf `main` ohne lokale Datenbank (`ECONNREFUSED 127.0.0.1:5123`) und sind nicht durch diesen Import verursacht.
+- [x] Daten-Testids der e2e-Suite bleiben erhalten (`order-entry`, `order-form`, `screenshot-pane` → `order-import`).
+
+**Implementation notes (NUD-192)**
+- Import per Dateivergleich gegen einen `git archive HEAD`-Export: 936 Dateien, davon 26 geändert, keine neuen oder gelöschten Dateien.
+- `.embedded-postgres` wurde unter Linux initialisiert (`dynamic_shared_memory_type=posix`, `lc_* = C.UTF-8`) und startet auf Windows nicht; Docker läuft nicht, deshalb keine lokale DB für die Integrationstests. Nicht gelöscht (fremde Umgebung), siehe Runbook.
+- Deployt auf den vServer (`deploy.bat`), Health und `/quiz/` unverändert.
+
+---
+
 #### Ein-Zeilen-Eintrag (aus F13, nicht umgesetzt)
 **NUD-191 · Checklisten-Zeilen brauchen explizite Accessible Names** — Status: todo · Quelle: Blackbox-QA 2026-10-29, F13. Die Zeilen sind bereits `<button role="checkbox" aria-checked>` (e2e klickt sie per Rolle); offen ist nur der vorlesbare Name (bisher der zusammengesetzte Kindtext). Aufwand S, ein e2e-Locator per Name. Kein Ticket im QA-Block, weil der Befund als solcher nicht reproduzierbar war.
 
@@ -4170,6 +4191,7 @@ Alle Entscheidungen: Product Owner, 2026-10-29 (§9).
 | 2026-10-29 | NUD-189 | Teillieferung wird ein eigenes Epic nach dem Defekt-Block (Option C) | Es ändert Datenmodell und Buchhaltung und ist kein Fix am QA-Befund |
 | 2026-10-29 | NUD-190 | Kundenstatus-Link kommt nach NUD-172 (Option C) | Der Link ist nur so gut wie das Zeitmodell, das er anzeigt |
 | 2026-10-29 | NUD-104 | Foto-Nachweis: NUD-104 wird erweitert und nach dem Defekt-Block umgesetzt (Option A) | Die Lücke in der Beweiskette ist unabhängig von Mengen und braucht eigene ACs |
+| 2026-10-31 | NUD-192 | Das Designer-Archiv wird als ein Commit übernommen (kein Rebase auf fremde Zwischenstände), Herkunft nur im Ticket vermerkt | Der Import ist ein UI-Diff gegen `main`; ein Zwischenstand hätte keinen eigenen Prüfwert |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 

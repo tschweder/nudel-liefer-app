@@ -265,11 +265,9 @@ export function StopStatusActions({
         </section>
 
         <div
-          // Bottom inset: the 16 px of §7.3 plus room for the iOS home indicator and for the
-          // Next.js dev indicator, which sits bottom-left over a full-width button and swallowed the
-          // "Problem" click of the screenshot harness (run 3 review point 5: `btn-problem` was
-          // covered by `nextjs-portal`, so the problem sheet never appeared in any capture).
-          className="fixed inset-x-0 bottom-0 z-20 space-y-2 border-t bg-card p-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+          // In the page flow, after the stop's details (review 2026-10-31: the fixed bar read as a
+          // misplaced band over the content). Same card look as the sections above it.
+          className="mt-3 space-y-2 rounded-xl border bg-card p-4"
           data-testid="stop-action-bar"
         >
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-semibold">
@@ -353,13 +351,10 @@ export function StopStatusActions({
         ) : null}
       </section>
 
-      {/* Sticky action bar (re-design.md §7.1/§7.3): two rows on purpose — "Problem" must never be
-          hit by accident. Fixed, so the primary action is visible without scrolling at 375 x 667.
-          The bottom inset keeps the last button clear of the Next.js dev indicator (see above). */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-20 space-y-2 border-t bg-card p-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]"
-        data-testid="stop-action-bar"
-      >
+      {/* Action card (re-design.md §7.1/§7.3): two rows on purpose — "Problem" must never be hit
+          by accident. It sits at the end of the stop in the page flow, as a card like the sections
+          above it (review 2026-10-31: the fixed bar read as a misplaced band over the content). */}
+      <div className="mt-3 space-y-2 rounded-xl border bg-card p-4" data-testid="stop-action-bar">
         <Button
           type="button"
           variant="success"

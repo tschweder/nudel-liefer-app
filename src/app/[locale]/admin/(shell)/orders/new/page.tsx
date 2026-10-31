@@ -25,6 +25,7 @@ async function Guarded({ locale }: { locale: string }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={t("newTitle")}
+        description={t("newDescription")}
         breadcrumb={
           <Link
             href="/admin/orders"

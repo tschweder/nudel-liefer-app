@@ -108,13 +108,15 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
             <TableHead>
               <span className="sr-only">{t("columns.order")}</span>
             </TableHead>
-            <TableHead>{t("columns.sku")}</TableHead>
+            <TableHead className="max-md:hidden">{t("columns.sku")}</TableHead>
             {/* Both names share one column (re-design.md §8.6): German bold, Simplified muted below.
                 NUD-153: the two long headers wrap instead of forcing the table wider — the table
                 then fits 768 px portrait instead of scrolling sideways for the status column. */}
             <TableHead className="whitespace-normal">{t("columns.name")}</TableHead>
-            <TableHead>{t("columns.unit")}</TableHead>
-            <TableHead className="text-end whitespace-normal">{t("columns.weight")}</TableHead>
+            <TableHead className="max-md:hidden">{t("columns.unit")}</TableHead>
+            <TableHead className="text-end whitespace-normal max-md:hidden">
+              {t("columns.weight")}
+            </TableHead>
             <TableHead>{t("columns.status")}</TableHead>
             <TableHead className="text-end">
               <span className="sr-only">{t("columns.actions")}</span>
@@ -132,9 +134,10 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
                 className={cn("group/row", !p.active && "text-muted-foreground")}
               >
                 {/* ↑↓ reorder + (nothing else): the ordering controls live in the row's action slot. */}
-                <TableCell className="w-0 py-1.5">
+                <TableCell className="w-0 py-1.5 max-md:px-1">
                   <TooltipProvider>
-                    <div className="flex items-center gap-0.5 opacity-60 transition-opacity duration-150 ease-out group-hover/row:opacity-100 group-focus-within/row:opacity-100 motion-reduce:transition-none">
+                    {/* Phones: the two arrows stack, so the column is one button wide. */}
+                    <div className="flex items-center gap-0.5 opacity-60 max-md:flex-col max-md:gap-0 transition-opacity duration-150 ease-out group-hover/row:opacity-100 group-focus-within/row:opacity-100 motion-reduce:transition-none">
                       <Button
                         type="button"
                         variant="ghost"
@@ -163,7 +166,7 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
                   </TooltipProvider>
                 </TableCell>
 
-                <TableCell className="py-1.5">
+                <TableCell className="py-1.5 max-md:hidden">
                   {/* Artikelnr. */}
                   <span className="font-mono text-sm text-muted-foreground tabular-nums">
                     {p.sku}
@@ -185,16 +188,20 @@ export function ProductsTable({ rows }: { rows: ProductRow[] }) {
                   >
                     {p.name["zh-Hans"]}
                   </span>
+                  <span className="block text-xs text-muted-foreground md:hidden">
+                    <span className="font-mono tabular-nums">{p.sku}</span> ·{" "}
+                    {tc(`unitNames.${p.unit}`)}
+                  </span>
                 </TableCell>
 
-                <TableCell className="py-1.5">
+                <TableCell className="py-1.5 max-md:hidden">
                   <StatusBadge tone="neutral" size="sm">
                     {tc(`unitNames.${p.unit}`)}
                   </StatusBadge>
                 </TableCell>
 
                 <TableCell
-                  className="py-1.5 text-end tabular-nums"
+                  className="py-1.5 text-end tabular-nums max-md:hidden"
                   data-testid="product-weight-cell"
                 >
                   {fmt.number(p.weightKgPerUnit, { maximumFractionDigits: 2 })} kg

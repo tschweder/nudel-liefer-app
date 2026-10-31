@@ -96,8 +96,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="flex max-w-3xl flex-col gap-8" noValidate>
-      <section className="flex flex-col gap-4" aria-labelledby="prod-data">
-        <h2 id="prod-data" className="text-xl font-semibold">
+      <section
+        className="flex flex-col gap-4 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="prod-data"
+      >
+        <h2 id="prod-data" className="text-lg font-semibold tracking-tight">
           {t("dataHeading")}
         </h2>
         <FormField label={t("sku")} htmlFor="prod-sku" required className="max-w-xs">
@@ -171,8 +174,11 @@ export function ProductForm({ productId, initial, unitLocked }: Props) {
         </FormField>
       </section>
 
-      <section className="flex flex-col gap-4" aria-labelledby="prod-names">
-        <h2 id="prod-names" className="text-xl font-semibold">
+      <section
+        className="flex flex-col gap-4 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="prod-names"
+      >
+        <h2 id="prod-names" className="text-lg font-semibold tracking-tight">
           {t("namesHeading")}
         </h2>
         <p className="max-w-prose text-sm text-muted-foreground">{t("namesHint")}</p>

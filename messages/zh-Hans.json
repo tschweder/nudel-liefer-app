@@ -129,6 +129,7 @@
   },
   "auth": {
     "adminLogin": {
+      "subtitle": "使用电子邮件和密码登录。",
       "title": "办公室登录",
       "email": "电子邮箱",
       "password": "密码",
@@ -1122,8 +1123,8 @@
             "notConfigured": "AI 识别未配置（没有 API 密钥）。请手动录入。",
             "screenshotUnavailable": "无法读取该截图。请重新上传。"
           },
-          "heading": "识别订单消息",
-          "hint": "粘贴客户消息（WhatsApp/微信）并/或上传截图。AI 会填写草稿，办公室必须核对。",
+          "heading": "从客户消息导入",
+          "hint": "粘贴消息或附上截图。AI 会建议产品和时间段，办公室核对。",
           "label": "客户消息",
           "lineLabelHint": "识别为：{label}",
           "lineLowConfidence": "识别把握较低——请核对数量。",
@@ -1139,14 +1140,14 @@
         "customerPlaceholder": "选择客户",
         "customerSearch": "按名称或编号搜索",
         "customerEmpty": "未找到客户。",
-        "date": "计划送货日",
+        "date": "固定送货日",
         "linesHeading": "产品",
         "product": "产品",
         "productPlaceholder": "选择产品",
         "productSearch": "按名称或货号搜索",
         "productEmpty": "未找到产品。",
         "quantity": "数量",
-        "quantityHint": "按回车键添加新的产品。",
+        "quantityHint": "在数量栏按回车添加下一行。",
         "lineLabel": "产品 {n}",
         "addLine": "添加产品",
         "removeLine": "删除产品 {n}",
@@ -1192,7 +1193,7 @@
         "savedDraft": "草稿已保存。",
         "screenshot": {
           "heading": "截图",
-          "hint": "可选：上传、拖入或用 Ctrl+V 粘贴 WhatsApp / 微信消息的截图。截图会显示在表单旁边，并随订单一起保存。",
+          "hint": "将截图拖入、选择或用 Ctrl+V 粘贴。",
           "remove": "移除截图",
           "alt": "订单消息截图",
           "zoomHint": "滚轮或加减按钮缩放，拖动平移，双击放大。",
@@ -1202,18 +1203,23 @@
         "editTitle": "编辑订单",
         "customerFixed": "客户无法事后更改。如果客户选错，请取消该订单并重新录入。",
         "window": {
-          "heading": "客户要求的送货时间段",
-          "hint": "客户接收送货的时间段：从几个小时到几天。具体时间可不填。",
+          "heading": "送货",
+          "hint": "客户接收送货的时间段。仅在需要时填写具体时间。",
           "from": "起始日期",
           "to": "截止日期",
           "fromTime": "起始时间",
           "toTime": "截止时间"
         },
-        "dateHint": "留空则自动选择（时间段内最早且仍有车辆运力的送货日）。",
+        "dateHint": "留空：自动选择时间段内最早且仍有车辆运力的送货日。",
         "planWarnings": {
           "no_capacity": "时间段内所有送货日的运力均已占满。订单已安排在 {date}。",
           "no_delivery_day": "时间段内没有送货日。订单已安排在 {date}。",
           "outside_window": "计划送货日 {date} 不在客户要求的送货时间段内。"
+        },
+        "optional": "可选",
+        "import": {
+          "toggle": "消息或截图",
+          "optional": "可选：AI 据此填写草稿。"
         }
       },
       "detail": {
@@ -1326,7 +1332,8 @@
       "window": {
         "label": "送货时间段"
       },
-      "fromRecurring": "来自长期订单"
+      "fromRecurring": "来自长期订单",
+      "newDescription": "选择客户和产品，核对送货信息，保存。"
     },
     "tours": {
       "title": "配送线路",

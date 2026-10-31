@@ -129,6 +129,7 @@
   },
   "auth": {
     "adminLogin": {
+      "subtitle": "Mit E-Mail und Passwort anmelden.",
       "title": "Anmeldung Büro",
       "email": "E-Mail",
       "password": "Passwort",
@@ -976,7 +977,7 @@
         "nameCs": "Name (Tschechisch)",
         "hansRequired": "Der Name auf vereinfachtem Chinesisch ist ein Pflichtfeld.",
         "auto": "automatisch",
-        "autoPlaceholder": "Wird beim Speichern automatisch übersetzt",
+        "autoPlaceholder": "Automatisch beim Speichern",
         "rederive": "Neu aus dem deutschen Namen übersetzen",
         "invalid": "Bitte Eingaben prüfen.",
         "generic": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
@@ -1122,8 +1123,8 @@
             "notConfigured": "KI-Auslesen ist nicht konfiguriert (kein API-Schlüssel). Bitte manuell erfassen.",
             "screenshotUnavailable": "Der Screenshot konnte nicht gelesen werden. Bitte erneut hochladen."
           },
-          "heading": "Bestellnachricht auslesen",
-          "hint": "Nachricht des Kunden einfügen (WhatsApp/WeChat) und/oder Screenshot hochladen. Die KI füllt einen Entwurf, den das Büro immer prüft.",
+          "heading": "Aus Kundennachricht übernehmen",
+          "hint": "Nachricht einfügen oder Screenshot anhängen. Die KI schlägt Produkte und Zeitraum vor, das Büro prüft.",
           "label": "Kundennachricht",
           "lineLabelHint": "Erkannt als: {label}",
           "lineLowConfidence": "Unsicher erkannt – bitte Menge prüfen.",
@@ -1139,14 +1140,14 @@
         "customerPlaceholder": "Kunde wählen",
         "customerSearch": "Nach Name oder Nummer suchen",
         "customerEmpty": "Kein Kunde gefunden.",
-        "date": "Geplanter Liefertag",
+        "date": "Fester Liefertag",
         "linesHeading": "Produkte",
         "product": "Produkt",
         "productPlaceholder": "Produkt wählen",
         "productSearch": "Nach Name oder Artikelnummer suchen",
         "productEmpty": "Kein Produkt gefunden.",
         "quantity": "Menge",
-        "quantityHint": "Mit Enter kommt ein neues Produkt.",
+        "quantityHint": "Enter in der Menge fügt die nächste Zeile hinzu.",
         "lineLabel": "Produkt {n}",
         "addLine": "Produkt hinzufügen",
         "removeLine": "Produkt {n} entfernen",
@@ -1192,7 +1193,7 @@
         "savedDraft": "Entwurf gespeichert.",
         "screenshot": {
           "heading": "Screenshot",
-          "hint": "Optional: Screenshot der WhatsApp-/WeChat-Nachricht hochladen, hineinziehen oder mit Strg+V einfügen. Er wird neben dem Formular angezeigt und bei der Bestellung gespeichert.",
+          "hint": "Screenshot hineinziehen, auswählen oder mit Strg+V einfügen.",
           "remove": "Screenshot entfernen",
           "alt": "Screenshot der Bestellnachricht",
           "zoomHint": "Mausrad oder Plus/Minus zum Zoomen, ziehen zum Verschieben, Doppelklick zum Heranzoomen.",
@@ -1202,18 +1203,23 @@
         "editTitle": "Bestellung bearbeiten",
         "customerFixed": "Der Kunde kann nachträglich nicht geändert werden. Bei einem falschen Kunden die Bestellung stornieren und neu erfassen.",
         "window": {
-          "heading": "Gewünschter Lieferzeitraum",
-          "hint": "Von wann bis wann der Kunde die Lieferung annimmt: wenige Stunden bis mehrere Tage. Die Uhrzeiten sind optional.",
+          "heading": "Lieferung",
+          "hint": "Zeitraum, in dem der Kunde die Lieferung annimmt. Uhrzeiten nur bei Bedarf.",
           "from": "Von (Tag)",
           "to": "Bis (Tag)",
           "fromTime": "Ab Uhrzeit",
           "toTime": "Bis Uhrzeit"
         },
-        "dateHint": "Leer lassen: Der Tag wird automatisch gewählt (frühester Liefertag im Zeitraum mit freier Fahrzeugkapazität).",
+        "dateHint": "Leer lassen: Es wird der früheste Liefertag im Zeitraum mit freier Fahrzeugkapazität gewählt.",
         "planWarnings": {
           "no_capacity": "Alle Liefertage im Zeitraum sind ausgelastet. Die Bestellung wurde für den {date} eingeplant.",
           "no_delivery_day": "Im Zeitraum liegt kein Liefertag. Die Bestellung wurde für den {date} eingeplant.",
           "outside_window": "Der geplante Liefertag {date} liegt außerhalb des gewünschten Lieferzeitraums."
+        },
+        "optional": "optional",
+        "import": {
+          "toggle": "Nachricht oder Screenshot",
+          "optional": "Optional: Die KI füllt daraus einen Entwurf."
         }
       },
       "detail": {
@@ -1326,7 +1332,8 @@
       "window": {
         "label": "Lieferzeitraum"
       },
-      "fromRecurring": "aus Dauerbestellung"
+      "fromRecurring": "aus Dauerbestellung",
+      "newDescription": "Kunde und Produkte wählen, Lieferung prüfen, speichern."
     },
     "tours": {
       "title": "Touren",

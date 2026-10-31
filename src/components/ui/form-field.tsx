@@ -80,14 +80,18 @@ export function FormField({
   return (
     <div data-slot="form-field" className={cn("flex flex-col gap-1.5", className)}>
       <div className="flex items-baseline justify-between gap-2">
-        <Label htmlFor={htmlFor ?? ids.control} className="text-base font-medium">
-          {label}
+        {/* Inline, so a wrapping label keeps the asterisk right after its last word — and the
+            asterisk stays outside the <label>, so the accessible name is exactly the label text. */}
+        <span className="min-w-0 text-base font-medium">
+          <Label htmlFor={htmlFor ?? ids.control} className="inline text-base font-medium">
+            {label}
+          </Label>
           {required ? (
-            <span className="text-destructive" aria-hidden>
+            <span className="ms-1 text-destructive" aria-hidden>
               *
             </span>
           ) : null}
-        </Label>
+        </span>
         {hint ? <span className="text-sm text-muted-foreground">{hint}</span> : null}
       </div>
       {description ? (

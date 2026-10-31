@@ -25,10 +25,13 @@ export function LanguageSwitcher({
   variant = "labeled",
   query,
   area,
+  className,
 }: {
   variant?: Variant;
   query?: Record<string, string>;
   area?: "admin" | "driver";
+  /** Extra classes for the `select` (e.g. a 48 px touch height on the login screens). */
+  className?: string;
 }) {
   const t = useTranslations("common");
   const locale = useLocale();
@@ -47,6 +50,7 @@ export function LanguageSwitcher({
           : "min-h-12 rounded-md border border-input bg-background px-3 text-base",
         variant === "bar" && "w-full",
         variant === "compact" && "min-h-10",
+        className,
       )}
       value={locale}
       disabled={pending}

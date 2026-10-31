@@ -307,8 +307,11 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-10" noValidate>
-      <section className="flex flex-col gap-6" aria-labelledby="cust-data">
-        <h2 id="cust-data" className="text-xl font-semibold">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-data"
+      >
+        <h2 id="cust-data" className="text-lg font-semibold tracking-tight">
           {t("dataHeading")}
         </h2>
         <FieldRow
@@ -347,9 +350,12 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         </FieldRow>
       </section>
 
-      <section className="flex flex-col gap-6" aria-labelledby="cust-address">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-address"
+      >
         <div className="flex flex-col gap-1">
-          <h2 id="cust-address" className="text-xl font-semibold">
+          <h2 id="cust-address" className="text-lg font-semibold tracking-tight">
             {t("addressHeading")}
           </h2>
         </div>
@@ -523,8 +529,11 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         </FieldRow>
       </section>
 
-      <section className="flex flex-col gap-6" aria-labelledby="cust-extra">
-        <h2 id="cust-extra" className="text-xl font-semibold">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-extra"
+      >
+        <h2 id="cust-extra" className="text-lg font-semibold tracking-tight">
           {t("extraHeading")}
         </h2>
         <FieldRow id="cust-hours" label={t("hours")} hint={t("hoursHint")}>
@@ -551,9 +560,12 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         </FieldRow>
       </section>
 
-      <section className="flex flex-col gap-6" aria-labelledby="cust-key">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-key"
+      >
         <div className="flex flex-col gap-1">
-          <h2 id="cust-key" className="text-xl font-semibold">
+          <h2 id="cust-key" className="text-lg font-semibold tracking-tight">
             {t("keyHeading")}
           </h2>
           <p className="max-w-prose text-sm text-muted-foreground">{t("keyHint")}</p>
@@ -587,9 +599,12 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         ) : null}
       </section>
 
-      <section className="flex flex-col gap-6" aria-labelledby="cust-abbreviation">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-abbreviation"
+      >
         <div className="flex flex-col gap-1">
-          <h2 id="cust-abbreviation" className="text-xl font-semibold">
+          <h2 id="cust-abbreviation" className="text-lg font-semibold tracking-tight">
             {t("abbreviationHeading")}
           </h2>
           <p className="max-w-prose text-sm text-muted-foreground">{t("abbreviationHint")}</p>
@@ -606,9 +621,12 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         </FieldRow>
       </section>
 
-      <section className="flex flex-col gap-6" aria-labelledby="cust-office">
+      <section
+        className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+        aria-labelledby="cust-office"
+      >
         <div className="flex flex-col gap-1">
-          <h2 id="cust-office" className="text-xl font-semibold">
+          <h2 id="cust-office" className="text-lg font-semibold tracking-tight">
             {t("officeHeading")}
           </h2>
           <p className="max-w-prose text-sm text-muted-foreground">{t("officeHint")}</p>
@@ -628,9 +646,12 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
       </section>
 
       {customerId && photos && customerName ? (
-        <section className="flex flex-col gap-6" aria-labelledby="cust-photos">
+        <section
+          className="flex flex-col gap-6 rounded-xl bg-card p-5 shadow-sm"
+          aria-labelledby="cust-photos"
+        >
           <div className="flex flex-col gap-1">
-            <h2 id="cust-photos" className="text-xl font-semibold">
+            <h2 id="cust-photos" className="text-lg font-semibold tracking-tight">
               {t("photosHeading")}
             </h2>
             <p className="max-w-prose text-sm text-muted-foreground">{t("photosHint")}</p>
@@ -645,11 +666,13 @@ export function CustomerForm({ customerId, initial, tiles, customerName, photos 
         </p>
       ) : null}
 
-      {/* Sticky save bar (re-design.md §8.5): primary save, ghost discard, unsaved indicator. */}
+      {/* Save row at the end of the form (review 2026-10-31: the sticky bar of re-design.md §8.5
+          floated over the content and read as misplaced): primary save, ghost discard, unsaved
+          indicator. */}
       <div
         role="group"
         aria-label={t("saveBarLabel")}
-        className="sticky bottom-0 z-20 -mx-6 max-[1024px]:bottom-[5.25rem] flex flex-wrap items-center gap-3 border-t bg-card/95 px-6 py-3 backdrop-blur lg:-mx-8 lg:px-8"
+        className="flex flex-wrap items-center gap-3 pt-2"
       >
         <Button type="submit" loading={pending} data-testid="customer-save">
           {customerId ? tc("actions.save") : t("create")}

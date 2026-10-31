@@ -317,6 +317,10 @@ type Labels = {
   reasons: Record<TourReason, string>;
 };
 
+/** Cell of the tour table: on phones the column name is printed above the value. */
+const CELL =
+  "py-1.5 max-md:p-0 max-md:before:block max-md:before:text-xs max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]";
+
 /** Per-tour table: actual vs planned, or why a tour could not be measured (NUD-152). */
 function TourTable({
   tours,
@@ -339,8 +343,10 @@ function TourTable({
     return `${value > 0 ? "+" : ""}${minutes(value)}`;
   };
   return (
+    // Below `md` each tour is a two-column block with the column name above each value (review
+    // 2026-10-31: seven columns at 390 px were cut off at the card edge).
     <Table data-testid="utilization-tours" containerClassName="overscroll-x-contain">
-      <TableHeader data-sticky>
+      <TableHeader data-sticky className="max-md:hidden">
         <TableRow>
           <TableHead>{labels.date}</TableHead>
           <TableHead>{labels.driver}</TableHead>
@@ -353,13 +359,21 @@ function TourTable({
       </TableHeader>
       <TableBody>
         {tours.map(({ tour, driver }) => (
-          <TableRow key={tour.tourId} data-testid={`utilization-tour-${tour.tourId}`}>
-            <TableCell className="py-1.5 tabular-nums">
+          <TableRow
+            key={tour.tourId}
+            data-testid={`utilization-tour-${tour.tourId}`}
+            className="max-md:grid max-md:h-auto max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2 max-md:py-3"
+          >
+            <TableCell className={cn(CELL, "tabular-nums")} data-label={labels.date}>
               {fmt.calendarDate(new Date(`${tour.date}T00:00:00Z`))}
             </TableCell>
-            <TableCell className="py-1.5">{driver.displayName}</TableCell>
-            <TableCell className="py-1.5 tabular-nums">{signed(tour.plannedMinutes)}</TableCell>
-            <TableCell className="py-1.5 tabular-nums">
+            <TableCell className={CELL} data-label={labels.driver}>
+              {driver.displayName}
+            </TableCell>
+            <TableCell className={cn(CELL, "tabular-nums")} data-label={labels.planned}>
+              {signed(tour.plannedMinutes)}
+            </TableCell>
+            <TableCell className={cn(CELL, "tabular-nums")} data-label={labels.actual}>
               {tour.reason === null ? (
                 signed(tour.actualMinutes)
               ) : (
@@ -368,11 +382,13 @@ function TourTable({
                 </span>
               )}
             </TableCell>
-            <TableCell className="py-1.5 tabular-nums">{signed(tour.deltaMinutes)}</TableCell>
-            <TableCell className="py-1.5 tabular-nums">
+            <TableCell className={cn(CELL, "tabular-nums")} data-label={labels.deviation}>
+              {signed(tour.deltaMinutes)}
+            </TableCell>
+            <TableCell className={cn(CELL, "tabular-nums")} data-label={labels.percent}>
               {tour.planPercent === null ? "—" : percent(tour.planPercent)}
             </TableCell>
-            <TableCell className="py-1.5 text-sm">
+            <TableCell className={cn(CELL, "text-sm max-md:col-span-2")} data-label={labels.start}>
               {tour.startSource === "checklist"
                 ? labels.checklist
                 : tour.startSource === "assumed"

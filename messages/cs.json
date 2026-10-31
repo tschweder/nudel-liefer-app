@@ -129,6 +129,7 @@
   },
   "auth": {
     "adminLogin": {
+      "subtitle": "Přihlaste se e-mailem a heslem.",
       "title": "Přihlášení do kanceláře",
       "email": "E-mail",
       "password": "Heslo",

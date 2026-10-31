@@ -24,6 +24,8 @@ type Props = {
   pasteAnywhere?: boolean;
   /** Show a second button that opens the phone camera directly. */
   camera?: boolean;
+  /** One-row variant for forms where the image is optional (order import column). */
+  compact?: boolean;
   className?: string;
 };
 
@@ -34,6 +36,7 @@ export function ImageUploader({
   disabled,
   pasteAnywhere,
   camera,
+  compact = false,
   className,
 }: Props) {
   const t = useTranslations("common.upload");
@@ -109,12 +112,32 @@ export function ImageUploader({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          "flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-6 text-center outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          dragging && "border-primary bg-muted",
+          "rounded-lg border-2 border-dashed border-input outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+          compact
+            ? "flex flex-wrap items-center gap-3 p-3 text-start"
+            : "flex flex-col items-center gap-3 p-6 text-center",
+          dragging && "border-primary bg-primary-soft",
           disabled && "opacity-50",
         )}
       >
-        {busy ? (
+        {compact && !busy ? (
+          <>
+            <ImagePlusIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">{t("dropHere")}</p>
+              <p className="text-xs text-muted-foreground">{t("pasteHint")}</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => fileInput.current?.click()}
+            >
+              {t("choose")}
+            </Button>
+          </>
+        ) : busy ? (
           <>
             <Loader2Icon className="size-8 animate-spin text-muted-foreground" aria-hidden />
             <p role="status">{t("uploading", { percent: Math.round((progress ?? 0) * 100) })}</p>

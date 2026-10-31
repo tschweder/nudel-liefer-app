@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
  * Pure presentation: label with an optional icon in a soft circle, big tabular value, optional sub
  * line. With `href` the whole tile is a link — an arrow circle in the corner shows it, hover lifts
  * the tile, and the label text carries the accessible name, so the link is never an unlabelled box.
+ * Below `sm` the tiles sit two per row, too narrow for icon, label and arrow side by side: the
+ * label then drops onto its own line under the icon/arrow row instead of running into the arrow.
  *
  * `variant="hero"`: the one tile the dashboard leads with, filled with the brand colour (at most one
  * per row — a second hero tile would make neither stand out).
@@ -41,7 +43,7 @@ export function StatTile({
   const hero = variant === "hero";
   const content = (
     <div className="flex flex-col gap-3 px-4 sm:px-5">
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         {Icon ? (
           <span
             className={cn(
@@ -54,7 +56,7 @@ export function StatTile({
         ) : null}
         <span
           className={cn(
-            "min-w-0 flex-1 text-sm font-medium",
+            "min-w-0 flex-1 text-sm font-medium max-sm:order-last max-sm:basis-full",
             hero ? "text-hero-foreground/90" : "text-muted-foreground",
           )}
         >
@@ -64,7 +66,7 @@ export function StatTile({
           <span
             aria-hidden
             className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
+              "flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors max-sm:ms-auto",
               hero
                 ? "border-hero-foreground/30 bg-hero-foreground/10"
                 : "border-border group-hover:bg-muted",

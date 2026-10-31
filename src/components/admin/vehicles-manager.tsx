@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -139,87 +140,94 @@ export function VehiclesManager({ rows }: { rows: VehicleRow[] }) {
       {rows.length === 0 ? (
         <EmptyState title={t("emptyTitle")} description={t("empty")} />
       ) : (
-        <Table data-testid="vehicles-table">
-          <TableHeader data-sticky>
-            <TableRow>
-              <TableHead>{t("columns.name")}</TableHead>
-              <TableHead>{t("columns.plate")}</TableHead>
-              <TableHead className="text-end">{t("columns.capacity")}</TableHead>
-              <TableHead>{t("columns.status")}</TableHead>
-              <TableHead className="text-end">
-                <span className="sr-only">{t("columns.actions")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((v) => (
-              <TableRow
-                key={v.id}
-                data-testid="vehicle-row"
-                data-vehicle-id={v.id}
-                className={cn(!v.active && "text-muted-foreground")}
-              >
-                <TableCell className="py-1.5 font-medium" data-testid="vehicle-name">
-                  {v.name}
-                </TableCell>
-                <TableCell className="py-1.5 tabular-nums">{v.plate ?? "–"}</TableCell>
-                <TableCell className="py-1.5 text-end tabular-nums" data-testid="vehicle-capacity">
-                  {t("capacityValue", { kg: fmt.number(v.capacityKg) })}
-                </TableCell>
-                <TableCell className="py-1.5">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={v.active}
-                      disabled={pending}
-                      aria-label={t("toggleStatus", { name: v.name })}
-                      data-testid="vehicle-status"
-                      onCheckedChange={(next) => setActive(v, next)}
-                    />
-                    <span
-                      className="text-xs whitespace-nowrap"
-                      data-testid={v.active ? "status-active" : "status-inactive"}
+        <Card>
+          <CardContent>
+            <Table data-testid="vehicles-table">
+              <TableHeader data-sticky>
+                <TableRow>
+                  <TableHead>{t("columns.name")}</TableHead>
+                  <TableHead>{t("columns.plate")}</TableHead>
+                  <TableHead className="text-end">{t("columns.capacity")}</TableHead>
+                  <TableHead>{t("columns.status")}</TableHead>
+                  <TableHead className="text-end">
+                    <span className="sr-only">{t("columns.actions")}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((v) => (
+                  <TableRow
+                    key={v.id}
+                    data-testid="vehicle-row"
+                    data-vehicle-id={v.id}
+                    className={cn(!v.active && "text-muted-foreground")}
+                  >
+                    <TableCell className="py-1.5 font-medium" data-testid="vehicle-name">
+                      {v.name}
+                    </TableCell>
+                    <TableCell className="py-1.5 tabular-nums">{v.plate ?? "–"}</TableCell>
+                    <TableCell
+                      className="py-1.5 text-end tabular-nums"
+                      data-testid="vehicle-capacity"
                     >
-                      {v.active ? t("status.active") : t("status.inactive")}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-1.5 text-end">
-                  <RowActions label={t("rowMenu.label", { name: v.name })}>
-                    <DropdownMenuItem
-                      data-testid="vehicle-edit"
-                      onSelect={() =>
-                        setTimeout(
-                          () =>
-                            openForm({
-                              id: v.id,
-                              name: v.name,
-                              plate: v.plate ?? "",
-                              capacity: String(v.capacityKg),
-                            }),
-                          0,
-                        )
-                      }
-                    >
-                      <PencilIcon aria-hidden />
-                      {t("edit")}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant={v.active ? "destructive" : "default"}
-                      disabled={pending}
-                      data-testid={v.active ? "vehicle-deactivate" : "vehicle-activate"}
-                      // Defer so the menu can close before a confirm dialog opens.
-                      onSelect={() => setTimeout(() => setActive(v, !v.active), 0)}
-                    >
-                      {v.active ? <BanIcon aria-hidden /> : <CheckCircle2Icon aria-hidden />}
-                      {v.active ? t("deactivate") : t("activate")}
-                    </DropdownMenuItem>
-                  </RowActions>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {t("capacityValue", { kg: fmt.number(v.capacityKg) })}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={v.active}
+                          disabled={pending}
+                          aria-label={t("toggleStatus", { name: v.name })}
+                          data-testid="vehicle-status"
+                          onCheckedChange={(next) => setActive(v, next)}
+                        />
+                        <span
+                          className="text-xs whitespace-nowrap"
+                          data-testid={v.active ? "status-active" : "status-inactive"}
+                        >
+                          {v.active ? t("status.active") : t("status.inactive")}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-end">
+                      <RowActions label={t("rowMenu.label", { name: v.name })}>
+                        <DropdownMenuItem
+                          data-testid="vehicle-edit"
+                          onSelect={() =>
+                            setTimeout(
+                              () =>
+                                openForm({
+                                  id: v.id,
+                                  name: v.name,
+                                  plate: v.plate ?? "",
+                                  capacity: String(v.capacityKg),
+                                }),
+                              0,
+                            )
+                          }
+                        >
+                          <PencilIcon aria-hidden />
+                          {t("edit")}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant={v.active ? "destructive" : "default"}
+                          disabled={pending}
+                          data-testid={v.active ? "vehicle-deactivate" : "vehicle-activate"}
+                          // Defer so the menu can close before a confirm dialog opens.
+                          onSelect={() => setTimeout(() => setActive(v, !v.active), 0)}
+                        >
+                          {v.active ? <BanIcon aria-hidden /> : <CheckCircle2Icon aria-hidden />}
+                          {v.active ? t("deactivate") : t("activate")}
+                        </DropdownMenuItem>
+                      </RowActions>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       <Dialog open={form !== null} onOpenChange={(open) => !open && setForm(null)}>
