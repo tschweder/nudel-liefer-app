@@ -6,6 +6,7 @@ import { requireDepot } from "@/domain/settings";
 import { hashSecret } from "./auth/password";
 import { LocalHeuristicProvider } from "./routing";
 import { createTestDb, type TestDb } from "./test-db";
+import { createTourService } from "./tour-service";
 
 /**
  * NUD-212: the route of a delivery day is its standing tour in fixed order plus the extras of that
@@ -238,6 +239,45 @@ describe.skipIf(!process.env.DATABASE_URL)("day routes (NUD-212)", { timeout: 60
     expect(result.ok && result.routes.map((r) => r.outcome)).toEqual(["updated", "updated"]);
     expect(await names(south)).toEqual(["S1"]);
     expect(await names(north)).toEqual(["N1", "X-Loewengasse"]);
+  });
+
+  it("flags only the route a new customer lands on, not the other sent route", async () => {
+    await order("N1");
+    await order("S1");
+    await send();
+    const flagged = async () =>
+      (
+        await t.prisma.tour.findMany({
+          where: { date: day, isOutdated: true },
+          select: { standingTourId: true },
+        })
+      ).map((row) => row.standingTourId);
+    const tours = createTourService(t.prisma);
+
+    // An extra placed on Süd (smallest detour) and a new standing customer of Nord.
+    await order("X-Loewengasse");
+    await tours.markOutdatedForDate(day, t.prisma, { customerIds: [c["X-Loewengasse"]!] });
+    expect(await flagged()).toEqual([south]);
+
+    await order("N2");
+    await tours.markOutdatedForDate(day, t.prisma, { customerIds: [c.N2!] });
+    expect((await flagged()).sort()).toEqual([north, south].sort());
+  });
+
+  it("still flags every open tour of the old flow for a customer without a stop", async () => {
+    await order("N1");
+    await send();
+    const old = await t.prisma.tour.create({
+      data: { date: day, status: "RELEASED", depotSnapshot: {} },
+    });
+    await order("S2");
+    await createTourService(t.prisma).markOutdatedForDate(day, t.prisma, {
+      customerIds: [c.S2!],
+    });
+    expect((await t.prisma.tour.findUniqueOrThrow({ where: { id: old.id } })).isOutdated).toBe(
+      true,
+    );
+    expect((await tourOf(north)).isOutdated).toBe(false);
   });
 
   it("keeps completed stops and sends the open ones in route order", async () => {

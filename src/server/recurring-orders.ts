@@ -619,7 +619,7 @@ export type CascadeReport = { cancelledOrders: number; pausedRules: number };
  * Tours that contained a cancelled order are flagged outdated, so the office re-releases them.
  */
 export async function cascadeCustomerInactive(
-  tx: Pick<PrismaClient, "recurringOrder" | "order" | "auditLog" | "tour">,
+  tx: Pick<PrismaClient, "recurringOrder" | "auditLog"> & TourDb,
   tours: TourHook,
   actorId: string,
   customerId: string,

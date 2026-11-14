@@ -4180,6 +4180,7 @@ Quelle: Übergabe-Protokoll Kap. 7.2 („Abrechnungsexport", „Korrekturzeile",
 - [x] "Touren" is gone from the menu, the bottom bar of the phone and the search; every link that pointed to a tour (overview, orders, payments, late orders, load sheet "Zurück") leads to the day plan of that date.
 - [x] The overview names the route of a driver ("Route Süd · Transporter 2") and says when a route of today has changes the driver does not have yet.
 - [x] Toasts of the day plan sit above its send bar (a toast had covered "Änderungen senden").
+- [x] Saving a new customer marks only the route he lands on as changed; the other sent route (and its load sheet) stays as it is (found while preparing the presentation: a new extra on route 2 made route 1 "changed" too).
 - [x] de, en, zh-Hans; checked at 390 px (no sideways scrolling, rows wrap) and 1280 px; no row menu; yellow only on the send button.
 
 **Implementation notes (NUD-212)**
@@ -4699,6 +4700,7 @@ Quelle: Übergabe-Protokoll Kap. 7.2 („Abrechnungsexport", „Korrekturzeile",
 | 2026-11-14 | NUD-212 | One button sends all routes of the day; sending saves first | One place and one click for the office (owner's choice); a half-typed day never reaches a driver because sending is a deliberate click. |
 | 2026-11-14 | NUD-212 | The place of a moved extra lives on the order (`routeStandingTourId`, `routeSlot`) | It belongs to that delivery only; the retention job removes it with the order and no table is added. |
 | 2026-11-18 | NUD-212 | A delivered or problem stop locks its quantities on the day plan and in the server | Simulation: the office could change what the driver had already delivered, and the bill would then show a quantity nobody delivered. |
+| 2026-11-14 | NUD-212 | A customer without a stop flags only the day route he lands on; tours of the old flow are still all flagged | With two fixed routes the target is known (member or placed extra); flagging every open tour told the office and the load sheet of the other driver about a change that was not his. |
 
 ## 10. Open questions for the client (do not block on these – use placeholders)
 
