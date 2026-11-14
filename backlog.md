@@ -4180,6 +4180,7 @@ Quelle: Übergabe-Protokoll Kap. 7.2 („Abrechnungsexport", „Korrekturzeile",
 - [x] "Touren" is gone from the menu, the bottom bar of the phone and the search; every link that pointed to a tour (overview, orders, payments, late orders, load sheet "Zurück") leads to the day plan of that date.
 - [x] The overview names the route of a driver ("Route Süd · Transporter 2") and says when a route of today has changes the driver does not have yet.
 - [x] Toasts of the day plan sit above its send bar (a toast had covered "Änderungen senden").
+- [x] With the map open, the driver and vehicle lists open above the map (owner 2026-11-14: they opened behind it). Every map keeps its layers to itself (`isolation: isolate` on `.nudel-map-wrap`).
 - [x] Saving a new customer marks only the route he lands on as changed; the other sent route (and its load sheet) stays as it is (found while preparing the presentation: a new extra on route 2 made route 1 "changed" too).
 - [x] de, en, zh-Hans; checked at 390 px (no sideways scrolling, rows wrap) and 1280 px; no row menu; yellow only on the send button.
 
