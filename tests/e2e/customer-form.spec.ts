@@ -94,6 +94,8 @@ test("customer: create (address point looked up by itself), find it, duplicate n
     // Findable through the list search; the row carries the "Ohne Parkplatz" flag.
     await page.goto("/de/admin/customers");
     await page.getByTestId("customer-search").fill(`osteria gute ${tag}`);
+    // The search reaches the address 200 ms later; a click before that was undone by it (CI).
+    await expect(page).toHaveURL(/[?&]q=/);
     const rows = page.getByTestId("customer-row");
     await expect(rows).toHaveCount(1);
     await expect(rows.first().getByTestId("flag-parking-missing")).toBeVisible();
