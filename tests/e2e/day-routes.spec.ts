@@ -170,6 +170,57 @@ test("day plan: the route with its extra goes to the driver, a change is sent ag
   }
 });
 
+test("day plan: the driver list opens above an open map", async ({ page }) => {
+  const f = await fixture();
+  try {
+    await loginAdmin(page);
+    await page.goto(`/de/admin/planning?date=${f.day}`);
+    await tid(page, `route-map-${f.route}`).click();
+    await expect(page.locator(".leaflet-container").first()).toBeVisible();
+    // A real map tile is an opaque picture; stand one in that covers the whole map.
+    await page.evaluate(() => {
+      const tile = document.createElement("div");
+      tile.setAttribute("data-testid", "fake-tile");
+      tile.style.cssText =
+        "position:absolute;left:-2000px;top:-2000px;width:5000px;height:5000px;background:#123;";
+      document.querySelector(".leaflet-tile-pane")!.appendChild(tile);
+    });
+    // Every option that lies on the map and is shown must be the topmost thing there. Both lists
+    // are opened with their field at the top of the screen, so they fall onto the map.
+    const optionsOnMap = async (field: string) => {
+      await tid(page, field).evaluate((el) =>
+        window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80),
+      );
+      await tid(page, field).click();
+      await expect(page.getByRole("option").first()).toBeVisible();
+      const result = await page.evaluate(() => {
+        const map = document.querySelector(".leaflet-container")!.getBoundingClientRect();
+        const list = document.querySelector('[role="listbox"]')!.getBoundingClientRect();
+        return [...document.querySelectorAll('[role="option"]')].flatMap((option) => {
+          const r = option.getBoundingClientRect();
+          const x = r.left + r.width / 2;
+          const y = r.top + r.height / 2;
+          const onMap = x > map.left && x < map.right && y > map.top && y < map.bottom;
+          const shown = y > list.top && y < list.bottom && y < window.innerHeight;
+          if (!onMap || !shown) return [];
+          return [Boolean(document.elementFromPoint(x, y)?.closest('[role="option"]'))];
+        });
+      });
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("listbox")).toHaveCount(0);
+      return result;
+    };
+    const checked = [
+      ...(await optionsOnMap(`driver-${f.route}`)),
+      ...(await optionsOnMap(`vehicle-${f.route}`)),
+    ];
+    const onTop = checked.length > 0 && checked.every(Boolean);
+    expect(onTop).toBe(true);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("day plan on a phone: no sideways scrolling", async ({ page }) => {
   const f = await fixture();
   try {

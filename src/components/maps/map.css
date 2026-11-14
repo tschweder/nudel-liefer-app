@@ -13,8 +13,15 @@
 
 /* --- Leaflet shell ------------------------------------------------------- */
 
+/*
+ * Leaflet gives its panes and controls z-index 200 to 1000 without a stacking context of its own,
+ * so the map was painted over every pop-up of the page (z-50): with the day plan's map open the
+ * driver and vehicle lists opened behind the tiles (owner, 2026-11-14). `isolation` keeps all of
+ * the map's layers inside the map.
+ */
 .nudel-map-wrap {
   position: relative;
+  isolation: isolate;
 }
 
 .nudel-map-icon {
